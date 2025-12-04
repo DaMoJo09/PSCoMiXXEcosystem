@@ -585,18 +585,32 @@ export default function MotionStudio() {
             
             <div className="flex-1" />
             
-            <div 
-              className="w-10 h-10 border-2 border-zinc-600 cursor-pointer relative"
-              style={{ backgroundColor: brushColor }}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'color';
-                input.value = brushColor;
-                input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
-                input.click();
-              }}
-            >
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border border-zinc-600" />
+            <div className="space-y-2 pb-2">
+              <div className="grid grid-cols-2 gap-1">
+                {["#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff6600", "#9900ff"].map(color => (
+                  <button
+                    key={color}
+                    onClick={() => setBrushColor(color)}
+                    className={`w-5 h-5 border ${brushColor === color ? 'border-white ring-1 ring-white' : 'border-zinc-600'}`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+              <div 
+                className="w-10 h-10 border-2 border-zinc-600 cursor-pointer relative mx-auto"
+                style={{ backgroundColor: brushColor }}
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'color';
+                  input.value = brushColor;
+                  input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
+                  input.click();
+                }}
+                title="Pick custom color"
+              >
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border border-zinc-600" />
+              </div>
             </div>
           </aside>
 

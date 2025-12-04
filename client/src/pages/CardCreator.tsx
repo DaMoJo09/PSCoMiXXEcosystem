@@ -25,6 +25,7 @@ const CARD_TYPES = ["Character", "Weapon", "Spell", "Event", "Location", "Item"]
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"];
 
 interface CardData {
+  id: string;
   name: string;
   type: string;
   rarity: string;
@@ -40,6 +41,14 @@ interface CardData {
   loreFont: string;
   borderColor: string;
   accentColor: string;
+}
+
+interface PackData {
+  name: string;
+  cardsPerPack: number;
+  rarityDistribution: { [key: string]: number };
+  cards: CardData[];
+  packArt: string;
 }
 
 export default function CardCreator() {
@@ -63,6 +72,7 @@ export default function CardCreator() {
   const backInputRef = useRef<HTMLInputElement>(null);
 
   const [cardData, setCardData] = useState<CardData>({
+    id: `card_${Date.now()}`,
     name: "Cyber Ronin",
     type: "Character",
     rarity: "Legendary",
@@ -79,6 +89,17 @@ export default function CardCreator() {
     borderColor: "#000000",
     accentColor: "#FFD700",
   });
+
+  const [packData, setPackData] = useState<PackData>({
+    name: "Cyber Legends Pack",
+    cardsPerPack: 5,
+    rarityDistribution: { Common: 2, Uncommon: 1, Rare: 1, Epic: 1 },
+    cards: [],
+    packArt: cardArt,
+  });
+
+  const [selectedPackCard, setSelectedPackCard] = useState<string | null>(null);
+  const packArtInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const creatingFlag = sessionStorage.getItem('card_creating');
@@ -153,6 +174,69 @@ export default function CardCreator() {
     toast.success("AI image applied");
   };
 
+  const addCardToPack = () => {
+    const newCard: CardData = {
+      id: `card_${Date.now()}`,
+      name: `Card ${packData.cards.length + 1}`,
+      type: CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)],
+      rarity: RARITIES[Math.floor(Math.random() * 3)],
+      frontImage: cardArt,
+      backImage: backCoverArt,
+      attack: Math.floor(Math.random() * 10) + 1,
+      defense: Math.floor(Math.random() * 10) + 1,
+      cost: Math.floor(Math.random() * 5) + 1,
+      lore: "A mysterious card waiting to be designed...",
+      effect: "Effect to be determined.",
+      nameFont: "'Impact', sans-serif",
+      statsFont: "'Courier New', monospace",
+      loreFont: "Georgia, serif",
+      borderColor: "#000000",
+      accentColor: "#FFD700",
+    };
+    setPackData({ ...packData, cards: [...packData.cards, newCard] });
+    setSelectedPackCard(newCard.id);
+    toast.success("Card added to pack");
+  };
+
+  const updatePackCard = (cardId: string, updates: Partial<CardData>) => {
+    setPackData({
+      ...packData,
+      cards: packData.cards.map(c => c.id === cardId ? { ...c, ...updates } : c)
+    });
+  };
+
+  const removeCardFromPack = (cardId: string) => {
+    setPackData({
+      ...packData,
+      cards: packData.cards.filter(c => c.id !== cardId)
+    });
+    if (selectedPackCard === cardId) setSelectedPackCard(null);
+    toast.success("Card removed from pack");
+  };
+
+  const duplicatePackCard = (cardId: string) => {
+    const card = packData.cards.find(c => c.id === cardId);
+    if (card) {
+      const newCard = { ...card, id: `card_${Date.now()}`, name: `${card.name} (Copy)` };
+      setPackData({ ...packData, cards: [...packData.cards, newCard] });
+      toast.success("Card duplicated");
+    }
+  };
+
+  const handlePackArtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setPackData({ ...packData, packArt: event.target?.result as string });
+      toast.success("Pack art updated");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const selectedCard = packData.cards.find(c => c.id === selectedPackCard);
+
   if (isCreating) {
     return (
       <Layout>
@@ -207,6 +291,7 @@ export default function CardCreator() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
+          {mode === "single" ? (
           <div className="w-80 p-4 overflow-auto border-r border-zinc-800 bg-zinc-900 space-y-4">
             <div className="flex border-b border-zinc-700">
               {["design", "stats", "lore", "style"].map(section => (
@@ -414,12 +499,213 @@ export default function CardCreator() {
               </button>
             </div>
           </div>
+          ) : (
+          <div className="w-80 p-4 overflow-auto border-r border-zinc-800 bg-zinc-900 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-zinc-400">Pack Name</label>
+              <input 
+                type="text" 
+                value={packData.name}
+                onChange={(e) => setPackData({ ...packData, name: e.target.value })}
+                className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-zinc-400 flex justify-between">
+                <span>Pack Art</span>
+              </label>
+              <div 
+                onClick={() => packArtInputRef.current?.click()}
+                className="aspect-video bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white overflow-hidden"
+              >
+                <img src={packData.packArt} className="w-full h-full object-cover" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-zinc-400">Cards Per Pack</label>
+              <input 
+                type="number" 
+                value={packData.cardsPerPack}
+                onChange={(e) => setPackData({ ...packData, cardsPerPack: Number(e.target.value) })}
+                className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                min={1}
+                max={15}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold uppercase text-zinc-400">Cards in Pack</label>
+                <span className="text-xs text-zinc-500">{packData.cards.length} cards</span>
+              </div>
+              <button 
+                onClick={addCardToPack}
+                className="w-full py-2 bg-white text-black text-sm font-bold flex items-center justify-center gap-2 hover:bg-zinc-200"
+              >
+                <Plus className="w-4 h-4" /> Add Card
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {packData.cards.map((card, idx) => (
+                <div 
+                  key={card.id}
+                  onClick={() => setSelectedPackCard(card.id)}
+                  className={`p-2 border cursor-pointer flex items-center gap-2 group ${
+                    selectedPackCard === card.id ? "bg-white text-black border-white" : "border-zinc-700 hover:border-zinc-500"
+                  }`}
+                >
+                  <div className="w-8 h-10 bg-zinc-800 overflow-hidden flex-shrink-0">
+                    <img src={card.frontImage} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate">{card.name}</p>
+                    <p className={`text-[10px] ${selectedPackCard === card.id ? "text-zinc-600" : "text-zinc-500"}`}>
+                      {card.rarity} {card.type}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeCardFromPack(card.id); }}
+                    className={`p-1 opacity-0 group-hover:opacity-100 ${selectedPackCard === card.id ? "hover:text-red-600" : "hover:text-red-500"}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {selectedCard && (
+              <div className="pt-4 border-t border-zinc-700 space-y-3">
+                <h4 className="text-xs font-bold uppercase text-zinc-400">Edit Selected Card</h4>
+                <div className="space-y-2">
+                  <input 
+                    type="text" 
+                    value={selectedCard.name}
+                    onChange={(e) => updatePackCard(selectedCard.id, { name: e.target.value })}
+                    className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                    placeholder="Card name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select 
+                    value={selectedCard.type}
+                    onChange={(e) => updatePackCard(selectedCard.id, { type: e.target.value })}
+                    className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                  >
+                    {CARD_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                  <select 
+                    value={selectedCard.rarity}
+                    onChange={(e) => updatePackCard(selectedCard.id, { rarity: e.target.value })}
+                    className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                  >
+                    {RARITIES.map(r => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-500">ATK</label>
+                    <input 
+                      type="number" 
+                      value={selectedCard.attack}
+                      onChange={(e) => updatePackCard(selectedCard.id, { attack: Number(e.target.value) })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-500">DEF</label>
+                    <input 
+                      type="number" 
+                      value={selectedCard.defense}
+                      onChange={(e) => updatePackCard(selectedCard.id, { defense: Number(e.target.value) })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-500">Cost</label>
+                    <input 
+                      type="number" 
+                      value={selectedCard.cost}
+                      onChange={(e) => updatePackCard(selectedCard.id, { cost: Number(e.target.value) })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => duplicatePackCard(selectedCard.id)}
+                  className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-3 h-3" /> Duplicate Card
+                </button>
+              </div>
+            )}
+          </div>
+          )}
 
           <div className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                  style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
             
-            {side === "front" ? (
+            <input 
+              ref={packArtInputRef} 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handlePackArtUpload} 
+            />
+            
+            {mode === "pack" ? (
+              <div className="relative">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-bold">{packData.name}</h3>
+                  <p className="text-xs text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
+                </div>
+                
+                <div className="relative w-[280px] aspect-[3/4] mx-auto">
+                  <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
+                    <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                      <div className="bg-black/80 p-4 border border-white/20">
+                        <h4 className="text-xl font-bold uppercase tracking-widest">{packData.name}</h4>
+                        <p className="text-xs text-zinc-400 mt-1">{packData.cardsPerPack} Cards</p>
+                      </div>
+                    </div>
+                    <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-1">
+                      {packData.cards.slice(0, 5).map((card, i) => (
+                        <div 
+                          key={card.id}
+                          className="w-8 h-12 border border-white/20 bg-zinc-800 overflow-hidden"
+                          style={{ transform: `rotate(${(i - 2) * 5}deg)` }}
+                        >
+                          <img src={card.frontImage} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {packData.cards.slice(0, 3).map((card, i) => (
+                    <div 
+                      key={card.id}
+                      className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                      style={{ 
+                        transform: `translate(${(i + 1) * 8}px, ${(i + 1) * -8}px) rotate(${(i + 1) * 2}deg)`,
+                        zIndex: -i - 1 
+                      }}
+                    >
+                      <div className="w-full h-full bg-zinc-800 border-2 border-zinc-700 opacity-50" />
+                    </div>
+                  ))}
+                </div>
+                
+                {packData.cards.length === 0 && (
+                  <p className="text-center text-zinc-500 text-sm mt-4">
+                    Add cards to your pack from the sidebar
+                  </p>
+                )}
+              </div>
+            ) : side === "front" ? (
               <div 
                 className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl group"
                 style={{ backgroundColor: cardData.borderColor }}
