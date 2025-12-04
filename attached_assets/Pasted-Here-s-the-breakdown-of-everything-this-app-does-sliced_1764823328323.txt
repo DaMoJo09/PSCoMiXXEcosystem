@@ -1,0 +1,427 @@
+Here’s the breakdown of everything this app does, sliced up so you can wire it into a bigger ecosystem later (desktop app, backend, reader, whatever).
+
+I’ll group it by **global settings** and then each **major tool/module**.
+
+---
+
+## 1. Global App Layer (Settings & Providers)
+
+### 1.1 License / Mode
+
+* **Free vs Pro toggle**
+
+  * `Free Version`
+  * `Pro License` with “Activate Pro / Clear” UI. ([Comixx][1])
+* **Effect of Pro:** unlocks **Claude AI** as a text provider (“Claude (Pro)” vs “Gemini (Free)”). ([Comixx][1])
+
+**Integration notes:**
+
+* In your ecosystem, this becomes:
+
+  * A `user.plan` or `user.license_tier` field.
+  * Feature-gating which LLM is used per request.
+* You’ll want a central **auth/entitlement service** so *all* tools (web, desktop, mobile) know if user is free or pro.
+
+---
+
+### 1.2 Text AI Provider Config
+
+* Toggle between:
+
+  * **Gemini (Free)**
+  * **Claude (Pro)** ([Comixx][1])
+* UI for entering & saving **Gemini API key** (`Get free Gemini API key`, `Save/Clear Key`). ([Comixx][1])
+
+**Integration notes:**
+
+* Treat this as a **User Settings** object:
+
+  ```json
+  {
+    "text_ai_provider": "gemini" | "claude",
+    "gemini_api_key": "…",   // optionally stored, or handled server-side
+    "claude_enabled": true/false // from Pro license
+  }
+  ```
+* In a unified ecosystem, you might *not* store raw keys per-user and instead proxy everything through your backend.
+
+---
+
+### 1.3 Image Generation Provider Config
+
+* Default: **Pollinations.ai (Free, no key)**. ([Comixx][1])
+* Additional options (within Prompt Factory):
+
+  * Pollinations
+  * GetImg.ai
+  * Stable Horde ([Comixx][1])
+* Copy explains usage:
+
+  * Pollinations is free, fast, good for concepts, no transparency. ([Comixx][1])
+
+**Integration notes:**
+
+* Model this as:
+
+  ```json
+  {
+    "image_provider": "pollinations" | "getimg" | "stable_horde"
+  }
+  ```
+* In your bigger app, the generators (cards, comics, etc.) can all hit a central **Image Generation microservice** that respects this setting.
+
+---
+
+## 2. Tool 1 – Input Prompt Factory / Concept Generator
+
+This is the **asset prompt engine**.
+
+### 2.1 Purpose
+
+* “Input Prompt Factory” → “Concept Generator” for:
+
+  * Quick concept art & references.
+  * Not full production assets (that’s MJ + Photoshop pipeline). ([Comixx][1])
+
+### 2.2 Core Features
+
+1. **Image Provider Selection**
+
+   * Pollinations / GetImg / Stable Horde. ([Comixx][1])
+
+2. **Style Boost Presets**
+
+   * Preset style buttons:
+
+     * Anime, Pixar, 3D, Comic Book, Manga, Chibi, Ghibli, Pixel Art, Cyberpunk, Watercolor, Flat Vector, etc. ([Comixx][1])
+   * These likely modify the final prompt string.
+
+3. **Reference Image Upload & Analysis**
+
+   * “Drop image or click to upload.”
+   * Action: `Analyze Image → Generate DNA & Description`. ([Comixx][1])
+
+4. **Style Presets (Second Layer)**
+
+   * Another set of style buttons (Anime, Pixar, 3D, Comic, Manga, Chibi, Retro Game, Watercolor, Noir, Flat Vector, Ghibli, Pixel Art, Cyberpunk). ([Comixx][1])
+
+5. **Style DNA & Asset Metadata**
+
+   * Generated “Style DNA” text (long description of look). ([Comixx][1])
+   * Asset Type selector:
+
+     * Character / Environment / Props / UI / Icons / Sprite Sheet / Animation Pack / Full Style Kit. ([Comixx][1])
+   * Animation Type selector:
+
+     * Idle / Walk / Run / Jump / Wave / Talk / Custom… ([Comixx][1])
+
+6. **Character / Asset Description**
+
+   * Free text “Character / Asset Description” field. ([Comixx][1])
+   * Button: **“Enhance with AI”** → produces **“Enhanced Version”** text, with “Use This / Keep Original” options. ([Comixx][1])
+
+7. **Generate Prompts**
+
+   * “Generate Prompts” action to produce:
+
+     * “Output Ready to Copy” section. ([Comixx][1])
+   * It’s clearly designed for copy-pasting into:
+
+     * MidJourney
+     * Higgsfield
+     * Your future sprite/animation pipelines.
+
+8. **Asset Recommendations**
+
+   * Short guide:
+
+     * Concept art: Concept Gen / MJ / Higgsfield.
+     * Sprite sheets: MidJourney only.
+     * Animation: Higgsfield.
+     * Production: MidJourney → Photoshop polish. ([Comixx][1])
+
+### 2.3 Integration Notes
+
+For another app, treat this as a **Prompt Service**:
+
+* **Inputs:**
+
+  * Optional reference image URL.
+  * Style presets.
+  * Asset type, animation type.
+  * Raw description text.
+* **Outputs:**
+
+  * `style_dna` string.
+  * `enhanced_description` string.
+  * 1–N `prompts` ready for different tools (MJ, Higgsfield, Pollinations, etc.).
+
+You could expose this as a backend endpoint like:
+
+```http
+POST /prompt-factory/generate
+```
+
+and then reuse it in:
+
+* Card maker (character art prompts)
+* Comic builder (backgrounds)
+* Visual novel sprites
+* Game assets
+
+---
+
+## 3. Tool 2 – Story Forge (Story & Character Builder)
+
+This is the **narrative generator**.
+
+### 3.1 Purpose
+
+* “AI-powered creative toolkit for comics, stories, and games.”
+* The Story Forge builds structured **characters + story setup**, then uses AI (Gemini/Claude) to generate a story. ([Comixx][1])
+
+### 3.2 Character Builder
+
+For each character:
+
+* Fields:
+
+  * Name
+  * Role (Protagonist / Antagonist / Sidekick / Mentor / Love Interest / Comic Relief / Supporting)
+  * Physical Appearance
+  * Personality Traits
+  * Flaws / Weaknesses
+  * Backstory
+  * Skills / Abilities
+  * Motivation / Goal ([Comixx][1])
+* You can “+ Add Character” to build a character roster.
+
+### 3.3 Story Setup Form
+
+Fields include: ([Comixx][1])
+
+* Story Title
+* Genre (Fantasy, Sci-Fi, Horror, Mystery, Romance, Action/Adventure, Thriller, Comedy, Drama, Superhero, Post-Apocalyptic, Slice of Life)
+* Time Period (Ancient → Far Future, etc.)
+* Setting / World
+* Tone / Mood
+* Target Audience
+* Core Themes
+* Central Conflict (Person vs Person/Self/Society/Nature/Tech/Supernatural/Fate)
+* Plot Summary / Premise
+* Story Length (Short/Medium/Long/Extended)
+* Story Format (Prose, Comic Script, Screenplay, Game Narrative)
+
+Then **“Forge Story”** triggers AI generation. ([Comixx][1])
+
+### 3.4 Generated Story & Actions
+
+* “Generated Story” display area.
+* Story Actions:
+
+  * **Send to CYOA Maker →**
+  * Download `.TXT`
+  * Download `.MD`
+  * Copy to Clipboard ([Comixx][1])
+
+### 3.5 Integration Notes
+
+Model this as a **Story Design Service**:
+
+* **Input object** (characters + story config).
+* **Output object**:
+
+  * `generated_story` (text/markdown).
+  * Character metadata (you already have that from inputs).
+* Integration options:
+
+  * Directly seed **Visual Novel** projects.
+  * Seed **Comic scripts** (panels/dialog).
+  * Pass to **CYOA Maker** programmatically (next tool).
+
+In a unified app, you probably want a `StoryTemplate` entity that stores:
+
+```json
+{
+  "id": "...",
+  "title": "...",
+  "characters": [...],
+  "genre": "...",
+  "format": "comic_script" | "vn" | "game_narrative",
+  "generated_text": "..."
+}
+```
+
+---
+
+## 4. Tool 3 – CYOA Maker
+
+This is the **branching logic builder**.
+
+### 4.1 Purpose
+
+* Take a linear story and turn it into a **Choose Your Own Adventure** structure. ([Comixx][1])
+
+### 4.2 Inputs
+
+* “Paste Your Story” text area (usually the story from Story Forge). ([Comixx][1])
+* Settings:
+
+  * **Branch Points**:
+
+    * 3 / 5 / 7 / 10 decision points. ([Comixx][1])
+  * **Options Per Branch**:
+
+    * 2 / 3 / 4 options per decision. ([Comixx][1])
+
+### 4.3 Actions & Outputs
+
+* Button: **Generate CYOA**. ([Comixx][1])
+* “Interactive Preview” area (play through structure). ([Comixx][1])
+* Export Options:
+
+  * **Export .CYOA**
+  * **Export JSON**
+  * **Export Text**
+  * Copy to Clipboard ([Comixx][1])
+
+### 4.4 Integration Notes
+
+This is basically a **branching-story compiler**.
+
+* **Input:** raw story text and branching parameters.
+* **Output:** a **graph**:
+
+  ```json
+  {
+    "nodes": [
+      {
+        "id": "scene_1",
+        "text": "...",
+        "choices": [
+          { "label": "Go left", "target": "scene_2" },
+          { "label": "Go right", "target": "scene_3" }
+        ]
+      },
+      ...
+    ]
+  }
+  ```
+* The `.CYOA` file is probably a custom extension around that JSON.
+
+In your larger ecosystem, this plugs directly into:
+
+* **Visual Novel Creator** (each node = VN scene).
+* **Comic engine** (each node = page or panel sequence).
+* **Game logic** (branch tree for quests/levels).
+
+You’ll want a shared `CyoaProject` model in your backend that stores that JSON graph and links to the story / comic / VN it controls.
+
+---
+
+## 5. Cross-Tool Flow (How They Chain)
+
+The app is designed around a **pipeline**:
+
+1. **Prompt Factory → Art Pipelines**
+
+   * Generates prompts to create:
+
+     * Characters
+     * Environments
+     * Sprite sheets
+     * Animation packs
+   * These feed your *art asset creation* (MJ, Higgsfield, etc.) and then your **comic / VN tools**.
+
+2. **Story Forge → Script**
+
+   * Builds structured story + characters.
+   * Outputs a story that can be:
+
+     * Used as a script for comics.
+     * Used as narrative for games.
+     * Pushed into CYOA Maker for branching.
+
+3. **Story Forge → CYOA Maker**
+
+   * One-click “Send to CYOA Maker”.
+   * CYOA Maker converts linear story into branches.
+
+4. **CYOA Maker → CYOA/VN Engine**
+
+   * JSON / .CYOA is the **bridge format** for any other tool:
+
+     * Visual novels.
+     * Interactive comics.
+     * Story-driven games.
+
+---
+
+## 6. How to Integrate This Into Another App (High-Level)
+
+When you rebuild or integrate into your **PSCoMiXX ecosystem**, think of these as **three backend services** + **one settings service**:
+
+1. **Settings Service**
+
+   * Manages:
+
+     * License tier (Free/Pro).
+     * Text AI provider and keys.
+     * Image provider selection.
+   * Shared across:
+
+     * Desktop creator, mobile app, web tools.
+
+2. **Prompt Factory Service**
+
+   * Given:
+
+     * Asset metadata (type, style, animation type).
+     * Optional reference image URL.
+     * Description text.
+   * Returns:
+
+     * `style_dna`
+     * `enhanced_description`
+     * `prompts[]` for different image/animation tools.
+
+3. **Story Forge Service**
+
+   * Given:
+
+     * Characters list.
+     * Story config.
+   * Returns:
+
+     * `generated_story` text.
+   * Also able to:
+
+     * Export story as `.txt` / `.md`.
+     * Provide ready-to-send payload for CYOA Maker.
+
+4. **CYOA Maker Service**
+
+   * Given:
+
+     * Plain story text.
+     * `branch_points`, `options_per_branch`.
+   * Returns:
+
+     * A branching story JSON graph.
+     * Optionally `.CYOA` packaged file.
+
+You can host these behind a unified API and let:
+
+* PSCoMiXX desktop app
+* Mobile app
+* psstreaming.online reader
+* Future Unreal games
+
+all consume the same tools.
+
+---
+
+If you want, next step I can do is:
+**design the exact data models / JSON shapes** for Prompt Factory, Story Forge, and CYOA Maker so your PSCoMiXX core backend can talk to them cleanly.
+
+[1]: https://comixx.website/ "PRESS START STUDIO"
