@@ -1,17 +1,32 @@
 import { Layout } from "@/components/layout/Layout";
-import { Save, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Save, Download, RefreshCw, Sparkles, Package } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
+import { useState } from "react";
 
 export default function CardCreator() {
+  const [mode, setMode] = useState<"single" | "pack">("single");
+
   return (
     <Layout>
       <div className="h-screen flex flex-col">
         <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background">
-          <h2 className="font-display font-bold text-lg">Card Forge</h2>
-          <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm">
-            <Download className="w-4 h-4" /> Export Card
-          </button>
-        </header>
+          <div className="flex items-center gap-4">
+            <h2 className="font-display font-bold text-lg">Card Forge</h2>
+            <div className="flex bg-secondary p-1 rounded-sm">
+              <button 
+                onClick={() => setMode("single")}
+                className={`px-3 py-1 text-xs font-medium rounded-sm transition-all flex items-center gap-2 ${mode === "single" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+              >
+                <Sparkles className="w-3 h-3" /> Single Card
+              </button>
+              <button 
+                onClick={() => setMode("pack")}
+                className={`px-3 py-1 text-xs font-medium rounded-sm transition-all flex items-center gap-2 ${mode === "pack" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+              >
+                <Package className="w-3 h-3" /> Pack Builder
+              </button>
+            </div>
+          </div>
 
         <div className="flex-1 flex overflow-hidden">
           {/* Form Area */}

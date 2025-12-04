@@ -10,7 +10,8 @@ import {
   Image as ImageIcon, 
   Square,
   Layers,
-  Download
+  Download,
+  Film
 } from "lucide-react";
 import { useState } from "react";
 
@@ -20,6 +21,7 @@ const tools = [
   { icon: Eraser, label: "Erase" },
   { icon: Type, label: "Text" },
   { icon: ImageIcon, label: "Image" },
+  { icon: Film, label: "Video" },
   { icon: Square, label: "Panel" },
 ];
 
