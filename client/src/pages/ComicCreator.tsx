@@ -170,11 +170,13 @@ export default function ComicCreator() {
   
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
+  const isCreatingRef = useRef(false);
 
   const currentSpread = spreads[currentSpreadIndex];
 
   useEffect(() => {
-    if (!projectId && !isCreating) {
+    if (!projectId && !isCreatingRef.current) {
+      isCreatingRef.current = true;
       setIsCreating(true);
       createProject.mutateAsync({
         title: "Untitled Comic",
@@ -183,13 +185,13 @@ export default function ComicCreator() {
         data: { spreads: [{ id: "spread_1", leftPage: [], rightPage: [] }] },
       }).then((newProject) => {
         navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
-        setIsCreating(false);
       }).catch(() => {
         toast.error("Failed to create project");
+        isCreatingRef.current = false;
         setIsCreating(false);
       });
     }
-  }, [projectId, isCreating]);
+  }, [projectId]);
 
   useEffect(() => {
     if (project) {
