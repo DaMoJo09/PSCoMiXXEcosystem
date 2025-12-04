@@ -3,7 +3,9 @@
   "short_name": "CoMixx",
   "description": "Create Comics, Trading Cards, Visual Novels, CYOA stories, and more with AI-powered creative tools.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "any",
@@ -12,7 +14,13 @@
       "src": "/logo-dark.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-dark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/logo-light.png",
@@ -23,11 +31,42 @@
     {
       "src": "/favicon.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "categories": ["entertainment", "graphics", "productivity"],
+  "categories": ["entertainment", "graphics", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Create Comic",
+      "short_name": "Comic",
+      "description": "Start a new comic project",
+      "url": "/creator/comic",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Create Card",
+      "short_name": "Card",
+      "description": "Design a trading card",
+      "url": "/creator/card",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Motion Studio",
+      "short_name": "Motion",
+      "description": "Create motion comics",
+      "url": "/creator/motion",
+      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+    }
+  ],
   "screenshots": [],
   "related_applications": [],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
