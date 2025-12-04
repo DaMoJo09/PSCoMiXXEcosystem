@@ -176,6 +176,8 @@ export default function ComicCreator() {
         case 'delete': case 'backspace': handleDeleteSelected(); e.preventDefault(); break;
         case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
         case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
+        case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
+        case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
         case '[': setBrushSize(s => Math.max(1, s - 2)); break;
         case ']': setBrushSize(s => Math.min(100, s + 2)); break;
       }
