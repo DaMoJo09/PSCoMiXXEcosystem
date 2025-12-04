@@ -543,6 +543,9 @@ export default function ComicCreator() {
           width: `${panel.width}%`,
           height: `${panel.height}%`,
           zIndex: panel.zIndex,
+          boxShadow: isSelected 
+            ? '0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)' 
+            : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
         }}
         onClick={(e) => handlePanelClick(e, panel.id, page)}
         onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
