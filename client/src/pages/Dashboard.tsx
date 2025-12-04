@@ -210,9 +210,16 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
-            <Clock className="w-5 h-5" /> Recent Projects
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2">
+              <Clock className="w-5 h-5" /> Recent Projects
+            </h2>
+            {projects && projects.length > 4 && (
+              <span className="text-sm text-muted-foreground font-mono">
+                Showing 4 of {projects.length} projects
+              </span>
+            )}
+          </div>
           
           {isLoading ? (
             <div className="flex justify-center py-12">
@@ -220,7 +227,7 @@ export default function Dashboard() {
             </div>
           ) : projects && projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {projects.map((project) => (
+              {projects.slice(0, 4).map((project) => (
                 <div 
                   key={project.id}
                   onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
