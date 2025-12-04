@@ -30,6 +30,42 @@ const GENRE_TEMPLATES = [
   { id: "mystery", name: "Mystery", colors: ["#1C1C2D", "#2E8B57", "#C0C0C0"] },
 ];
 
+const COVER_TEMPLATES = [
+  { id: "marvel-classic", name: "Marvel Classic (1960s-80s)", bgColor: "#FFFFFF", titleFont: "'Impact', sans-serif", titleColor: "#000000", bannerBg: "#000000", priceBox: true },
+  { id: "marvel-modern", name: "Marvel Modern (2000s+)", bgColor: "#1a1a1a", titleFont: "'Impact', sans-serif", titleColor: "#FF0000", bannerBg: "#1a1a1a", priceBox: false },
+  { id: "dc-classic", name: "DC Classic (Bronze Age)", bgColor: "#FFFFFF", titleFont: "'Arial Black', sans-serif", titleColor: "#0000CC", bannerBg: "#FFFF00", priceBox: true },
+  { id: "indie-minimal", name: "Indie Minimal", bgColor: "#FAFAFA", titleFont: "'Space Grotesk', sans-serif", titleColor: "#222222", bannerBg: "transparent", priceBox: false },
+  { id: "ironman-126", name: "Iron Man #126 Style", bgColor: "#FFFFFF", titleFont: "'Impact', sans-serif", titleColor: "#8B0000", bannerBg: "#000000", priceBox: true },
+  { id: "spiderman-vintage", name: "Spider-Man Vintage", bgColor: "#FFFFFF", titleFont: "'Impact', sans-serif", titleColor: "#FF0000", bannerBg: "#0000CC", priceBox: true },
+  { id: "golden-age", name: "Golden Age (1940s)", bgColor: "#FFF8DC", titleFont: "Georgia, serif", titleColor: "#8B4513", bannerBg: "#FFD700", priceBox: true },
+  { id: "horror-tales", name: "Horror/Dark (Tales from Crypt)", bgColor: "#1a0a0a", titleFont: "'Courier New', monospace", titleColor: "#8B0000", bannerBg: "#000000", priceBox: false },
+  { id: "retro-newspaper", name: "Retro Newspaper (1930s)", bgColor: "#F5DEB3", titleFont: "Georgia, serif", titleColor: "#2F4F4F", bannerBg: "#8B4513", priceBox: true },
+  { id: "manga-shonen", name: "Manga (Shonen Jump)", bgColor: "#FFFFFF", titleFont: "'Impact', sans-serif", titleColor: "#FF6600", bannerBg: "#000000", priceBox: false },
+  { id: "grunge-underground", name: "Grunge Underground (1970s)", bgColor: "#3d3d3d", titleFont: "'Courier New', monospace", titleColor: "#CCFF00", bannerBg: "#000000", priceBox: false },
+  { id: "team-heroes", name: "Team Heroes (Avengers)", bgColor: "#1a1a4e", titleFont: "'Impact', sans-serif", titleColor: "#FFD700", bannerBg: "#8B0000", priceBox: true },
+  { id: "custom-blank", name: "Custom/Freeform (Blank Canvas)", bgColor: "#000000", titleFont: "Inter, sans-serif", titleColor: "#FFFFFF", bannerBg: "transparent", priceBox: false },
+];
+
+const FILTER_PRESETS = {
+  contrast: 50,
+  brightness: 50,
+  saturation: 100,
+  grayscale: false,
+  sepia: false,
+  invert: false,
+  halftone: false,
+  halftoneIntensity: 100,
+  halftoneSize: 4,
+  grain: false,
+  sharpen: false,
+  blur: false,
+  vignette: false,
+  yellowing: false,
+  stains: false,
+  folds: false,
+  tears: false,
+};
+
 interface TextLayer {
   id: string;
   text: string;
@@ -69,6 +105,15 @@ interface CoverData {
   frontLayers: TextLayer[];
   backLayers: TextLayer[];
   spineLayers: TextLayer[];
+  templateId: string;
+  bannerText: string;
+  bannerBgColor: string;
+  showPriceBox: boolean;
+  priceText: string;
+  issueNumber: string;
+  publisherName: string;
+  tagline: string;
+  filters: typeof FILTER_PRESETS;
 }
 
 const defaultCover: CoverData = {
@@ -100,6 +145,15 @@ const defaultCover: CoverData = {
   frontLayers: [],
   backLayers: [],
   spineLayers: [],
+  templateId: "marvel-classic",
+  bannerText: "COMICS GROUP",
+  bannerBgColor: "#000000",
+  showPriceBox: true,
+  priceText: "40¢",
+  issueNumber: "#1",
+  publisherName: "PUBLISHER",
+  tagline: "COLLECT THEM ALL!",
+  filters: { ...FILTER_PRESETS },
 };
 
 export default function CoverCreator() {
@@ -228,8 +282,31 @@ export default function CoverCreator() {
     const layerKey = `${view}Layers` as keyof CoverData;
     const layers = coverData[layerKey] as TextLayer[];
     updateCover({ [layerKey]: layers.filter(l => l.id !== layerId) });
-    if (selectedLayerId === layerId) setSelectedLayerId(null);
-    toast.success("Layer deleted");
+  };
+
+  const applyTemplate = (templateId: string) => {
+    const template = COVER_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    updateCover({
+      templateId,
+      frontBgColor: template.bgColor,
+      titleFont: template.titleFont,
+      titleColor: template.titleColor,
+      bannerBgColor: template.bannerBg,
+      showPriceBox: template.priceBox,
+    });
+    toast.success(`Applied ${template.name} template`);
+  };
+
+  const updateFilter = (key: keyof typeof FILTER_PRESETS, value: any) => {
+    updateCover({ filters: { ...coverData.filters, [key]: value } });
+  };
+
+  const getFilterStyle = (): React.CSSProperties => {
+    const f = coverData.filters;
+    return {
+      filter: `contrast(${100 + (f.contrast - 50)}%) brightness(${100 + (f.brightness - 50)}%) saturate(${f.saturation}%)${f.grayscale ? ' grayscale(100%)' : ''}${f.sepia ? ' sepia(100%)' : ''}${f.invert ? ' invert(100%)' : ''}${f.blur ? ' blur(2px)' : ''}`
+    };
   };
 
   const applyGenreTemplate = (template: typeof GENRE_TEMPLATES[0]) => {
@@ -255,32 +332,80 @@ export default function CoverCreator() {
         onClick={() => { setSelectedLayerId(null); setActiveView(view); }}
       >
         {bgImage && (
-          <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" />
+          <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" style={getFilterStyle()} />
+        )}
+        
+        {coverData.filters.halftone && (
+          <div className="absolute inset-0 pointer-events-none z-[5] mix-blend-multiply" 
+               style={{ 
+                 backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`,
+                 backgroundSize: `${coverData.filters.halftoneSize}px ${coverData.filters.halftoneSize}px`
+               }} />
+        )}
+        
+        {coverData.filters.grain && (
+          <div className="absolute inset-0 pointer-events-none z-[5] opacity-20 mix-blend-overlay"
+               style={{ 
+                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")` 
+               }} />
+        )}
+        
+        {coverData.filters.vignette && (
+          <div className="absolute inset-0 pointer-events-none z-[6]"
+               style={{ 
+                 background: 'radial-gradient(circle, transparent 50%, rgba(0,0,0,0.5) 100%)' 
+               }} />
         )}
         
         {view === "front" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-between p-8 text-center z-10">
-            <div className="mt-12">
-              <h1 
-                style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
-                className="font-bold uppercase tracking-tight leading-none"
+          <>
+            {coverData.bannerBgColor && coverData.bannerBgColor !== "transparent" && (
+              <div 
+                className="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-2 z-20 text-white"
+                style={{ backgroundColor: coverData.bannerBgColor }}
               >
-                {coverData.title}
-              </h1>
+                <span className="text-xs font-bold">{coverData.publisherName}</span>
+                <span className="text-xs">{coverData.tagline}</span>
+              </div>
+            )}
+            
+            {coverData.showPriceBox && (
+              <div className="absolute top-2 right-2 w-10 h-10 bg-white border-2 border-black flex items-center justify-center z-20">
+                <span className="text-xs font-bold text-black">{coverData.priceText}</span>
+              </div>
+            )}
+            
+            {coverData.issueNumber && (
+              <div className="absolute top-2 left-2 z-20">
+                <span className="text-2xl font-bold" style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }}>
+                  {coverData.issueNumber}
+                </span>
+              </div>
+            )}
+            
+            <div className="absolute inset-0 flex flex-col items-center justify-between p-8 text-center z-10">
+              <div className="mt-16">
+                <h1 
+                  style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
+                  className="font-bold uppercase tracking-tight leading-none"
+                >
+                  {coverData.title}
+                </h1>
+                <p 
+                  style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
+                  className="mt-2 italic"
+                >
+                  {coverData.subtitle}
+                </p>
+              </div>
               <p 
-                style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
-                className="mt-2 italic"
+                style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                className="mb-8 font-medium tracking-widest uppercase"
               >
-                {coverData.subtitle}
+                {coverData.author}
               </p>
             </div>
-            <p 
-              style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
-              className="mb-8 font-medium tracking-widest uppercase"
-            >
-              {coverData.author}
-            </p>
-          </div>
+          </>
         )}
 
         {view === "back" && (
@@ -447,7 +572,63 @@ export default function CoverCreator() {
                 </div>
 
                 <div className="pt-4 border-t border-zinc-700">
-                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Genre Templates</label>
+                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Cover Templates</label>
+                  <select
+                    value={coverData.templateId}
+                    onChange={(e) => applyTemplate(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm mb-3"
+                  >
+                    {COVER_TEMPLATES.map(template => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                  
+                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Comic Details</label>
+                  <div className="space-y-2">
+                    <input 
+                      type="text" 
+                      placeholder="Issue # (e.g., #1)"
+                      value={coverData.issueNumber}
+                      onChange={(e) => updateCover({ issueNumber: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Publisher Name"
+                      value={coverData.publisherName}
+                      onChange={(e) => updateCover({ publisherName: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Tagline"
+                      value={coverData.tagline}
+                      onChange={(e) => updateCover({ tagline: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Price (e.g., 40¢)"
+                        value={coverData.priceText}
+                        onChange={(e) => updateCover({ priceText: e.target.value })}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                      />
+                      <label className="flex items-center gap-2 text-xs text-zinc-400">
+                        <input 
+                          type="checkbox" 
+                          checked={coverData.showPriceBox}
+                          onChange={(e) => updateCover({ showPriceBox: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        Show
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700">
+                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Color Themes</label>
                   <div className="grid grid-cols-3 gap-2">
                     {GENRE_TEMPLATES.map(template => (
                       <button
@@ -651,6 +832,122 @@ export default function CoverCreator() {
                       <span className="text-zinc-500 text-xs flex items-center gap-1"><Upload className="w-3 h-3" /> Upload</span>
                     )}
                   </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700 space-y-3">
+                  <label className="text-xs font-bold uppercase text-zinc-400 block">Filter Builder</label>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Contrast</span>
+                      <span className="text-xs text-zinc-500">{coverData.filters.contrast}%</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="100" 
+                      value={coverData.filters.contrast}
+                      onChange={(e) => updateFilter('contrast', Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Brightness</span>
+                      <span className="text-xs text-zinc-500">{coverData.filters.brightness}%</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="100" 
+                      value={coverData.filters.brightness}
+                      onChange={(e) => updateFilter('brightness', Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Saturation</span>
+                      <span className="text-xs text-zinc-500">{coverData.filters.saturation}%</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="200" 
+                      value={coverData.filters.saturation}
+                      onChange={(e) => updateFilter('saturation', Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.grayscale}
+                        onChange={(e) => updateFilter('grayscale', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Grayscale
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.sepia}
+                        onChange={(e) => updateFilter('sepia', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Sepia
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.invert}
+                        onChange={(e) => updateFilter('invert', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Invert
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.blur}
+                        onChange={(e) => updateFilter('blur', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Blur
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.halftone}
+                        onChange={(e) => updateFilter('halftone', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Halftone
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.grain}
+                        onChange={(e) => updateFilter('grain', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Grain
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={coverData.filters.vignette}
+                        onChange={(e) => updateFilter('vignette', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Vignette
+                    </label>
+                  </div>
+
+                  <button 
+                    onClick={() => updateCover({ filters: { ...FILTER_PRESETS } })}
+                    className="w-full py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600"
+                  >
+                    Reset Filters
+                  </button>
                 </div>
               </div>
             )}

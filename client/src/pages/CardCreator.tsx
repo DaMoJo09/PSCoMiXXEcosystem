@@ -24,6 +24,32 @@ const FONT_OPTIONS = [
 const CARD_TYPES = ["Character", "Weapon", "Spell", "Event", "Location", "Item"];
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"];
 
+const CARD_TEMPLATES = [
+  { id: "mtg-style", name: "Magic: The Gathering Style", borderColor: "#1a1a1a", accentColor: "#C9A227", frameStyle: "classic" },
+  { id: "pokemon-style", name: "Pokemon Style", borderColor: "#FFD93D", accentColor: "#FF6B6B", frameStyle: "rounded" },
+  { id: "yugioh-style", name: "Yu-Gi-Oh! Style", borderColor: "#8B4513", accentColor: "#FFD700", frameStyle: "angular" },
+  { id: "hearthstone-style", name: "Hearthstone Style", borderColor: "#4A3728", accentColor: "#FF9F1C", frameStyle: "ornate" },
+  { id: "cyberpunk", name: "Cyberpunk Neon", borderColor: "#000000", accentColor: "#00FFFF", frameStyle: "tech" },
+  { id: "noir-classic", name: "Noir Classic", borderColor: "#1a1a1a", accentColor: "#FFFFFF", frameStyle: "minimal" },
+  { id: "vintage-sepia", name: "Vintage Sepia", borderColor: "#5C4033", accentColor: "#D4A574", frameStyle: "aged" },
+  { id: "horror-blood", name: "Horror/Blood", borderColor: "#1a0000", accentColor: "#8B0000", frameStyle: "splatter" },
+  { id: "fantasy-gold", name: "Fantasy Gold", borderColor: "#2C1810", accentColor: "#FFD700", frameStyle: "ornate" },
+  { id: "scifi-hologram", name: "Sci-Fi Hologram", borderColor: "#0a0a2e", accentColor: "#00FF88", frameStyle: "holographic" },
+  { id: "minimalist-white", name: "Minimalist White", borderColor: "#FFFFFF", accentColor: "#000000", frameStyle: "clean" },
+  { id: "dark-souls", name: "Dark Souls Style", borderColor: "#1a1a1a", accentColor: "#FF6600", frameStyle: "gothic" },
+];
+
+const CARD_FILTERS = {
+  contrast: 50,
+  brightness: 50,
+  saturation: 100,
+  grayscale: false,
+  sepia: false,
+  halftone: false,
+  grain: false,
+  vignette: false,
+};
+
 interface CardData {
   id: string;
   name: string;
@@ -41,6 +67,8 @@ interface CardData {
   loreFont: string;
   borderColor: string;
   accentColor: string;
+  templateId: string;
+  filters: typeof CARD_FILTERS;
 }
 
 interface PackData {
@@ -88,6 +116,8 @@ export default function CardCreator() {
     loreFont: "Georgia, serif",
     borderColor: "#000000",
     accentColor: "#FFD700",
+    templateId: "noir-classic",
+    filters: { ...CARD_FILTERS },
   });
 
   const [packData, setPackData] = useState<PackData>({
@@ -174,6 +204,28 @@ export default function CardCreator() {
     toast.success("AI image applied");
   };
 
+  const applyCardTemplate = (templateId: string) => {
+    const template = CARD_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    updateCard({
+      templateId,
+      borderColor: template.borderColor,
+      accentColor: template.accentColor,
+    });
+    toast.success(`Applied ${template.name} template`);
+  };
+
+  const updateCardFilter = (key: keyof typeof CARD_FILTERS, value: any) => {
+    updateCard({ filters: { ...cardData.filters, [key]: value } });
+  };
+
+  const getCardFilterStyle = (): React.CSSProperties => {
+    const f = cardData.filters;
+    return {
+      filter: `contrast(${100 + (f.contrast - 50)}%) brightness(${100 + (f.brightness - 50)}%) saturate(${f.saturation}%)${f.grayscale ? ' grayscale(100%)' : ''}${f.sepia ? ' sepia(100%)' : ''}`
+    };
+  };
+
   const addCardToPack = () => {
     const newCard: CardData = {
       id: `card_${Date.now()}`,
@@ -192,6 +244,8 @@ export default function CardCreator() {
       loreFont: "Georgia, serif",
       borderColor: "#000000",
       accentColor: "#FFD700",
+      templateId: "noir-classic",
+      filters: { ...CARD_FILTERS },
     };
     setPackData({ ...packData, cards: [...packData.cards, newCard] });
     setSelectedPackCard(newCard.id);
@@ -372,6 +426,86 @@ export default function CardCreator() {
                       <span className="text-zinc-500 text-xs"><Upload className="w-4 h-4 mx-auto mb-1" /> Upload</span>
                     )}
                   </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700">
+                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Card Templates</label>
+                  <select
+                    value={cardData.templateId}
+                    onChange={(e) => applyCardTemplate(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                  >
+                    {CARD_TEMPLATES.map(template => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700 space-y-3">
+                  <label className="text-xs font-bold uppercase text-zinc-400 block">Image Filters</label>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Contrast</span>
+                      <span className="text-xs text-zinc-500">{cardData.filters.contrast}%</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="100" 
+                      value={cardData.filters.contrast}
+                      onChange={(e) => updateCardFilter('contrast', Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Brightness</span>
+                      <span className="text-xs text-zinc-500">{cardData.filters.brightness}%</span>
+                    </div>
+                    <input 
+                      type="range" min="0" max="100" 
+                      value={cardData.filters.brightness}
+                      onChange={(e) => updateCardFilter('brightness', Number(e.target.value))}
+                      className="w-full accent-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={cardData.filters.grayscale}
+                        onChange={(e) => updateCardFilter('grayscale', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Grayscale
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={cardData.filters.sepia}
+                        onChange={(e) => updateCardFilter('sepia', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Sepia
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={cardData.filters.halftone}
+                        onChange={(e) => updateCardFilter('halftone', e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      Halftone
+                    </label>
+                  </div>
+
+                  <button 
+                    onClick={() => updateCard({ filters: { ...CARD_FILTERS } })}
+                    className="w-full py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600"
+                  >
+                    Reset Filters
+                  </button>
                 </div>
               </div>
             )}
@@ -729,7 +863,14 @@ export default function CardCreator() {
                   </div>
                   
                   <div className="flex-1 relative overflow-hidden border-b-2" style={{ borderColor: cardData.borderColor }}>
-                    <img src={cardData.frontImage} className="w-full h-full object-cover" />
+                    <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
+                    {cardData.filters.halftone && (
+                      <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
+                           style={{ 
+                             backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`,
+                             backgroundSize: '4px 4px'
+                           }} />
+                    )}
                     <div className="absolute bottom-0 left-0 px-2 py-1 text-xs font-bold text-white" style={{ backgroundColor: cardData.borderColor }}>
                       {cardData.rarity.toUpperCase()}
                     </div>

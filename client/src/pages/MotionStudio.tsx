@@ -127,6 +127,9 @@ export default function MotionStudio() {
   const [showAIGen, setShowAIGen] = useState(false);
   const [zoom, setZoom] = useState(100);
 
+  const [textLayers, setTextLayers] = useState<{id: string; text: string; x: number; y: number; fontSize: number; color: string; editing: boolean}[]>([]);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+
   const currentFrame = frames[currentFrameIndex];
 
   useEffect(() => {
@@ -260,10 +263,28 @@ export default function MotionStudio() {
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    const coords = getCoordinates(e);
+    if (!coords) return;
+
+    if (activeTool === 'text') {
+      const newTextLayer = {
+        id: `text_${Date.now()}`,
+        text: "Enter text",
+        x: coords.x,
+        y: coords.y,
+        fontSize: brushSize * 4,
+        color: brushColor,
+        editing: true
+      };
+      setTextLayers(prev => [...prev, newTextLayer]);
+      setEditingTextId(newTextLayer.id);
+      toast.success("Click on text to edit, press Enter to confirm");
+      return;
+    }
+    
     if (activeTool !== 'brush' && activeTool !== 'eraser') return;
     
-    const coords = getCoordinates(e);
-    if (!coords || !contextRef.current) return;
+    if (!contextRef.current) return;
     
     setIsDrawing(true);
     setLastPoint(coords);
@@ -505,6 +526,32 @@ export default function MotionStudio() {
     img.src = url;
   };
 
+  const bakeTextToCanvas = (textId: string) => {
+    const layer = textLayers.find(t => t.id === textId);
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!layer || !canvas || !context) return;
+
+    context.font = `${layer.fontSize}px Inter, sans-serif`;
+    context.fillStyle = layer.color;
+    context.textBaseline = 'top';
+    context.fillText(layer.text, layer.x, layer.y);
+    
+    setTextLayers(prev => prev.filter(t => t.id !== textId));
+    setEditingTextId(null);
+    saveCurrentFrame();
+    toast.success("Text added to canvas");
+  };
+
+  const updateTextLayer = (id: string, updates: Partial<{text: string; x: number; y: number; fontSize: number; color: string}>) => {
+    setTextLayers(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
+  const deleteTextLayer = (id: string) => {
+    setTextLayers(prev => prev.filter(t => t.id !== id));
+    setEditingTextId(null);
+  };
+
   if (isCreating) {
     return (
       <Layout>
@@ -743,24 +790,83 @@ export default function MotionStudio() {
                     alt="Frame -2"
                   />
                 )}
-                <canvas
-                  ref={canvasRef}
-                  className="bg-white shadow-2xl border-2 border-zinc-700"
-                  style={{ 
-                    cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
-                    width: 'calc(100% - 32px)',
-                    maxWidth: 'calc((100vh - 140px) * 16 / 9)',
-                    height: 'calc(100vh - 140px)',
-                    maxHeight: 'calc((100vw - 300px) * 9 / 16)'
-                  }}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                />
+                <div className="relative">
+                  <canvas
+                    ref={canvasRef}
+                    className="bg-white shadow-2xl border-2 border-zinc-700"
+                    style={{ 
+                      cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
+                      width: 'calc(100% - 32px)',
+                      maxWidth: 'calc((100vh - 140px) * 16 / 9)',
+                      height: 'calc(100vh - 140px)',
+                      maxHeight: 'calc((100vw - 300px) * 9 / 16)'
+                    }}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                  />
+                  {textLayers.map(layer => {
+                    const canvas = canvasRef.current;
+                    if (!canvas) return null;
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = rect.width / 1920;
+                    const scaleY = rect.height / 1080;
+                    return (
+                      <div
+                        key={layer.id}
+                        className={`absolute group ${editingTextId === layer.id ? 'ring-2 ring-white' : 'hover:ring-1 hover:ring-white/50'}`}
+                        style={{
+                          left: layer.x * scaleX,
+                          top: layer.y * scaleY,
+                          fontSize: layer.fontSize * scaleX,
+                          color: layer.color,
+                          fontFamily: 'Inter, sans-serif',
+                          cursor: 'move',
+                          padding: '4px',
+                          minWidth: '100px',
+                        }}
+                        onClick={(e) => { e.stopPropagation(); setEditingTextId(layer.id); }}
+                      >
+                        {editingTextId === layer.id ? (
+                          <div className="flex flex-col gap-2">
+                            <input
+                              type="text"
+                              value={layer.text}
+                              onChange={(e) => updateTextLayer(layer.id, { text: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') bakeTextToCanvas(layer.id);
+                                if (e.key === 'Escape') deleteTextLayer(layer.id);
+                              }}
+                              className="bg-black/80 text-white px-2 py-1 text-sm border border-white outline-none"
+                              autoFocus
+                              style={{ fontSize: Math.max(12, layer.fontSize * scaleX * 0.6) }}
+                            />
+                            <div className="flex gap-1">
+                              <button 
+                                onClick={() => bakeTextToCanvas(layer.id)}
+                                className="px-2 py-0.5 bg-white text-black text-xs"
+                              >
+                                Apply
+                              </button>
+                              <button 
+                                onClick={() => deleteTextLayer(layer.id)}
+                                className="px-2 py-0.5 bg-red-500 text-white text-xs"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="pointer-events-none">{layer.text}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </main>
 
