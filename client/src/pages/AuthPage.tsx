@@ -22,7 +22,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/");
     }
   }, [isAuthenticated, navigate]);
 
@@ -32,7 +32,7 @@ export default function AuthPage() {
     try {
       await login(loginData.email, loginData.password);
       toast.success("Welcome back to Press Start CoMixx");
-      navigate("/dashboard");
+      navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -46,7 +46,7 @@ export default function AuthPage() {
     try {
       await signup(signupData.email, signupData.password, signupData.name);
       toast.success("Account created successfully");
-      navigate("/dashboard");
+      navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Signup failed");
     } finally {
