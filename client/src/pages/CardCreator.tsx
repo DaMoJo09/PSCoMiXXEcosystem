@@ -1,7 +1,8 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
-  Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2
+  Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
+  Copy, Layers, Eye
 } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
@@ -11,6 +12,17 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 
 const FONT_OPTIONS = [
   { value: "Inter, sans-serif", label: "Inter" },
@@ -1067,19 +1079,21 @@ export default function CardCreator() {
           </div>
           )}
 
-          <div className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                 style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                     style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
             
-            <input 
-              ref={packArtInputRef} 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              onChange={handlePackArtUpload} 
-            />
+                <input 
+                  ref={packArtInputRef} 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handlePackArtUpload} 
+                />
             
-            {mode === "pack" ? (
+                {mode === "pack" ? (
               <div className="relative">
                 <div className="text-center mb-4">
                   <h3 className="text-lg font-bold">{packData.name}</h3>
@@ -1210,10 +1224,53 @@ export default function CardCreator() {
               </div>
             )}
             
-            <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
-              {side.toUpperCase()} • 300 DPI PRINT READY
-            </p>
-          </div>
+                <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
+                  {side.toUpperCase()} • 300 DPI PRINT READY
+                </p>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+              <ContextMenuItem onClick={() => setMode(mode === "card" ? "pack" : "card")} className="hover:bg-zinc-800 cursor-pointer">
+                {mode === "card" ? <Package className="w-4 h-4 mr-2" /> : <Layers className="w-4 h-4 mr-2" />}
+                {mode === "card" ? "Switch to Pack Mode" : "Switch to Card Mode"}
+              </ContextMenuItem>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              {mode === "card" && (
+                <>
+                  <ContextMenuItem onClick={() => setSide(side === "front" ? "back" : "front")} className="hover:bg-zinc-800 cursor-pointer">
+                    <RotateCw className="w-4 h-4 mr-2" /> Flip Card
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => frontInputRef.current?.click()} className="hover:bg-zinc-800 cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" /> Upload Front Image
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => backInputRef.current?.click()} className="hover:bg-zinc-800 cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" /> Upload Back Image
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                </>
+              )}
+              <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                <Wand2 className="w-4 h-4 mr-2" /> AI Generate Art
+              </ContextMenuItem>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                  <Palette className="w-4 h-4 mr-2" /> Rarity
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-40 bg-zinc-900 border-zinc-700 text-white">
+                  {(["common", "uncommon", "rare", "ultra", "legendary", "mythic"] as const).map(rarity => (
+                    <ContextMenuItem 
+                      key={rarity}
+                      onClick={() => setCardData(prev => ({ ...prev, rarity }))}
+                      className="hover:bg-zinc-800 cursor-pointer capitalize"
+                    >
+                      {rarity}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            </ContextMenuContent>
+          </ContextMenu>
         </div>
 
         <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />

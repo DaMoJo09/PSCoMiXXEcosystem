@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
-  RotateCw, Palette, Settings, Layers, Plus, Trash2
+  RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
@@ -10,6 +10,17 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 
 const FONT_OPTIONS = [
   { value: "Inter, sans-serif", label: "Inter" },
@@ -953,28 +964,68 @@ export default function CoverCreator() {
             )}
           </div>
 
-          <div ref={canvasRef} className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
-            <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
-                 style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
-            
-            {activeView === "spread" ? (
-              <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
-                {renderCoverSection("back", "400px", "600px")}
-                {renderCoverSection("spine", "50px", "600px")}
-                {renderCoverSection("front", "400px", "600px")}
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div ref={canvasRef} className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
+                <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
+                     style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+                
+                {activeView === "spread" ? (
+                  <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
+                    {renderCoverSection("back", "400px", "600px")}
+                    {renderCoverSection("spine", "50px", "600px")}
+                    {renderCoverSection("front", "400px", "600px")}
+                  </div>
+                ) : activeView === "front" ? (
+                  renderCoverSection("front", "450px", "675px")
+                ) : activeView === "back" ? (
+                  renderCoverSection("back", "450px", "675px")
+                ) : (
+                  renderCoverSection("spine", "60px", "675px")
+                )}
+                
+                <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
+                  {activeView.toUpperCase()} VIEW • 300 DPI PRINT READY
+                </p>
               </div>
-            ) : activeView === "front" ? (
-              renderCoverSection("front", "450px", "675px")
-            ) : activeView === "back" ? (
-              renderCoverSection("back", "450px", "675px")
-            ) : (
-              renderCoverSection("spine", "60px", "675px")
-            )}
-            
-            <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
-              {activeView.toUpperCase()} VIEW • 300 DPI PRINT READY
-            </p>
-          </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+              <ContextMenuItem onClick={() => addTextLayer(activeView === "spread" ? "front" : activeView)} className="hover:bg-zinc-800 cursor-pointer">
+                <Type className="w-4 h-4 mr-2" /> Add Text Layer
+              </ContextMenuItem>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                  <Palette className="w-4 h-4 mr-2" /> Apply Template
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                  {COVER_TEMPLATES.slice(0, 6).map(template => (
+                    <ContextMenuItem 
+                      key={template.id} 
+                      onClick={() => applyTemplate(template.id)}
+                      className="hover:bg-zinc-800 cursor-pointer text-xs"
+                    >
+                      {template.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              <ContextMenuItem onClick={() => { setAiTarget("front"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
+                <Wand2 className="w-4 h-4 mr-2" /> AI Generate Cover
+              </ContextMenuItem>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              <ContextMenuItem onClick={() => setActiveView("front")} className="hover:bg-zinc-800 cursor-pointer">
+                <Eye className="w-4 h-4 mr-2" /> View Front
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => setActiveView("back")} className="hover:bg-zinc-800 cursor-pointer">
+                <Eye className="w-4 h-4 mr-2" /> View Back
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => setActiveView("spread")} className="hover:bg-zinc-800 cursor-pointer">
+                <Layers className="w-4 h-4 mr-2" /> View Spread
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </div>
 
         <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />

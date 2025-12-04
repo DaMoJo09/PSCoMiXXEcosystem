@@ -2,13 +2,21 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, GitBranch, Plus, AlertCircle, BookOpen, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
-  Upload, Wand2, X, Edit, Eye
+  Upload, Wand2, X, Edit, Eye, Layers, Settings
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 
 interface CYOANode {
   id: string;
@@ -695,179 +703,198 @@ export default function CYOABuilder() {
               )}
             </div>
 
-            <div className="flex-1 bg-zinc-950 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-[0.03]" 
-                   style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} 
-              />
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div className="flex-1 bg-zinc-950 relative overflow-hidden">
+                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                       style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} 
+                  />
 
-              {editingNode ? (
-                <div className="absolute inset-0 p-8 overflow-auto">
-                  {(() => {
-                    const node = nodes.find(n => n.id === editingNode);
-                    if (!node) return null;
-                    return (
-                      <div className="max-w-2xl mx-auto space-y-6">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-lg">Edit Node</h3>
-                          <button
-                            onClick={() => setEditingNode(null)}
-                            className="p-2 hover:bg-zinc-800"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase text-zinc-400">Node Text</label>
-                          <textarea
-                            value={node.text}
-                            onChange={(e) => updateNode(node.id, { text: e.target.value })}
-                            className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm font-mono resize-none"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase text-zinc-400">Node Image</label>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setSelectedNodeId(node.id); imageInputRef.current?.click(); }}
-                              className="flex-1 p-3 bg-zinc-800 text-sm flex items-center justify-center gap-2 hover:bg-zinc-700"
-                            >
-                              <Upload className="w-4 h-4" /> Upload
-                            </button>
-                            <button
-                              onClick={() => { setSelectedNodeId(node.id); setShowAIGen(true); }}
-                              className="flex-1 p-3 bg-white text-black text-sm flex items-center justify-center gap-2"
-                            >
-                              <Wand2 className="w-4 h-4" /> AI Generate
-                            </button>
-                          </div>
-                          {node.image && (
-                            <div className="aspect-video bg-zinc-800 overflow-hidden">
-                              <img src={node.image} className="w-full h-full object-cover" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold uppercase text-zinc-400">Choices</label>
-                            <button
-                              onClick={() => addChoiceToNode(node.id)}
-                              className="p-1 bg-white text-black text-xs flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> Add
-                            </button>
-                          </div>
-                          {node.choices.map((choice, i) => (
-                            <div key={i} className="flex gap-2">
-                              <input
-                                value={choice.label}
-                                onChange={(e) => {
-                                  const newChoices = [...node.choices];
-                                  newChoices[i] = { ...choice, label: e.target.value };
-                                  updateNode(node.id, { choices: newChoices });
-                                }}
-                                className="flex-1 p-2 border border-zinc-700 bg-zinc-800 text-sm"
-                                placeholder="Choice text"
-                              />
-                              <select
-                                value={choice.target}
-                                onChange={(e) => {
-                                  const newChoices = [...node.choices];
-                                  newChoices[i] = { ...choice, target: e.target.value };
-                                  updateNode(node.id, { choices: newChoices });
-                                }}
-                                className="w-40 p-2 border border-zinc-700 bg-zinc-800 text-sm"
-                              >
-                                {nodes.map(n => (
-                                  <option key={n.id} value={n.id}>{n.id}</option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => {
-                                  updateNode(node.id, { choices: node.choices.filter((_, j) => j !== i) });
-                                }}
-                                className="p-2 hover:text-red-500"
-                              >
-                                <Trash2 className="w-4 h-4" />
+                  {editingNode ? (
+                    <div className="absolute inset-0 p-8 overflow-auto">
+                      {(() => {
+                        const node = nodes.find(n => n.id === editingNode);
+                        if (!node) return null;
+                        return (
+                          <div className="max-w-2xl mx-auto space-y-6">
+                            <div className="flex justify-between items-center">
+                              <h3 className="font-bold text-lg">Edit Node</h3>
+                              <button onClick={() => setEditingNode(null)} className="p-2 hover:bg-zinc-800">
+                                <X className="w-4 h-4" />
                               </button>
                             </div>
-                          ))}
-                        </div>
-
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={node.isEnding || false}
-                              onChange={(e) => updateNode(node.id, { isEnding: e.target.checked })}
-                              className="w-4 h-4"
-                            />
-                            <span className="text-sm">Is Ending</span>
-                          </label>
-                          {node.isEnding && (
-                            <select
-                              value={node.endingType || "neutral"}
-                              onChange={(e) => updateNode(node.id, { endingType: e.target.value as any })}
-                              className="p-2 border border-zinc-700 bg-zinc-800 text-sm"
-                            >
-                              <option value="good">Good Ending</option>
-                              <option value="bad">Bad Ending</option>
-                              <option value="neutral">Neutral Ending</option>
-                            </select>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : nodes.length > 0 ? (
-                <div className="absolute inset-0 p-8 overflow-auto">
-                  <div className="flex flex-wrap gap-4">
-                    {nodes.filter(n => !n.id.startsWith("ending")).map((node, index) => (
-                      <div 
-                        key={node.id} 
-                        className={`w-72 p-4 bg-zinc-900 border-2 shadow-lg cursor-pointer ${
-                          node.isEnding ? "border-green-500" : "border-white/30"
-                        } ${selectedNodeId === node.id ? "ring-2 ring-white" : ""}`}
-                        onClick={() => setSelectedNodeId(node.id)}
-                        onDoubleClick={() => setEditingNode(node.id)}
-                      >
-                        <div className="flex justify-between mb-2">
-                          <span className="font-bold text-xs uppercase">{node.isEnding ? "ENDING" : `Scene ${index + 1}`}</span>
-                          <span className="text-[10px] text-zinc-500">{node.id}</span>
-                        </div>
-                        {node.image && (
-                          <div className="aspect-video bg-zinc-800 overflow-hidden mb-2">
-                            <img src={node.image} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <p className="text-xs font-mono text-zinc-400 line-clamp-3">{node.text}</p>
-                        {node.choices.length > 0 && (
-                          <div className="mt-3 pt-2 border-t border-zinc-700 space-y-1">
-                            {node.choices.map((choice, i) => (
-                              <div key={i} className="text-[10px] text-zinc-500 flex items-center gap-1">
-                                <LinkIcon className="w-2 h-2" />
-                                {choice.label} → {choice.target}
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold uppercase text-zinc-400">Node Text</label>
+                              <textarea
+                                value={node.text}
+                                onChange={(e) => updateNode(node.id, { text: e.target.value })}
+                                className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm font-mono resize-none"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold uppercase text-zinc-400">Node Image</label>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => { setSelectedNodeId(node.id); imageInputRef.current?.click(); }}
+                                  className="flex-1 p-3 bg-zinc-800 text-sm flex items-center justify-center gap-2 hover:bg-zinc-700"
+                                >
+                                  <Upload className="w-4 h-4" /> Upload
+                                </button>
+                                <button
+                                  onClick={() => { setSelectedNodeId(node.id); setShowAIGen(true); }}
+                                  className="flex-1 p-3 bg-white text-black text-sm flex items-center justify-center gap-2"
+                                >
+                                  <Wand2 className="w-4 h-4" /> AI Generate
+                                </button>
                               </div>
-                            ))}
+                              {node.image && (
+                                <div className="aspect-video bg-zinc-800 overflow-hidden">
+                                  <img src={node.image} className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <label className="text-xs font-bold uppercase text-zinc-400">Choices</label>
+                                <button onClick={() => addChoiceToNode(node.id)} className="p-1 bg-white text-black text-xs flex items-center gap-1">
+                                  <Plus className="w-3 h-3" /> Add
+                                </button>
+                              </div>
+                              {node.choices.map((choice, i) => (
+                                <div key={i} className="flex gap-2">
+                                  <input
+                                    value={choice.label}
+                                    onChange={(e) => {
+                                      const newChoices = [...node.choices];
+                                      newChoices[i] = { ...choice, label: e.target.value };
+                                      updateNode(node.id, { choices: newChoices });
+                                    }}
+                                    className="flex-1 p-2 border border-zinc-700 bg-zinc-800 text-sm"
+                                    placeholder="Choice text"
+                                  />
+                                  <select
+                                    value={choice.target}
+                                    onChange={(e) => {
+                                      const newChoices = [...node.choices];
+                                      newChoices[i] = { ...choice, target: e.target.value };
+                                      updateNode(node.id, { choices: newChoices });
+                                    }}
+                                    className="w-40 p-2 border border-zinc-700 bg-zinc-800 text-sm"
+                                  >
+                                    {nodes.map(n => (
+                                      <option key={n.id} value={n.id}>{n.id}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => { updateNode(node.id, { choices: node.choices.filter((_, j) => j !== i) }); }}
+                                    className="p-2 hover:text-red-500"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={node.isEnding || false}
+                                  onChange={(e) => updateNode(node.id, { isEnding: e.target.checked })}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm">Is Ending</span>
+                              </label>
+                              {node.isEnding && (
+                                <select
+                                  value={node.endingType || "neutral"}
+                                  onChange={(e) => updateNode(node.id, { endingType: e.target.value as any })}
+                                  className="p-2 border border-zinc-700 bg-zinc-800 text-sm"
+                                >
+                                  <option value="good">Good Ending</option>
+                                  <option value="bad">Bad Ending</option>
+                                  <option value="neutral">Neutral Ending</option>
+                                </select>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        );
+                      })()}
+                    </div>
+                  ) : nodes.length > 0 ? (
+                    <div className="absolute inset-0 p-8 overflow-auto">
+                      <div className="flex flex-wrap gap-4">
+                        {nodes.filter(n => !n.id.startsWith("ending")).map((node, index) => (
+                          <div 
+                            key={node.id} 
+                            className={`w-72 p-4 bg-zinc-900 border-2 shadow-lg cursor-pointer ${
+                              node.isEnding ? "border-green-500" : "border-white/30"
+                            } ${selectedNodeId === node.id ? "ring-2 ring-white" : ""}`}
+                            onClick={() => setSelectedNodeId(node.id)}
+                            onDoubleClick={() => setEditingNode(node.id)}
+                          >
+                            <div className="flex justify-between mb-2">
+                              <span className="font-bold text-xs uppercase">{node.isEnding ? "ENDING" : `Scene ${index + 1}`}</span>
+                              <span className="text-[10px] text-zinc-500">{node.id}</span>
+                            </div>
+                            {node.image && (
+                              <div className="aspect-video bg-zinc-800 overflow-hidden mb-2">
+                                <img src={node.image} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <p className="text-xs font-mono text-zinc-400 line-clamp-3">{node.text}</p>
+                            {node.choices.length > 0 && (
+                              <div className="mt-3 pt-2 border-t border-zinc-700 space-y-1">
+                                {node.choices.map((choice, i) => (
+                                  <div key={i} className="text-[10px] text-zinc-500 flex items-center gap-1">
+                                    <LinkIcon className="w-2 h-2" />
+                                    {choice.label} → {choice.target}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center space-y-4">
+                        <GitBranch className="w-16 h-16 mx-auto text-zinc-700" />
+                        <p className="text-sm text-zinc-500">Generate a CYOA to see the branch structure</p>
+                        <p className="text-xs text-zinc-600">Paste a story and click Generate</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <GitBranch className="w-16 h-16 mx-auto text-zinc-700" />
-                    <p className="text-sm text-zinc-500">Generate a CYOA to see the branch structure</p>
-                    <p className="text-xs text-zinc-600">Paste a story and click Generate</p>
-                  </div>
-                </div>
-              )}
-            </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                <ContextMenuItem onClick={addNode} className="hover:bg-zinc-800 cursor-pointer">
+                  <Plus className="w-4 h-4 mr-2" /> Add Node
+                </ContextMenuItem>
+                <ContextMenuItem onClick={generateCYOA} disabled={!storyText.trim()} className="hover:bg-zinc-800 cursor-pointer">
+                  <GitBranch className="w-4 h-4 mr-2" /> Generate CYOA
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-zinc-700" />
+                <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                  <Wand2 className="w-4 h-4 mr-2" /> AI Generate Image
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-zinc-700" />
+                <ContextMenuItem onClick={() => setPreviewMode(true)} className="hover:bg-zinc-800 cursor-pointer">
+                  <Play className="w-4 h-4 mr-2" /> Preview Story
+                </ContextMenuItem>
+                {selectedNodeId && (
+                  <>
+                    <ContextMenuSeparator className="bg-zinc-700" />
+                    <ContextMenuItem onClick={() => setEditingNode(selectedNodeId)} className="hover:bg-zinc-800 cursor-pointer">
+                      <Edit className="w-4 h-4 mr-2" /> Edit Node
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => deleteNode(selectedNodeId)} className="hover:bg-red-900 cursor-pointer text-red-400">
+                      <Trash2 className="w-4 h-4 mr-2" /> Delete Node
+                    </ContextMenuItem>
+                  </>
+                )}
+              </ContextMenuContent>
+            </ContextMenu>
           </div>
         )}
 

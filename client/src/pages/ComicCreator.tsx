@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -14,6 +14,17 @@ import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 
 interface PanelContent {
   id: string;
@@ -813,53 +824,155 @@ export default function ComicCreator() {
               className={`flex ${isFullscreen ? "gap-1" : "gap-6"}`}
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
             >
-              <div 
-                ref={leftPageRef}
-                className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
-                  isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
-                }`}
-                style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
-                onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
-                onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
-                onMouseUp={() => handlePageMouseUp("left")}
-                onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
-              >
-                {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
-                {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
-                {currentSpread.leftPage.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
-                    <div className="text-center">
-                      <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
-                      <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
-                    </div>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div 
+                    ref={leftPageRef}
+                    className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
+                      isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
+                    }`}
+                    style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
+                    onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
+                    onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
+                    onMouseUp={() => handlePageMouseUp("left")}
+                    onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
+                  >
+                    {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
+                    {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
+                    {currentSpread.leftPage.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
+                        <div className="text-center">
+                          <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
+                          <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                  <ContextMenuItem onClick={() => setActiveTool("panel")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Square className="w-4 h-4 mr-2" /> Add Panel <ContextMenuShortcut>P</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
+                    <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <LayoutGrid className="w-4 h-4 mr-2" /> Apply Template
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                      {panelTemplates.map(template => (
+                        <ContextMenuItem 
+                          key={template.id} 
+                          onClick={() => applyTemplate(template, "left")}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {template.name}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setActiveTool("draw")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Pen className="w-4 h-4 mr-2" /> Draw <ContextMenuShortcut>B</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Wand2 className="w-4 h-4 mr-2" /> AI Generate
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setShowLayers(!showLayers)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Layers className="w-4 h-4 mr-2" /> {showLayers ? "Hide" : "Show"} Layers
+                  </ContextMenuItem>
+                  {selectedPanelId && (
+                    <>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem onClick={() => deletePanel("left", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
+                      </ContextMenuItem>
+                    </>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
 
-              <div 
-                ref={rightPageRef}
-                className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
-                  isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
-                }`}
-                style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
-                onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
-                onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
-                onMouseUp={() => handlePageMouseUp("right")}
-                onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
-              >
-                {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
-                {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
-                {currentSpread.rightPage.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
-                    <div className="text-center">
-                      <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
-                      <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
-                    </div>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div 
+                    ref={rightPageRef}
+                    className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
+                      isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
+                    }`}
+                    style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
+                    onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
+                    onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
+                    onMouseUp={() => handlePageMouseUp("right")}
+                    onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
+                  >
+                    {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
+                    {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
+                    {currentSpread.rightPage.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
+                        <div className="text-center">
+                          <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                          <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
+                          <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                  <ContextMenuItem onClick={() => setActiveTool("panel")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Square className="w-4 h-4 mr-2" /> Add Panel <ContextMenuShortcut>P</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
+                    <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <LayoutGrid className="w-4 h-4 mr-2" /> Apply Template
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                      {panelTemplates.map(template => (
+                        <ContextMenuItem 
+                          key={template.id} 
+                          onClick={() => applyTemplate(template, "right")}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {template.name}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setActiveTool("draw")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Pen className="w-4 h-4 mr-2" /> Draw <ContextMenuShortcut>B</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Wand2 className="w-4 h-4 mr-2" /> AI Generate
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setShowLayers(!showLayers)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Layers className="w-4 h-4 mr-2" /> {showLayers ? "Hide" : "Show"} Layers
+                  </ContextMenuItem>
+                  {selectedPanelId && (
+                    <>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem onClick={() => deletePanel("right", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
+                      </ContextMenuItem>
+                    </>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
             </div>
 
             <div className="flex gap-4 mt-6">

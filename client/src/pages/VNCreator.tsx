@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Play, Plus, Settings, ArrowLeft, Save, Trash2, Image as ImageIcon, 
   MessageSquare, GitBranch, User, Mountain, Upload, Wand2, X, Move,
-  ChevronLeft, ChevronRight, Copy, Eye, EyeOff
+  ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Layers, Type
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
@@ -11,6 +11,14 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 
 interface VNScene {
   id: string;
@@ -556,95 +564,126 @@ export default function VNCreator() {
           </div>
 
           <div className="flex-1 flex flex-col">
-            <div 
-              className="h-[70vh] bg-black relative overflow-hidden cursor-pointer" 
-              onClick={isPlaying ? advanceDialogue : undefined}
-            >
-              <img 
-                src={currentBackground?.url || vnBg} 
-                className="w-full h-full object-cover"
-              />
-              
-              {currentScene?.characters.filter(c => c.visible).map((sceneChar) => {
-                const char = characters.find(c => c.id === sceneChar.id);
-                const sprite = char?.sprites.find(s => s.expression === sceneChar.expression || s.url);
-                if (!sprite?.url) return null;
-                
-                const positionStyles = {
-                  left: { left: "10%", transform: "translateX(0)" },
-                  center: { left: "50%", transform: "translateX(-50%)" },
-                  right: { right: "10%", transform: "translateX(0)" },
-                };
-                
-                return (
-                  <div
-                    key={sceneChar.id}
-                    className="absolute bottom-0 h-[80%] flex items-end"
-                    style={positionStyles[sceneChar.position]}
-                  >
-                    <img src={sprite.url} className="h-full object-contain" />
-                  </div>
-                );
-              })}
-              
-              <div className="absolute bottom-8 left-8 right-8 h-36 bg-zinc-900/95 border-2 border-white p-6">
-                {isPlaying && currentDialogue ? (
-                  <>
-                    <div 
-                      className="font-bold font-display mb-2 uppercase tracking-wider text-sm"
-                      style={{ color: characters.find(c => c.name === currentDialogue.speaker)?.color || "#fff" }}
-                    >
-                      {currentDialogue.speaker}
-                    </div>
-                    <p className="font-mono text-sm leading-relaxed">{currentDialogue.text}</p>
-                    {currentDialogue.choices && currentDialogue.choices.length > 0 && (
-                      <div className="mt-4 flex gap-2">
-                        {currentDialogue.choices.map((choice, i) => (
-                          <button
-                            key={i}
-                            onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); }}
-                            className="px-4 py-2 bg-white text-black text-sm font-medium hover:bg-zinc-200"
-                          >
-                            {choice.label}
-                          </button>
-                        ))}
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div 
+                  className="h-[70vh] bg-black relative overflow-hidden cursor-pointer" 
+                  onClick={isPlaying ? advanceDialogue : undefined}
+                >
+                  <img 
+                    src={currentBackground?.url || vnBg} 
+                    className="w-full h-full object-cover"
+                  />
+                  
+                  {currentScene?.characters.filter(c => c.visible).map((sceneChar) => {
+                    const char = characters.find(c => c.id === sceneChar.id);
+                    const sprite = char?.sprites.find(s => s.expression === sceneChar.expression || s.url);
+                    if (!sprite?.url) return null;
+                    
+                    const positionStyles = {
+                      left: { left: "10%", transform: "translateX(0)" },
+                      center: { left: "50%", transform: "translateX(-50%)" },
+                      right: { right: "10%", transform: "translateX(0)" },
+                    };
+                    
+                    return (
+                      <div
+                        key={sceneChar.id}
+                        className="absolute bottom-0 h-[80%] flex items-end"
+                        style={positionStyles[sceneChar.position]}
+                      >
+                        <img src={sprite.url} className="h-full object-contain" />
+                      </div>
+                    );
+                  })}
+                  
+                  <div className="absolute bottom-8 left-8 right-8 h-36 bg-zinc-900/95 border-2 border-white p-6">
+                    {isPlaying && currentDialogue ? (
+                      <>
+                        <div 
+                          className="font-bold font-display mb-2 uppercase tracking-wider text-sm"
+                          style={{ color: characters.find(c => c.name === currentDialogue.speaker)?.color || "#fff" }}
+                        >
+                          {currentDialogue.speaker}
+                        </div>
+                        <p className="font-mono text-sm leading-relaxed">{currentDialogue.text}</p>
+                        {currentDialogue.choices && currentDialogue.choices.length > 0 && (
+                          <div className="mt-4 flex gap-2">
+                            {currentDialogue.choices.map((choice, i) => (
+                              <button
+                                key={i}
+                                onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); }}
+                                className="px-4 py-2 bg-white text-black text-sm font-medium hover:bg-zinc-200"
+                              >
+                                {choice.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="absolute bottom-4 right-4 animate-bounce text-zinc-500">▼</div>
+                      </>
+                    ) : (
+                      <div className="text-center text-zinc-500">
+                        <MessageSquare className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-sm">Click Playtest to preview your visual novel</p>
                       </div>
                     )}
-                    <div className="absolute bottom-4 right-4 animate-bounce text-zinc-500">▼</div>
+                  </div>
+
+                  {isPlaying && (
+                    <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-1 text-xs font-mono">
+                      {playIndex + 1} / {currentScene?.dialogue.length || 0}
+                    </div>
+                  )}
+
+                  {!isPlaying && currentScene && (
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      <div className="flex bg-zinc-800 p-1">
+                        <button 
+                          onClick={() => setEditMode("dialogue")}
+                          className={`px-3 py-1 text-xs ${editMode === "dialogue" ? "bg-white text-black" : "text-white"}`}
+                        >
+                          Dialogue
+                        </button>
+                        <button 
+                          onClick={() => setEditMode("staging")}
+                          className={`px-3 py-1 text-xs ${editMode === "staging" ? "bg-white text-black" : "text-white"}`}
+                        >
+                          Staging
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                <ContextMenuItem onClick={addScene} className="hover:bg-zinc-800 cursor-pointer">
+                  <Plus className="w-4 h-4 mr-2" /> Add Scene
+                </ContextMenuItem>
+                <ContextMenuItem onClick={addCharacter} className="hover:bg-zinc-800 cursor-pointer">
+                  <User className="w-4 h-4 mr-2" /> Add Character
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-zinc-700" />
+                <ContextMenuItem onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
+                  <Wand2 className="w-4 h-4 mr-2" /> Generate Background
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => { setAiTarget("sprite"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
+                  <ImageIcon className="w-4 h-4 mr-2" /> Generate Sprite
+                </ContextMenuItem>
+                <ContextMenuSeparator className="bg-zinc-700" />
+                <ContextMenuItem onClick={() => setIsPlaying(!isPlaying)} className="hover:bg-zinc-800 cursor-pointer">
+                  <Play className="w-4 h-4 mr-2" /> {isPlaying ? "Stop" : "Playtest"}
+                </ContextMenuItem>
+                {currentScene && (
+                  <>
+                    <ContextMenuSeparator className="bg-zinc-700" />
+                    <ContextMenuItem onClick={() => addDialogue(currentScene.id)} className="hover:bg-zinc-800 cursor-pointer">
+                      <MessageSquare className="w-4 h-4 mr-2" /> Add Dialogue
+                    </ContextMenuItem>
                   </>
-                ) : (
-                  <div className="text-center text-zinc-500">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">Click Playtest to preview your visual novel</p>
-                  </div>
                 )}
-              </div>
-
-              {isPlaying && (
-                <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-1 text-xs font-mono">
-                  {playIndex + 1} / {currentScene?.dialogue.length || 0}
-                </div>
-              )}
-
-              {!isPlaying && currentScene && (
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <div className="flex bg-zinc-800 p-1">
-                    <button 
-                      onClick={() => setEditMode("dialogue")}
-                      className={`px-3 py-1 text-xs ${editMode === "dialogue" ? "bg-white text-black" : "text-white"}`}
-                    >
-                      Dialogue
-                    </button>
-                    <button 
-                      onClick={() => setEditMode("staging")}
-                      className={`px-3 py-1 text-xs ${editMode === "staging" ? "bg-white text-black" : "text-white"}`}
-                    >
-                      Staging
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              </ContextMenuContent>
+            </ContextMenu>
 
             <div className="flex-1 border-t border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
               <div className="border-b border-zinc-800 p-2 bg-zinc-800 flex items-center justify-between">

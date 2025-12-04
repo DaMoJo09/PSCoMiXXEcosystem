@@ -43,6 +43,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+} from "@/components/ui/context-menu";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 
 interface Frame {
@@ -775,23 +783,25 @@ export default function MotionStudio() {
                 }} 
               />
               
-              <div className="relative w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom / 100})` }}>
-                {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
-                  <img 
-                    src={frames[currentFrameIndex - 1].imageData}
-                    className="absolute inset-0 w-full h-full opacity-20 pointer-events-none object-contain"
-                    alt="Previous frame"
-                  />
-                )}
-                {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
-                  <img 
-                    src={frames[currentFrameIndex - 2].imageData}
-                    className="absolute inset-0 w-full h-full opacity-10 pointer-events-none object-contain"
-                    alt="Frame -2"
-                  />
-                )}
-                <div className="relative">
-                  <canvas
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div className="relative w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom / 100})` }}>
+                    {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
+                      <img 
+                        src={frames[currentFrameIndex - 1].imageData}
+                        className="absolute inset-0 w-full h-full opacity-20 pointer-events-none object-contain"
+                        alt="Previous frame"
+                      />
+                    )}
+                    {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
+                      <img 
+                        src={frames[currentFrameIndex - 2].imageData}
+                        className="absolute inset-0 w-full h-full opacity-10 pointer-events-none object-contain"
+                        alt="Frame -2"
+                      />
+                    )}
+                    <div className="relative">
+                      <canvas
                     ref={canvasRef}
                     className="bg-white shadow-2xl border-2 border-zinc-700"
                     style={{ 
@@ -866,8 +876,42 @@ export default function MotionStudio() {
                       </div>
                     );
                   })}
-                </div>
-              </div>
+                    </div>
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                  <ContextMenuItem onClick={() => setActiveTool("brush")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Pencil className="w-4 h-4 mr-2" /> Brush <ContextMenuShortcut>B</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("eraser")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Eraser className="w-4 h-4 mr-2" /> Eraser <ContextMenuShortcut>E</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
+                    <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Wand2 className="w-4 h-4 mr-2" /> AI Generate
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={addFrame} className="hover:bg-zinc-800 cursor-pointer">
+                    <Plus className="w-4 h-4 mr-2" /> Add Frame
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={duplicateFrame} className="hover:bg-zinc-800 cursor-pointer">
+                    <Copy className="w-4 h-4 mr-2" /> Duplicate Frame
+                  </ContextMenuItem>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => setOnionSkin(!onionSkin)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Layers className="w-4 h-4 mr-2" /> {onionSkin ? "Hide" : "Show"} Onion Skin
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={undo} className="hover:bg-zinc-800 cursor-pointer">
+                    <Undo className="w-4 h-4 mr-2" /> Undo <ContextMenuShortcut>Ctrl+Z</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={redo} className="hover:bg-zinc-800 cursor-pointer">
+                    <Redo className="w-4 h-4 mr-2" /> Redo <ContextMenuShortcut>Ctrl+Shift+Z</ContextMenuShortcut>
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             </main>
 
             <div className="h-14 border-t border-zinc-800 bg-zinc-900 flex items-center px-3 gap-2 overflow-x-auto">
