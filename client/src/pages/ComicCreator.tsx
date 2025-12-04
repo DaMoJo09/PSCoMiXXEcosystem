@@ -77,6 +77,33 @@ const panelTemplates = [
   { id: "broken_grid", name: "Broken Grid", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
 ];
 
+const FONT_OPTIONS = [
+  { value: "Inter, sans-serif", label: "Inter" },
+  { value: "'Space Grotesk', sans-serif", label: "Space Grotesk" },
+  { value: "'Bangers', cursive", label: "Bangers" },
+  { value: "'Permanent Marker', cursive", label: "Permanent Marker" },
+  { value: "'Luckiest Guy', cursive", label: "Luckiest Guy" },
+  { value: "'Londrina Solid', cursive", label: "Londrina Solid" },
+  { value: "'Gloria Hallelujah', cursive", label: "Gloria Hallelujah" },
+  { value: "'Caveat', cursive", label: "Caveat" },
+  { value: "'Bungee', cursive", label: "Bungee" },
+  { value: "'Black Ops One', cursive", label: "Black Ops One" },
+  { value: "'Russo One', sans-serif", label: "Russo One" },
+  { value: "'Bebas Neue', sans-serif", label: "Bebas Neue" },
+  { value: "'Anton', sans-serif", label: "Anton" },
+  { value: "'Press Start 2P', cursive", label: "Press Start 2P" },
+  { value: "'Orbitron', sans-serif", label: "Orbitron" },
+  { value: "'VT323', monospace", label: "VT323" },
+  { value: "'Creepster', cursive", label: "Creepster" },
+  { value: "'Nosifer', cursive", label: "Nosifer" },
+  { value: "'Special Elite', cursive", label: "Special Elite" },
+  { value: "'Satisfy', cursive", label: "Satisfy" },
+  { value: "'Pacifico', cursive", label: "Pacifico" },
+  { value: "'Lobster', cursive", label: "Lobster" },
+  { value: "'Impact', sans-serif", label: "Impact" },
+  { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
+];
+
 const tools = [
   { id: "select", icon: MousePointer, label: "Select", shortcut: "V" },
   { id: "move", icon: Move, label: "Move", shortcut: "M" },
@@ -417,8 +444,9 @@ export default function ComicCreator() {
     }
   };
   
-  const handlePanelCanvasMouseDown = (e: React.MouseEvent) => {
+  const handlePanelCanvasPointerDown = (e: React.PointerEvent) => {
     if (!panelCanvasRef.current || !panelCtxRef.current) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawingInCanvas(true);
     const rect = panelCanvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
@@ -426,16 +454,21 @@ export default function ComicCreator() {
     setLastDrawPoint({ x, y });
   };
   
-  const handlePanelCanvasMouseMove = (e: React.MouseEvent) => {
+  const handlePanelCanvasPointerMove = (e: React.PointerEvent) => {
     if (!isDrawingInCanvas || !panelCanvasRef.current || !panelCtxRef.current || !lastDrawPoint) return;
     const ctx = panelCtxRef.current;
     const rect = panelCanvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
     const y = ((e.clientY - rect.top) / rect.height) * panelCanvasRef.current.height;
     
+    const pressure = e.pressure > 0 ? e.pressure : 0.5;
+    const pressureBrushSize = activeTool === 'erase' 
+      ? brushSize * 3 * pressure 
+      : brushSize * (0.5 + pressure * 0.8);
+    
     ctx.globalCompositeOperation = activeTool === 'erase' ? 'destination-out' : 'source-over';
     ctx.strokeStyle = brushColor;
-    ctx.lineWidth = activeTool === 'erase' ? brushSize * 3 : brushSize;
+    ctx.lineWidth = Math.max(1, pressureBrushSize);
     ctx.beginPath();
     ctx.moveTo(lastDrawPoint.x, lastDrawPoint.y);
     ctx.lineTo(x, y);
@@ -445,7 +478,12 @@ export default function ComicCreator() {
     setLastDrawPoint({ x, y });
   };
   
-  const handlePanelCanvasMouseUp = () => {
+  const handlePanelCanvasPointerUp = (e: React.PointerEvent) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
     setIsDrawingInCanvas(false);
     setLastDrawPoint(null);
   };
@@ -516,6 +554,36 @@ export default function ComicCreator() {
       };
     }));
   };
+
+  const updateContentStyle = (page: "left" | "right", panelId: string, contentId: string, styleUpdates: Partial<PanelContent['data']>) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(panel => {
+          if (panel.id !== panelId) return panel;
+          return {
+            ...panel,
+            contents: panel.contents.map(c => 
+              c.id === contentId 
+                ? { ...c, data: { ...c.data, ...styleUpdates } }
+                : c
+            )
+          };
+        })
+      };
+    }));
+  };
+
+  const getSelectedContent = (): PanelContent | null => {
+    if (!selectedPanelId || !selectedContentId) return null;
+    const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === selectedPanelId);
+    return panel?.contents.find(c => c.id === selectedContentId) || null;
+  };
+
+  const selectedContent = getSelectedContent();
 
   const addTextToPanel = (page: "left" | "right", panelId: string) => {
     addContentToPanel(page, panelId, {
@@ -1434,6 +1502,74 @@ export default function ComicCreator() {
                   </div>
                 ))}
               </div>
+              
+              {selectedContent && (selectedContent.type === 'text' || selectedContent.type === 'bubble') && selectedPanelId && (
+                <div className="border-t border-zinc-800 p-3">
+                  <h4 className="font-bold text-xs mb-3 flex items-center gap-2">
+                    <Type className="w-3 h-3" /> Text Properties
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Font</label>
+                      <select
+                        value={selectedContent.data.fontFamily || "Inter, sans-serif"}
+                        onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { fontFamily: e.target.value })}
+                        className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                        data-testid="select-font"
+                      >
+                        {FONT_OPTIONS.map(font => (
+                          <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                            {font.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Size</label>
+                        <input
+                          type="number"
+                          min="8"
+                          max="120"
+                          value={selectedContent.data.fontSize || 16}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { fontSize: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                          data-testid="input-font-size"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Color</label>
+                        <input
+                          type="color"
+                          value={selectedContent.data.color || "#000000"}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { color: e.target.value })}
+                          className="w-full h-7 bg-zinc-800 border border-zinc-700 cursor-pointer"
+                          data-testid="input-text-color"
+                        />
+                      </div>
+                    </div>
+                    {selectedContent.type === 'bubble' && (
+                      <div>
+                        <label className="text-xs text-zinc-400 block mb-1">Bubble Style</label>
+                        <select
+                          value={selectedContent.data.bubbleStyle || "speech"}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { bubbleStyle: e.target.value as any })}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                          data-testid="select-bubble-style"
+                        >
+                          <option value="speech">Speech</option>
+                          <option value="thought">Thought</option>
+                          <option value="shout">Shout</option>
+                          <option value="none">None</option>
+                        </select>
+                      </div>
+                    )}
+                    <div className="text-xs text-zinc-500 mt-2">
+                      Double-click text to edit content
+                    </div>
+                  </div>
+                </div>
+              )}
             </aside>
           )}
         </div>
@@ -1486,11 +1622,13 @@ export default function ComicCreator() {
               <div className="bg-white border-2 border-black">
                 <canvas
                   ref={panelCanvasRef}
-                  className="w-full aspect-square cursor-crosshair"
-                  onMouseDown={handlePanelCanvasMouseDown}
-                  onMouseMove={handlePanelCanvasMouseMove}
-                  onMouseUp={handlePanelCanvasMouseUp}
-                  onMouseLeave={handlePanelCanvasMouseUp}
+                  className="w-full aspect-square cursor-crosshair touch-none"
+                  style={{ touchAction: 'none' }}
+                  onPointerDown={handlePanelCanvasPointerDown}
+                  onPointerMove={handlePanelCanvasPointerMove}
+                  onPointerUp={handlePanelCanvasPointerUp}
+                  onPointerLeave={handlePanelCanvasPointerUp}
+                  onPointerCancel={handlePanelCanvasPointerUp}
                 />
               </div>
               <div className="flex justify-end gap-2 mt-4">

@@ -306,7 +306,7 @@ export default function MotionStudio() {
     ));
   }, [currentFrameIndex]);
 
-  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+  const getCoordinates = (e: React.PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     
@@ -314,21 +314,15 @@ export default function MotionStudio() {
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     
-    if ('touches' in e) {
-      const touch = e.touches[0];
-      return {
-        x: (touch.clientX - rect.left) * scaleX,
-        y: (touch.clientY - rect.top) * scaleY
-      };
-    }
-    
     return {
       x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
+      y: (e.clientY - rect.top) * scaleY,
+      pressure: e.pressure > 0 ? e.pressure : 0.5
     };
   };
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+  const startDrawing = (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     const coords = getCoordinates(e);
     if (!coords) return;
 
@@ -353,7 +347,7 @@ export default function MotionStudio() {
     if (!contextRef.current) return;
     
     setIsDrawing(true);
-    setLastPoint(coords);
+    setLastPoint({ x: coords.x, y: coords.y });
     
     const canvas = canvasRef.current;
     if (canvas) {
@@ -362,7 +356,7 @@ export default function MotionStudio() {
     }
   };
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+  const draw = (e: React.PointerEvent) => {
     if (!isDrawing || !lastPoint || !contextRef.current) return;
     if (activeTool !== 'brush' && activeTool !== 'eraser') return;
     
@@ -371,17 +365,21 @@ export default function MotionStudio() {
     
     const context = contextRef.current;
     const isErasing = activeTool === 'eraser';
-    const currentBrushType = brushTypes.find(b => b.id === activeBrush);
+    const pressure = coords.pressure;
     
     context.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
     context.globalAlpha = isErasing ? 1 : brushOpacity / 100;
     context.strokeStyle = brushColor;
-    context.lineWidth = isErasing ? brushSize * 3 : brushSize;
+    
+    const pressureAdjustedSize = isErasing 
+      ? brushSize * 3 * pressure 
+      : brushSize * (0.5 + pressure * 0.8);
+    context.lineWidth = Math.max(1, pressureAdjustedSize);
     
     if (activeBrush === 'airbrush' && !isErasing) {
       context.fillStyle = brushColor;
-      const density = 25;
-      const radius = brushSize * 1.5;
+      const density = Math.floor(25 * pressure);
+      const radius = brushSize * 1.5 * pressure;
       for (let i = 0; i < density; i++) {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.random() * radius;
@@ -393,14 +391,14 @@ export default function MotionStudio() {
       }
     } else if (activeBrush === 'calligraphy' && !isErasing) {
       const angle = Math.atan2(coords.y - lastPoint.y, coords.x - lastPoint.x);
-      context.lineWidth = brushSize * (1 + Math.abs(Math.sin(angle)));
+      context.lineWidth = pressureAdjustedSize * (1 + Math.abs(Math.sin(angle)));
       context.beginPath();
       context.moveTo(lastPoint.x, lastPoint.y);
       context.lineTo(coords.x, coords.y);
       context.stroke();
     } else if (activeBrush === 'marker' && !isErasing) {
-      context.globalAlpha = (brushOpacity / 100) * 0.6;
-      context.lineWidth = brushSize * 1.5;
+      context.globalAlpha = (brushOpacity / 100) * 0.6 * pressure;
+      context.lineWidth = pressureAdjustedSize * 1.5;
       context.beginPath();
       context.moveTo(lastPoint.x, lastPoint.y);
       context.lineTo(coords.x, coords.y);
@@ -415,10 +413,15 @@ export default function MotionStudio() {
     context.globalCompositeOperation = 'source-over';
     context.globalAlpha = 1;
     
-    setLastPoint(coords);
+    setLastPoint({ x: coords.x, y: coords.y });
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e: React.PointerEvent) => {
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
     if (isDrawing) {
       setIsDrawing(false);
       setLastPoint(null);
@@ -863,19 +866,18 @@ export default function MotionStudio() {
                         ref={canvasRef}
                         width={1920}
                         height={1080}
-                        className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0"
+                        className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0 touch-none"
                         style={{ 
                           cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
                           width: '100%',
                           height: '100%',
+                          touchAction: 'none',
                         }}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        onTouchStart={startDrawing}
-                        onTouchMove={draw}
-                        onTouchEnd={stopDrawing}
+                        onPointerDown={startDrawing}
+                        onPointerMove={draw}
+                        onPointerUp={stopDrawing}
+                        onPointerLeave={stopDrawing}
+                        onPointerCancel={stopDrawing}
                       />
                   {textLayers.map(layer => {
                     const canvas = canvasRef.current;
