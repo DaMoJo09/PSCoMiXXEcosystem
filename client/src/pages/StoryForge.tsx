@@ -169,9 +169,48 @@ The dust settles, and our characters emerge changed. ${storyConfig.title} conclu
   };
 
   const sendToCYOA = () => {
+    if (!generatedStory) {
+      toast.error("Please generate a story first");
+      return;
+    }
     localStorage.setItem("cyoa_story", generatedStory);
+    localStorage.setItem("cyoa_auto_branch", "true");
+    localStorage.setItem("cyoa_branch_count", String(Math.max(5, Math.ceil(generatedStory.length / 500))));
     navigate("/tools/cyoa");
-    toast.success("Sent to CYOA Maker!");
+    toast.success("Sent to CYOA with auto-branching enabled!");
+  };
+
+  const sendToVN = () => {
+    if (!generatedStory) {
+      toast.error("Please generate a story first");
+      return;
+    }
+    const vnData = {
+      scenes: generatedStory.split(/##\s/).filter(s => s.trim()).slice(1).map((section, i) => ({
+        id: `scene_${i}`,
+        name: section.split('\n')[0]?.trim() || `Scene ${i + 1}`,
+        background: "classroom",
+        characters: characters.filter(c => c.name).map(c => ({
+          id: c.id,
+          position: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" as const,
+          expression: "neutral",
+          visible: true
+        })),
+        dialogue: section.split('\n').filter(l => l.trim()).slice(1).map(line => ({
+          speaker: characters[0]?.name || "Narrator",
+          text: line.trim()
+        }))
+      })),
+      characters: characters.filter(c => c.name).map(c => ({
+        id: c.id,
+        name: c.name,
+        color: `#${Math.floor(Math.random()*16777215).toString(16)}`,
+        sprites: [{ expression: "neutral", url: "" }]
+      }))
+    };
+    localStorage.setItem("vn_import_data", JSON.stringify(vnData));
+    navigate("/creator/vn");
+    toast.success("Sent to Visual Novel Creator!");
   };
 
   return (
@@ -449,6 +488,13 @@ The dust settles, and our characters emerge changed. ${storyConfig.title} conclu
                       data-testid="button-send-cyoa"
                     >
                       <ArrowRight className="w-3 h-3" /> Send to CYOA
+                    </button>
+                    <button
+                      onClick={sendToVN}
+                      className="p-2 bg-secondary border border-border text-xs font-medium flex items-center justify-center gap-1"
+                      data-testid="button-send-vn"
+                    >
+                      <ArrowRight className="w-3 h-3" /> Send to VN
                     </button>
                     <button
                       onClick={() => downloadStory("txt")}

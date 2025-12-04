@@ -310,7 +310,7 @@ export default function ComicCreator() {
       addTextToPanel(page, panelId);
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
-    } else if (activeTool === "draw") {
+    } else if (activeTool === "draw" || activeTool === "erase") {
       setDrawingInPanel(panelId);
       setTimeout(() => {
         const canvas = panelCanvasRef.current;
@@ -319,7 +319,7 @@ export default function ComicCreator() {
           canvas.height = 800;
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.fillStyle = 'transparent';
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -370,7 +370,7 @@ export default function ComicCreator() {
     const drawingData = panelCanvasRef.current.toDataURL('image/png');
     addContentToPanel(selectedPage, drawingInPanel, {
       type: "drawing",
-      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { drawingData },
       locked: false,
     });
@@ -435,21 +435,22 @@ export default function ComicCreator() {
   const addTextToPanel = (page: "left" | "right", panelId: string) => {
     addContentToPanel(page, panelId, {
       type: "text",
-      transform: { x: 20, y: 20, width: 150, height: 80, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { text: "Enter text here", fontSize: 16, fontFamily: "Inter, sans-serif", color: "#000000" },
+      transform: { x: 50, y: 50, width: 250, height: 120, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { text: "Enter text here", fontSize: 18, fontFamily: "Inter, sans-serif", color: "#000000" },
       locked: false,
     });
-    toast.success("Text added");
+    setEditingTextId(`content_${Date.now() - 1}`);
+    toast.success("Text added - click to edit");
   };
 
   const addBubbleToPanel = (page: "left" | "right", panelId: string) => {
     addContentToPanel(page, panelId, {
       type: "bubble",
-      transform: { x: 20, y: 20, width: 180, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { text: "Dialog here...", bubbleStyle: "speech", fontSize: 14, fontFamily: "Inter, sans-serif", color: "#000000" },
+      transform: { x: 50, y: 50, width: 280, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { text: "Dialog here...", bubbleStyle: "speech", fontSize: 16, fontFamily: "Inter, sans-serif", color: "#000000" },
       locked: false,
     });
-    toast.success("Speech bubble added");
+    toast.success("Speech bubble added - double-click to edit");
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -465,27 +466,27 @@ export default function ComicCreator() {
       if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "video",
-          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { videoUrl: url, autoplay: true, loop: true, muted: true },
           locked: false,
         });
-        toast.success("Video added to panel");
+        toast.success("Video added to panel - drag to position");
       } else if (fileType === 'image/gif' || fileName.endsWith('.gif')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "gif",
-          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { url },
           locked: false,
         });
-        toast.success("Animated GIF added to panel");
+        toast.success("Animated GIF added - drag to position");
       } else {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "image",
-          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { url },
           locked: false,
         });
-        toast.success("Image added to panel");
+        toast.success("Image added - drag to position");
       }
     };
     reader.readAsDataURL(file);
@@ -499,12 +500,12 @@ export default function ComicCreator() {
     }
     addContentToPanel(selectedPage, selectedPanelId, {
       type: "image",
-      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: 450, height: 350, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { url },
       locked: false,
     });
     setShowAIGen(false);
-    toast.success("AI image added to panel");
+    toast.success("AI image added - drag to position");
   };
 
   const applyTemplate = (template: typeof panelTemplates[0], page: "left" | "right") => {
@@ -792,10 +793,10 @@ export default function ComicCreator() {
             >
               <div 
                 ref={leftPageRef}
-                className={`bg-white border-2 border-black relative select-none shadow-2xl ${
-                  isFullscreen ? "w-[850px] h-[1200px]" : "w-[600px] h-[850px]"
+                className={`bg-white border-4 border-black relative select-none shadow-2xl ${
+                  isFullscreen ? "w-[900px] h-[1280px]" : "w-[720px] h-[1020px]"
                 }`}
-                style={{ maxHeight: 'calc(100vh - 200px)' }}
+                style={{ maxHeight: 'calc(100vh - 160px)' }}
                 onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
                 onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
                 onMouseUp={() => handlePageMouseUp("left")}
@@ -816,10 +817,10 @@ export default function ComicCreator() {
 
               <div 
                 ref={rightPageRef}
-                className={`bg-white border-2 border-black relative select-none shadow-2xl ${
-                  isFullscreen ? "w-[850px] h-[1200px]" : "w-[600px] h-[850px]"
+                className={`bg-white border-4 border-black relative select-none shadow-2xl ${
+                  isFullscreen ? "w-[900px] h-[1280px]" : "w-[720px] h-[1020px]"
                 }`}
-                style={{ maxHeight: 'calc(100vh - 200px)' }}
+                style={{ maxHeight: 'calc(100vh - 160px)' }}
                 onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
                 onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
                 onMouseUp={() => handlePageMouseUp("right")}

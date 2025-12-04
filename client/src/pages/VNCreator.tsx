@@ -128,6 +128,21 @@ export default function VNCreator() {
     }
   }, [scenes, selectedScene]);
 
+  useEffect(() => {
+    const importData = localStorage.getItem("vn_import_data");
+    if (importData) {
+      try {
+        const data = JSON.parse(importData);
+        if (data.scenes) setScenes(data.scenes);
+        if (data.characters) setCharacters(data.characters);
+        localStorage.removeItem("vn_import_data");
+        toast.success("Story imported from Story Forge!");
+      } catch (e) {
+        console.error("Failed to import VN data:", e);
+      }
+    }
+  }, []);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {

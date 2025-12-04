@@ -80,10 +80,76 @@ export default function CYOABuilder() {
 
   useEffect(() => {
     const savedStory = localStorage.getItem("cyoa_story");
+    const autoBranch = localStorage.getItem("cyoa_auto_branch");
+    const branchCount = localStorage.getItem("cyoa_branch_count");
+    
     if (savedStory) {
       setStoryText(savedStory);
       localStorage.removeItem("cyoa_story");
-      toast.success("Story imported from Story Forge!");
+      
+      if (autoBranch === "true") {
+        localStorage.removeItem("cyoa_auto_branch");
+        localStorage.removeItem("cyoa_branch_count");
+        
+        const count = branchCount ? parseInt(branchCount) : 5;
+        setBranchPoints(count);
+        setOptionsPerBranch(3);
+        
+        setTimeout(() => {
+          const paragraphs = savedStory.split(/\n\n+/).filter(p => p.trim());
+          const segmentSize = Math.ceil(paragraphs.length / count);
+          const generatedNodes: CYOANode[] = [];
+          
+          for (let i = 0; i < count; i++) {
+            const startIdx = i * segmentSize;
+            const segment = paragraphs.slice(startIdx, startIdx + segmentSize).join("\n\n");
+            if (!segment) continue;
+            
+            const nodeId = `node_${i}`;
+            const choices: { label: string; target: string }[] = [];
+            
+            if (i < count - 1) {
+              for (let j = 0; j < 3; j++) {
+                const choiceLabels = [
+                  ["Continue the journey", "Take a different path", "Wait and observe"],
+                  ["Accept this fate", "Fight against it", "Seek another way"],
+                  ["Trust your instincts", "Follow the signs", "Ask for guidance"],
+                ];
+                choices.push({
+                  label: choiceLabels[j % choiceLabels.length][i % 3],
+                  target: j === 0 ? `node_${i + 1}` : `ending_${j}_${i}`,
+                });
+              }
+            }
+            
+            generatedNodes.push({
+              id: nodeId,
+              text: segment.substring(0, 600) + (segment.length > 600 ? "..." : ""),
+              choices,
+              isEnding: i === count - 1,
+              endingType: i === count - 1 ? "good" : undefined,
+            });
+
+            if (i < count - 1) {
+              for (let j = 1; j < 3; j++) {
+                generatedNodes.push({
+                  id: `ending_${j}_${i}`,
+                  text: `Your choice leads to an unexpected outcome...`,
+                  choices: [],
+                  isEnding: true,
+                  endingType: j === 1 ? "bad" : "neutral",
+                });
+              }
+            }
+          }
+          
+          setNodes(generatedNodes);
+          setCurrentNode(generatedNodes[0]?.id || null);
+          toast.success(`Auto-generated ${count} branch points with ${generatedNodes.length} nodes!`);
+        }, 500);
+      } else {
+        toast.success("Story imported from Story Forge!");
+      }
     }
   }, []);
 
