@@ -13,17 +13,51 @@ import {
   Save,
   Download,
   Eye,
-  Layers
+  EyeOff,
+  Layers,
+  Move,
+  MousePointer,
+  Pencil,
+  PenTool,
+  Eraser,
+  Pipette,
+  Square,
+  Circle,
+  Type,
+  Image as ImageIcon,
+  Upload,
+  Film,
+  SkipBack,
+  SkipForward,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Wand2,
+  Sparkles,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import { AIGenerator } from "@/components/tools/AIGenerator";
 
 interface Frame {
   id: string;
   imageData: string;
   duration: number;
+  layers: Layer[];
+}
+
+interface Layer {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  imageData: string;
 }
 
 interface AnimationData {
@@ -34,12 +68,22 @@ interface AnimationData {
 }
 
 const brushTypes = [
-  { id: "brush", name: "Brush", width: 8 },
-  { id: "pencil", name: "Pencil", width: 2 },
-  { id: "ink", name: "Ink", width: 4 },
-  { id: "marker", name: "Marker", width: 12 },
-  { id: "airbrush", name: "Airbrush", width: 20 },
-  { id: "calligraphy", name: "Calligraphy", width: 6 },
+  { id: "brush", name: "Brush", icon: PenTool, width: 8, opacity: 100 },
+  { id: "pencil", name: "Pencil", icon: Pencil, width: 2, opacity: 100 },
+  { id: "ink", name: "Ink", icon: PenTool, width: 4, opacity: 100 },
+  { id: "marker", name: "Marker", icon: PenTool, width: 12, opacity: 80 },
+  { id: "airbrush", name: "Airbrush", icon: PenTool, width: 20, opacity: 40 },
+  { id: "calligraphy", name: "Calli", icon: PenTool, width: 6, opacity: 100 },
+];
+
+const tools = [
+  { id: "select", name: "Select", icon: MousePointer, shortcut: "V" },
+  { id: "move", name: "Move", icon: Move, shortcut: "M" },
+  { id: "brush", name: "Brush", icon: PenTool, shortcut: "B" },
+  { id: "eraser", name: "Eraser", icon: Eraser, shortcut: "E" },
+  { id: "eyedropper", name: "Eyedropper", icon: Pipette, shortcut: "I" },
+  { id: "shape", name: "Shape", icon: Square, shortcut: "U" },
+  { id: "text", name: "Text", icon: Type, shortcut: "T" },
 ];
 
 export default function MotionStudio() {
@@ -59,18 +103,19 @@ export default function MotionStudio() {
   const [lastPoint, setLastPoint] = useState<{x: number, y: number} | null>(null);
   
   const [frames, setFrames] = useState<Frame[]>([
-    { id: "frame_1", imageData: "", duration: 100 }
+    { id: "frame_1", imageData: "", duration: 100, layers: [] }
   ]);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [fps, setFps] = useState(12);
   const [onionSkin, setOnionSkin] = useState(true);
+  const [onionSkinFrames, setOnionSkinFrames] = useState(2);
   
+  const [activeTool, setActiveTool] = useState("brush");
   const [activeBrush, setActiveBrush] = useState("pencil");
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [brushOpacity, setBrushOpacity] = useState(100);
-  const [isEraser, setIsEraser] = useState(false);
   const [pressureEnabled, setPressureEnabled] = useState(true);
   
   const [history, setHistory] = useState<string[]>([]);
@@ -79,6 +124,8 @@ export default function MotionStudio() {
   const [title, setTitle] = useState("Untitled Animation");
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showAIGen, setShowAIGen] = useState(false);
+  const [zoom, setZoom] = useState(100);
 
   const currentFrame = frames[currentFrameIndex];
 
@@ -91,7 +138,7 @@ export default function MotionStudio() {
         title: "Untitled Animation",
         type: "motion",
         status: "draft",
-        data: { frames: [], fps: 12, width: 800, height: 600 },
+        data: { frames: [], fps: 12, width: 1920, height: 1080 },
       }).then((newProject) => {
         sessionStorage.removeItem('motion_creating');
         setIsCreating(false);
@@ -122,8 +169,8 @@ export default function MotionStudio() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    canvas.width = 800;
-    canvas.height = 600;
+    canvas.width = 1920;
+    canvas.height = 1080;
     
     const context = canvas.getContext('2d');
     if (!context) return;
@@ -154,6 +201,31 @@ export default function MotionStudio() {
     
     return () => clearInterval(interval);
   }, [isPlaying, fps, frames.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      switch(e.key.toLowerCase()) {
+        case 'v': setActiveTool('select'); break;
+        case 'm': setActiveTool('move'); break;
+        case 'b': setActiveTool('brush'); break;
+        case 'e': setActiveTool('eraser'); break;
+        case 'i': setActiveTool('eyedropper'); break;
+        case 'u': setActiveTool('shape'); break;
+        case 't': setActiveTool('text'); break;
+        case 'z': if (e.ctrlKey || e.metaKey) { e.shiftKey ? redo() : undo(); e.preventDefault(); } break;
+        case ' ': setIsPlaying(p => !p); e.preventDefault(); break;
+        case '[': setBrushSize(s => Math.max(1, s - 2)); break;
+        case ']': setBrushSize(s => Math.min(100, s + 2)); break;
+        case ',': goToPrevFrame(); break;
+        case '.': goToNextFrame(); break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history.length, currentFrameIndex, frames.length]);
 
   const saveCurrentFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -188,6 +260,8 @@ export default function MotionStudio() {
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    if (activeTool !== 'brush' && activeTool !== 'eraser') return;
+    
     const coords = getCoordinates(e);
     if (!coords || !contextRef.current) return;
     
@@ -203,19 +277,20 @@ export default function MotionStudio() {
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || !lastPoint || !contextRef.current) return;
+    if (activeTool !== 'brush' && activeTool !== 'eraser') return;
     
     const coords = getCoordinates(e);
     if (!coords) return;
     
     const context = contextRef.current;
-    const brush = brushTypes.find(b => b.id === activeBrush) || brushTypes[0];
+    const isErasing = activeTool === 'eraser';
     
-    context.globalAlpha = brushOpacity / 100;
-    context.strokeStyle = isEraser ? '#ffffff' : brushColor;
-    context.lineWidth = isEraser ? brushSize * 3 : brushSize;
+    context.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
+    context.globalAlpha = isErasing ? 1 : brushOpacity / 100;
+    context.strokeStyle = brushColor;
+    context.lineWidth = isErasing ? brushSize * 3 : brushSize;
     
-    if (activeBrush === 'calligraphy') {
-      context.lineWidth = brushSize;
+    if (activeBrush === 'calligraphy' && !isErasing) {
       const angle = Math.atan2(coords.y - lastPoint.y, coords.x - lastPoint.x);
       context.lineWidth = brushSize * (1 + Math.abs(Math.sin(angle)));
     }
@@ -224,6 +299,8 @@ export default function MotionStudio() {
     context.moveTo(lastPoint.x, lastPoint.y);
     context.lineTo(coords.x, coords.y);
     context.stroke();
+    
+    context.globalCompositeOperation = 'source-over';
     
     setLastPoint(coords);
   };
@@ -294,7 +371,8 @@ export default function MotionStudio() {
     const newFrame: Frame = {
       id: `frame_${Date.now()}`,
       imageData: "",
-      duration: 100
+      duration: 100,
+      layers: []
     };
     setFrames(prev => [...prev, newFrame]);
     setCurrentFrameIndex(frames.length);
@@ -316,7 +394,8 @@ export default function MotionStudio() {
     const newFrame: Frame = {
       id: `frame_${Date.now()}`,
       imageData: canvas.toDataURL('image/png'),
-      duration: 100
+      duration: 100,
+      layers: []
     };
     const newFrames = [...frames];
     newFrames.splice(currentFrameIndex + 1, 0, newFrame);
@@ -335,6 +414,16 @@ export default function MotionStudio() {
     setCurrentFrameIndex(Math.min(currentFrameIndex, newFrames.length - 1));
   };
 
+  const goToPrevFrame = () => {
+    saveCurrentFrame();
+    setCurrentFrameIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const goToNextFrame = () => {
+    saveCurrentFrame();
+    setCurrentFrameIndex(prev => Math.min(frames.length - 1, prev + 1));
+  };
+
   const handleSave = async () => {
     if (!projectId) return;
     setIsSaving(true);
@@ -343,7 +432,7 @@ export default function MotionStudio() {
         id: projectId,
         data: { 
           title, 
-          data: { frames, fps, width: 800, height: 600 } 
+          data: { frames, fps, width: 1920, height: 1080 } 
         },
       });
       toast.success("Animation saved");
@@ -374,12 +463,20 @@ export default function MotionStudio() {
     navigate(returnTo);
   };
 
-  const closeAndReturn = () => {
-    if (returnTo) {
-      navigate(returnTo);
-    } else {
-      navigate('/');
-    }
+  const handleAIGenerated = (url: string) => {
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!canvas || !context) return;
+    
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
+      saveCurrentFrame();
+      setShowAIGen(false);
+      toast.success("AI image added to canvas");
+    };
+    img.src = url;
   };
 
   if (isCreating) {
@@ -388,7 +485,7 @@ export default function MotionStudio() {
         <div className="h-screen flex items-center justify-center bg-black">
           <div className="text-center text-white">
             <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Creating animation project...</p>
+            <p className="text-zinc-400">Creating animation project...</p>
           </div>
         </div>
       </Layout>
@@ -397,211 +494,374 @@ export default function MotionStudio() {
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col bg-zinc-900 text-white">
-        <header className="h-12 border-b border-zinc-700 flex items-center justify-between px-4 bg-zinc-800">
+      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-4 bg-zinc-900">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1 bg-white text-black font-mono font-bold text-sm">
-              ANIMATION MODE
+            <Link href="/">
+              <button className="p-2 hover:bg-zinc-800 border border-transparent hover:border-zinc-700" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Film className="w-5 h-5" />
+              <input 
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1"
+                data-testid="input-motion-title"
+              />
             </div>
-            <button
-              onClick={() => setPressureEnabled(!pressureEnabled)}
-              className={`px-3 py-1 text-xs font-mono border ${pressureEnabled ? 'border-white bg-white/10' : 'border-zinc-600'}`}
-            >
-              Pressure {pressureEnabled ? 'Enabled' : 'Disabled'}
-            </button>
-            <span className="text-xs font-mono text-zinc-400">
-              Frame {currentFrameIndex + 1} / {frames.length}
-            </span>
+            <span className="text-xs font-mono text-zinc-500">Motion Studio</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <button onClick={undo} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Undo">
+            <button onClick={undo} className="p-2 hover:bg-zinc-800" title="Undo (Ctrl+Z)">
               <Undo className="w-4 h-4" />
             </button>
-            <button onClick={redo} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Redo">
+            <button onClick={redo} className="p-2 hover:bg-zinc-800" title="Redo (Ctrl+Shift+Z)">
               <Redo className="w-4 h-4" />
             </button>
-            <button onClick={clearCanvas} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Clear">
-              <Trash2 className="w-4 h-4" />
-            </button>
             
-            <div className="w-px h-6 bg-zinc-600 mx-2" />
+            <div className="w-px h-6 bg-zinc-700 mx-2" />
             
             {panelId && (
               <button
                 onClick={applyToPanel}
-                className="px-4 py-1.5 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-gray-200"
+                className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200"
               >
                 <Check className="w-4 h-4" /> Apply to Panel
               </button>
             )}
             
             <button
-              onClick={closeAndReturn}
-              className="p-2 hover:bg-zinc-700"
-              title="Close"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              data-testid="button-save"
             >
-              <X className="w-4 h-4" />
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+            </button>
+            
+            <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export">
+              <Download className="w-4 h-4" /> Export
             </button>
           </div>
         </header>
 
-        <div className="h-10 border-b border-zinc-700 flex items-center px-4 gap-2 bg-zinc-800">
-          <span className="text-xs text-zinc-400 mr-2">Brush:</span>
-          {brushTypes.map(brush => (
+        <div className="flex-1 flex overflow-hidden">
+          <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
+            {tools.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => setActiveTool(tool.id)}
+                className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
+                  activeTool === tool.id 
+                    ? 'bg-white text-black' 
+                    : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+                title={`${tool.name} (${tool.shortcut})`}
+              >
+                <tool.icon className="w-5 h-5" />
+              </button>
+            ))}
+            
+            <div className="w-10 h-px bg-zinc-700 my-2" />
+            
             <button
-              key={brush.id}
-              onClick={() => { setActiveBrush(brush.id); setIsEraser(false); }}
-              className={`px-3 py-1 text-xs border ${activeBrush === brush.id && !isEraser ? 'border-white bg-white/20' : 'border-zinc-600 hover:border-zinc-500'}`}
+              onClick={() => setShowAIGen(true)}
+              className="p-3 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+              title="AI Generate"
             >
-              {brush.name}
+              <Wand2 className="w-5 h-5" />
             </button>
-          ))}
-          <button
-            onClick={() => setIsEraser(!isEraser)}
-            className={`px-3 py-1 text-xs border ${isEraser ? 'border-white bg-white/20' : 'border-zinc-600 hover:border-zinc-500'}`}
-          >
-            Eraser
-          </button>
-          
-          <div className="w-px h-6 bg-zinc-600 mx-2" />
-          
-          <span className="text-xs text-zinc-400">Size:</span>
-          <input
-            type="range"
-            min="1"
-            max="50"
-            value={brushSize}
-            onChange={(e) => setBrushSize(Number(e.target.value))}
-            className="w-24 accent-white"
-          />
-          <span className="text-xs w-8">{brushSize}px</span>
-          
-          <div className="w-px h-6 bg-zinc-600 mx-2" />
-          
-          <span className="text-xs text-zinc-400">Color:</span>
-          <input
-            type="color"
-            value={brushColor}
-            onChange={(e) => setBrushColor(e.target.value)}
-            className="w-8 h-6 border border-zinc-600 bg-transparent cursor-pointer"
-          />
-          
-          <div className="w-px h-6 bg-zinc-600 mx-2" />
-          
-          <span className="text-xs text-zinc-400">Opacity:</span>
-          <input
-            type="range"
-            min="10"
-            max="100"
-            value={brushOpacity}
-            onChange={(e) => setBrushOpacity(Number(e.target.value))}
-            className="w-20 accent-white"
-          />
-          <span className="text-xs w-10">{brushOpacity}%</span>
-        </div>
-
-        <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden bg-zinc-900">
-          <div className="relative">
-            {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
-              <img 
-                src={frames[currentFrameIndex - 1].imageData}
-                className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
-                alt="Previous frame"
-              />
-            )}
-            <canvas
-              ref={canvasRef}
-              className="bg-white shadow-2xl cursor-crosshair"
-              style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 280px)' }}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
-            />
-          </div>
-        </div>
-
-        <div className="h-10 border-t border-zinc-700 flex items-center px-4 gap-4 bg-zinc-800">
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700"
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            <span className="text-sm">{isPlaying ? 'Pause' : 'Play'}</span>
-          </button>
-          
-          <button onClick={addFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
-            <Plus className="w-4 h-4" />
-            <span className="text-sm">Add Frame</span>
-          </button>
-          
-          <button onClick={duplicateFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
-            <Copy className="w-4 h-4" />
-            <span className="text-sm">Duplicate</span>
-          </button>
-          
-          <button onClick={deleteFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
-            <Trash2 className="w-4 h-4" />
-            <span className="text-sm">Delete</span>
-          </button>
-          
-          <div className="flex-1" />
-          
-          <div className="flex items-center gap-2">
+            
             <button
-              onClick={() => setOnionSkin(!onionSkin)}
-              className={`flex items-center gap-2 px-3 py-1 ${onionSkin ? 'bg-white/10' : ''} hover:bg-zinc-700`}
+              className="p-3 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+              title="Upload Image"
             >
-              <Eye className="w-4 h-4" />
-              <span className="text-sm">Onion Skin</span>
+              <Upload className="w-5 h-5" />
             </button>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">FPS:</span>
-            <input
-              type="range"
-              min="1"
-              max="30"
-              value={fps}
-              onChange={(e) => setFps(Number(e.target.value))}
-              className="w-20 accent-white"
-            />
-            <span className="text-xs w-6">{fps}</span>
-          </div>
-        </div>
-
-        <div className="h-24 border-t border-zinc-700 bg-zinc-800 flex items-center px-4 gap-2 overflow-x-auto">
-          {frames.map((frame, index) => (
-            <button
-              key={frame.id}
-              onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(index); }}
-              className={`flex-shrink-0 w-20 h-16 border-2 relative ${
-                index === currentFrameIndex ? 'border-white' : 'border-zinc-600 hover:border-zinc-500'
-              }`}
+            
+            <div className="flex-1" />
+            
+            <div 
+              className="w-10 h-10 border-2 border-zinc-600 cursor-pointer relative"
+              style={{ backgroundColor: brushColor }}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.value = brushColor;
+                input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
+                input.click();
+              }}
             >
-              {frame.imageData ? (
-                <img src={frame.imageData} className="w-full h-full object-cover" alt={`Frame ${index + 1}`} />
-              ) : (
-                <div className="w-full h-full bg-white" />
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border border-zinc-600" />
+            </div>
+          </aside>
+
+          <div className="flex-1 flex flex-col">
+            <div className="h-10 border-b border-zinc-800 flex items-center px-4 gap-3 bg-zinc-900/50">
+              {(activeTool === 'brush' || activeTool === 'eraser') && (
+                <>
+                  {activeTool === 'brush' && (
+                    <>
+                      <span className="text-xs text-zinc-500">Brush:</span>
+                      <div className="flex gap-1">
+                        {brushTypes.map(brush => (
+                          <button
+                            key={brush.id}
+                            onClick={() => setActiveBrush(brush.id)}
+                            className={`px-2 py-1 text-xs ${
+                              activeBrush === brush.id 
+                                ? 'bg-white text-black' 
+                                : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                            }`}
+                          >
+                            {brush.name}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="w-px h-5 bg-zinc-700" />
+                    </>
+                  )}
+                  
+                  <span className="text-xs text-zinc-500">Size:</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={brushSize}
+                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                    className="w-24 accent-white"
+                  />
+                  <span className="text-xs w-8 text-zinc-400">{brushSize}px</span>
+                  
+                  {activeTool === 'brush' && (
+                    <>
+                      <div className="w-px h-5 bg-zinc-700" />
+                      <span className="text-xs text-zinc-500">Opacity:</span>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={brushOpacity}
+                        onChange={(e) => setBrushOpacity(Number(e.target.value))}
+                        className="w-20 accent-white"
+                      />
+                      <span className="text-xs w-8 text-zinc-400">{brushOpacity}%</span>
+                    </>
+                  )}
+                </>
               )}
-              <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/50 text-white">
-                {index + 1}
+              
+              <div className="flex-1" />
+              
+              <button
+                onClick={() => setPressureEnabled(!pressureEnabled)}
+                className={`px-2 py-1 text-xs ${pressureEnabled ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'}`}
+              >
+                Pressure
+              </button>
+              
+              <div className="flex items-center gap-1">
+                <button onClick={() => setZoom(z => Math.max(25, z - 25))} className="p-1 hover:bg-zinc-800">
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <span className="text-xs w-10 text-center">{zoom}%</span>
+                <button onClick={() => setZoom(z => Math.min(200, z + 25))} className="p-1 hover:bg-zinc-800">
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-8 relative">
+              <div 
+                className="absolute inset-0 pointer-events-none opacity-5"
+                style={{ 
+                  backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", 
+                  backgroundSize: "50px 50px"
+                }} 
+              />
+              
+              <div className="relative" style={{ transform: `scale(${zoom / 100})` }}>
+                {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
+                  <img 
+                    src={frames[currentFrameIndex - 1].imageData}
+                    className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
+                    alt="Previous frame"
+                  />
+                )}
+                {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
+                  <img 
+                    src={frames[currentFrameIndex - 2].imageData}
+                    className="absolute inset-0 w-full h-full opacity-10 pointer-events-none"
+                    alt="Frame -2"
+                  />
+                )}
+                <canvas
+                  ref={canvasRef}
+                  className="bg-white shadow-2xl"
+                  style={{ 
+                    cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
+                    maxWidth: '100%',
+                    maxHeight: 'calc(100vh - 300px)'
+                  }}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              </div>
+            </main>
+
+            <div className="h-12 border-t border-zinc-800 flex items-center px-4 gap-4 bg-zinc-900">
+              <div className="flex items-center gap-2">
+                <button onClick={goToPrevFrame} className="p-2 hover:bg-zinc-800" title="Previous Frame (,)">
+                  <SkipBack className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className={`p-2 ${isPlaying ? 'bg-white text-black' : 'hover:bg-zinc-800'}`}
+                  title="Play/Pause (Space)"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <button onClick={goToNextFrame} className="p-2 hover:bg-zinc-800" title="Next Frame (.)">
+                  <SkipForward className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="w-px h-6 bg-zinc-700" />
+              
+              <button onClick={addFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
+                <Plus className="w-3 h-3" /> Add Frame
+              </button>
+              <button onClick={duplicateFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
+                <Copy className="w-3 h-3" /> Duplicate
+              </button>
+              <button onClick={deleteFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+              
+              <div className="flex-1" />
+              
+              <button
+                onClick={() => setOnionSkin(!onionSkin)}
+                className={`px-3 py-1.5 text-xs flex items-center gap-2 ${onionSkin ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+              >
+                {onionSkin ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                Onion Skin
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500">FPS:</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="60"
+                  value={fps}
+                  onChange={(e) => setFps(Number(e.target.value))}
+                  className="w-20 accent-white"
+                />
+                <span className="text-xs w-6">{fps}</span>
+              </div>
+              
+              <span className="text-xs font-mono text-zinc-500">
+                Frame {currentFrameIndex + 1} / {frames.length}
               </span>
-            </button>
-          ))}
-          <button
-            onClick={addFrame}
-            className="flex-shrink-0 w-20 h-16 border-2 border-dashed border-zinc-600 hover:border-zinc-500 flex items-center justify-center"
-          >
-            <Plus className="w-6 h-6 text-zinc-500" />
-          </button>
+            </div>
+
+            <div className="h-24 border-t border-zinc-800 bg-zinc-900 flex items-center px-4 gap-2 overflow-x-auto">
+              {frames.map((frame, index) => (
+                <button
+                  key={frame.id}
+                  onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(index); }}
+                  className={`flex-shrink-0 w-28 h-16 border-2 relative group transition-all ${
+                    index === currentFrameIndex 
+                      ? 'border-white shadow-lg shadow-white/20' 
+                      : 'border-zinc-700 hover:border-zinc-500'
+                  }`}
+                >
+                  {frame.imageData ? (
+                    <img src={frame.imageData} className="w-full h-full object-cover bg-white" alt={`Frame ${index + 1}`} />
+                  ) : (
+                    <div className="w-full h-full bg-white" />
+                  )}
+                  <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/80 text-white py-0.5">
+                    {index + 1}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCurrentFrameIndex(index); deleteFrame(); }}
+                    className="absolute top-0 right-0 p-1 bg-red-500 text-white opacity-0 group-hover:opacity-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </button>
+              ))}
+              <button
+                onClick={addFrame}
+                className="flex-shrink-0 w-28 h-16 border-2 border-dashed border-zinc-700 hover:border-zinc-500 flex items-center justify-center"
+              >
+                <Plus className="w-6 h-6 text-zinc-600" />
+              </button>
+            </div>
+          </div>
+
+          <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col">
+            <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center gap-2">
+              <Layers className="w-4 h-4" /> Layers
+            </div>
+            <div className="flex-1 p-2 space-y-1 overflow-auto">
+              <div className="p-2 bg-zinc-800 flex items-center gap-2 text-sm">
+                <Eye className="w-4 h-4 text-zinc-400" />
+                <span className="flex-1">Layer 1</span>
+              </div>
+            </div>
+            
+            <div className="p-3 border-t border-zinc-800 font-bold text-sm flex items-center gap-2">
+              <Settings className="w-4 h-4" /> Properties
+            </div>
+            <div className="p-3 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500">Canvas Size</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" value="1920" className="w-full bg-zinc-800 border border-zinc-700 p-2 text-xs" readOnly />
+                  <input type="number" value="1080" className="w-full bg-zinc-800 border border-zinc-700 p-2 text-xs" readOnly />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500">Duration</label>
+                <p className="text-sm font-mono">{(frames.length / fps).toFixed(2)}s @ {fps}fps</p>
+              </div>
+              
+              <button onClick={clearCanvas} className="w-full py-2 bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30 flex items-center justify-center gap-2">
+                <RotateCcw className="w-3 h-3" /> Clear Frame
+              </button>
+            </div>
+          </aside>
         </div>
       </div>
+
+      {showAIGen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-700 p-6 w-[500px]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5" /> AI Generate
+              </h3>
+              <button onClick={() => setShowAIGen(false)} className="p-2 hover:bg-zinc-800">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <AIGenerator type="motion" onImageGenerated={handleAIGenerated} />
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

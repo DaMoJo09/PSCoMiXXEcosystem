@@ -589,10 +589,14 @@ export default function ComicCreator() {
               </div>
             )}
 
-            <div className={`flex ${isFullscreen ? "gap-0" : "gap-4"}`}>
+            <div className={`flex ${isFullscreen ? "gap-1" : "gap-6"} transition-all duration-300`}>
               <div 
                 ref={leftPageRef}
-                className={`bg-white border border-black relative select-none ${isFullscreen ? "w-[500px] h-[700px]" : "w-[350px] h-[500px]"}`}
+                className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
+                  isFullscreen 
+                    ? "w-[45vw] max-w-[600px] h-[calc(100vh-180px)] max-h-[850px]" 
+                    : "w-[42vw] max-w-[480px] h-[calc(100vh-220px)] max-h-[680px]"
+                }`}
                 onMouseDown={(e) => handleMouseDown(e, "left", leftPageRef)}
                 onMouseMove={(e) => handleMouseMove(e, leftPageRef)}
                 onMouseUp={handleMouseUp}
@@ -601,19 +605,24 @@ export default function ComicCreator() {
                 {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                 {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
                 {currentSpread.leftPage.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                     <div className="text-center">
-                      <Plus className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs font-mono opacity-50">Double-click or Right-click</p>
-                      <p className="text-xs font-mono opacity-50">to add media or draw</p>
+                      <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-mono opacity-40">Click to add panels</p>
+                      <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
                     </div>
                   </div>
                 )}
+                <div className="absolute bottom-2 left-2 text-[10px] font-mono text-zinc-300 pointer-events-none">LEFT</div>
               </div>
 
               <div 
                 ref={rightPageRef}
-                className={`bg-white border border-black relative select-none ${isFullscreen ? "w-[500px] h-[700px]" : "w-[350px] h-[500px]"}`}
+                className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
+                  isFullscreen 
+                    ? "w-[45vw] max-w-[600px] h-[calc(100vh-180px)] max-h-[850px]" 
+                    : "w-[42vw] max-w-[480px] h-[calc(100vh-220px)] max-h-[680px]"
+                }`}
                 onMouseDown={(e) => handleMouseDown(e, "right", rightPageRef)}
                 onMouseMove={(e) => handleMouseMove(e, rightPageRef)}
                 onMouseUp={handleMouseUp}
@@ -622,14 +631,15 @@ export default function ComicCreator() {
                 {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                 {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
                 {currentSpread.rightPage.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                     <div className="text-center">
-                      <Plus className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs font-mono opacity-50">Double-click or Right-click</p>
-                      <p className="text-xs font-mono opacity-50">to add media or draw</p>
+                      <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-mono opacity-40">Click to add panels</p>
+                      <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
                     </div>
                   </div>
                 )}
+                <div className="absolute bottom-2 right-2 text-[10px] font-mono text-zinc-300 pointer-events-none">RIGHT</div>
               </div>
             </div>
 

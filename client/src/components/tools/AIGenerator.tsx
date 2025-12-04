@@ -3,7 +3,7 @@ import { Wand2, Loader2, X } from "lucide-react";
 
 interface AIGeneratorProps {
   onImageGenerated: (url: string) => void;
-  type: "comic" | "card" | "cover" | "character" | "background";
+  type: "comic" | "card" | "cover" | "character" | "background" | "motion" | "cyoa" | "vn";
 }
 
 export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
