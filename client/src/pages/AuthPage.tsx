@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export default function AuthPage() {
-  const { login, signup } = useAuth();
+  const { login, signup, isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
@@ -18,12 +20,19 @@ export default function AuthPage() {
     name: "",
   });
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     try {
       await login(loginData.email, loginData.password);
       toast.success("Welcome back to Press Start CoMixx");
+      navigate("/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -37,6 +46,7 @@ export default function AuthPage() {
     try {
       await signup(signupData.email, signupData.password, signupData.name);
       toast.success("Account created successfully");
+      navigate("/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Signup failed");
     } finally {
