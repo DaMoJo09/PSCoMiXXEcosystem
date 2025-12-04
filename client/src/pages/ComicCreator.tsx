@@ -112,6 +112,15 @@ export default function ComicCreator() {
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
   
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewPage, setPreviewPage] = useState(0);
+  const [comicMeta, setComicMeta] = useState({
+    frontCover: "",
+    backCover: "",
+    bonusCards: [] as string[],
+    credits: "Created with PSCoMiXX Creator"
+  });
+  
   const [drawingInPanel, setDrawingInPanel] = useState<string | null>(null);
   const [isDrawingInCanvas, setIsDrawingInCanvas] = useState(false);
   const panelCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -178,6 +187,7 @@ export default function ComicCreator() {
         case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
         case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
         case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
+        case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); } break;
         case '[': setBrushSize(s => Math.max(1, s - 2)); break;
         case ']': setBrushSize(s => Math.min(100, s + 2)); break;
       }
@@ -724,6 +734,13 @@ export default function ComicCreator() {
             >
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
+            <button 
+              onClick={() => { setPreviewPage(0); setShowPreview(true); }}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+              data-testid="button-preview"
+            >
+              <Eye className="w-4 h-4" /> Preview
+            </button>
             <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
               <Download className="w-4 h-4" /> Export
             </button>
@@ -1018,6 +1035,209 @@ export default function ComicCreator() {
               ) : (
                 <p className="text-zinc-400 text-center py-8">Please select a panel first</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {showPreview && (
+          <div className="fixed inset-0 bg-black flex flex-col z-50">
+            <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-6">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-zinc-800">
+                  <X className="w-5 h-5" />
+                </button>
+                <h2 className="font-display font-bold text-lg">{title} - Preview Mode</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-zinc-400">
+                  Page {previewPage + 1} of {2 + spreads.length * 2 + comicMeta.bonusCards.length}
+                </span>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => setPreviewPage(p => Math.max(0, p - 1))}
+                    disabled={previewPage === 0}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => setPreviewPage(p => Math.min(1 + spreads.length * 2 + comicMeta.bonusCards.length, p + 1))}
+                    disabled={previewPage >= 1 + spreads.length * 2 + comicMeta.bonusCards.length}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950">
+              <div className="relative" style={{ perspective: "2000px" }}>
+                {previewPage === 0 && (
+                  <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                    {comicMeta.frontCover ? (
+                      <img src={comicMeta.frontCover} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-b from-zinc-900 to-black" />
+                        <div className="relative z-10 text-center p-8">
+                          <h1 className="text-4xl font-display font-black uppercase tracking-tight mb-4">{title}</h1>
+                          <div className="w-32 h-1 bg-white mx-auto mb-4" />
+                          <p className="text-zinc-400 uppercase tracking-widest text-sm">Issue #1</p>
+                        </div>
+                        <div className="absolute bottom-8 text-xs text-zinc-600">{comicMeta.credits}</div>
+                      </>
+                    )}
+                    <div className="absolute top-4 right-4 text-xs text-white/50 font-mono">FRONT COVER</div>
+                  </div>
+                )}
+
+                {previewPage > 0 && previewPage <= spreads.length * 2 && (() => {
+                  const spreadIndex = Math.floor((previewPage - 1) / 2);
+                  const isLeftPage = (previewPage - 1) % 2 === 0;
+                  const spread = spreads[spreadIndex];
+                  const panels = isLeftPage ? spread?.leftPage : spread?.rightPage;
+                  
+                  return (
+                    <div className="w-[500px] h-[750px] bg-white border-4 border-zinc-800 shadow-2xl relative overflow-hidden">
+                      {panels?.map(panel => (
+                        <div 
+                          key={panel.id}
+                          className="absolute border-2 border-black bg-white overflow-hidden"
+                          style={{
+                            left: `${panel.x}%`,
+                            top: `${panel.y}%`,
+                            width: `${panel.width}%`,
+                            height: `${panel.height}%`,
+                          }}
+                        >
+                          {panel.contents.map(content => (
+                            <div
+                              key={content.id}
+                              className="absolute"
+                              style={{
+                                left: content.transform.x,
+                                top: content.transform.y,
+                                width: content.transform.width,
+                                height: content.transform.height,
+                                transform: `rotate(${content.transform.rotation}deg)`,
+                                zIndex: content.zIndex,
+                              }}
+                            >
+                              {content.type === "image" && content.data.url && (
+                                <img src={content.data.url} className="w-full h-full object-cover" />
+                              )}
+                              {content.type === "drawing" && content.data.drawingData && (
+                                <img src={content.data.drawingData} className="w-full h-full object-contain" />
+                              )}
+                              {(content.type === "text" || content.type === "bubble") && (
+                                <div 
+                                  className={`w-full h-full flex items-center justify-center p-2 text-center ${
+                                    content.data.bubbleStyle === "speech" ? "bg-white border-2 border-black rounded-2xl" :
+                                    content.data.bubbleStyle === "thought" ? "bg-white border-2 border-black rounded-full" :
+                                    content.data.bubbleStyle === "shout" ? "bg-yellow-300 border-2 border-black" : ""
+                                  }`}
+                                  style={{ 
+                                    color: content.data.color, 
+                                    fontSize: content.data.fontSize,
+                                    fontFamily: content.data.fontFamily 
+                                  }}
+                                >
+                                  {content.data.text}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                      {(!panels || panels.length === 0) && (
+                        <div className="absolute inset-0 flex items-center justify-center text-zinc-300">
+                          <p className="text-lg">Empty Page</p>
+                        </div>
+                      )}
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-zinc-400 font-mono">
+                        Page {previewPage}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {previewPage === spreads.length * 2 + 1 && (
+                  <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                    {comicMeta.backCover ? (
+                      <img src={comicMeta.backCover} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-black" />
+                        <div className="relative z-10 text-center p-8 max-w-md">
+                          <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+                            Thank you for reading {title}. This comic was created using PSCoMiXX Creator.
+                          </p>
+                          <div className="w-16 h-16 border-2 border-zinc-700 mx-auto mb-4 flex items-center justify-center">
+                            <span className="text-xs text-zinc-500 font-mono">BARCODE</span>
+                          </div>
+                          <p className="text-xs text-zinc-600">{comicMeta.credits}</p>
+                        </div>
+                      </>
+                    )}
+                    <div className="absolute top-4 right-4 text-xs text-white/50 font-mono">BACK COVER</div>
+                  </div>
+                )}
+
+                {previewPage > spreads.length * 2 + 1 && comicMeta.bonusCards.length > 0 && (
+                  <div className="w-[400px] h-[560px] bg-zinc-900 border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute top-4 text-xs text-white/50 font-mono">BONUS CARD {previewPage - spreads.length * 2 - 1}</div>
+                    {comicMeta.bonusCards[previewPage - spreads.length * 2 - 2] ? (
+                      <img src={comicMeta.bonusCards[previewPage - spreads.length * 2 - 2]} className="w-[90%] h-[90%] object-contain" />
+                    ) : (
+                      <div className="text-zinc-500 text-center">
+                        <p className="text-lg mb-2">Bonus Trading Card</p>
+                        <p className="text-xs">Add cards in settings</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="h-24 bg-zinc-900 border-t border-zinc-800 flex items-center justify-center gap-2 px-4 overflow-x-auto">
+              <button 
+                onClick={() => setPreviewPage(0)}
+                className={`w-12 h-16 border-2 flex-shrink-0 flex items-center justify-center text-[8px] ${previewPage === 0 ? 'border-white' : 'border-zinc-700'}`}
+              >
+                <span className="text-zinc-400">COVER</span>
+              </button>
+              {spreads.map((spread, idx) => (
+                <div key={spread.id} className="flex gap-1">
+                  <button 
+                    onClick={() => setPreviewPage(idx * 2 + 1)}
+                    className={`w-10 h-14 border flex-shrink-0 bg-white ${previewPage === idx * 2 + 1 ? 'border-2 border-blue-500' : 'border-zinc-700'}`}
+                  >
+                    <span className="text-[8px] text-black">{idx * 2 + 1}</span>
+                  </button>
+                  <button 
+                    onClick={() => setPreviewPage(idx * 2 + 2)}
+                    className={`w-10 h-14 border flex-shrink-0 bg-white ${previewPage === idx * 2 + 2 ? 'border-2 border-blue-500' : 'border-zinc-700'}`}
+                  >
+                    <span className="text-[8px] text-black">{idx * 2 + 2}</span>
+                  </button>
+                </div>
+              ))}
+              <button 
+                onClick={() => setPreviewPage(spreads.length * 2 + 1)}
+                className={`w-12 h-16 border-2 flex-shrink-0 flex items-center justify-center text-[8px] ${previewPage === spreads.length * 2 + 1 ? 'border-white' : 'border-zinc-700'}`}
+              >
+                <span className="text-zinc-400">BACK</span>
+              </button>
+              {comicMeta.bonusCards.map((_, idx) => (
+                <button 
+                  key={idx}
+                  onClick={() => setPreviewPage(spreads.length * 2 + 2 + idx)}
+                  className={`w-10 h-14 border flex-shrink-0 bg-zinc-800 flex items-center justify-center ${previewPage === spreads.length * 2 + 2 + idx ? 'border-2 border-yellow-500' : 'border-zinc-700'}`}
+                >
+                  <span className="text-[8px] text-yellow-500">CARD</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
