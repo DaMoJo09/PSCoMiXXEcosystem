@@ -675,7 +675,7 @@ export default function MotionStudio() {
               </div>
             </div>
 
-            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-2 relative">
+            <main className="flex-1 bg-zinc-950 overflow-hidden flex items-center justify-center relative">
               <div 
                 className="absolute inset-0 pointer-events-none opacity-5"
                 style={{ 
@@ -684,18 +684,18 @@ export default function MotionStudio() {
                 }} 
               />
               
-              <div className="relative" style={{ transform: `scale(${zoom / 100})` }}>
+              <div className="relative w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom / 100})` }}>
                 {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
                   <img 
                     src={frames[currentFrameIndex - 1].imageData}
-                    className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
+                    className="absolute inset-0 w-full h-full opacity-20 pointer-events-none object-contain"
                     alt="Previous frame"
                   />
                 )}
                 {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
                   <img 
                     src={frames[currentFrameIndex - 2].imageData}
-                    className="absolute inset-0 w-full h-full opacity-10 pointer-events-none"
+                    className="absolute inset-0 w-full h-full opacity-10 pointer-events-none object-contain"
                     alt="Frame -2"
                   />
                 )}
@@ -704,9 +704,10 @@ export default function MotionStudio() {
                   className="bg-white shadow-2xl border-2 border-zinc-700"
                   style={{ 
                     cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
-                    width: 'min(100%, calc(100vh - 120px) * 16/9)',
-                    height: 'auto',
-                    maxHeight: 'calc(100vh - 120px)'
+                    width: 'calc(100% - 32px)',
+                    maxWidth: 'calc((100vh - 140px) * 16 / 9)',
+                    height: 'calc(100vh - 140px)',
+                    maxHeight: 'calc((100vw - 300px) * 9 / 16)'
                   }}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
