@@ -704,9 +704,9 @@ export default function MotionStudio() {
                   className="bg-white shadow-2xl border-2 border-zinc-700"
                   style={{ 
                     cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
-                    width: 'min(100%, calc(100vh - 180px) * 16/9)',
+                    width: 'min(100%, calc(100vh - 120px) * 16/9)',
                     height: 'auto',
-                    maxHeight: 'calc(100vh - 180px)'
+                    maxHeight: 'calc(100vh - 120px)'
                   }}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
@@ -719,64 +719,24 @@ export default function MotionStudio() {
               </div>
             </main>
 
-            <div className="h-12 border-t border-zinc-800 flex items-center px-4 gap-4 bg-zinc-900">
-              <div className="flex items-center gap-2">
-                <button onClick={goToPrevFrame} className="p-2 hover:bg-zinc-800" title="Previous Frame (,)">
-                  <SkipBack className="w-4 h-4" />
+            <div className="h-14 border-t border-zinc-800 bg-zinc-900 flex items-center px-3 gap-2 overflow-x-auto">
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={goToPrevFrame} className="p-1.5 hover:bg-zinc-800" title="Previous Frame (,)">
+                  <SkipBack className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className={`p-2 ${isPlaying ? 'bg-white text-black' : 'hover:bg-zinc-800'}`}
+                  className={`p-1.5 ${isPlaying ? 'bg-white text-black' : 'hover:bg-zinc-800'}`}
                   title="Play/Pause (Space)"
                 >
-                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                 </button>
-                <button onClick={goToNextFrame} className="p-2 hover:bg-zinc-800" title="Next Frame (.)">
-                  <SkipForward className="w-4 h-4" />
+                <button onClick={goToNextFrame} className="p-1.5 hover:bg-zinc-800" title="Next Frame (.)">
+                  <SkipForward className="w-3 h-3" />
                 </button>
               </div>
               
-              <div className="w-px h-6 bg-zinc-700" />
-              
-              <button onClick={addFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
-                <Plus className="w-3 h-3" /> Add Frame
-              </button>
-              <button onClick={duplicateFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
-                <Copy className="w-3 h-3" /> Duplicate
-              </button>
-              <button onClick={deleteFrame} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center gap-2">
-                <Trash2 className="w-3 h-3" /> Delete
-              </button>
-              
-              <div className="flex-1" />
-              
-              <button
-                onClick={() => setOnionSkin(!onionSkin)}
-                className={`px-3 py-1.5 text-xs flex items-center gap-2 ${onionSkin ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
-              >
-                {onionSkin ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                Onion Skin
-              </button>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">FPS:</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="60"
-                  value={fps}
-                  onChange={(e) => setFps(Number(e.target.value))}
-                  className="w-20 accent-white"
-                />
-                <span className="text-xs w-6">{fps}</span>
-              </div>
-              
-              <span className="text-xs font-mono text-zinc-500">
-                Frame {currentFrameIndex + 1} / {frames.length}
-              </span>
-            </div>
-
-            <div className="h-16 border-t border-zinc-800 bg-zinc-900 flex items-center px-4 gap-2 overflow-x-auto">
+              <div className="w-px h-8 bg-zinc-700 flex-shrink-0" />
               {frames.map((frame, index) => (
                 <div
                   key={frame.id}
