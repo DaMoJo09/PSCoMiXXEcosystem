@@ -1,40 +1,102 @@
 import { Layout } from "@/components/layout/Layout";
-import { Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, Wand2 } from "lucide-react";
+import { Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, Wand2, ArrowLeft } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
+import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { toast } from "sonner";
 
 export default function CardCreator() {
+  const [location] = useLocation();
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const projectId = searchParams.get('id');
+  
+  const { data: project } = useProject(projectId || '');
+  const updateProject = useUpdateProject();
+  const createProject = useCreateProject();
+
   const [mode, setMode] = useState<"single" | "pack">("single");
   const [side, setSide] = useState<"front" | "back">("front");
   const [showAIGen, setShowAIGen] = useState(false);
   const [cardImage, setCardImage] = useState(cardArt);
+  const [cardName, setCardName] = useState("Cyber Ronin");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      const data = project.data as any;
+      if (data?.cardName) setCardName(data.cardName);
+      if (data?.cardImage) setCardImage(data.cardImage);
+    }
+  }, [project]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (projectId) {
+        await updateProject.mutateAsync({
+          id: projectId,
+          data: { title: cardName, data: { cardName, cardImage } },
+        });
+      } else {
+        await createProject.mutateAsync({
+          title: cardName,
+          type: "card",
+          status: "draft",
+          data: { cardName, cardImage },
+        });
+      }
+      toast.success("Card saved");
+    } catch (error: any) {
+      toast.error(error.message || "Save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Layout>
       <div className="h-screen flex flex-col">
         <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background">
           <div className="flex items-center gap-4">
+            <Link href="/">
+              <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            </Link>
             <h2 className="font-display font-bold text-lg">Card Forge</h2>
             <div className="flex bg-secondary p-1 rounded-sm">
               <button 
                 onClick={() => setMode("single")}
                 className={`px-3 py-1 text-xs font-medium rounded-sm transition-all flex items-center gap-2 ${mode === "single" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+                data-testid="button-mode-single"
               >
                 <Sparkles className="w-3 h-3" /> Single Card
               </button>
               <button 
                 onClick={() => setMode("pack")}
                 className={`px-3 py-1 text-xs font-medium rounded-sm transition-all flex items-center gap-2 ${mode === "pack" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+                data-testid="button-mode-pack"
               >
                 <Package className="w-3 h-3" /> Pack Builder
               </button>
             </div>
           </div>
-          <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm">
-            <Download className="w-4 h-4" /> Export Card
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              data-testid="button-save"
+            >
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+            </button>
+            <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm" data-testid="button-export">
+              <Download className="w-4 h-4" /> Export Card
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">

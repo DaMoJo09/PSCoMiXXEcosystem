@@ -15,11 +15,15 @@ import {
   MessageSquare,
   Wand2,
   Play,
-  Plus
+  Plus,
+  ArrowLeft
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, Link } from "wouter";
 import { DrawingCanvas } from "@/components/tools/DrawingCanvas";
 import { AIGenerator } from "@/components/tools/AIGenerator";
+import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { toast } from "sonner";
 
 const tools = [
   { icon: MousePointer, label: "Select" },
@@ -34,9 +38,53 @@ const tools = [
 ];
 
 export default function ComicCreator() {
+  const [location] = useLocation();
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const projectId = searchParams.get('id');
+  
+  const { data: project, isLoading } = useProject(projectId || '');
+  const updateProject = useUpdateProject();
+  const createProject = useCreateProject();
+
   const [activeTool, setActiveTool] = useState("Draw");
   const [showAIGen, setShowAIGen] = useState(false);
   const [layers, setLayers] = useState(["Background", "Panel 1", "Drawing Layer"]);
+  const [title, setTitle] = useState("Untitled Comic #1");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      setTitle(project.title);
+      const data = project.data as any;
+      if (data?.layers) {
+        setLayers(data.layers);
+      }
+    }
+  }, [project]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (projectId) {
+        await updateProject.mutateAsync({
+          id: projectId,
+          data: { title, data: { layers } },
+        });
+      } else {
+        await createProject.mutateAsync({
+          title,
+          type: "comic",
+          status: "draft",
+          data: { layers },
+        });
+      }
+      toast.success("Project saved");
+    } catch (error: any) {
+      toast.error(error.message || "Save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleImageGenerated = (url: string) => {
     // In a real app, this would add the image to the canvas
@@ -48,26 +96,43 @@ export default function ComicCreator() {
   return (
     <Layout>
       <div className="h-screen flex flex-col">
-        {/* Toolbar Header */}
         <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background">
           <div className="flex items-center gap-4">
-            <h2 className="font-display font-bold text-lg">Untitled Comic #1</h2>
-            <span className="text-xs font-mono text-muted-foreground px-2 py-1 border border-border">DRAFT</span>
+            <Link href="/">
+              <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            </Link>
+            <input 
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-muted px-2 py-1 -ml-2"
+              data-testid="input-comic-title"
+            />
+            <span className="text-xs font-mono text-muted-foreground px-2 py-1 border border-border">
+              {project?.status?.toUpperCase() || 'DRAFT'}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors">
+            <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-undo">
               <Undo className="w-4 h-4" />
             </button>
-            <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors">
+            <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-redo">
               <Redo className="w-4 h-4" />
             </button>
             <div className="w-px h-6 bg-border mx-2" />
-            <button className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              data-testid="button-save"
+            >
               <Save className="w-4 h-4" />
-              Save
+              {isSaving ? "Saving..." : "Save"}
             </button>
-            <button className="px-4 py-2 bg-primary text-primary-foreground border border-primary hover:opacity-90 text-sm font-medium flex items-center gap-2 shadow-hard-sm">
+            <button className="px-4 py-2 bg-primary text-primary-foreground border border-primary hover:opacity-90 text-sm font-medium flex items-center gap-2 shadow-hard-sm" data-testid="button-publish">
               <Download className="w-4 h-4" />
               Publish
             </button>

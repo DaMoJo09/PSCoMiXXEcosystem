@@ -7,47 +7,108 @@ import {
   Type,
   Image as ImageIcon,
   QrCode,
-  Barcode
+  Barcode,
+  ArrowLeft
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, Link } from "wouter";
 import coverArt from "@assets/generated_images/comic_cover_art.png";
-import backCoverArt from "@assets/generated_images/noir_comic_panel.png"; // Using panel as placeholder for back cover art
+import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
+import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { toast } from "sonner";
 
 export default function CoverCreator() {
+  const [location] = useLocation();
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const projectId = searchParams.get('id');
+  
+  const { data: project } = useProject(projectId || '');
+  const updateProject = useUpdateProject();
+  const createProject = useCreateProject();
+
   const [activeTab, setActiveTab] = useState<"front" | "back" | "spine">("front");
+  const [title, setTitle] = useState("NEON RAIN");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      const data = project.data as any;
+      if (data?.title) setTitle(data.title);
+    }
+  }, [project]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (projectId) {
+        await updateProject.mutateAsync({
+          id: projectId,
+          data: { title, data: { title } },
+        });
+      } else {
+        await createProject.mutateAsync({
+          title,
+          type: "cover",
+          status: "draft",
+          data: { title },
+        });
+      }
+      toast.success("Cover saved");
+    } catch (error: any) {
+      toast.error(error.message || "Save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Layout>
       <div className="h-screen flex flex-col">
         <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background">
           <div className="flex items-center gap-4">
+            <Link href="/">
+              <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            </Link>
             <h2 className="font-display font-bold text-lg">Cover Architect</h2>
             <div className="flex bg-secondary p-1 rounded-sm">
               <button 
                 onClick={() => setActiveTab("front")}
                 className={`px-3 py-1 text-xs font-medium rounded-sm transition-all ${activeTab === "front" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+                data-testid="button-tab-front"
               >
                 Front Cover
               </button>
               <button 
                 onClick={() => setActiveTab("spine")}
                 className={`px-3 py-1 text-xs font-medium rounded-sm transition-all ${activeTab === "spine" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+                data-testid="button-tab-spine"
               >
                 Spine
               </button>
               <button 
                 onClick={() => setActiveTab("back")}
                 className={`px-3 py-1 text-xs font-medium rounded-sm transition-all ${activeTab === "back" ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black"}`}
+                data-testid="button-tab-back"
               >
                 Back Cover
               </button>
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              data-testid="button-save"
+            >
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+            </button>
+            <button className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2" data-testid="button-preview">
               <Columns className="w-4 h-4" /> Preview Spread
             </button>
-            <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm">
+            <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm" data-testid="button-export">
               <Download className="w-4 h-4" /> Export Print PDF
             </button>
           </div>
