@@ -11,10 +11,13 @@ import {
   Film,
   GitBranch,
   Wand2,
-  Sparkles
+  Sparkles,
+  Sun,
+  Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const creatorTools = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
@@ -34,6 +37,7 @@ const aiTools = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className="w-64 h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50">
@@ -82,6 +86,14 @@ export function AppSidebar() {
         ))}
         
         <div className="pt-4 mt-4 border-t border-border space-y-1">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border w-full text-left"
+            data-testid="button-theme-toggle"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
           <Link 
             href="/settings"
             className={cn(
@@ -111,7 +123,7 @@ export function AppSidebar() {
 
       <div className="p-4 border-t border-border bg-background z-10">
         <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold font-mono text-xs">
+          <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold font-mono text-xs">
             {user?.name?.substring(0, 2).toUpperCase() || "ME"}
           </div>
           <div className="flex-1 overflow-hidden">
