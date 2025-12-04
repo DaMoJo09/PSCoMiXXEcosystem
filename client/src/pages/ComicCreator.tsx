@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 interface PanelContent {
   id: string;
-  type: "image" | "text" | "bubble" | "drawing" | "shape";
+  type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif";
   transform: TransformState;
   data: {
     url?: string;
@@ -27,6 +27,10 @@ interface PanelContent {
     fontSize?: number;
     fontFamily?: string;
     drawingData?: string;
+    videoUrl?: string;
+    autoplay?: boolean;
+    loop?: boolean;
+    muted?: boolean;
   };
   zIndex: number;
   locked: boolean;
@@ -107,6 +111,12 @@ export default function ComicCreator() {
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
+  
+  const [drawingInPanel, setDrawingInPanel] = useState<string | null>(null);
+  const [isDrawingInCanvas, setIsDrawingInCanvas] = useState(false);
+  const panelCanvasRef = useRef<HTMLCanvasElement>(null);
+  const panelCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const [lastDrawPoint, setLastDrawPoint] = useState<{x: number, y: number} | null>(null);
 
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
@@ -300,9 +310,76 @@ export default function ComicCreator() {
       addTextToPanel(page, panelId);
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
+    } else if (activeTool === "draw") {
+      setDrawingInPanel(panelId);
+      setTimeout(() => {
+        const canvas = panelCanvasRef.current;
+        if (canvas) {
+          canvas.width = 800;
+          canvas.height = 800;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = 'transparent';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            panelCtxRef.current = ctx;
+          }
+        }
+      }, 50);
     } else {
       fileInputRef.current?.click();
     }
+  };
+  
+  const handlePanelCanvasMouseDown = (e: React.MouseEvent) => {
+    if (!panelCanvasRef.current || !panelCtxRef.current) return;
+    setIsDrawingInCanvas(true);
+    const rect = panelCanvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
+    const y = ((e.clientY - rect.top) / rect.height) * panelCanvasRef.current.height;
+    setLastDrawPoint({ x, y });
+  };
+  
+  const handlePanelCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!isDrawingInCanvas || !panelCanvasRef.current || !panelCtxRef.current || !lastDrawPoint) return;
+    const ctx = panelCtxRef.current;
+    const rect = panelCanvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
+    const y = ((e.clientY - rect.top) / rect.height) * panelCanvasRef.current.height;
+    
+    ctx.globalCompositeOperation = activeTool === 'erase' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = activeTool === 'erase' ? brushSize * 3 : brushSize;
+    ctx.beginPath();
+    ctx.moveTo(lastDrawPoint.x, lastDrawPoint.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    
+    setLastDrawPoint({ x, y });
+  };
+  
+  const handlePanelCanvasMouseUp = () => {
+    setIsDrawingInCanvas(false);
+    setLastDrawPoint(null);
+  };
+  
+  const saveDrawingToPanel = () => {
+    if (!panelCanvasRef.current || !drawingInPanel) return;
+    const drawingData = panelCanvasRef.current.toDataURL('image/png');
+    addContentToPanel(selectedPage, drawingInPanel, {
+      type: "drawing",
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { drawingData },
+      locked: false,
+    });
+    setDrawingInPanel(null);
+    toast.success("Drawing saved to panel");
+  };
+  
+  const cancelPanelDrawing = () => {
+    setDrawingInPanel(null);
   };
 
   const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">) => {
@@ -382,13 +459,34 @@ export default function ComicCreator() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const url = event.target?.result as string;
-      addContentToPanel(selectedPage, selectedPanelId, {
-        type: "image",
-        transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
-        data: { url },
-        locked: false,
-      });
-      toast.success("Image added to panel");
+      const fileType = file.type.toLowerCase();
+      const fileName = file.name.toLowerCase();
+      
+      if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
+        addContentToPanel(selectedPage, selectedPanelId, {
+          type: "video",
+          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: { videoUrl: url, autoplay: true, loop: true, muted: true },
+          locked: false,
+        });
+        toast.success("Video added to panel");
+      } else if (fileType === 'image/gif' || fileName.endsWith('.gif')) {
+        addContentToPanel(selectedPage, selectedPanelId, {
+          type: "gif",
+          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: { url },
+          locked: false,
+        });
+        toast.success("Animated GIF added to panel");
+      } else {
+        addContentToPanel(selectedPage, selectedPanelId, {
+          type: "image",
+          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: { url },
+          locked: false,
+        });
+        toast.success("Image added to panel");
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -457,11 +555,30 @@ export default function ComicCreator() {
             }}
             locked={content.locked}
           >
-            {content.type === "image" && content.data.url && (
+            {(content.type === "image" || content.type === "gif") && content.data.url && (
               <img 
                 src={content.data.url} 
                 alt="Panel content" 
                 className="w-full h-full object-cover"
+                draggable={false}
+              />
+            )}
+            {content.type === "video" && content.data.videoUrl && (
+              <video
+                src={content.data.videoUrl}
+                className="w-full h-full object-cover"
+                autoPlay={content.data.autoplay ?? true}
+                loop={content.data.loop ?? true}
+                muted={content.data.muted ?? true}
+                playsInline
+                draggable={false}
+              />
+            )}
+            {content.type === "drawing" && content.data.drawingData && (
+              <img
+                src={content.data.drawingData}
+                alt="Drawing"
+                className="w-full h-full object-contain"
                 draggable={false}
               />
             )}
@@ -515,12 +632,41 @@ export default function ComicCreator() {
     const y = Math.min(drawStart.y, drawCurrent.y);
     const width = Math.abs(drawCurrent.x - drawStart.x);
     const height = Math.abs(drawCurrent.y - drawStart.y);
+    const isValidSize = width > 5 && height > 5;
     
     return (
-      <div
-        className="absolute border-2 border-dashed border-white bg-white/20 pointer-events-none z-50"
-        style={{ left: `${x}%`, top: `${y}%`, width: `${width}%`, height: `${height}%` }}
-      />
+      <>
+        <div
+          className={`absolute pointer-events-none z-50 ${
+            isValidSize ? 'bg-blue-500/20' : 'bg-red-500/20'
+          }`}
+          style={{ 
+            left: `${x}%`, 
+            top: `${y}%`, 
+            width: `${width}%`, 
+            height: `${height}%`,
+            border: `3px dashed ${isValidSize ? '#000' : '#f00'}`,
+            boxShadow: isValidSize 
+              ? '0 0 0 2px rgba(59, 130, 246, 0.5), inset 0 0 20px rgba(59, 130, 246, 0.1)' 
+              : '0 0 0 2px rgba(239, 68, 68, 0.5)'
+          }}
+        >
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-0.5 text-xs font-mono whitespace-nowrap">
+            {width.toFixed(0)}% × {height.toFixed(0)}%
+          </div>
+          <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-black" />
+          <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-black" />
+          <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-black" />
+          <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-black" />
+        </div>
+        {!isValidSize && width > 0 && height > 0 && (
+          <div className="absolute z-50 bg-red-600 text-white px-2 py-1 text-xs font-bold pointer-events-none"
+            style={{ left: `${x}%`, top: `${y + height + 2}%` }}
+          >
+            Drag larger to create panel
+          </div>
+        )}
+      </>
     );
   };
 
@@ -753,10 +899,75 @@ export default function ComicCreator() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*,.gif,.mp4,.webm,.mov"
           className="hidden"
           onChange={handleFileUpload}
         />
+
+        {drawingInPanel && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-zinc-700 p-4 w-[900px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Pen className="w-5 h-5" /> Draw in Panel
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-400">Brush:</span>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="50" 
+                      value={brushSize}
+                      onChange={(e) => setBrushSize(Number(e.target.value))}
+                      className="w-20"
+                    />
+                    <span className="text-xs w-8">{brushSize}px</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-400">Color:</span>
+                    <input 
+                      type="color" 
+                      value={brushColor}
+                      onChange={(e) => setBrushColor(e.target.value)}
+                      className="w-8 h-8 cursor-pointer"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => setActiveTool(activeTool === 'erase' ? 'draw' : 'erase')}
+                    className={`p-2 ${activeTool === 'erase' ? 'bg-white text-black' : 'hover:bg-zinc-800'}`}
+                  >
+                    <Eraser className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white border-2 border-black">
+                <canvas
+                  ref={panelCanvasRef}
+                  className="w-full aspect-square cursor-crosshair"
+                  onMouseDown={handlePanelCanvasMouseDown}
+                  onMouseMove={handlePanelCanvasMouseMove}
+                  onMouseUp={handlePanelCanvasMouseUp}
+                  onMouseLeave={handlePanelCanvasMouseUp}
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button 
+                  onClick={cancelPanelDrawing}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={saveDrawingToPanel}
+                  className="px-4 py-2 bg-white text-black font-bold text-sm hover:bg-zinc-200"
+                >
+                  Save Drawing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showTemplates && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
