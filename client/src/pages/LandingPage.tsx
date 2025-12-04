@@ -11,7 +11,6 @@ export default function LandingPage() {
       setGlitchText(true);
       setTimeout(() => setGlitchText(false), 150);
     }, 3000);
-
     return () => clearInterval(glitchInterval);
   }, []);
 
@@ -25,135 +24,96 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden relative">
+    <div className="min-h-screen bg-zinc-900 text-white relative overflow-hidden">
       <video
         autoPlay
         loop
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-40"
-        data-testid="video-hero"
+        className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
       >
         <source src="/assets/CoMixxFallIng_1764842025129.mp4" type="video/mp4" />
       </video>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)]" />
+      <div className="absolute inset-0 bg-black/50 z-[1]" />
 
-      <div 
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(255,255,255,0.03) 2px,
-            rgba(255,255,255,0.03) 4px
-          )`
-        }}
-      />
-
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8">
         <div className="text-center mb-8">
-          <div className="relative inline-block">
-            <h1 
-              className={`font-display text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter uppercase mb-2 ${
-                glitchText ? 'animate-pulse' : ''
-              }`}
-              style={{
-                textShadow: glitchText 
-                  ? '4px 0 #ff0000, -4px 0 #00ffff, 0 0 40px rgba(255,255,255,0.5)'
-                  : '0 0 40px rgba(255,255,255,0.3), 0 0 80px rgba(255,255,255,0.1)',
-                letterSpacing: '-0.05em',
-              }}
-              data-testid="text-title"
-            >
-              <span className="block text-white">PRESS</span>
-              <span className="block text-white">START</span>
-            </h1>
-            
-            <div className="h-2 bg-white mb-4" />
-            
-            <h2
-              className="font-display text-4xl md:text-6xl lg:text-7xl font-black tracking-[0.2em] uppercase"
-              style={{
-                textShadow: '0 0 30px rgba(255,255,255,0.4)',
-                background: 'linear-gradient(180deg, #ffffff 0%, #888888 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-              data-testid="text-subtitle"
-            >
-              COMIXX
-            </h2>
-          </div>
+          <h1 
+            className={`text-7xl md:text-9xl font-black uppercase mb-4 tracking-tight ${glitchText ? 'text-red-500' : 'text-white'}`}
+            style={{
+              textShadow: glitchText 
+                ? '4px 0 cyan, -4px 0 red' 
+                : '0 0 60px rgba(255,255,255,0.5)',
+              fontFamily: "'Space Grotesk', sans-serif",
+            }}
+          >
+            <span className="block">PRESS</span>
+            <span className="block">START</span>
+          </h1>
+          
+          <div className="w-full max-w-md h-1 bg-white mx-auto mb-6" />
+          
+          <h2 
+            className="text-5xl md:text-7xl font-black uppercase tracking-[0.3em]"
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              background: 'linear-gradient(to bottom, #fff, #666)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: '0 0 40px rgba(255,255,255,0.3)',
+            }}
+          >
+            COMIXX
+          </h2>
         </div>
 
-        <p
-          className="text-lg md:text-xl text-zinc-400 max-w-2xl text-center mb-12 font-mono"
-          data-testid="text-tagline"
-        >
+        <p className="text-xl text-zinc-400 text-center mb-12 max-w-2xl font-mono">
           THE ULTIMATE CREATIVE STUDIO FOR COMICS, CARDS, MOTION GRAPHICS & MORE
         </p>
 
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
+        <div className="flex flex-wrap justify-center gap-3 mb-12">
           {features.map((feature) => (
             <div
               key={feature.label}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 backdrop-blur-sm"
-              data-testid={`feature-${feature.label.toLowerCase()}`}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded"
             >
-              <feature.icon className="w-4 h-4 text-white/70" />
-              <span className="text-sm font-mono uppercase tracking-wider text-white/70">
-                {feature.label}
-              </span>
+              <feature.icon className="w-4 h-4" />
+              <span className="text-sm font-mono uppercase">{feature.label}</span>
             </div>
           ))}
         </div>
 
         <button
           onClick={() => navigate("/login")}
-          className="group relative px-12 py-5 bg-white text-black font-display font-black text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-100 transition-all"
-          data-testid="button-enter"
+          className="group px-10 py-4 bg-white text-black font-bold text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative"
         >
           <Gamepad2 className="w-6 h-6" />
           ENTER THE STUDIO
           <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-          
-          <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
+          <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10" />
         </button>
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <div className="w-px h-12 bg-gradient-to-b from-transparent to-white/30" />
-          <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest">
-            Scroll or Enter
-          </span>
-        </div>
       </div>
 
-      <div className="absolute top-6 left-6 z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 border-2 border-white flex items-center justify-center">
-            <span className="font-display font-black text-lg">PS</span>
-          </div>
-          <span className="font-mono text-xs text-zinc-500 uppercase tracking-widest hidden md:block">
-            Creator Suite v1.0
-          </span>
+      <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
+        <div className="w-10 h-10 border-2 border-white flex items-center justify-center font-black">
+          PS
         </div>
+        <span className="text-xs text-zinc-500 uppercase tracking-widest hidden md:block font-mono">
+          Creator Suite v1.0
+        </span>
       </div>
 
       <div className="absolute top-6 right-6 z-20 flex gap-4">
         <button 
           onClick={() => navigate("/login")}
-          className="font-mono text-sm text-zinc-400 hover:text-white transition-colors uppercase tracking-wider"
-          data-testid="button-login"
+          className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono"
         >
           Login
         </button>
         <button 
           onClick={() => navigate("/login")}
-          className="font-mono text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 transition-colors uppercase tracking-wider"
-          data-testid="button-signup"
+          className="text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 uppercase tracking-wider font-mono"
         >
           Sign Up
         </button>
