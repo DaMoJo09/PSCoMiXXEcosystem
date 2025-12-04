@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,10 +22,12 @@ import AssetBuilder from "@/pages/AssetBuilder";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import AdminLogin from "@/pages/AdminLogin";
+import LandingPage from "@/pages/LandingPage";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -35,8 +37,16 @@ function ProtectedRouter() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (location === "/welcome") {
+    return <LandingPage />;
+  }
+
+  if (location === "/login" || location === "/signup") {
     return <AuthPage />;
+  }
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
   }
 
   return (
