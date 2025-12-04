@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import ComicCreator from "@/pages/ComicCreator";
@@ -60,10 +61,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <ProtectedRouter />
-          </TooltipProvider>
+          <AssetLibraryProvider>
+            <TooltipProvider>
+              <Toaster />
+              <ProtectedRouter />
+            </TooltipProvider>
+          </AssetLibraryProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

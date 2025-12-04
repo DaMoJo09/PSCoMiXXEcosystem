@@ -1,48 +1,36 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
-  Save, 
-  Undo, 
-  Redo, 
-  MousePointer, 
-  Pen, 
-  Eraser, 
-  Type, 
-  Image as ImageIcon, 
-  Square,
-  Layers,
-  Download,
-  Film,
-  MessageSquare,
-  Wand2,
-  Plus,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Circle,
-  LayoutGrid,
-  Maximize2,
-  Minimize2,
-  Trash2,
-  MoveUp,
-  MoveDown,
-  Sparkles,
-  X,
-  Upload,
-  PenTool,
-  ChevronDown,
-  Eye,
-  Grid,
-  Crop,
-  Move,
-  ZoomIn,
-  Settings
+  Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
+  Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
+  ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
+  Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
+  Lock, Unlock, Copy, RotateCcw
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
-import { DrawingCanvas } from "@/components/tools/DrawingCanvas";
 import { AIGenerator } from "@/components/tools/AIGenerator";
+import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
+import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+
+interface PanelContent {
+  id: string;
+  type: "image" | "text" | "bubble" | "drawing" | "shape";
+  transform: TransformState;
+  data: {
+    url?: string;
+    text?: string;
+    bubbleStyle?: "none" | "speech" | "thought" | "shout";
+    color?: string;
+    fontSize?: number;
+    fontFamily?: string;
+    drawingData?: string;
+  };
+  zIndex: number;
+  locked: boolean;
+}
 
 interface Panel {
   id: string;
@@ -51,10 +39,7 @@ interface Panel {
   width: number;
   height: number;
   type: "rectangle" | "circle";
-  content?: {
-    type: "image" | "video" | "drawing" | "ai";
-    url?: string;
-  };
+  contents: PanelContent[];
   zIndex: number;
 }
 
@@ -65,28 +50,26 @@ interface Spread {
 }
 
 const panelTemplates = [
-  { id: "action_impact", name: "Action Impact", category: "Action", desc: "Dynamic action layout", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
-  { id: "dialogue_flow", name: "Dialogue Flow", category: "Dialogue", desc: "Conversation layout", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
-  { id: "full_splash", name: "Full Splash", category: "Splash", desc: "Single page panel", panels: [{x:0,y:0,width:100,height:100}] },
-  { id: "grid_2x2", name: "2x2 Grid", category: "Grid", desc: "Classic four panels", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
-  { id: "manga_action", name: "Manga Action", category: "Manga", desc: "Dynamic manga layout", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
-  { id: "webtoon_scroll", name: "Webtoon Scroll", category: "Webcomic", desc: "Vertical scroll format", panels: [{x:0,y:0,width:100,height:33},{x:0,y:33,width:100,height:34},{x:0,y:67,width:100,height:33}] },
-  { id: "cinematic_wide", name: "Cinematic Wide", category: "Cinematic", desc: "Widescreen movie feel", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
-  { id: "broken_grid", name: "Broken Grid", category: "Experimental", desc: "Overlapping panels", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
+  { id: "action_impact", name: "Action Impact", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
+  { id: "dialogue_flow", name: "Dialogue Flow", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
+  { id: "full_splash", name: "Full Splash", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "grid_2x2", name: "2x2 Grid", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
+  { id: "manga_action", name: "Manga Action", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
+  { id: "webtoon_scroll", name: "Webtoon Scroll", panels: [{x:0,y:0,width:100,height:33},{x:0,y:33,width:100,height:34},{x:0,y:67,width:100,height:33}] },
+  { id: "cinematic_wide", name: "Cinematic Wide", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
+  { id: "broken_grid", name: "Broken Grid", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
 ];
 
-const templateCategories = ["Action", "Dialogue", "Splash", "Grid", "Manga", "Webcomic", "Cinematic", "Experimental"];
-
 const tools = [
-  { icon: MousePointer, label: "Select", shortcut: "V" },
-  { icon: Pen, label: "Draw", shortcut: "B" },
-  { icon: Eraser, label: "Erase", shortcut: "E" },
-  { icon: Type, label: "Text", shortcut: "T" },
-  { icon: MessageSquare, label: "Bubble", shortcut: "U" },
-  { icon: ImageIcon, label: "Image", shortcut: "I" },
-  { icon: Film, label: "Video", shortcut: "M" },
-  { icon: Square, label: "Panel", shortcut: "R" },
-  { icon: Wand2, label: "AI Gen", shortcut: "G" },
+  { id: "select", icon: MousePointer, label: "Select", shortcut: "V" },
+  { id: "move", icon: Move, label: "Move", shortcut: "M" },
+  { id: "panel", icon: Square, label: "Panel", shortcut: "P" },
+  { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
+  { id: "erase", icon: Eraser, label: "Erase", shortcut: "E" },
+  { id: "text", icon: Type, label: "Text", shortcut: "T" },
+  { id: "bubble", icon: MessageSquare, label: "Bubble", shortcut: "U" },
+  { id: "image", icon: ImageIcon, label: "Image", shortcut: "I" },
+  { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
 
 export default function ComicCreator() {
@@ -97,36 +80,37 @@ export default function ComicCreator() {
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
+  const { importFromFile, assets } = useAssetLibrary();
 
-  const [activeTool, setActiveTool] = useState("Select");
+  const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
-  const [title, setTitle] = useState("Untitled Comic #1");
+  const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [panelEditMode, setPanelEditMode] = useState(false);
   
   const [spreads, setSpreads] = useState<Spread[]>([
     { id: "spread_1", leftPage: [], rightPage: [] }
   ]);
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<"left" | "right">("left");
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   
   const [isDrawingPanel, setIsDrawingPanel] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
   const [drawCurrent, setDrawCurrent] = useState({ x: 0, y: 0 });
   
-  const [showPanelModal, setShowPanelModal] = useState(false);
-  const [newPanelData, setNewPanelData] = useState<Panel | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; panelId: string; page: "left" | "right" } | null>(null);
-  const [panelShape, setPanelShape] = useState<"rectangle" | "circle">("rectangle");
-  const [selectedCategory, setSelectedCategory] = useState("Action");
-  
+  const [showLayers, setShowLayers] = useState(true);
+  const [brushSize, setBrushSize] = useState(4);
+  const [brushColor, setBrushColor] = useState("#000000");
+  const [zoom, setZoom] = useState(100);
+
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentSpread = spreads[currentSpreadIndex];
 
@@ -139,7 +123,7 @@ export default function ComicCreator() {
         title: "Untitled Comic",
         type: "comic",
         status: "draft",
-        data: { spreads: [{ id: "spread_1", leftPage: [], rightPage: [] }] },
+        data: { spreads: [] },
       }).then((newProject) => {
         sessionStorage.removeItem('comic_creating');
         setIsCreating(false);
@@ -159,11 +143,47 @@ export default function ComicCreator() {
     if (project) {
       setTitle(project.title);
       const data = project.data as any;
-      if (data?.spreads) {
+      if (data?.spreads?.length > 0) {
         setSpreads(data.spreads);
       }
     }
   }, [project]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      switch(e.key.toLowerCase()) {
+        case 'v': setActiveTool('select'); break;
+        case 'm': setActiveTool('move'); break;
+        case 'p': setActiveTool('panel'); break;
+        case 'b': setActiveTool('draw'); break;
+        case 'e': setActiveTool('erase'); break;
+        case 't': setActiveTool('text'); break;
+        case 'u': setActiveTool('bubble'); break;
+        case 'i': setActiveTool('image'); break;
+        case 'g': setShowAIGen(true); break;
+        case 'delete': case 'backspace': handleDeleteSelected(); e.preventDefault(); break;
+        case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
+        case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
+        case '[': setBrushSize(s => Math.max(1, s - 2)); break;
+        case ']': setBrushSize(s => Math.min(100, s + 2)); break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPanelId, selectedContentId]);
+
+  const handleDeleteSelected = () => {
+    if (selectedContentId && selectedPanelId) {
+      deleteContentFromPanel(selectedPage, selectedPanelId, selectedContentId);
+      setSelectedContentId(null);
+    } else if (selectedPanelId) {
+      deletePanel(selectedPage, selectedPanelId);
+      setSelectedPanelId(null);
+    }
+  };
 
   const handleSave = async () => {
     if (!projectId) return;
@@ -173,7 +193,7 @@ export default function ComicCreator() {
         id: projectId,
         data: { title, data: { spreads } },
       });
-      toast.success("Project saved");
+      toast.success("Comic saved");
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -181,244 +201,316 @@ export default function ComicCreator() {
     }
   };
 
-  const getPagePanels = (page: "left" | "right") => {
-    return page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+  const addSpread = () => {
+    setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);
+    setCurrentSpreadIndex(spreads.length);
   };
 
-  const updatePagePanels = (page: "left" | "right", panels: Panel[]) => {
-    const newSpreads = [...spreads];
-    if (page === "left") {
-      newSpreads[currentSpreadIndex].leftPage = panels;
-    } else {
-      newSpreads[currentSpreadIndex].rightPage = panels;
-    }
-    setSpreads(newSpreads);
+  const getPageRef = (page: "left" | "right") => page === "left" ? leftPageRef : rightPageRef;
+
+  const getCoords = (e: React.MouseEvent, pageRef: React.RefObject<HTMLDivElement | null>) => {
+    if (!pageRef.current) return { x: 0, y: 0 };
+    const rect = pageRef.current.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100
+    };
   };
 
-  const handleMouseDown = (e: React.MouseEvent, page: "left" | "right", pageRef: React.RefObject<HTMLDivElement | null>) => {
-    if (activeTool !== "Panel" && activeTool !== "Select") return;
-    if (e.button === 2) return;
-    
-    const rect = pageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    
-    if (activeTool === "Panel") {
-      setIsDrawingPanel(true);
-      setDrawStart({ x, y });
-      setDrawCurrent({ x, y });
-      setSelectedPage(page);
-      setPanelEditMode(true);
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent, pageRef: React.RefObject<HTMLDivElement | null>) => {
-    if (!isDrawingPanel) return;
-    
-    const rect = pageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-    
-    setDrawCurrent({ x, y });
-  };
-
-  const handleMouseUp = () => {
-    if (!isDrawingPanel) return;
-    
-    const width = Math.abs(drawCurrent.x - drawStart.x);
-    const height = Math.abs(drawCurrent.y - drawStart.y);
-    
-    if (width > 5 && height > 5) {
-      const newPanel: Panel = {
-        id: `panel_${Date.now()}`,
-        x: Math.min(drawStart.x, drawCurrent.x),
-        y: Math.min(drawStart.y, drawCurrent.y),
-        width,
-        height,
-        type: panelShape,
-        zIndex: getPagePanels(selectedPage).length,
-      };
-      
-      setNewPanelData(newPanel);
-      setShowPanelModal(true);
-    }
-    
-    setIsDrawingPanel(false);
-  };
-
-  const confirmPanel = (action: "media" | "draw" | "skip") => {
-    if (!newPanelData) return;
-    
-    const panels = [...getPagePanels(selectedPage), newPanelData];
-    updatePagePanels(selectedPage, panels);
-    
-    if (action === "media") {
-      toast.success("Panel created! Add your media now.");
-    } else if (action === "draw") {
-      setActiveTool("Draw");
-      toast.success("Panel created! Draw mode activated.");
-    } else {
-      toast.success("Panel created!");
-    }
-    
-    setShowPanelModal(false);
-    setNewPanelData(null);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, panelId, page });
-    setSelectedPanelId(panelId);
+  const handlePageMouseDown = (e: React.MouseEvent, page: "left" | "right", pageRef: React.RefObject<HTMLDivElement | null>) => {
+    if (e.button !== 0) return;
     setSelectedPage(page);
+    
+    if (activeTool === "panel") {
+      const coords = getCoords(e, pageRef);
+      setIsDrawingPanel(true);
+      setDrawStart(coords);
+      setDrawCurrent(coords);
+      setSelectedPanelId(null);
+      setSelectedContentId(null);
+    } else if (activeTool === "select") {
+      setSelectedPanelId(null);
+      setSelectedContentId(null);
+    }
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const handlePageMouseMove = (e: React.MouseEvent, pageRef: React.RefObject<HTMLDivElement | null>) => {
+    if (isDrawingPanel) {
+      setDrawCurrent(getCoords(e, pageRef));
+    }
+  };
 
-  const deletePanel = () => {
-    if (!contextMenu) return;
-    const panels = getPagePanels(contextMenu.page).filter(p => p.id !== contextMenu.panelId);
-    updatePagePanels(contextMenu.page, panels);
-    closeContextMenu();
+  const handlePageMouseUp = (page: "left" | "right") => {
+    if (isDrawingPanel) {
+      const x = Math.min(drawStart.x, drawCurrent.x);
+      const y = Math.min(drawStart.y, drawCurrent.y);
+      const width = Math.abs(drawCurrent.x - drawStart.x);
+      const height = Math.abs(drawCurrent.y - drawStart.y);
+      
+      if (width > 5 && height > 5) {
+        addPanel(page, { x, y, width, height, type: "rectangle" });
+      }
+      setIsDrawingPanel(false);
+    }
+  };
+
+  const addPanel = (page: "left" | "right", panelData: { x: number; y: number; width: number; height: number; type: "rectangle" | "circle" }) => {
+    const newPanel: Panel = {
+      id: `panel_${Date.now()}`,
+      ...panelData,
+      contents: [],
+      zIndex: page === "left" ? currentSpread.leftPage.length : currentSpread.rightPage.length,
+    };
+
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      return {
+        ...spread,
+        [page === "left" ? "leftPage" : "rightPage"]: [...spread[page === "left" ? "leftPage" : "rightPage"], newPanel]
+      };
+    }));
+
+    setSelectedPanelId(newPanel.id);
+    toast.success("Panel created");
+  };
+
+  const deletePanel = (page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return { ...spread, [key]: spread[key].filter(p => p.id !== panelId) };
+    }));
     toast.success("Panel deleted");
   };
 
-  const bringToFront = () => {
-    if (!contextMenu) return;
-    const panels = getPagePanels(contextMenu.page);
-    const maxZ = Math.max(...panels.map(p => p.zIndex));
-    const updated = panels.map(p => p.id === contextMenu.panelId ? { ...p, zIndex: maxZ + 1 } : p);
-    updatePagePanels(contextMenu.page, updated);
-    closeContextMenu();
-  };
-
-  const sendToBack = () => {
-    if (!contextMenu) return;
-    const panels = getPagePanels(contextMenu.page);
-    const minZ = Math.min(...panels.map(p => p.zIndex));
-    const updated = panels.map(p => p.id === contextMenu.panelId ? { ...p, zIndex: minZ - 1 } : p);
-    updatePagePanels(contextMenu.page, updated);
-    closeContextMenu();
-  };
-
-  const addSpread = () => {
-    const newSpread: Spread = {
-      id: `spread_${Date.now()}`,
-      leftPage: [],
-      rightPage: [],
-    };
-    setSpreads([...spreads, newSpread]);
-    toast.success("New spread added");
-  };
-
-  const applyTemplate = (template: typeof panelTemplates[0], page: "left" | "right") => {
-    const panels: Panel[] = template.panels.map((p, i) => ({
-      id: `panel_${Date.now()}_${i}`,
-      x: p.x,
-      y: p.y,
-      width: p.width,
-      height: p.height,
-      type: "rectangle" as const,
-      zIndex: i,
-    }));
-    updatePagePanels(page, panels);
-    setShowTemplates(false);
-    toast.success(`Applied ${template.name} template`);
-  };
-
-  const handleAIGenerate = (panelId: string, page: "left" | "right") => {
-    setSelectedPanelId(panelId);
+  const handlePanelClick = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
+    e.stopPropagation();
     setSelectedPage(page);
-    setShowAIGen(true);
-    closeContextMenu();
+    setSelectedPanelId(panelId);
+    setSelectedContentId(null);
+    setActiveTool("select");
   };
 
-  const handleImageGenerated = (url: string) => {
-    if (selectedPanelId) {
-      const panels = getPagePanels(selectedPage).map(p => 
-        p.id === selectedPanelId ? { ...p, content: { type: "ai" as const, url } } : p
-      );
-      updatePagePanels(selectedPage, panels);
+  const handlePanelDoubleClick = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
+    e.stopPropagation();
+    setSelectedPage(page);
+    setSelectedPanelId(panelId);
+    
+    if (activeTool === "text") {
+      addTextToPanel(page, panelId);
+    } else if (activeTool === "bubble") {
+      addBubbleToPanel(page, panelId);
+    } else {
+      fileInputRef.current?.click();
     }
+  };
+
+  const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(panel => {
+          if (panel.id !== panelId) return panel;
+          const newContent: PanelContent = {
+            ...content,
+            id: `content_${Date.now()}`,
+            zIndex: panel.contents.length,
+          };
+          return { ...panel, contents: [...panel.contents, newContent] };
+        })
+      };
+    }));
+  };
+
+  const updateContentTransform = (page: "left" | "right", panelId: string, contentId: string, transform: TransformState) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(panel => {
+          if (panel.id !== panelId) return panel;
+          return {
+            ...panel,
+            contents: panel.contents.map(c => c.id === contentId ? { ...c, transform } : c)
+          };
+        })
+      };
+    }));
+  };
+
+  const deleteContentFromPanel = (page: "left" | "right", panelId: string, contentId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(panel => {
+          if (panel.id !== panelId) return panel;
+          return { ...panel, contents: panel.contents.filter(c => c.id !== contentId) };
+        })
+      };
+    }));
+  };
+
+  const addTextToPanel = (page: "left" | "right", panelId: string) => {
+    addContentToPanel(page, panelId, {
+      type: "text",
+      transform: { x: 20, y: 20, width: 150, height: 80, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { text: "Enter text here", fontSize: 16, fontFamily: "Inter, sans-serif", color: "#000000" },
+      locked: false,
+    });
+    toast.success("Text added");
+  };
+
+  const addBubbleToPanel = (page: "left" | "right", panelId: string) => {
+    addContentToPanel(page, panelId, {
+      type: "bubble",
+      transform: { x: 20, y: 20, width: 180, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { text: "Dialog here...", bubbleStyle: "speech", fontSize: 14, fontFamily: "Inter, sans-serif", color: "#000000" },
+      locked: false,
+    });
+    toast.success("Speech bubble added");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedPanelId) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const url = event.target?.result as string;
+      addContentToPanel(selectedPage, selectedPanelId, {
+        type: "image",
+        transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: { url },
+        locked: false,
+      });
+      toast.success("Image added to panel");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleAIGenerated = (url: string) => {
+    if (!selectedPanelId) {
+      toast.error("Please select a panel first");
+      return;
+    }
+    addContentToPanel(selectedPage, selectedPanelId, {
+      type: "image",
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { url },
+      locked: false,
+    });
     setShowAIGen(false);
     toast.success("AI image added to panel");
   };
 
-  const openAnimationMode = (panelId: string, page: "left" | "right") => {
-    const returnUrl = projectId ? `/creator/comic?id=${projectId}` : '/creator/comic';
-    navigate(`/creator/motion?panel=${panelId}&return=${encodeURIComponent(returnUrl)}`);
+  const applyTemplate = (template: typeof panelTemplates[0], page: "left" | "right") => {
+    template.panels.forEach(p => {
+      addPanel(page, { x: p.x, y: p.y, width: p.width, height: p.height, type: "rectangle" });
+    });
+    setShowTemplates(false);
+    toast.success(`Template "${template.name}" applied`);
   };
 
-  useEffect(() => {
-    const checkPanelAnimations = () => {
-      const allPanels = [...currentSpread.leftPage, ...currentSpread.rightPage];
-      allPanels.forEach(panel => {
-        const animData = sessionStorage.getItem(`panel_animation_${panel.id}`);
-        if (animData) {
-          try {
-            const { currentFrame, frames } = JSON.parse(animData);
-            if (currentFrame) {
-              const leftPanels = currentSpread.leftPage.map(p => 
-                p.id === panel.id ? { ...p, content: { type: "ai" as const, url: currentFrame }, animation: { frames } } : p
-              );
-              const rightPanels = currentSpread.rightPage.map(p => 
-                p.id === panel.id ? { ...p, content: { type: "ai" as const, url: currentFrame }, animation: { frames } } : p
-              );
-              setSpreads(prev => prev.map((s, i) => 
-                i === currentSpreadIndex ? { ...s, leftPage: leftPanels, rightPage: rightPanels } : s
-              ));
-              sessionStorage.removeItem(`panel_animation_${panel.id}`);
-            }
-          } catch (e) {}
-        }
-      });
-    };
-    checkPanelAnimations();
-  }, [location]);
+  const renderPanel = (panel: Panel, page: "left" | "right") => {
+    const isSelected = selectedPanelId === panel.id;
+    
+    return (
+      <div
+        key={panel.id}
+        className={`absolute border-2 transition-all cursor-pointer overflow-hidden ${
+          isSelected ? 'border-white ring-2 ring-white/50 z-20' : 'border-black hover:border-gray-600'
+        } ${panel.type === "circle" ? "rounded-full" : ""}`}
+        style={{
+          left: `${panel.x}%`,
+          top: `${panel.y}%`,
+          width: `${panel.width}%`,
+          height: `${panel.height}%`,
+          zIndex: panel.zIndex,
+        }}
+        onClick={(e) => handlePanelClick(e, panel.id, page)}
+        onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
+        data-testid={`panel-${panel.id}`}
+      >
+        {panel.contents.map(content => (
+          <TransformableElement
+            key={content.id}
+            id={content.id}
+            initialTransform={content.transform}
+            isSelected={selectedContentId === content.id}
+            onSelect={(id) => { setSelectedContentId(id); setSelectedPanelId(panel.id); }}
+            onTransformChange={(id, transform) => updateContentTransform(page, panel.id, id, transform)}
+            onDelete={(id) => deleteContentFromPanel(page, panel.id, id)}
+            onDuplicate={(id) => {
+              const original = panel.contents.find(c => c.id === id);
+              if (original) {
+                addContentToPanel(page, panel.id, {
+                  ...original,
+                  transform: { ...original.transform, x: original.transform.x + 20, y: original.transform.y + 20 }
+                });
+              }
+            }}
+            locked={content.locked}
+          >
+            {content.type === "image" && content.data.url && (
+              <img 
+                src={content.data.url} 
+                alt="Panel content" 
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            )}
+            {(content.type === "text" || content.type === "bubble") && (
+              <TextElement
+                id={content.id}
+                text={content.data.text || ""}
+                fontSize={content.data.fontSize}
+                fontFamily={content.data.fontFamily}
+                color={content.data.color}
+                bubbleStyle={content.type === "bubble" ? (content.data.bubbleStyle as any) : "none"}
+                isEditing={editingTextId === content.id}
+                onEditStart={() => setEditingTextId(content.id)}
+                onEditEnd={() => setEditingTextId(null)}
+                onChange={(id, text) => {
+                  setSpreads(prev => prev.map((spread, i) => {
+                    if (i !== currentSpreadIndex) return spread;
+                    const key = page === "left" ? "leftPage" : "rightPage";
+                    return {
+                      ...spread,
+                      [key]: spread[key].map(p => {
+                        if (p.id !== panel.id) return p;
+                        return {
+                          ...p,
+                          contents: p.contents.map(c => c.id === id ? { ...c, data: { ...c.data, text } } : c)
+                        };
+                      })
+                    };
+                  }));
+                }}
+              />
+            )}
+          </TransformableElement>
+        ))}
 
-  const renderPanel = (panel: Panel, page: "left" | "right") => (
-    <div
-      key={panel.id}
-      onClick={() => { setSelectedPanelId(panel.id); setSelectedPage(page); }}
-      onContextMenu={(e) => handleContextMenu(e, panel.id, page)}
-      onDoubleClick={() => openAnimationMode(panel.id, page)}
-      className={`absolute border-2 border-black cursor-pointer transition-all group ${
-        selectedPanelId === panel.id ? "ring-2 ring-black ring-offset-2" : ""
-      } ${panel.type === "circle" ? "rounded-full" : ""}`}
-      style={{
-        left: `${panel.x}%`,
-        top: `${panel.y}%`,
-        width: `${panel.width}%`,
-        height: `${panel.height}%`,
-        zIndex: panel.zIndex,
-        backgroundColor: panel.content?.url ? "transparent" : "rgba(255,255,255,0.95)",
-      }}
-      data-testid={`panel-${panel.id}`}
-    >
-      {panel.content?.url ? (
-        <img src={panel.content.url} className="w-full h-full object-cover" alt="" />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity">
-          <div className="text-center">
-            <Film className="w-6 h-6 mx-auto mb-1" />
-            <p className="text-[10px] font-mono">Double-click to</p>
-            <p className="text-[10px] font-mono">Draw & Animate</p>
+        {isSelected && panel.contents.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+            <div className="text-center">
+              <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-xs font-mono">Double-click to add content</p>
+            </div>
           </div>
-        </div>
-      )}
-      <div className="absolute -top-1 -left-1 w-3 h-3 bg-black rounded-full opacity-0 group-hover:opacity-100" />
-      <div className="absolute -top-1 -right-1 w-3 h-3 bg-black rounded-full opacity-0 group-hover:opacity-100" />
-      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-black rounded-full opacity-0 group-hover:opacity-100" />
-      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-black rounded-full opacity-0 group-hover:opacity-100" />
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   const renderDrawingPreview = () => {
     if (!isDrawingPanel) return null;
-    
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
     const width = Math.abs(drawCurrent.x - drawStart.x);
@@ -426,7 +518,7 @@ export default function ComicCreator() {
     
     return (
       <div
-        className={`absolute border-2 border-dashed border-black bg-black/5 pointer-events-none ${panelShape === "circle" ? "rounded-full" : ""}`}
+        className="absolute border-2 border-dashed border-white bg-white/20 pointer-events-none z-50"
         style={{ left: `${x}%`, top: `${y}%`, width: `${width}%`, height: `${height}%` }}
       />
     );
@@ -435,10 +527,10 @@ export default function ComicCreator() {
   if (isCreating) {
     return (
       <Layout>
-        <div className="h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Creating new comic project...</p>
+        <div className="h-screen flex items-center justify-center bg-black">
+          <div className="text-center text-white">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-zinc-400">Creating comic project...</p>
           </div>
         </div>
       </Layout>
@@ -447,161 +539,121 @@ export default function ComicCreator() {
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col" onClick={closeContextMenu}>
-        <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background">
-          <div className="flex items-center gap-2">
-            {isFullscreen && (
-              <div className="flex items-center gap-2 mr-4">
-                <span className="text-sm font-mono">Spread {currentSpreadIndex + 1} of {spreads.length}</span>
-                <button 
-                  onClick={() => currentSpreadIndex > 0 && setCurrentSpreadIndex(currentSpreadIndex - 1)}
-                  className="px-2 py-1 text-sm hover:bg-muted flex items-center gap-1"
-                  disabled={currentSpreadIndex === 0}
-                >
-                  <ChevronLeft className="w-4 h-4" /> Previous
-                </button>
-                <button 
-                  onClick={() => currentSpreadIndex < spreads.length - 1 && setCurrentSpreadIndex(currentSpreadIndex + 1)}
-                  className="px-2 py-1 text-sm hover:bg-muted flex items-center gap-1"
-                  disabled={currentSpreadIndex === spreads.length - 1}
-                >
-                  Next <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            
-            <button className="p-2 hover:bg-muted" data-testid="button-undo"><Undo className="w-4 h-4" /></button>
-            <button className="p-2 hover:bg-muted" data-testid="button-redo"><Redo className="w-4 h-4" /></button>
-            
-            <div className="w-px h-6 bg-border mx-2" />
-            
-            <div className="relative">
-              <button 
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="px-3 py-1.5 bg-black text-white text-sm font-medium flex items-center gap-2 hover:bg-gray-800"
-                data-testid="button-create"
-              >
-                <Square className="w-4 h-4" /> Create <ChevronDown className="w-3 h-3" />
+      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-4 bg-zinc-900">
+          <div className="flex items-center gap-4">
+            <Link href="/">
+              <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
+                <ArrowLeft className="w-4 h-4" />
               </button>
-              {showCreateMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-background border border-border shadow-lg z-50 min-w-[180px]">
-                  <div className="p-2 text-xs font-bold uppercase text-muted-foreground border-b border-border">Panels</div>
-                  <button 
-                    onClick={() => { setPanelShape("rectangle"); setActiveTool("Panel"); setShowCreateMenu(false); setPanelEditMode(true); }}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-2"
-                  >
-                    <Square className="w-4 h-4" /> Rectangle (R)
-                  </button>
-                  <button 
-                    onClick={() => { setPanelShape("circle"); setActiveTool("Panel"); setShowCreateMenu(false); setPanelEditMode(true); }}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-2"
-                  >
-                    <Circle className="w-4 h-4" /> Circle (C)
-                  </button>
-                  <button 
-                    onClick={() => { setShowTemplates(true); setShowCreateMenu(false); }}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-2"
-                  >
-                    <LayoutGrid className="w-4 h-4" /> Templates
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="w-px h-6 bg-border mx-2" />
-
-            <div className="flex items-center gap-1">
-              {tools.slice(0, 3).map((tool) => (
-                <button
-                  key={tool.label}
-                  onClick={() => { setActiveTool(tool.label); if (tool.label !== "Panel") setPanelEditMode(false); }}
-                  className={`p-2 ${activeTool === tool.label ? "bg-black text-white" : "hover:bg-muted"}`}
-                  title={`${tool.label} (${tool.shortcut})`}
-                >
-                  <tool.icon className="w-4 h-4" />
-                </button>
-              ))}
-            </div>
-
-            <div className="w-px h-6 bg-border mx-2" />
-
-            <button className="px-3 py-1.5 border border-border text-sm hover:bg-muted flex items-center gap-2">
-              Media <ChevronDown className="w-3 h-3" />
-            </button>
-
-            <button className="px-3 py-1.5 border border-border text-sm hover:bg-muted flex items-center gap-2">
-              Text & FX <ChevronDown className="w-3 h-3" />
-            </button>
+            </Link>
+            <input 
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1"
+              data-testid="input-title"
+            />
+            <span className="text-xs font-mono text-zinc-500">Comic Creator</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 mr-4">
-              <button className="p-2 hover:bg-muted"><Grid className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-muted"><Crop className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-muted"><Move className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-muted"><Eye className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-muted"><ZoomIn className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-muted"><Download className="w-4 h-4" /></button>
-            </div>
-            
-            {isFullscreen && (
-              <button 
-                onClick={() => setIsFullscreen(false)}
-                className="px-3 py-1.5 border border-border text-sm hover:bg-muted"
-              >
-                Exit Full-Screen
-              </button>
-            )}
-            
-            <button className="px-3 py-1.5 border border-border text-sm hover:bg-muted flex items-center gap-2">
-              Save <ChevronDown className="w-3 h-3" />
+            <button className="p-2 hover:bg-zinc-800"><Undo className="w-4 h-4" /></button>
+            <button className="p-2 hover:bg-zinc-800"><Redo className="w-4 h-4" /></button>
+            <div className="w-px h-6 bg-zinc-700 mx-2" />
+            <button
+              onClick={() => setShowTemplates(!showTemplates)}
+              className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+            >
+              <LayoutGrid className="w-4 h-4" /> Templates
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              data-testid="button-save"
+            >
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+            </button>
+            <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
+              <Download className="w-4 h-4" /> Export
             </button>
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden bg-zinc-800">
-          {!isFullscreen && (
-            <Link href="/">
-              <button className="absolute top-20 left-72 z-10 p-2 bg-background border border-border hover:bg-muted" data-testid="button-back">
-                <ArrowLeft className="w-4 h-4" />
+        <div className="flex-1 flex overflow-hidden">
+          <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
+            {tools.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => setActiveTool(tool.id)}
+                className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
+                  activeTool === tool.id ? 'bg-white text-black' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                }`}
+                title={`${tool.label} (${tool.shortcut})`}
+              >
+                <tool.icon className="w-5 h-5" />
               </button>
-            </Link>
-          )}
-          
-          <main className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-auto">
-            {!isFullscreen && (
-              <div className="text-white text-sm mb-4 font-mono flex items-center gap-4">
-                <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
-                <button 
-                  onClick={() => currentSpreadIndex > 0 && setCurrentSpreadIndex(currentSpreadIndex - 1)}
-                  className="px-2 py-1 hover:bg-white/10 flex items-center gap-1"
-                  disabled={currentSpreadIndex === 0}
-                >
-                  <ChevronLeft className="w-4 h-4" /> Previous
+            ))}
+            <div className="w-10 h-px bg-zinc-700 my-2" />
+            <div 
+              className="w-8 h-8 border-2 border-zinc-600 cursor-pointer"
+              style={{ backgroundColor: brushColor }}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.value = brushColor;
+                input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
+                input.click();
+              }}
+            />
+          </aside>
+
+          <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
+            <div className="absolute inset-0 pointer-events-none opacity-5"
+                 style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+
+            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4">
+              <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
+              <button 
+                onClick={() => currentSpreadIndex > 0 && setCurrentSpreadIndex(currentSpreadIndex - 1)}
+                className="px-2 py-1 hover:bg-white/10"
+                disabled={currentSpreadIndex === 0}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => currentSpreadIndex < spreads.length - 1 && setCurrentSpreadIndex(currentSpreadIndex + 1)}
+                className="px-2 py-1 hover:bg-white/10"
+                disabled={currentSpreadIndex === spreads.length - 1}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1 ml-4">
+                <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10">
+                  <ZoomOut className="w-4 h-4" />
                 </button>
-                <button 
-                  onClick={() => currentSpreadIndex < spreads.length - 1 && setCurrentSpreadIndex(currentSpreadIndex + 1)}
-                  className="px-2 py-1 hover:bg-white/10 flex items-center gap-1"
-                  disabled={currentSpreadIndex === spreads.length - 1}
-                >
-                  Next <ChevronRight className="w-4 h-4" />
+                <span className="w-12 text-center text-xs">{zoom}%</span>
+                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="p-1 hover:bg-white/10">
+                  <ZoomIn className="w-4 h-4" />
                 </button>
               </div>
-            )}
+            </div>
 
-            <div className={`flex ${isFullscreen ? "gap-1" : "gap-6"} transition-all duration-300`}>
+            <div 
+              className={`flex ${isFullscreen ? "gap-1" : "gap-6"}`}
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+            >
               <div 
                 ref={leftPageRef}
-                className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
-                  isFullscreen 
-                    ? "w-[850px] h-[1200px] max-h-[calc(100vh-140px)]" 
-                    : "w-[600px] h-[850px] max-h-[calc(100vh-200px)]"
+                className={`bg-white border-2 border-black relative select-none shadow-2xl ${
+                  isFullscreen ? "w-[850px] h-[1200px]" : "w-[600px] h-[850px]"
                 }`}
-                style={{ aspectRatio: isFullscreen ? '850/1200' : '600/850' }}
-                onMouseDown={(e) => handleMouseDown(e, "left", leftPageRef)}
-                onMouseMove={(e) => handleMouseMove(e, leftPageRef)}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                style={{ maxHeight: 'calc(100vh - 200px)' }}
+                onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
+                onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
+                onMouseUp={() => handlePageMouseUp("left")}
+                onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
               >
                 {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                 {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
@@ -609,26 +661,23 @@ export default function ComicCreator() {
                   <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                     <div className="text-center">
                       <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-mono opacity-40">Click to add panels</p>
+                      <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
                       <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
                     </div>
                   </div>
                 )}
-                <div className="absolute bottom-2 left-2 text-[10px] font-mono text-zinc-300 pointer-events-none">LEFT</div>
               </div>
 
               <div 
                 ref={rightPageRef}
-                className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
-                  isFullscreen 
-                    ? "w-[850px] h-[1200px] max-h-[calc(100vh-140px)]" 
-                    : "w-[600px] h-[850px] max-h-[calc(100vh-200px)]"
+                className={`bg-white border-2 border-black relative select-none shadow-2xl ${
+                  isFullscreen ? "w-[850px] h-[1200px]" : "w-[600px] h-[850px]"
                 }`}
-                style={{ aspectRatio: isFullscreen ? '850/1200' : '600/850' }}
-                onMouseDown={(e) => handleMouseDown(e, "right", rightPageRef)}
-                onMouseMove={(e) => handleMouseMove(e, rightPageRef)}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                style={{ maxHeight: 'calc(100vh - 200px)' }}
+                onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
+                onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
+                onMouseUp={() => handlePageMouseUp("right")}
+                onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
               >
                 {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                 {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
@@ -636,202 +685,125 @@ export default function ComicCreator() {
                   <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                     <div className="text-center">
                       <Plus className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-mono opacity-40">Click to add panels</p>
+                      <p className="text-sm font-mono opacity-40">Press P and draw panels</p>
                       <p className="text-xs font-mono opacity-30 mt-1">or use Templates</p>
                     </div>
                   </div>
                 )}
-                <div className="absolute bottom-2 right-2 text-[10px] font-mono text-zinc-300 pointer-events-none">RIGHT</div>
               </div>
             </div>
 
-            <button 
-              onClick={addSpread}
-              className="mt-6 px-4 py-2 bg-zinc-700 text-white text-sm flex items-center gap-2 hover:bg-zinc-600 border border-zinc-500"
-              data-testid="button-add-spread"
-            >
-              <Plus className="w-4 h-4" /> Add New Spread
-            </button>
-
-            <div className="absolute bottom-4 right-4 flex items-center gap-2">
+            <div className="flex gap-4 mt-6">
+              <button 
+                onClick={addSpread}
+                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700"
+                data-testid="button-add-spread"
+              >
+                <Plus className="w-4 h-4" /> Add Spread
+              </button>
               <button 
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-2 bg-zinc-700 text-white hover:bg-zinc-600"
+                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700"
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isFullscreen ? "Exit Full" : "Full Screen"}
               </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-700 text-white text-xs font-mono">
-                <div className={`w-2 h-2 rounded-full ${panelEditMode ? "bg-white" : "bg-gray-500"}`} />
-                Panel Edit Mode {panelEditMode ? "ON" : "OFF"}
-              </div>
             </div>
           </main>
-        </div>
 
-        {showPanelModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-background border border-border p-6 w-96 shadow-lg">
-              <div className="flex justify-between items-start mb-2">
-                <h2 className="font-display font-bold text-lg">Panel Created! What would you like to add?</h2>
-                <button onClick={() => { setShowPanelModal(false); setNewPanelData(null); }} className="p-1 hover:bg-muted">
+          {showLayers && (
+            <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col">
+              <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2"><Layers className="w-4 h-4" /> Layers</span>
+                <button onClick={() => setShowLayers(false)} className="p-1 hover:bg-zinc-800">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">Choose how to fill your new panel</p>
-              
-              <div className="space-y-3">
-                <button 
-                  onClick={() => confirmPanel("media")}
-                  className="w-full p-4 border border-border hover:border-black text-left flex items-center gap-4"
-                  data-testid="button-add-media"
-                >
-                  <Upload className="w-6 h-6" />
-                  <div>
-                    <div className="font-bold">Add Media</div>
-                    <div className="text-xs text-muted-foreground">Upload image, video, or GIF</div>
+              <div className="flex-1 overflow-auto p-2 space-y-1">
+                {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx) => (
+                  <div
+                    key={panel.id}
+                    className={`p-2 text-sm cursor-pointer ${selectedPanelId === panel.id ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                    onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Panel {idx + 1}</span>
+                      <span className="text-xs opacity-50">{panel.contents.length} items</span>
+                    </div>
+                    {selectedPanelId === panel.id && panel.contents.length > 0 && (
+                      <div className="mt-2 pl-2 border-l border-zinc-600 space-y-1">
+                        {panel.contents.map((content, cIdx) => (
+                          <div
+                            key={content.id}
+                            className={`px-2 py-1 text-xs cursor-pointer ${selectedContentId === content.id ? 'bg-zinc-600' : 'hover:bg-zinc-700'}`}
+                            onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
+                          >
+                            {content.type} {cIdx + 1}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </button>
-                
-                <button 
-                  onClick={() => confirmPanel("draw")}
-                  className="w-full p-4 border border-border hover:border-black text-left flex items-center gap-4"
-                  data-testid="button-draw"
-                >
-                  <PenTool className="w-6 h-6" />
-                  <div>
-                    <div className="font-bold">Draw</div>
-                    <div className="text-xs text-muted-foreground">Sketch with Wacom support</div>
-                  </div>
-                </button>
-                
-                <button 
-                  onClick={() => confirmPanel("skip")}
-                  className="w-full p-3 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Skip - I'll add content later
-                </button>
+                ))}
               </div>
-            </div>
-          </div>
-        )}
+            </aside>
+          )}
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
 
         {showTemplates && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-700 w-[900px] overflow-hidden shadow-lg">
-              <div className="p-4 border-b border-zinc-700 flex justify-between items-center">
-                <div>
-                  <h2 className="font-mono font-bold text-xl text-white tracking-wider">Panel Templates</h2>
-                  <p className="text-sm text-zinc-400">Choose from {panelTemplates.length} professional comic layouts</p>
-                </div>
-                <button onClick={() => setShowTemplates(false)} className="p-2 hover:bg-zinc-800 text-white">
-                  <X className="w-5 h-5" />
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-zinc-700 p-6 w-[600px] max-h-[80vh] overflow-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg">Panel Templates</h3>
+                <button onClick={() => setShowTemplates(false)} className="p-2 hover:bg-zinc-800">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-              
-              <div className="p-4 flex gap-3 overflow-x-auto">
+              <div className="grid grid-cols-2 gap-4">
                 {panelTemplates.map(template => (
-                  <button
-                    key={template.id}
-                    onClick={() => applyTemplate(template, selectedPage)}
-                    className="flex-shrink-0 w-24 aspect-[3/4] border border-zinc-600 hover:border-white bg-zinc-800 relative group flex flex-col"
-                  >
-                    <div className="flex-1 relative p-1">
+                  <div key={template.id} className="border border-zinc-700 p-4 hover:border-white cursor-pointer group">
+                    <div className="aspect-[3/4] bg-white mb-2 relative">
                       {template.panels.map((p, i) => (
-                        <div 
-                          key={i}
-                          className="absolute bg-zinc-600 border border-zinc-500"
-                          style={{
-                            left: `${p.x * 0.9 + 5}%`, top: `${p.y * 0.9 + 5}%`,
-                            width: `${p.width * 0.9}%`, height: `${p.height * 0.9}%`
-                          }}
-                        />
+                        <div key={i} className="absolute border border-black" 
+                             style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.width}%`, height: `${p.height}%` }} />
                       ))}
                     </div>
-                    <div className="p-1 text-center border-t border-zinc-700">
-                      <div className="text-[9px] text-white font-bold truncate">{template.name}</div>
-                      <div className="text-[8px] text-zinc-500 truncate">{template.category}</div>
+                    <p className="text-sm font-medium">{template.name}</p>
+                    <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100">
+                      <button onClick={() => applyTemplate(template, "left")} className="flex-1 py-1 bg-zinc-800 text-xs">Left</button>
+                      <button onClick={() => applyTemplate(template, "right")} className="flex-1 py-1 bg-zinc-800 text-xs">Right</button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {contextMenu && (
-          <div 
-            className="fixed bg-background border border-border shadow-lg z-50 min-w-[220px] py-1"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              onClick={() => { openAnimationMode(contextMenu.panelId, contextMenu.page); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3 font-bold"
-            >
-              <PenTool className="w-4 h-4" /> Draw & Animate
-            </button>
-            <div className="border-t border-border my-1" />
-            <button 
-              onClick={() => handleAIGenerate(contextMenu.panelId, contextMenu.page)}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <Sparkles className="w-4 h-4" /> AI Generate Image
-            </button>
-            <button 
-              onClick={() => { toast.info("Upload coming soon"); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <Upload className="w-4 h-4" /> Upload Image/Video
-            </button>
-            <button 
-              onClick={() => { toast.info("Text tool coming soon"); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <Type className="w-4 h-4" /> Add Text
-            </button>
-            <button 
-              onClick={() => { toast.info("Speech bubbles coming soon"); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <MessageSquare className="w-4 h-4" /> Add Speech Bubble
-            </button>
-            <div className="border-t border-border my-1" />
-            <button onClick={bringToFront} className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <MoveUp className="w-4 h-4" /> Bring to Front
-            </button>
-            <button onClick={sendToBack} className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <MoveDown className="w-4 h-4" /> Send to Back
-            </button>
-            <div className="border-t border-border my-1" />
-            <button 
-              onClick={() => { toast.info("Export to VN coming soon"); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <Layers className="w-4 h-4" /> Use as VN Background
-            </button>
-            <button 
-              onClick={() => { toast.info("Export to CYOA coming soon"); closeContextMenu(); }}
-              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
-            >
-              <Film className="w-4 h-4" /> Use in CYOA
-            </button>
-            <div className="border-t border-border my-1" />
-            <button onClick={deletePanel} className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3 text-red-500">
-              <Trash2 className="w-4 h-4" /> Delete Panel
-            </button>
-          </div>
-        )}
-
         {showAIGen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-background border border-border p-4 w-96">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-zinc-700 p-6 w-[500px]">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold">AI Generate Image</h3>
-                <button onClick={() => setShowAIGen(false)} className="p-1 hover:bg-muted">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Wand2 className="w-5 h-5" /> AI Generate
+                </h3>
+                <button onClick={() => setShowAIGen(false)} className="p-2 hover:bg-zinc-800">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <AIGenerator type="comic" onImageGenerated={handleImageGenerated} />
+              {selectedPanelId ? (
+                <AIGenerator type="comic" onImageGenerated={handleAIGenerated} />
+              ) : (
+                <p className="text-zinc-400 text-center py-8">Please select a panel first</p>
+              )}
             </div>
           </div>
         )}
