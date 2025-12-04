@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, Gamepad2, Sparkles, Zap, Film, Book, Wand2 } from "lucide-react";
-import heroVideo from "@assets/CoMixxFallIng_1764842025129.mp4";
+
+const heroVideoUrl = "/assets/CoMixxFallIng_1764842025129.mp4";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -42,7 +43,7 @@ export default function LandingPage() {
         className="absolute inset-0 w-full h-full object-cover opacity-40"
         data-testid="video-hero"
       >
-        <source src={heroVideo} type="video/mp4" />
+        <source src={heroVideoUrl} type="video/mp4" />
       </video>
 
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
