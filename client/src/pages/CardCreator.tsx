@@ -34,12 +34,21 @@ const PACK_TEMPLATES = [
 ];
 
 const RARITY_COLORS: { [key: string]: string } = {
-  Common: "#808080",
-  Uncommon: "#1eff00",
-  Rare: "#0070dd",
-  Epic: "#a335ee",
-  Legendary: "#ff8000",
-  Mythic: "#e6cc80",
+  Common: "#4a4a4a",
+  Uncommon: "#6b6b6b",
+  Rare: "#8c8c8c",
+  Epic: "#a8a8a8",
+  Legendary: "#c4c4c4",
+  Mythic: "#ffffff",
+};
+
+const RARITY_PATTERNS: { [key: string]: string } = {
+  Common: "none",
+  Uncommon: "dots",
+  Rare: "stripes",
+  Epic: "crosshatch",
+  Legendary: "diamonds",
+  Mythic: "stars",
 };
 
 const RARITY_ODDS: { [key: string]: number } = {
@@ -358,6 +367,7 @@ export default function CardCreator() {
     
     const cardsToReveal: CardData[] = [];
     const availableByRarity: { [key: string]: CardData[] } = {};
+    const maxCards = packData.cardsPerPack;
     
     packData.cards.forEach(card => {
       if (!availableByRarity[card.rarity]) availableByRarity[card.rarity] = [];
@@ -365,13 +375,14 @@ export default function CardCreator() {
     });
     
     packData.guaranteedRarities.forEach(rarity => {
+      if (cardsToReveal.length >= maxCards) return;
       if (availableByRarity[rarity]?.length > 0) {
         const randomCard = availableByRarity[rarity][Math.floor(Math.random() * availableByRarity[rarity].length)];
         cardsToReveal.push({ ...randomCard, id: `revealed_${Date.now()}_${Math.random()}` });
       }
     });
     
-    while (cardsToReveal.length < packData.cardsPerPack && packData.cards.length > 0) {
+    while (cardsToReveal.length < maxCards && packData.cards.length > 0) {
       const randomCard = packData.cards[Math.floor(Math.random() * packData.cards.length)];
       cardsToReveal.push({ ...randomCard, id: `revealed_${Date.now()}_${Math.random()}` });
     }
