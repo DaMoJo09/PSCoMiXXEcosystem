@@ -47,53 +47,63 @@ export function AppSidebar() {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>
         {creatorTools.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <a className={cn(
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
               "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
               location === item.href 
                 ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
                 : "hover:bg-muted hover:border-border"
-            )} data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}>
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </a>
+            )}
+            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
           </Link>
         ))}
         
         <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">AI Tools</div>
         {aiTools.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <a className={cn(
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
               "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
               location === item.href 
                 ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
                 : "hover:bg-muted hover:border-border"
-            )} data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}>
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </a>
+            )}
+            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
           </Link>
         ))}
         
         <div className="pt-4 mt-4 border-t border-border space-y-1">
-          <Link href="/settings">
-            <a className={cn(
+          <Link 
+            href="/settings"
+            className={cn(
               "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground",
               location === "/settings" && "text-foreground bg-muted border-border"
-            )} data-testid="nav-settings">
-              <Settings className="w-4 h-4" />
-              Settings
-            </a>
+            )}
+            data-testid="nav-settings"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
           </Link>
           {user?.role === "admin" && (
-            <Link href="/admin">
-              <a className={cn(
+            <Link 
+              href="/admin"
+              className={cn(
                 "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground",
                 location === "/admin" && "text-foreground bg-muted border-border"
-              )} data-testid="nav-admin">
-                <ShieldAlert className="w-4 h-4" />
-                Admin Console
-              </a>
+              )}
+              data-testid="nav-admin"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              Admin Console
             </Link>
           )}
         </div>

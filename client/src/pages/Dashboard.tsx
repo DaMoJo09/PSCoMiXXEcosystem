@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, MoreHorizontal, Trash2, LogOut, Folder } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder } from "lucide-react";
+import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -221,49 +221,48 @@ export default function Dashboard() {
           ) : projects && projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {projects.map((project) => (
-                <Link key={project.id} href={`/creator/${project.type}?id=${project.id}`}>
-                  <div 
-                    className="group border border-border bg-card hover:shadow-hard transition-all cursor-pointer"
-                    data-testid={`card-project-${project.id}`}
-                  >
-                    <div className="aspect-[4/3] overflow-hidden border-b border-border relative">
-                      <img 
-                        src={project.thumbnail || typeImages[project.type] || noirComic} 
-                        alt={project.title}
-                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                      />
-                      <div className="absolute top-2 right-2 bg-background border border-border px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider">
-                        {typeLabels[project.type] || project.type}
-                      </div>
-                      <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] font-mono font-bold uppercase ${
-                        project.status === "published" ? "bg-green-500 text-white" : "bg-yellow-500 text-black"
-                      }`}>
-                        {project.status}
-                      </div>
+                <div 
+                  key={project.id}
+                  onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
+                  className="group border border-border bg-card hover:shadow-hard transition-all cursor-pointer"
+                  data-testid={`card-project-${project.id}`}
+                >
+                  <div className="aspect-[4/3] overflow-hidden border-b border-border relative">
+                    <img 
+                      src={project.thumbnail || typeImages[project.type] || noirComic} 
+                      alt={project.title}
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                    />
+                    <div className="absolute top-2 right-2 bg-background border border-border px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      {typeLabels[project.type] || project.type}
                     </div>
-                    <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold font-display truncate pr-2" data-testid={`text-project-title-${project.id}`}>
-                          {project.title}
-                        </h3>
-                        <button 
-                          className="text-muted-foreground hover:text-red-500 transition-colors"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDelete(project.id);
-                          }}
-                          data-testid={`button-delete-${project.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-mono mb-4">
-                        Edited {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
-                      </p>
+                    <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] font-mono font-bold uppercase ${
+                      project.status === "published" ? "bg-green-500 text-white" : "bg-yellow-500 text-black"
+                    }`}>
+                      {project.status}
                     </div>
                   </div>
-                </Link>
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold font-display truncate pr-2" data-testid={`text-project-title-${project.id}`}>
+                        {project.title}
+                      </h3>
+                      <button 
+                        className="text-muted-foreground hover:text-red-500 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(project.id);
+                        }}
+                        data-testid={`button-delete-${project.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono mb-4">
+                      Edited {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
