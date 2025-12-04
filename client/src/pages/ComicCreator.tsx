@@ -379,7 +379,11 @@ export default function ComicCreator() {
     setSelectedPage(page);
     setSelectedPanelId(panelId);
     setSelectedContentId(null);
-    setActiveTool("select");
+    
+    const contentAddingTools = ["text", "bubble", "draw", "erase", "image"];
+    if (!contentAddingTools.includes(activeTool)) {
+      setActiveTool("select");
+    }
   };
 
   const handlePanelDoubleClick = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
