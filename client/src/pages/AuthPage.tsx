@@ -23,7 +23,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       await login(loginData.email, loginData.password);
-      toast.success("Welcome back to PSCoMiXX Creator");
+      toast.success("Welcome back to Press Start CoMixx");
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -47,10 +47,12 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-5xl font-bold tracking-tighter text-white">
-            PSCoMiXX
-          </h1>
+        <div className="text-center space-y-4">
+          <img 
+            src="/logo-dark.png" 
+            alt="Press Start CoMixx" 
+            className="h-32 w-auto mx-auto"
+          />
           <p className="text-xl text-zinc-400">Creator Platform</p>
         </div>
 
@@ -82,7 +84,7 @@ export default function AuthPage() {
                   <Input
                     id="login-email"
                     type="email"
-                    placeholder="creator@pscomixx.online"
+                    placeholder="creator@pressstart.space"
                     value={loginData.email}
                     onChange={(e) =>
                       setLoginData({ ...loginData, email: e.target.value })
@@ -146,7 +148,7 @@ export default function AuthPage() {
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="creator@pscomixx.online"
+                    placeholder="creator@pressstart.space"
                     value={signupData.email}
                     onChange={(e) =>
                       setSignupData({ ...signupData, email: e.target.value })
@@ -187,7 +189,7 @@ export default function AuthPage() {
         </Card>
 
         <div className="text-center text-sm text-zinc-500">
-          Part of the PSCoMiXX Ecosystem
+          Part of the Press Start CoMixx Ecosystem
         </div>
       </div>
     </div>

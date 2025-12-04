@@ -131,7 +131,7 @@ export default function ComicCreator() {
     frontCover: "",
     backCover: "",
     bonusCards: [] as string[],
-    credits: "Created with PSCoMiXX Creator"
+    credits: "Created with Press Start CoMixx"
   });
   
   const [drawingInPanel, setDrawingInPanel] = useState<string | null>(null);
@@ -1639,7 +1639,7 @@ export default function ComicCreator() {
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-black" />
                         <div className="relative z-10 text-center p-8 max-w-md">
                           <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-                            Thank you for reading {title}. This comic was created using PSCoMiXX Creator.
+                            Thank you for reading {title}. This comic was created using Press Start CoMixx.
                           </p>
                           <div className="w-16 h-16 border-2 border-zinc-700 mx-auto mb-4 flex items-center justify-center">
                             <span className="text-xs text-zinc-500 font-mono">BARCODE</span>

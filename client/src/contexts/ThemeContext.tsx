@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("pscomixx-theme");
+      const stored = localStorage.getItem("pressstart-theme");
       return (stored as Theme) || "dark";
     }
     return "dark";
@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.add("light");
       root.classList.remove("dark");
     }
-    localStorage.setItem("pscomixx-theme", theme);
+    localStorage.setItem("pressstart-theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {

@@ -35,7 +35,7 @@ declare global {
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "pscomixx-creator-secret",
+    secret: process.env.REPL_ID || "pressstart-comixx-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {},

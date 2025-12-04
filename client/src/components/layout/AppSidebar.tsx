@@ -41,11 +41,18 @@ export function AppSidebar() {
 
   return (
     <aside className="w-64 h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50">
-      <div className="p-6 border-b border-border">
-        <h1 className="text-2xl font-display font-bold tracking-tighter uppercase">
-          PSCoMiXX
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1 font-mono">CREATOR STUDIO v2.1</p>
+      <div className="p-4 border-b border-border">
+        <img 
+          src="/logo-dark.png" 
+          alt="Press Start CoMixx" 
+          className="h-16 w-auto mx-auto dark:block hidden"
+        />
+        <img 
+          src="/logo-light.png" 
+          alt="Press Start CoMixx" 
+          className="h-16 w-auto mx-auto dark:hidden block"
+        />
+        <p className="text-xs text-muted-foreground mt-2 text-center font-mono">CREATOR STUDIO</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -128,7 +135,7 @@ export function AppSidebar() {
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="text-sm font-medium truncate">{user?.name || "Creator"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pscomixx.com"}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pressstart.space"}</p>
           </div>
           <button 
             onClick={logout}

@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("pscomixx_settings");
+    const saved = localStorage.getItem("pressstart_settings");
     if (saved) {
       setSettings({ ...defaultSettings, ...JSON.parse(saved) });
     }
@@ -54,7 +54,7 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     setIsSaving(true);
     await new Promise(r => setTimeout(r, 500));
-    localStorage.setItem("pscomixx_settings", JSON.stringify(settings));
+    localStorage.setItem("pressstart_settings", JSON.stringify(settings));
     setIsSaving(false);
     toast.success("Settings saved");
   };
@@ -342,7 +342,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="p-4 bg-secondary/30 border border-border text-sm text-muted-foreground">
-            <p><strong>Note:</strong> Settings are stored locally in your browser. To sync settings across devices, sign in with your PSCoMiXX account.</p>
+            <p><strong>Note:</strong> Settings are stored locally in your browser. To sync settings across devices, sign in with your Press Start CoMixx account.</p>
             <p className="mt-2">Logged in as: <strong>{user?.email || "Guest"}</strong></p>
           </section>
         </div>
