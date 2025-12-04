@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull().default("creator"), // creator | admin
+  ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
+  userAgreementAccepted: timestamp("user_agreement_accepted"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -138,6 +138,52 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Legal agreement routes
+  app.post("/api/auth/accept-ip-disclosure", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.acceptIpDisclosure(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ 
+        ipDisclosureAccepted: user.ipDisclosureAccepted,
+        userAgreementAccepted: user.userAgreementAccepted 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/accept-user-agreement", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.acceptUserAgreement(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ 
+        ipDisclosureAccepted: user.ipDisclosureAccepted,
+        userAgreementAccepted: user.userAgreementAccepted 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/auth/legal-status", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ 
+        ipDisclosureAccepted: user.ipDisclosureAccepted,
+        userAgreementAccepted: user.userAgreementAccepted 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {

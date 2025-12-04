@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
+import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import ComicCreator from "@/pages/ComicCreator";
@@ -39,24 +40,26 @@ function ProtectedRouter() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/comic" component={ComicCreator} />
-      <Route path="/creator/comic" component={ComicCreator} />
-      <Route path="/creator/motion" component={MotionStudio} />
-      <Route path="/creator/card" component={CardCreator} />
-      <Route path="/creator/vn" component={VNCreator} />
-      <Route path="/creator/cyoa" component={CYOABuilder} />
-      <Route path="/creator/cover" component={CoverCreator} />
-      <Route path="/tools/prompt" component={PromptFactory} />
-      <Route path="/tools/story" component={StoryForge} />
-      <Route path="/tools/assets" component={AssetBuilder} />
-      <Route path="/tools/cyoa" component={CYOABuilder} />
-      <Route path="/settings" component={SettingsPage} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin-login" component={AdminLogin} />
-      <Route component={NotFound} />
-    </Switch>
+    <LegalGate>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/comic" component={ComicCreator} />
+        <Route path="/creator/comic" component={ComicCreator} />
+        <Route path="/creator/motion" component={MotionStudio} />
+        <Route path="/creator/card" component={CardCreator} />
+        <Route path="/creator/vn" component={VNCreator} />
+        <Route path="/creator/cyoa" component={CYOABuilder} />
+        <Route path="/creator/cover" component={CoverCreator} />
+        <Route path="/tools/prompt" component={PromptFactory} />
+        <Route path="/tools/story" component={StoryForge} />
+        <Route path="/tools/assets" component={AssetBuilder} />
+        <Route path="/tools/cyoa" component={CYOABuilder} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin-login" component={AdminLogin} />
+        <Route component={NotFound} />
+      </Switch>
+    </LegalGate>
   );
 }
 

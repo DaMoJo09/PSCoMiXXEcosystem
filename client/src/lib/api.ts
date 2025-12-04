@@ -55,6 +55,29 @@ export const authApi = {
     });
     return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
   },
+  
+  getLegalStatus: async () => {
+    const response = await fetch(`${API_BASE}/auth/legal-status`, {
+      credentials: "include",
+    });
+    return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null }>(response);
+  },
+  
+  acceptIpDisclosure: async () => {
+    const response = await fetch(`${API_BASE}/auth/accept-ip-disclosure`, {
+      method: "POST",
+      credentials: "include",
+    });
+    return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null }>(response);
+  },
+  
+  acceptUserAgreement: async () => {
+    const response = await fetch(`${API_BASE}/auth/accept-user-agreement`, {
+      method: "POST",
+      credentials: "include",
+    });
+    return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null }>(response);
+  },
 };
 
 export const projectsApi = {
