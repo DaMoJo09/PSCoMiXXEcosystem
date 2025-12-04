@@ -675,7 +675,7 @@ export default function MotionStudio() {
               </div>
             </div>
 
-            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-4 relative">
+            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-2 relative">
               <div 
                 className="absolute inset-0 pointer-events-none opacity-5"
                 style={{ 
@@ -704,9 +704,9 @@ export default function MotionStudio() {
                   className="bg-white shadow-2xl border-2 border-zinc-700"
                   style={{ 
                     cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
-                    width: 'min(100%, calc(100vh - 280px) * 16/9)',
+                    width: 'min(100%, calc(100vh - 180px) * 16/9)',
                     height: 'auto',
-                    maxHeight: 'calc(100vh - 280px)'
+                    maxHeight: 'calc(100vh - 180px)'
                   }}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
@@ -776,12 +776,12 @@ export default function MotionStudio() {
               </span>
             </div>
 
-            <div className="h-24 border-t border-zinc-800 bg-zinc-900 flex items-center px-4 gap-2 overflow-x-auto">
+            <div className="h-16 border-t border-zinc-800 bg-zinc-900 flex items-center px-4 gap-2 overflow-x-auto">
               {frames.map((frame, index) => (
                 <div
                   key={frame.id}
                   onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(index); }}
-                  className={`flex-shrink-0 w-28 h-16 border-2 relative group transition-all cursor-pointer ${
+                  className={`flex-shrink-0 w-20 h-12 border-2 relative group transition-all cursor-pointer ${
                     index === currentFrameIndex 
                       ? 'border-white shadow-lg shadow-white/20' 
                       : 'border-zinc-700 hover:border-zinc-500'
@@ -792,27 +792,27 @@ export default function MotionStudio() {
                   ) : (
                     <div className="w-full h-full bg-white" />
                   )}
-                  <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/80 text-white py-0.5">
+                  <span className="absolute bottom-0 left-0 right-0 text-[8px] text-center bg-black/80 text-white">
                     {index + 1}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setCurrentFrameIndex(index); deleteFrame(); }}
-                    className="absolute top-0 right-0 p-1 bg-red-500 text-white opacity-0 group-hover:opacity-100"
+                    className="absolute top-0 right-0 p-0.5 bg-red-500 text-white opacity-0 group-hover:opacity-100"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-2 h-2" />
                   </button>
                 </div>
               ))}
               <button
                 onClick={addFrame}
-                className="flex-shrink-0 w-28 h-16 border-2 border-dashed border-zinc-700 hover:border-zinc-500 flex items-center justify-center"
+                className="flex-shrink-0 w-20 h-12 border-2 border-dashed border-zinc-700 hover:border-zinc-500 flex items-center justify-center"
               >
-                <Plus className="w-6 h-6 text-zinc-600" />
+                <Plus className="w-4 h-4 text-zinc-600" />
               </button>
             </div>
           </div>
 
-          <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col">
+          <aside className="w-48 border-l border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center gap-2">
               <Layers className="w-4 h-4" /> Layers
             </div>
