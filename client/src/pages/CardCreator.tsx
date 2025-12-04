@@ -1096,23 +1096,23 @@ export default function CardCreator() {
                 {mode === "pack" ? (
                   <div className="relative">
                     <div className="text-center mb-4">
-                      <h3 className="text-lg font-bold">{packData.name}</h3>
-                      <p className="text-xs text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
+                      <h3 className="text-2xl font-bold">{packData.name}</h3>
+                      <p className="text-sm text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
                     </div>
-                    <div className="relative w-[280px] aspect-[3/4] mx-auto">
+                    <div className="relative w-[500px] aspect-[3/4] mx-auto">
                       <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
                         <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                          <div className="bg-black/80 p-4 border border-white/20">
-                            <h4 className="text-xl font-bold uppercase tracking-widest">{packData.name}</h4>
-                            <p className="text-xs text-zinc-400 mt-1">{packData.cardsPerPack} Cards</p>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                          <div className="bg-black/80 p-6 border border-white/20">
+                            <h4 className="text-3xl font-bold uppercase tracking-widest">{packData.name}</h4>
+                            <p className="text-sm text-zinc-400 mt-2">{packData.cardsPerPack} Cards</p>
                           </div>
                         </div>
-                        <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-1">
+                        <div className="absolute bottom-6 left-6 right-6 flex justify-center gap-2">
                           {packData.cards.slice(0, 5).map((card, i) => (
                             <div 
                               key={card.id}
-                              className="w-8 h-12 border border-white/20 bg-zinc-800 overflow-hidden"
+                              className="w-14 h-20 border border-white/20 bg-zinc-800 overflow-hidden"
                               style={{ transform: `rotate(${(i - 2) * 5}deg)` }}
                             >
                               <img src={card.frontImage} className="w-full h-full object-cover" />
@@ -1135,7 +1135,7 @@ export default function CardCreator() {
                     )}
                   </div>
                 ) : side === "front" ? (
-                  <div className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[700px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-2 bg-white flex flex-col">
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
                         <span className="font-bold uppercase tracking-tight text-black" style={{ fontFamily: cardData.nameFont }}>{cardData.name}</span>
@@ -1173,7 +1173,7 @@ export default function CardCreator() {
                     </div>
                   </div>
                 ) : (
-                  <div className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[700px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-4 border-2 border-white/30" />
                     <div className="absolute inset-0 opacity-30">
                       <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />
@@ -1189,12 +1189,12 @@ export default function CardCreator() {
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
-              <ContextMenuItem onClick={() => setMode(mode === "card" ? "pack" : "card")} className="hover:bg-zinc-800 cursor-pointer">
-                {mode === "card" ? <Package className="w-4 h-4 mr-2" /> : <Layers className="w-4 h-4 mr-2" />}
-                {mode === "card" ? "Switch to Pack Mode" : "Switch to Card Mode"}
+              <ContextMenuItem onClick={() => setMode(mode === "single" ? "pack" : "single")} className="hover:bg-zinc-800 cursor-pointer">
+                {mode === "single" ? <Package className="w-4 h-4 mr-2" /> : <Layers className="w-4 h-4 mr-2" />}
+                {mode === "single" ? "Switch to Pack Mode" : "Switch to Card Mode"}
               </ContextMenuItem>
               <ContextMenuSeparator className="bg-zinc-700" />
-              {mode === "card" && (
+              {mode === "single" && (
                 <>
                   <ContextMenuItem onClick={() => setSide(side === "front" ? "back" : "front")} className="hover:bg-zinc-800 cursor-pointer">
                     <RotateCw className="w-4 h-4 mr-2" /> Flip Card
