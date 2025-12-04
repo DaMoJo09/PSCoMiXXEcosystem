@@ -5,7 +5,7 @@ import {
   type Asset, type InsertAsset
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, count } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -123,7 +123,7 @@ export class DatabaseStorage implements IStorage {
   async getProjectStats(): Promise<{ type: string; count: number }[]> {
     const stats = await db.select({
       type: projects.type,
-      count: db.fn.count(projects.id).as('count')
+      count: count(projects.id)
     })
     .from(projects)
     .groupBy(projects.type);

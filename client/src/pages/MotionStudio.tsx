@@ -166,6 +166,45 @@ export default function MotionStudio() {
   }, [projectId]);
 
   useEffect(() => {
+    if (panelId) {
+      const panelData = sessionStorage.getItem('panel_edit_data');
+      if (panelData) {
+        try {
+          const data = JSON.parse(panelData);
+          setTitle(`Panel ${data.panelId.split('_')[1] || ''} Drawing`);
+          
+          if (data.contents && data.contents.length > 0) {
+            const imageContent = data.contents.find((c: any) => c.type === 'image' || c.type === 'drawing');
+            if (imageContent?.data?.url || imageContent?.data?.drawingData) {
+              const canvas = canvasRef.current;
+              const context = contextRef.current;
+              if (canvas && context) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = () => {
+                  context.clearRect(0, 0, canvas.width, canvas.height);
+                  context.fillStyle = '#ffffff';
+                  context.fillRect(0, 0, canvas.width, canvas.height);
+                  const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                  const x = (canvas.width - img.width * scale) / 2;
+                  const y = (canvas.height - img.height * scale) / 2;
+                  context.drawImage(img, x, y, img.width * scale, img.height * scale);
+                  saveCurrentFrame();
+                };
+                img.src = imageContent.data.url || imageContent.data.drawingData;
+              }
+            }
+          }
+          
+          toast.success("Panel loaded - draw and animate, then click Apply to Panel");
+        } catch (e) {
+          console.error("Failed to parse panel data:", e);
+        }
+      }
+    }
+  }, [panelId]);
+
+  useEffect(() => {
     if (project) {
       setTitle(project.title);
       const data = project.data as AnimationData;
@@ -800,25 +839,27 @@ export default function MotionStudio() {
                         alt="Frame -2"
                       />
                     )}
-                    <div className="relative">
+                    <div className="relative inline-block">
                       <canvas
-                    ref={canvasRef}
-                    className="bg-white shadow-2xl border-2 border-zinc-700"
-                    style={{ 
-                      cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
-                      width: 'calc(100% - 32px)',
-                      maxWidth: 'calc((100vh - 140px) * 16 / 9)',
-                      height: 'calc(100vh - 140px)',
-                      maxHeight: 'calc((100vw - 300px) * 9 / 16)'
-                    }}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    onTouchStart={startDrawing}
-                    onTouchMove={draw}
-                    onTouchEnd={stopDrawing}
-                  />
+                        ref={canvasRef}
+                        width={1920}
+                        height={1080}
+                        className="bg-white shadow-2xl border-2 border-zinc-700 block"
+                        style={{ 
+                          cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
+                          width: '100%',
+                          maxWidth: '960px',
+                          height: 'auto',
+                          aspectRatio: '16/9',
+                        }}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={stopDrawing}
+                      />
                   {textLayers.map(layer => {
                     const canvas = canvasRef.current;
                     if (!canvas) return null;

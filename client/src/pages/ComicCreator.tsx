@@ -1203,6 +1203,31 @@ export default function ComicCreator() {
                   {selectedPanelId && (
                     <>
                       <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem 
+                        onClick={() => {
+                          const panel = currentSpread.leftPage.find(p => p.id === selectedPanelId);
+                          if (panel) {
+                            sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                              panelId: panel.id,
+                              contents: panel.contents,
+                              page: "left",
+                              spreadIndex: currentSpreadIndex,
+                              projectId: projectId
+                            }));
+                            navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
+                          }
+                        }} 
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => setActiveTool("draw")} 
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Pen className="w-4 h-4 mr-2" /> Draw on Panel
+                      </ContextMenuItem>
+                      <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem onClick={() => deletePanel("left", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
                       </ContextMenuItem>
@@ -1317,6 +1342,31 @@ export default function ComicCreator() {
                   </ContextMenuItem>
                   {selectedPanelId && (
                     <>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem 
+                        onClick={() => {
+                          const panel = currentSpread.rightPage.find(p => p.id === selectedPanelId);
+                          if (panel) {
+                            sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                              panelId: panel.id,
+                              contents: panel.contents,
+                              page: "right",
+                              spreadIndex: currentSpreadIndex,
+                              projectId: projectId
+                            }));
+                            navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
+                          }
+                        }} 
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => setActiveTool("draw")} 
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Pen className="w-4 h-4 mr-2" /> Draw on Panel
+                      </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem onClick={() => deletePanel("right", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
