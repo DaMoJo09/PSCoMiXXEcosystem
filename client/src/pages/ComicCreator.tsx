@@ -65,57 +65,14 @@ interface Spread {
 }
 
 const panelTemplates = [
-  { id: "diagonal_split", name: "Diagonal Split", category: "Action", desc: "Angled panels for tension", panels: [{x:0,y:0,width:50,height:100},{x:50,y:0,width:50,height:100}] },
-  { id: "triple_impact", name: "Triple Impact", category: "Action", desc: "Sequential action panels", panels: [{x:0,y:0,width:33,height:100},{x:33,y:0,width:34,height:100},{x:67,y:0,width:33,height:100}] },
-  { id: "explosion_layout", name: "Explosion Layout", category: "Action", desc: "Impact explosion with wide panel", panels: [{x:0,y:0,width:100,height:40},{x:0,y:40,width:50,height:60},{x:50,y:40,width:50,height:60}] },
-  { id: "speed_lines", name: "Speed Lines", category: "Action", desc: "Horizontal for fast movement", panels: [{x:0,y:0,width:100,height:30},{x:0,y:30,width:100,height:40},{x:0,y:70,width:100,height:30}] },
-  { id: "slash_cut", name: "Slash Cut", category: "Action", desc: "Diagonal slash through panels", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:100}] },
-  { id: "impact_frame", name: "Impact Frame", category: "Action", desc: "Asymmetric with corner attack", panels: [{x:0,y:0,width:70,height:60},{x:70,y:0,width:30,height:100},{x:0,y:60,width:70,height:40}] },
-  { id: "vertical_slice", name: "Vertical Slice", category: "Action", desc: "Tall vertical cut panels", panels: [{x:0,y:0,width:30,height:100},{x:30,y:0,width:40,height:100},{x:70,y:0,width:30,height:100}] },
-  { id: "extreme_diagonal", name: "Extreme Diagonal", category: "Action", desc: "45° angle for maximum impact", panels: [{x:0,y:0,width:45,height:100},{x:45,y:0,width:55,height:100}] },
-  { id: "triple_slash", name: "Triple Slash", category: "Action", desc: "Three angled panels clashing", panels: [{x:0,y:0,width:33,height:100},{x:33,y:0,width:34,height:100},{x:67,y:0,width:33,height:100}] },
-  { id: "speed_lines_angled", name: "Speed Lines Angled", category: "Action", desc: "Angled panels for dynamic motion", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
-  { id: "lightning_bolt", name: "Lightning Bolt", category: "Action", desc: "Jagged for electric shockwaves", panels: [{x:0,y:0,width:40,height:60},{x:40,y:0,width:60,height:40},{x:40,y:40,width:60,height:60},{x:0,y:60,width:40,height:40}] },
-  { id: "collapse", name: "Collapse", category: "Action", desc: "Panels falling inward", panels: [{x:10,y:0,width:80,height:30},{x:0,y:30,width:100,height:40},{x:10,y:70,width:80,height:30}] },
-  { id: "explosion_radial", name: "Explosion Radial", category: "Action", desc: "Panels radiating from center", panels: [{x:25,y:25,width:50,height:50},{x:0,y:0,width:25,height:25},{x:75,y:0,width:25,height:25},{x:0,y:75,width:25,height:25},{x:75,y:75,width:25,height:25}] },
-  { id: "shockwave", name: "Shockwave", category: "Action", desc: "Concentric angled rectangles", panels: [{x:20,y:20,width:60,height:60},{x:0,y:0,width:100,height:20},{x:0,y:80,width:100,height:20}] },
-  { id: "sword_slash", name: "Sword Slash", category: "Action", desc: "Diagonal cut like a sword thrust", panels: [{x:0,y:0,width:65,height:100},{x:65,y:0,width:35,height:100}] },
-  { id: "momentum", name: "Momentum", category: "Action", desc: "Progressive angle increase", panels: [{x:0,y:0,width:25,height:100},{x:25,y:0,width:25,height:100},{x:50,y:0,width:25,height:100},{x:75,y:0,width:25,height:100}] },
-  { id: "dialogue_focus", name: "Dialogue Focus", category: "Dialogue", desc: "Conversation between two", panels: [{x:0,y:0,width:100,height:35},{x:0,y:35,width:50,height:30},{x:50,y:35,width:50,height:30},{x:0,y:65,width:100,height:35}] },
-  { id: "conversation_flow", name: "Conversation Flow", category: "Dialogue", desc: "Natural dialogue rhythm", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
-  { id: "reaction_shot", name: "Reaction Shot", category: "Dialogue", desc: "Statement and reaction", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
-  { id: "interview", name: "Interview", category: "Dialogue", desc: "Question and answer format", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
-  { id: "group_chat", name: "Group Chat", category: "Dialogue", desc: "Multiple speakers", panels: [{x:0,y:0,width:33,height:50},{x:33,y:0,width:34,height:50},{x:67,y:0,width:33,height:50},{x:0,y:50,width:100,height:50}] },
-  { id: "splash", name: "Full Splash", category: "Splash", desc: "Single full page panel", panels: [{x:0,y:0,width:100,height:100}] },
-  { id: "splash_inset", name: "Splash with Inset", category: "Splash", desc: "Main splash with detail panel", panels: [{x:0,y:0,width:100,height:100},{x:5,y:5,width:25,height:30}] },
-  { id: "splash_bottom", name: "Splash Bottom Strip", category: "Splash", desc: "Splash with bottom panels", panels: [{x:0,y:0,width:100,height:75},{x:0,y:75,width:50,height:25},{x:50,y:75,width:50,height:25}] },
-  { id: "hero_shot", name: "Hero Shot", category: "Splash", desc: "Dramatic character reveal", panels: [{x:0,y:0,width:100,height:100}] },
-  { id: "double_splash", name: "Double Splash", category: "Splash", desc: "Two-page spread", panels: [{x:0,y:0,width:100,height:100}] },
-  { id: "grid_2x2", name: "2x2 Grid", category: "Grid", desc: "Classic four panel grid", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
-  { id: "grid_3x3", name: "3x3 Grid", category: "Grid", desc: "Nine panel grid", panels: [{x:0,y:0,width:33,height:33},{x:33,y:0,width:34,height:33},{x:67,y:0,width:33,height:33},{x:0,y:33,width:33,height:34},{x:33,y:33,width:34,height:34},{x:67,y:33,width:33,height:34},{x:0,y:67,width:33,height:33},{x:33,y:67,width:34,height:33},{x:67,y:67,width:33,height:33}] },
-  { id: "grid_2x3", name: "2x3 Grid", category: "Grid", desc: "Six panel grid", panels: [{x:0,y:0,width:50,height:33},{x:50,y:0,width:50,height:33},{x:0,y:33,width:50,height:34},{x:50,y:33,width:50,height:34},{x:0,y:67,width:50,height:33},{x:50,y:67,width:50,height:33}] },
-  { id: "grid_4x4", name: "4x4 Grid", category: "Grid", desc: "Sixteen panel grid", panels: [{x:0,y:0,width:25,height:25},{x:25,y:0,width:25,height:25},{x:50,y:0,width:25,height:25},{x:75,y:0,width:25,height:25},{x:0,y:25,width:25,height:25},{x:25,y:25,width:25,height:25},{x:50,y:25,width:25,height:25},{x:75,y:25,width:25,height:25},{x:0,y:50,width:25,height:25},{x:25,y:50,width:25,height:25},{x:50,y:50,width:25,height:25},{x:75,y:50,width:25,height:25},{x:0,y:75,width:25,height:25},{x:25,y:75,width:25,height:25},{x:50,y:75,width:25,height:25},{x:75,y:75,width:25,height:25}] },
-  { id: "manga_read", name: "Manga Flow", category: "Manga", desc: "Right-to-left reading order", panels: [{x:50,y:0,width:50,height:50},{x:0,y:0,width:50,height:50},{x:50,y:50,width:50,height:50},{x:0,y:50,width:50,height:50}] },
-  { id: "manga_action", name: "Manga Action", category: "Manga", desc: "Dynamic manga action layout", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
-  { id: "manga_emotion", name: "Manga Emotion", category: "Manga", desc: "Focus on character emotion", panels: [{x:0,y:0,width:100,height:40},{x:0,y:40,width:40,height:60},{x:40,y:40,width:60,height:60}] },
-  { id: "shoujo_style", name: "Shoujo Style", category: "Manga", desc: "Soft romantic manga layout", panels: [{x:0,y:0,width:100,height:35},{x:0,y:35,width:50,height:65},{x:50,y:35,width:50,height:65}] },
-  { id: "seinen_dark", name: "Seinen Dark", category: "Manga", desc: "Mature dark manga layout", panels: [{x:0,y:0,width:70,height:100},{x:70,y:0,width:30,height:50},{x:70,y:50,width:30,height:50}] },
-  { id: "webtoon_scroll", name: "Webtoon Scroll", category: "Webcomic", desc: "Vertical scroll format", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:25},{x:0,y:50,width:100,height:25},{x:0,y:75,width:100,height:25}] },
-  { id: "webtoon_wide", name: "Webtoon Wide", category: "Webcomic", desc: "Wide panels for mobile", panels: [{x:0,y:0,width:100,height:33},{x:0,y:33,width:100,height:34},{x:0,y:67,width:100,height:33}] },
-  { id: "webcomic_strip", name: "Webcomic Strip", category: "Webcomic", desc: "Classic 3-panel strip", panels: [{x:0,y:0,width:33,height:100},{x:33,y:0,width:34,height:100},{x:67,y:0,width:33,height:100}] },
-  { id: "social_square", name: "Social Square", category: "Webcomic", desc: "Square format for social", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
-  { id: "cinematic", name: "Cinematic Wide", category: "Cinematic", desc: "Widescreen movie feel", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
-  { id: "cinematic_bars", name: "Cinematic Bars", category: "Cinematic", desc: "Letterbox format", panels: [{x:0,y:15,width:100,height:70}] },
-  { id: "establishing_shot", name: "Establishing Shot", category: "Cinematic", desc: "Wide then close-ups", panels: [{x:0,y:0,width:100,height:60},{x:0,y:60,width:33,height:40},{x:33,y:60,width:34,height:40},{x:67,y:60,width:33,height:40}] },
-  { id: "montage", name: "Montage", category: "Cinematic", desc: "Multiple scene cuts", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:33,height:50},{x:33,y:50,width:34,height:50},{x:67,y:50,width:33,height:50}] },
-  { id: "film_strip", name: "Film Strip", category: "Cinematic", desc: "Sequential frames", panels: [{x:0,y:20,width:20,height:60},{x:20,y:20,width:20,height:60},{x:40,y:20,width:20,height:60},{x:60,y:20,width:20,height:60},{x:80,y:20,width:20,height:60}] },
-  { id: "kirby", name: "Kirby", category: "Experimental", desc: "Jack Kirby style dynamic", panels: [{x:0,y:0,width:40,height:100},{x:40,y:0,width:60,height:50},{x:40,y:50,width:30,height:50},{x:70,y:50,width:30,height:50}] },
-  { id: "z_path", name: "Z-Path", category: "Experimental", desc: "Z reading pattern", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:25,y:50,width:50,height:50}] },
-  { id: "social_media", name: "Social Media", category: "Experimental", desc: "Optimized for social", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "action_impact", name: "Action Impact", category: "Action", desc: "Dynamic action layout", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
+  { id: "dialogue_flow", name: "Dialogue Flow", category: "Dialogue", desc: "Conversation layout", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
+  { id: "full_splash", name: "Full Splash", category: "Splash", desc: "Single page panel", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "grid_2x2", name: "2x2 Grid", category: "Grid", desc: "Classic four panels", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
+  { id: "manga_action", name: "Manga Action", category: "Manga", desc: "Dynamic manga layout", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
+  { id: "webtoon_scroll", name: "Webtoon Scroll", category: "Webcomic", desc: "Vertical scroll format", panels: [{x:0,y:0,width:100,height:33},{x:0,y:33,width:100,height:34},{x:0,y:67,width:100,height:33}] },
+  { id: "cinematic_wide", name: "Cinematic Wide", category: "Cinematic", desc: "Widescreen movie feel", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
   { id: "broken_grid", name: "Broken Grid", category: "Experimental", desc: "Overlapping panels", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
-  { id: "spiral", name: "Spiral", category: "Experimental", desc: "Spiral reading path", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:50,y:50,width:50,height:50},{x:0,y:50,width:50,height:50},{x:25,y:25,width:50,height:50}] },
-  { id: "nested", name: "Nested Panels", category: "Experimental", desc: "Panel within panel", panels: [{x:0,y:0,width:100,height:100},{x:10,y:10,width:40,height:40}] },
-  { id: "fragmented", name: "Fragmented", category: "Experimental", desc: "Shattered glass effect", panels: [{x:0,y:0,width:30,height:40},{x:30,y:0,width:40,height:30},{x:70,y:0,width:30,height:50},{x:0,y:40,width:40,height:60},{x:40,y:30,width:30,height:40},{x:40,y:70,width:60,height:30},{x:70,y:50,width:30,height:20}] },
 ];
 
 const templateCategories = ["Action", "Dialogue", "Splash", "Grid", "Manga", "Webcomic", "Cinematic", "Experimental"];
@@ -390,12 +347,44 @@ export default function ComicCreator() {
     toast.success("AI image added to panel");
   };
 
+  const openAnimationMode = (panelId: string, page: "left" | "right") => {
+    const returnUrl = projectId ? `/creator/comic?id=${projectId}` : '/creator/comic';
+    navigate(`/creator/motion?panel=${panelId}&return=${encodeURIComponent(returnUrl)}`);
+  };
+
+  useEffect(() => {
+    const checkPanelAnimations = () => {
+      const allPanels = [...currentSpread.leftPage, ...currentSpread.rightPage];
+      allPanels.forEach(panel => {
+        const animData = sessionStorage.getItem(`panel_animation_${panel.id}`);
+        if (animData) {
+          try {
+            const { currentFrame, frames } = JSON.parse(animData);
+            if (currentFrame) {
+              const leftPanels = currentSpread.leftPage.map(p => 
+                p.id === panel.id ? { ...p, content: { type: "ai" as const, url: currentFrame }, animation: { frames } } : p
+              );
+              const rightPanels = currentSpread.rightPage.map(p => 
+                p.id === panel.id ? { ...p, content: { type: "ai" as const, url: currentFrame }, animation: { frames } } : p
+              );
+              setSpreads(prev => prev.map((s, i) => 
+                i === currentSpreadIndex ? { ...s, leftPage: leftPanels, rightPage: rightPanels } : s
+              ));
+              sessionStorage.removeItem(`panel_animation_${panel.id}`);
+            }
+          } catch (e) {}
+        }
+      });
+    };
+    checkPanelAnimations();
+  }, [location]);
+
   const renderPanel = (panel: Panel, page: "left" | "right") => (
     <div
       key={panel.id}
       onClick={() => { setSelectedPanelId(panel.id); setSelectedPage(page); }}
       onContextMenu={(e) => handleContextMenu(e, panel.id, page)}
-      onDoubleClick={() => handleAIGenerate(panel.id, page)}
+      onDoubleClick={() => openAnimationMode(panel.id, page)}
       className={`absolute border-2 border-black cursor-pointer transition-all group ${
         selectedPanelId === panel.id ? "ring-2 ring-black ring-offset-2" : ""
       } ${panel.type === "circle" ? "rounded-full" : ""}`}
@@ -414,9 +403,9 @@ export default function ComicCreator() {
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-gray-400 opacity-50 group-hover:opacity-100 transition-opacity">
           <div className="text-center">
-            <Plus className="w-6 h-6 mx-auto mb-1" />
-            <p className="text-[10px] font-mono">Double-click or Right-click</p>
-            <p className="text-[10px] font-mono">to add media or draw</p>
+            <Film className="w-6 h-6 mx-auto mb-1" />
+            <p className="text-[10px] font-mono">Double-click to</p>
+            <p className="text-[10px] font-mono">Draw & Animate</p>
           </div>
         </div>
       )}
@@ -716,7 +705,7 @@ export default function ComicCreator() {
 
         {showTemplates && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-700 w-[700px] max-h-[80vh] overflow-hidden shadow-lg">
+            <div className="bg-zinc-900 border border-zinc-700 w-[900px] overflow-hidden shadow-lg">
               <div className="p-4 border-b border-zinc-700 flex justify-between items-center">
                 <div>
                   <h2 className="font-mono font-bold text-xl text-white tracking-wider">Panel Templates</h2>
@@ -727,28 +716,14 @@ export default function ComicCreator() {
                 </button>
               </div>
               
-              <div className="flex gap-1 p-3 border-b border-zinc-700 overflow-x-auto">
-                {templateCategories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1 text-sm whitespace-nowrap ${
-                      selectedCategory === cat ? "bg-white text-black" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="p-4 grid grid-cols-5 gap-3 max-h-[500px] overflow-auto">
-                {panelTemplates.filter(t => t.category === selectedCategory).map(template => (
+              <div className="p-4 flex gap-3 overflow-x-auto">
+                {panelTemplates.map(template => (
                   <button
                     key={template.id}
                     onClick={() => applyTemplate(template, selectedPage)}
-                    className="aspect-[3/4] border border-zinc-600 hover:border-white bg-zinc-800 relative group flex flex-col"
+                    className="flex-shrink-0 w-24 aspect-[3/4] border border-zinc-600 hover:border-white bg-zinc-800 relative group flex flex-col"
                   >
-                    <div className="flex-1 relative p-2">
+                    <div className="flex-1 relative p-1">
                       {template.panels.map((p, i) => (
                         <div 
                           key={i}
@@ -760,9 +735,9 @@ export default function ComicCreator() {
                         />
                       ))}
                     </div>
-                    <div className="p-2 text-center border-t border-zinc-700">
-                      <div className="text-[10px] text-white font-bold truncate">{template.name}</div>
-                      <div className="text-[8px] text-zinc-500 truncate">{template.desc}</div>
+                    <div className="p-1 text-center border-t border-zinc-700">
+                      <div className="text-[9px] text-white font-bold truncate">{template.name}</div>
+                      <div className="text-[8px] text-zinc-500 truncate">{template.category}</div>
                     </div>
                   </button>
                 ))}
@@ -777,23 +752,11 @@ export default function ComicCreator() {
             style={{ left: contextMenu.x, top: contextMenu.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add Image
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add Video
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add Text
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add Effect
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add Caption Block
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Add SVG Bubble/Graphic
+            <button 
+              onClick={() => { openAnimationMode(contextMenu.panelId, contextMenu.page); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3 font-bold"
+            >
+              <PenTool className="w-4 h-4" /> Draw & Animate
             </button>
             <div className="border-t border-border my-1" />
             <button 
@@ -802,8 +765,23 @@ export default function ComicCreator() {
             >
               <Sparkles className="w-4 h-4" /> AI Generate Image
             </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <ImageIcon className="w-4 h-4" /> Set Background Image
+            <button 
+              onClick={() => { toast.info("Upload coming soon"); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
+            >
+              <Upload className="w-4 h-4" /> Upload Image/Video
+            </button>
+            <button 
+              onClick={() => { toast.info("Text tool coming soon"); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
+            >
+              <Type className="w-4 h-4" /> Add Text
+            </button>
+            <button 
+              onClick={() => { toast.info("Speech bubbles coming soon"); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
+            >
+              <MessageSquare className="w-4 h-4" /> Add Speech Bubble
             </button>
             <div className="border-t border-border my-1" />
             <button onClick={bringToFront} className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
@@ -813,24 +791,17 @@ export default function ComicCreator() {
               <MoveDown className="w-4 h-4" /> Send to Back
             </button>
             <div className="border-t border-border my-1" />
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Use as VN Background
+            <button 
+              onClick={() => { toast.info("Export to VN coming soon"); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
+            >
+              <Layers className="w-4 h-4" /> Use as VN Background
             </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Use in CYOA
-            </button>
-            <div className="border-t border-border my-1" />
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <Film className="w-4 h-4" /> Animation Sequences
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Save Animation to Library
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <div className="w-4 h-4 border border-current" /> Apply Saved Animation
-            </button>
-            <button className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3">
-              <PenTool className="w-4 h-4" /> Apply Saved Drawing
+            <button 
+              onClick={() => { toast.info("Export to CYOA coming soon"); closeContextMenu(); }}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3"
+            >
+              <Film className="w-4 h-4" /> Use in CYOA
             </button>
             <div className="border-t border-border my-1" />
             <button onClick={deletePanel} className="w-full px-4 py-2 text-sm text-left hover:bg-muted flex items-center gap-3 text-red-500">

@@ -2,58 +2,351 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Play, 
   Pause, 
-  SkipBack, 
-  SkipForward, 
-  Settings, 
-  Layers, 
-  Film, 
-  Scissors, 
-  Music,
-  Download,
+  Undo,
+  Redo,
+  Trash2,
+  Plus,
+  Copy,
+  X,
+  Check,
   ArrowLeft,
-  Save
+  Save,
+  Download,
+  Eye,
+  Layers
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
-import noirComic from "@assets/generated_images/noir_comic_panel.png";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 
+interface Frame {
+  id: string;
+  imageData: string;
+  duration: number;
+}
+
+interface AnimationData {
+  frames: Frame[];
+  fps: number;
+  width: number;
+  height: number;
+}
+
+const brushTypes = [
+  { id: "brush", name: "Brush", width: 8 },
+  { id: "pencil", name: "Pencil", width: 2 },
+  { id: "ink", name: "Ink", width: 4 },
+  { id: "marker", name: "Marker", width: 12 },
+  { id: "airbrush", name: "Airbrush", width: 20 },
+  { id: "calligraphy", name: "Calligraphy", width: 6 },
+];
+
 export default function MotionStudio() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const projectId = searchParams.get('id');
+  const panelId = searchParams.get('panel');
+  const returnTo = searchParams.get('return');
   
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
 
-  const [title, setTitle] = useState("Untitled Motion");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [lastPoint, setLastPoint] = useState<{x: number, y: number} | null>(null);
+  
+  const [frames, setFrames] = useState<Frame[]>([
+    { id: "frame_1", imageData: "", duration: 100 }
+  ]);
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [fps, setFps] = useState(12);
+  const [onionSkin, setOnionSkin] = useState(true);
+  
+  const [activeBrush, setActiveBrush] = useState("pencil");
+  const [brushSize, setBrushSize] = useState(4);
+  const [brushColor, setBrushColor] = useState("#000000");
+  const [brushOpacity, setBrushOpacity] = useState(100);
+  const [isEraser, setIsEraser] = useState(false);
+  const [pressureEnabled, setPressureEnabled] = useState(true);
+  
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  const [title, setTitle] = useState("Untitled Animation");
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const currentFrame = frames[currentFrameIndex];
+
+  useEffect(() => {
+    const creatingFlag = sessionStorage.getItem('motion_creating');
+    if (!projectId && !creatingFlag && !createProject.isPending && !panelId) {
+      sessionStorage.setItem('motion_creating', 'true');
+      setIsCreating(true);
+      createProject.mutateAsync({
+        title: "Untitled Animation",
+        type: "motion",
+        status: "draft",
+        data: { frames: [], fps: 12, width: 800, height: 600 },
+      }).then((newProject) => {
+        sessionStorage.removeItem('motion_creating');
+        setIsCreating(false);
+        navigate(`/creator/motion?id=${newProject.id}`, { replace: true });
+      }).catch(() => {
+        toast.error("Failed to create project");
+        sessionStorage.removeItem('motion_creating');
+        setIsCreating(false);
+      });
+    } else if (projectId) {
+      sessionStorage.removeItem('motion_creating');
+      setIsCreating(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (project) {
       setTitle(project.title);
+      const data = project.data as AnimationData;
+      if (data?.frames?.length > 0) {
+        setFrames(data.frames);
+        setFps(data.fps || 12);
+      }
     }
   }, [project]);
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    canvas.width = 800;
+    canvas.height = 600;
+    
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    contextRef.current = context;
+    
+    if (currentFrame.imageData) {
+      const img = new Image();
+      img.onload = () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0);
+      };
+      img.src = currentFrame.imageData;
+    } else {
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [currentFrameIndex]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    const interval = setInterval(() => {
+      setCurrentFrameIndex(prev => (prev + 1) % frames.length);
+    }, 1000 / fps);
+    
+    return () => clearInterval(interval);
+  }, [isPlaying, fps, frames.length]);
+
+  const saveCurrentFrame = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const imageData = canvas.toDataURL('image/png');
+    setFrames(prev => prev.map((f, i) => 
+      i === currentFrameIndex ? { ...f, imageData } : f
+    ));
+  }, [currentFrameIndex]);
+
+  const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+      };
+    }
+    
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    const coords = getCoordinates(e);
+    if (!coords || !contextRef.current) return;
+    
+    setIsDrawing(true);
+    setLastPoint(coords);
+    
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setHistory(prev => [...prev.slice(0, historyIndex + 1), canvas.toDataURL()]);
+      setHistoryIndex(prev => prev + 1);
+    }
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing || !lastPoint || !contextRef.current) return;
+    
+    const coords = getCoordinates(e);
+    if (!coords) return;
+    
+    const context = contextRef.current;
+    const brush = brushTypes.find(b => b.id === activeBrush) || brushTypes[0];
+    
+    context.globalAlpha = brushOpacity / 100;
+    context.strokeStyle = isEraser ? '#ffffff' : brushColor;
+    context.lineWidth = isEraser ? brushSize * 3 : brushSize;
+    
+    if (activeBrush === 'calligraphy') {
+      context.lineWidth = brushSize;
+      const angle = Math.atan2(coords.y - lastPoint.y, coords.x - lastPoint.x);
+      context.lineWidth = brushSize * (1 + Math.abs(Math.sin(angle)));
+    }
+    
+    context.beginPath();
+    context.moveTo(lastPoint.x, lastPoint.y);
+    context.lineTo(coords.x, coords.y);
+    context.stroke();
+    
+    setLastPoint(coords);
+  };
+
+  const stopDrawing = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      setLastPoint(null);
+      saveCurrentFrame();
+    }
+  };
+
+  const undo = () => {
+    if (historyIndex < 0) return;
+    
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!canvas || !context) return;
+    
+    if (historyIndex > 0) {
+      const img = new Image();
+      img.onload = () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0);
+        saveCurrentFrame();
+      };
+      img.src = history[historyIndex - 1];
+      setHistoryIndex(prev => prev - 1);
+    } else {
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      saveCurrentFrame();
+      setHistoryIndex(-1);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex >= history.length - 1) return;
+    
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!canvas || !context) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(img, 0, 0);
+      saveCurrentFrame();
+    };
+    img.src = history[historyIndex + 1];
+    setHistoryIndex(prev => prev + 1);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!canvas || !context) return;
+    
+    setHistory(prev => [...prev.slice(0, historyIndex + 1), canvas.toDataURL()]);
+    setHistoryIndex(prev => prev + 1);
+    
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    saveCurrentFrame();
+  };
+
+  const addFrame = () => {
+    const newFrame: Frame = {
+      id: `frame_${Date.now()}`,
+      imageData: "",
+      duration: 100
+    };
+    setFrames(prev => [...prev, newFrame]);
+    setCurrentFrameIndex(frames.length);
+    
+    setTimeout(() => {
+      const context = contextRef.current;
+      const canvas = canvasRef.current;
+      if (context && canvas) {
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }, 0);
+  };
+
+  const duplicateFrame = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const newFrame: Frame = {
+      id: `frame_${Date.now()}`,
+      imageData: canvas.toDataURL('image/png'),
+      duration: 100
+    };
+    const newFrames = [...frames];
+    newFrames.splice(currentFrameIndex + 1, 0, newFrame);
+    setFrames(newFrames);
+    setCurrentFrameIndex(currentFrameIndex + 1);
+  };
+
+  const deleteFrame = () => {
+    if (frames.length <= 1) {
+      clearCanvas();
+      return;
+    }
+    
+    const newFrames = frames.filter((_, i) => i !== currentFrameIndex);
+    setFrames(newFrames);
+    setCurrentFrameIndex(Math.min(currentFrameIndex, newFrames.length - 1));
+  };
+
   const handleSave = async () => {
+    if (!projectId) return;
     setIsSaving(true);
     try {
-      if (projectId) {
-        await updateProject.mutateAsync({
-          id: projectId,
-          data: { title, data: {} },
-        });
-      } else {
-        await createProject.mutateAsync({
-          title,
-          type: "motion",
-          status: "draft",
-          data: {},
-        });
-      }
-      toast.success("Project saved");
+      await updateProject.mutateAsync({
+        id: projectId,
+        data: { 
+          title, 
+          data: { frames, fps, width: 800, height: 600 } 
+        },
+      });
+      toast.success("Animation saved");
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -61,169 +354,252 @@ export default function MotionStudio() {
     }
   };
 
+  const applyToPanel = () => {
+    if (!returnTo || !panelId) {
+      toast.error("No panel to apply to");
+      return;
+    }
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const animationData = {
+      frames: frames.map(f => f.imageData),
+      fps,
+      currentFrame: canvas.toDataURL('image/png')
+    };
+    
+    sessionStorage.setItem(`panel_animation_${panelId}`, JSON.stringify(animationData));
+    toast.success("Animation applied to panel!");
+    navigate(returnTo);
+  };
+
+  const closeAndReturn = () => {
+    if (returnTo) {
+      navigate(returnTo);
+    } else {
+      navigate('/');
+    }
+  };
+
+  if (isCreating) {
+    return (
+      <Layout>
+        <div className="h-screen flex items-center justify-center bg-black">
+          <div className="text-center text-white">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Creating animation project...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <div className="h-screen flex flex-col">
-        <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-background">
+      <div className="h-screen flex flex-col bg-zinc-900 text-white">
+        <header className="h-12 border-b border-zinc-700 flex items-center justify-between px-4 bg-zinc-800">
           <div className="flex items-center gap-4">
-            <Link href="/">
-              <button className="p-2 hover:bg-muted border border-transparent hover:border-border transition-colors" data-testid="button-back">
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            </Link>
-            <input 
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-muted px-2 py-1"
-              data-testid="input-motion-title"
-            />
-            <span className="text-xs font-mono bg-black text-white px-2 py-1">BETA</span>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2 disabled:opacity-50"
-              data-testid="button-save"
+            <div className="flex items-center gap-2 px-3 py-1 bg-white text-black font-mono font-bold text-sm">
+              ANIMATION MODE
+            </div>
+            <button
+              onClick={() => setPressureEnabled(!pressureEnabled)}
+              className={`px-3 py-1 text-xs font-mono border ${pressureEnabled ? 'border-white bg-white/10' : 'border-zinc-600'}`}
             >
-              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+              Pressure {pressureEnabled ? 'Enabled' : 'Disabled'}
             </button>
-            <button className="px-4 py-2 bg-secondary hover:bg-border border border-border text-sm font-medium flex items-center gap-2" data-testid="button-settings">
-              <Settings className="w-4 h-4" /> Render Settings
+            <span className="text-xs font-mono text-zinc-400">
+              Frame {currentFrameIndex + 1} / {frames.length}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button onClick={undo} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Undo">
+              <Undo className="w-4 h-4" />
             </button>
-            <button className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium flex items-center gap-2 shadow-hard-sm" data-testid="button-export">
-              <Download className="w-4 h-4" /> Export Video
+            <button onClick={redo} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Redo">
+              <Redo className="w-4 h-4" />
+            </button>
+            <button onClick={clearCanvas} className="p-2 hover:bg-zinc-700 text-zinc-300 hover:text-white" title="Clear">
+              <Trash2 className="w-4 h-4" />
+            </button>
+            
+            <div className="w-px h-6 bg-zinc-600 mx-2" />
+            
+            {panelId && (
+              <button
+                onClick={applyToPanel}
+                className="px-4 py-1.5 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-gray-200"
+              >
+                <Check className="w-4 h-4" /> Apply to Panel
+              </button>
+            )}
+            
+            <button
+              onClick={closeAndReturn}
+              className="p-2 hover:bg-zinc-700"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Main Workspace */}
-          <div className="flex-1 flex">
-            {/* Assets Panel */}
-            <div className="w-64 border-r border-border bg-background flex flex-col">
-              <div className="p-3 border-b border-border font-bold font-display text-sm">Project Assets</div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                 {[1, 2, 3].map((i) => (
-                   <div key={i} className="aspect-video bg-secondary border border-border relative group cursor-pointer hover:border-primary">
-                     <img src={noirComic} className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity" />
-                     <div className="absolute bottom-1 left-1 text-[10px] font-mono bg-black/50 text-white px-1">Panel {i}</div>
-                   </div>
-                 ))}
-                 <div className="p-2 border border-dashed border-border text-center text-xs text-muted-foreground hover:bg-secondary cursor-pointer">
-                   + Import Media
-                 </div>
-              </div>
-            </div>
+        <div className="h-10 border-b border-zinc-700 flex items-center px-4 gap-2 bg-zinc-800">
+          <span className="text-xs text-zinc-400 mr-2">Brush:</span>
+          {brushTypes.map(brush => (
+            <button
+              key={brush.id}
+              onClick={() => { setActiveBrush(brush.id); setIsEraser(false); }}
+              className={`px-3 py-1 text-xs border ${activeBrush === brush.id && !isEraser ? 'border-white bg-white/20' : 'border-zinc-600 hover:border-zinc-500'}`}
+            >
+              {brush.name}
+            </button>
+          ))}
+          <button
+            onClick={() => setIsEraser(!isEraser)}
+            className={`px-3 py-1 text-xs border ${isEraser ? 'border-white bg-white/20' : 'border-zinc-600 hover:border-zinc-500'}`}
+          >
+            Eraser
+          </button>
+          
+          <div className="w-px h-6 bg-zinc-600 mx-2" />
+          
+          <span className="text-xs text-zinc-400">Size:</span>
+          <input
+            type="range"
+            min="1"
+            max="50"
+            value={brushSize}
+            onChange={(e) => setBrushSize(Number(e.target.value))}
+            className="w-24 accent-white"
+          />
+          <span className="text-xs w-8">{brushSize}px</span>
+          
+          <div className="w-px h-6 bg-zinc-600 mx-2" />
+          
+          <span className="text-xs text-zinc-400">Color:</span>
+          <input
+            type="color"
+            value={brushColor}
+            onChange={(e) => setBrushColor(e.target.value)}
+            className="w-8 h-6 border border-zinc-600 bg-transparent cursor-pointer"
+          />
+          
+          <div className="w-px h-6 bg-zinc-600 mx-2" />
+          
+          <span className="text-xs text-zinc-400">Opacity:</span>
+          <input
+            type="range"
+            min="10"
+            max="100"
+            value={brushOpacity}
+            onChange={(e) => setBrushOpacity(Number(e.target.value))}
+            className="w-20 accent-white"
+          />
+          <span className="text-xs w-10">{brushOpacity}%</span>
+        </div>
 
-            {/* Viewport */}
-            <div className="flex-1 bg-black/5 p-8 flex items-center justify-center relative overflow-hidden">
-               {/* Checkerboard pattern for transparency */}
-               <div className="absolute inset-0 opacity-20" 
-                    style={{ backgroundImage: "linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)", backgroundSize: "20px 20px", backgroundPosition: "0 0, 10px 10px" }} 
-               />
-               
-               {/* Video Canvas */}
-               <div className="aspect-video w-[80%] bg-black shadow-2xl relative group">
-                 <img src={noirComic} className="w-full h-full object-cover opacity-80" />
-                 
-                 {/* Overlay Elements */}
-                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white font-display text-6xl font-bold uppercase tracking-tighter drop-shadow-lg animate-pulse">
-                   BOOM!
-                 </div>
-
-                 {/* Safe Area Guides */}
-                 <div className="absolute inset-8 border border-white/30 border-dashed pointer-events-none"></div>
-               </div>
-            </div>
-
-            {/* Properties Panel */}
-            <div className="w-64 border-l border-border bg-background flex flex-col">
-               <div className="p-3 border-b border-border font-bold font-display text-sm">Animation Properties</div>
-               <div className="p-4 space-y-6">
-                 <div className="space-y-2">
-                   <label className="text-xs font-bold uppercase">Transform</label>
-                   <div className="grid grid-cols-2 gap-2">
-                     <input type="number" className="w-full p-1 border border-border text-xs" placeholder="X: 0" />
-                     <input type="number" className="w-full p-1 border border-border text-xs" placeholder="Y: 0" />
-                     <input type="number" className="w-full p-1 border border-border text-xs" placeholder="Scale: 100%" />
-                     <input type="number" className="w-full p-1 border border-border text-xs" placeholder="Rot: 0°" />
-                   </div>
-                 </div>
-
-                 <div className="space-y-2">
-                   <label className="text-xs font-bold uppercase">Effects</label>
-                   <div className="space-y-1">
-                     <div className="flex items-center gap-2 text-sm">
-                       <input type="checkbox" defaultChecked /> Shake
-                     </div>
-                     <div className="flex items-center gap-2 text-sm">
-                       <input type="checkbox" /> Flash
-                     </div>
-                     <div className="flex items-center gap-2 text-sm">
-                       <input type="checkbox" defaultChecked /> Glitch
-                     </div>
-                   </div>
-                 </div>
-               </div>
-            </div>
+        <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden bg-zinc-900">
+          <div className="relative">
+            {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
+              <img 
+                src={frames[currentFrameIndex - 1].imageData}
+                className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
+                alt="Previous frame"
+              />
+            )}
+            <canvas
+              ref={canvasRef}
+              className="bg-white shadow-2xl cursor-crosshair"
+              style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 280px)' }}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={stopDrawing}
+            />
           </div>
+        </div>
 
-          {/* Timeline */}
-          <div className="h-72 border-t border-border bg-background flex flex-col">
-            {/* Transport Controls */}
-            <div className="h-10 border-b border-border flex items-center px-4 gap-4 bg-secondary/20">
-              <div className="flex items-center gap-2">
-                <button className="p-1 hover:text-primary"><SkipBack className="w-4 h-4" /></button>
-                <button className="p-1 hover:text-primary"><Play className="w-4 h-4" /></button>
-                <button className="p-1 hover:text-primary"><SkipForward className="w-4 h-4" /></button>
-              </div>
-              <div className="w-px h-4 bg-border"></div>
-              <div className="font-mono text-xs">00:00:04:12</div>
-              <div className="flex-1"></div>
-              <div className="flex items-center gap-2">
-                 <button className="p-1 hover:bg-muted rounded" title="Cut"><Scissors className="w-3 h-3" /></button>
-                 <button className="p-1 hover:bg-muted rounded" title="Keyframe"><div className="w-2 h-2 rotate-45 bg-current"></div></button>
-              </div>
-            </div>
-
-            {/* Tracks */}
-            <div className="flex-1 overflow-auto flex relative">
-               {/* Track Headers */}
-               <div className="w-48 border-r border-border bg-secondary/10 flex flex-col sticky left-0 z-10">
-                  <div className="h-8 border-b border-border px-2 flex items-center text-xs font-bold gap-2"><Layers className="w-3 h-3" /> Video 1</div>
-                  <div className="h-8 border-b border-border px-2 flex items-center text-xs font-bold gap-2"><Layers className="w-3 h-3" /> Video 2</div>
-                  <div className="h-8 border-b border-border px-2 flex items-center text-xs font-bold gap-2"><Music className="w-3 h-3" /> Audio</div>
-               </div>
-
-               {/* Timeline Grid */}
-               <div className="flex-1 bg-background relative min-w-[1000px]">
-                  {/* Time Ruler */}
-                  <div className="h-6 border-b border-border flex text-[10px] text-muted-foreground font-mono">
-                    {[...Array(20)].map((_, i) => (
-                      <div key={i} className="flex-1 border-r border-border/30 pl-1">{i}s</div>
-                    ))}
-                  </div>
-
-                  {/* Playhead */}
-                  <div className="absolute top-0 bottom-0 left-[20%] w-px bg-red-500 z-20">
-                    <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rotate-45"></div>
-                  </div>
-
-                  {/* Clips */}
-                  <div className="h-8 border-b border-border/50 relative mt-0 bg-secondary/5">
-                    <div className="absolute left-[10%] width-[30%] h-6 top-1 bg-primary/20 border border-primary rounded-sm"></div>
-                  </div>
-                  <div className="h-8 border-b border-border/50 relative bg-secondary/5">
-                     <div className="absolute left-[25%] width-[15%] h-6 top-1 bg-primary/20 border border-primary rounded-sm"></div>
-                  </div>
-                  <div className="h-8 border-b border-border/50 relative bg-green-500/5">
-                     <div className="absolute left-[0%] width-[50%] h-6 top-1 bg-green-500/20 border border-green-500/50 rounded-sm"></div>
-                  </div>
-               </div>
-            </div>
+        <div className="h-10 border-t border-zinc-700 flex items-center px-4 gap-4 bg-zinc-800">
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            <span className="text-sm">{isPlaying ? 'Pause' : 'Play'}</span>
+          </button>
+          
+          <button onClick={addFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
+            <Plus className="w-4 h-4" />
+            <span className="text-sm">Add Frame</span>
+          </button>
+          
+          <button onClick={duplicateFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
+            <Copy className="w-4 h-4" />
+            <span className="text-sm">Duplicate</span>
+          </button>
+          
+          <button onClick={deleteFrame} className="flex items-center gap-2 px-3 py-1 hover:bg-zinc-700">
+            <Trash2 className="w-4 h-4" />
+            <span className="text-sm">Delete</span>
+          </button>
+          
+          <div className="flex-1" />
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOnionSkin(!onionSkin)}
+              className={`flex items-center gap-2 px-3 py-1 ${onionSkin ? 'bg-white/10' : ''} hover:bg-zinc-700`}
+            >
+              <Eye className="w-4 h-4" />
+              <span className="text-sm">Onion Skin</span>
+            </button>
           </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400">FPS:</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              value={fps}
+              onChange={(e) => setFps(Number(e.target.value))}
+              className="w-20 accent-white"
+            />
+            <span className="text-xs w-6">{fps}</span>
+          </div>
+        </div>
+
+        <div className="h-24 border-t border-zinc-700 bg-zinc-800 flex items-center px-4 gap-2 overflow-x-auto">
+          {frames.map((frame, index) => (
+            <button
+              key={frame.id}
+              onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(index); }}
+              className={`flex-shrink-0 w-20 h-16 border-2 relative ${
+                index === currentFrameIndex ? 'border-white' : 'border-zinc-600 hover:border-zinc-500'
+              }`}
+            >
+              {frame.imageData ? (
+                <img src={frame.imageData} className="w-full h-full object-cover" alt={`Frame ${index + 1}`} />
+              ) : (
+                <div className="w-full h-full bg-white" />
+              )}
+              <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/50 text-white">
+                {index + 1}
+              </span>
+            </button>
+          ))}
+          <button
+            onClick={addFrame}
+            className="flex-shrink-0 w-20 h-16 border-2 border-dashed border-zinc-600 hover:border-zinc-500 flex items-center justify-center"
+          >
+            <Plus className="w-6 h-6 text-zinc-500" />
+          </button>
         </div>
       </div>
     </Layout>
