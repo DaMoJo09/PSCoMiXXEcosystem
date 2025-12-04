@@ -1,0 +1,399 @@
+Perfect, that’s the rest of the Voltron pieces 🧠⚡️
+Here’s an **updated, copy-paste ready brief for Claude** that *adds* those four links as ecosystem tools + future integration targets.
+
+---
+
+## ✅ PSCoMiXX CREATOR – MASTER BRIEF (INTEGRATION VERSION)
+
+**Project:** PSCoMiXX Desktop Creator – Comics, Cards, Covers, Visual Novels & Video
+**Primary Reference Site:** [https://www.pscomixx.com/](https://www.pscomixx.com/)
+**Codebase:** Attached `comic-app` folder from `comic-app-complete (7).zip`
+
+### 🌐 Ecosystem & Integration Targets (Must Study & Respect)
+
+In addition to the main codebase and pscomixx.com, you must also treat these as **core references + future integration surfaces**:
+
+* **[https://comixx.website/](https://comixx.website/)** – marketing/landing presence for the brand.
+* **[https://pscomixx.online/](https://pscomixx.online/)** – PSCoMiXX creator/experience surface (web).
+* **[https://psstreaming.online/](https://psstreaming.online/)** – community / reader / monetization platform for publishing comics/cards/VNs.
+* **[https://pscomixx-6hljpllm.manus.space/](https://pscomixx-6hljpllm.manus.space/)** – current Manus-built app (functional reference for flows and tools).
+
+> **Instruction:**
+> Open and study each of these URLs.
+>
+> * Mirror the **feature set, naming, and user flows** where they overlap with the desktop app.
+> * Do **not** remove or ignore any capability that clearly exists in those tools unless explicitly deprecated.
+> * Design the new desktop app so it can **integrate smoothly** with these platforms (export formats, APIs, auth, etc.).
+
+---
+
+## 1. Role & Goal
+
+You are an AI engineer rebuilding and upgrading my **desktop PSCoMiXX Creator app**. The app must support:
+
+* Comic Page Builder (image + video + drawing in panels)
+* Cover Creator
+* Trading Card Creator (with evolution-ready data)
+* **Visual Novel / Story Creator (branching)**
+* (If present) Separate CYOA builder
+* User accounts/logins
+* **Admin login + analytics (my account only)**
+* Clean integration with:
+
+  * PSCoMiXX web properties
+  * PSStreaming reader/monetization
+  * Existing Manus prototype behavior
+
+You will:
+
+1. Study the repo + internal docs.
+2. Study **pscomixx.com** + the four extra URLs above.
+3. Rebuild the desktop app so it is:
+
+   * Stable
+   * Easy to use
+   * Feature-complete
+   * Integration-ready for the rest of the ecosystem.
+
+---
+
+## 2. Things To Read First (Repo)
+
+Inside `comic-app/`:
+
+* `Comic_Creator_Documentation.md`
+* `COMMUNITY_APP_BUILD_SHEET.md`
+* `CRITICAL_FIXES.md`
+* `CONTINUE.md`
+* `CARD_FILE_FORMAT.md`
+* Any docs referring to:
+
+  * Visual Novels / Story Mode
+  * CYOA / branching
+  * Video features
+  * Export/publish
+
+Use these plus the live sites as a **combined spec**. When in doubt, keep the **superset** of all described features.
+
+---
+
+## 3. Desktop-Only Creator Hub
+
+This project is for **desktop** (mouse/keyboard + Wacom/stylus). Mobile is handled by a **separate app**.
+
+Main modes (from a single hub/dashboard):
+
+* Comic Builder (image + video + drawing panels)
+* Cover Creator
+* Trading Card Creator
+* **Visual Novel Creator**
+* CYOA / branching tools (if present in docs/code)
+
+All modes must:
+
+* Save & load projects reliably
+* Support undo/redo
+* Export for print + web
+* Be aware that finished works may be published to **psstreaming.online** and/or web PSCoMiXX apps.
+
+---
+
+## 4. Auth, Users & Admin
+
+### 4.1 User Accounts
+
+Implement/complete:
+
+* Email + password signup/login/logout.
+* Hashed passwords, secure sessions/JWT.
+* User profile (display name, avatar, optional bio).
+* User library:
+
+  * Shows Comics, Covers, Cards, Visual Novels, CYOA projects.
+  * Filter by type, date, title.
+
+### 4.2 Admin Role (My Account Only)
+
+Create an **admin-only** role tied to my email/account:
+
+* Admin dashboard:
+
+  * Total users.
+  * Total projects by type (comic/card/cover/VN/CYOA).
+  * New projects per day/week/month.
+  * Export/publish counts.
+  * Approximate storage use.
+* Admin tools:
+
+  * View users list + basic stats (how many projects).
+  * View recent activity (e.g., “user X created comic Y”).
+  * Optional: soft-disable user via DB flag.
+
+Secure all admin endpoints with role checks.
+
+---
+
+## 5. Creation Modes (All Must Be Preserved & Polished)
+
+### 5.1 Comic Builder (Image + Video + Drawing)
+
+Panels & Layouts:
+
+* Common panel templates (1–4, grids, manga layouts).
+* Ability to change layouts mid-project without breaking content too badly.
+
+Per-panel content types:
+
+1. **Image**
+
+   * Backgrounds from library/uploads.
+
+2. **Drawing Layer**
+
+   * Brush/eraser, color, size, opacity.
+   * Stylus/Wacom support where possible.
+   * Inline drawing mode vs full-blank mode (fixed as per `CRITICAL_FIXES.md`).
+
+3. **Video**
+
+   * Drop in video clips into panels (like in current Manus prototype).
+   * Basic control: start/end, autoplay flag for reader.
+   * Text/bubbles overlay on top.
+
+4. **Text & Bubbles**
+
+   * Speech bubbles, captions, SFX text.
+   * Multiple fonts, size, alignment, outline/shadow.
+   * Drag/resize/rotate.
+
+Canvas behavior:
+
+* Drag/resize/rotate elements.
+* Snap guides.
+* Zoom + pan.
+* Robust undo/redo.
+
+### 5.2 Cover Creator
+
+* Dedicated cover mode:
+
+  * Hero art (image or composition).
+  * Title, subtitle, author text.
+  * Logo/badge.
+  * QR code (linking out to psstreaming/pscomixx).
+
+* Live preview (no delayed updates).
+
+* Export:
+
+  * Print-ready PNG/JPEG.
+  * Web preview.
+
+### 5.3 Trading Card Creator (Evolution-Ready)
+
+* Card templates (by rarity/frame).
+
+* Fields: name, art, stats, rarity, flavor text, type/tags.
+
+* Card evolution:
+
+  * Structure for multiple stages (base → advanced → legendary).
+  * Shared card ID; different visuals/stats per stage.
+
+* Use `CARD_FILE_FORMAT.md` for `.card` I/O.
+
+* Export:
+
+  * High-res PNG for print.
+  * Web-size preview.
+
+### 5.4 Visual Novel Creator (Flagship)
+
+* Project structure:
+
+  * Scenes (nodes).
+  * Characters (with sprite sets).
+  * Backgrounds.
+  * Dialogue lines.
+  * Choices/branches.
+
+* Scene editor:
+
+  * Background per scene.
+  * List or graph of scenes.
+  * Sequence of dialogue entries.
+
+* Dialogue editor:
+
+  * Speaker, text, sprite/pose, position (L/C/R).
+  * Add/duplicate/reorder lines.
+  * In-app playtest.
+
+* Characters:
+
+  * Character library with name/color.
+  * Multiple expression sprites.
+
+* Choices & branching:
+
+  * At certain lines, present choices.
+  * Each choice links to another scene or point.
+  * Some form of node/graph visualization is ideal.
+
+* Optional future variables:
+
+  * Flags/variables with simple conditions.
+  * Design data model to allow this later.
+
+* Exports:
+
+  * JSON of full VN (scenes, dialogue, choices, characters, backgrounds).
+  * Optional asset bundle ZIP.
+  * Internal “Play” mode for testing.
+
+### 5.5 CYOA Builder (If Separate)
+
+* If docs/code include a distinct CYOA builder:
+
+  * Keep it.
+  * Nodes = pages/sections; edges = choices.
+  * Nodes may reference comic pages, VN scenes, or text.
+  * Share data where possible but don’t remove either VN or CYOA without clear reason.
+
+---
+
+## 6. Export, Publish & Integration
+
+### 6.1 Export Types
+
+* **Comics**
+
+  * Page PNGs.
+  * Multi-page PDF.
+  * ZIP bundle.
+
+* **Covers**
+
+  * Print PNG/JPEG.
+  * Web preview.
+
+* **Cards**
+
+  * Print PNG.
+  * Web preview.
+
+* **Visual Novels / CYOA**
+
+  * JSON project export.
+  * Optional bundle ZIP.
+
+Add progress UI + error handling for all exports.
+
+### 6.2 Integration with PSStreaming & Web Apps
+
+Design export/publish functions to integrate with:
+
+* **[https://psstreaming.online/](https://psstreaming.online/)**
+
+  * Acts as community/reader/monetization platform.
+  * Provide a “Publish to PSStreaming” or “Publish to Community” action that:
+
+    * Packages project data (e.g., JSON, PNGs/PDFs).
+    * Adds metadata:
+
+      * title, description, tags, age rating, language, creator ID, project type.
+    * Hits a configurable API endpoint (to be wired later).
+
+* **[https://pscomixx.online/](https://pscomixx.online/)** + **[https://comixx.website/](https://comixx.website/)**
+
+  * Web surfaces that may embed or host viewer/editor functionality.
+  * Ensure:
+
+    * Data formats are stable and well-documented.
+    * Deep-linking is possible (e.g., project IDs that can be opened on the web side).
+
+* **[https://pscomixx-6hljpllm.manus.space/](https://pscomixx-6hljpllm.manus.space/)**
+
+  * Treat as a **functional reference**:
+
+    * Match or exceed current UX flows (how users create, edit, export).
+    * Rebuild features natively in this new codebase (don’t depend on Manus at runtime).
+
+---
+
+## 7. Desktop UX, Dashboard & QoL
+
+* Dashboard:
+
+  * Thumbnails for all project types.
+  * Filters by type/status/date.
+
+* Autosave:
+
+  * On major actions or interval.
+  * Clear “Saved / Unsaved” indicator.
+
+* Shortcuts:
+
+  * Undo/redo.
+  * Tool switching.
+  * Zoom in/out.
+  * VN play/pause.
+
+* Onboarding:
+
+  * First-time tooltips or quick tours per mode.
+
+* Performance:
+
+  * Lazy load assets.
+  * Optimize React rendering.
+  * Handle big projects gracefully.
+
+---
+
+## 8. Architecture & Docs
+
+* Stack: React + Vite + TypeScript + Express + Drizzle + DB + S3.
+
+* Use `.env` for secrets.
+
+* Shared TS types for:
+
+  * Users, projects, comics, cards, VNs, CYOAs, metadata.
+
+* Validate everything client & server side.
+
+* Update docs:
+
+  * Setup / run.
+  * Architecture overview.
+  * Per-mode usage guides.
+  * Data contracts for integration with:
+
+    * pscomixx(.com/.online)
+    * psstreaming.online
+
+---
+
+## 9. Deliverables
+
+By the end, I should have:
+
+1. A stable, desktop-only PSCoMiXX Creator app with:
+
+   * Comic, Cover, Card, VN & CYOA creation.
+2. Working:
+
+   * User auth.
+   * **Admin analytics dashboard**.
+3. Reliable export & publish flows targeted at:
+
+   * psstreaming.online (community/reader/monetization).
+   * pscomixx web properties.
+4. Clean, documented data formats + endpoints so future tools/plugins can hook in easily.
+
+---
+
+**End of brief.**
+Use the repo, **pscomixx.com**, and the four integration URLs together. If a feature exists in any of them, treat it as required or future-critical and keep the system forward-compatible.
