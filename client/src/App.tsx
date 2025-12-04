@@ -37,6 +37,7 @@ function ProtectedRouter() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/comic" component={ComicCreator} />
       <Route path="/creator/comic" component={ComicCreator} />
       <Route path="/creator/motion" component={MotionStudio} />
       <Route path="/creator/card" component={CardCreator} />
