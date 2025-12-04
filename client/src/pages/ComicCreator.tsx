@@ -170,13 +170,13 @@ export default function ComicCreator() {
   
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
-  const isCreatingRef = useRef(false);
 
   const currentSpread = spreads[currentSpreadIndex];
 
   useEffect(() => {
-    if (!projectId && !isCreatingRef.current) {
-      isCreatingRef.current = true;
+    const creatingFlag = sessionStorage.getItem('comic_creating');
+    if (!projectId && !creatingFlag && !createProject.isPending) {
+      sessionStorage.setItem('comic_creating', 'true');
       setIsCreating(true);
       createProject.mutateAsync({
         title: "Untitled Comic",
@@ -184,12 +184,17 @@ export default function ComicCreator() {
         status: "draft",
         data: { spreads: [{ id: "spread_1", leftPage: [], rightPage: [] }] },
       }).then((newProject) => {
+        sessionStorage.removeItem('comic_creating');
+        setIsCreating(false);
         navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
       }).catch(() => {
         toast.error("Failed to create project");
-        isCreatingRef.current = false;
+        sessionStorage.removeItem('comic_creating');
         setIsCreating(false);
       });
+    } else if (projectId) {
+      sessionStorage.removeItem('comic_creating');
+      setIsCreating(false);
     }
   }, [projectId]);
 
