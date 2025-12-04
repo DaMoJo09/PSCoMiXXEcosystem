@@ -68,12 +68,12 @@ interface AnimationData {
 }
 
 const brushTypes = [
-  { id: "brush", name: "Brush", icon: PenTool, width: 8, opacity: 100 },
-  { id: "pencil", name: "Pencil", icon: Pencil, width: 2, opacity: 100 },
-  { id: "ink", name: "Ink", icon: PenTool, width: 4, opacity: 100 },
-  { id: "marker", name: "Marker", icon: PenTool, width: 12, opacity: 80 },
-  { id: "airbrush", name: "Airbrush", icon: PenTool, width: 20, opacity: 40 },
-  { id: "calligraphy", name: "Calli", icon: PenTool, width: 6, opacity: 100 },
+  { id: "brush", name: "Brush", icon: PenTool, width: 8, opacity: 100, hardness: 100 },
+  { id: "pencil", name: "Pencil", icon: Pencil, width: 2, opacity: 100, hardness: 100 },
+  { id: "ink", name: "Ink", icon: PenTool, width: 4, opacity: 100, hardness: 100 },
+  { id: "marker", name: "Marker", icon: PenTool, width: 12, opacity: 80, hardness: 50 },
+  { id: "airbrush", name: "Airbrush", icon: PenTool, width: 30, opacity: 20, hardness: 10 },
+  { id: "calligraphy", name: "Calli", icon: PenTool, width: 6, opacity: 100, hardness: 100 },
 ];
 
 const tools = [
@@ -284,23 +284,49 @@ export default function MotionStudio() {
     
     const context = contextRef.current;
     const isErasing = activeTool === 'eraser';
+    const currentBrushType = brushTypes.find(b => b.id === activeBrush);
     
     context.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
     context.globalAlpha = isErasing ? 1 : brushOpacity / 100;
     context.strokeStyle = brushColor;
     context.lineWidth = isErasing ? brushSize * 3 : brushSize;
     
-    if (activeBrush === 'calligraphy' && !isErasing) {
+    if (activeBrush === 'airbrush' && !isErasing) {
+      context.fillStyle = brushColor;
+      const density = 25;
+      const radius = brushSize * 1.5;
+      for (let i = 0; i < density; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * radius;
+        const x = coords.x + Math.cos(angle) * distance;
+        const y = coords.y + Math.sin(angle) * distance;
+        context.beginPath();
+        context.arc(x, y, Math.random() * 2 + 0.5, 0, Math.PI * 2);
+        context.fill();
+      }
+    } else if (activeBrush === 'calligraphy' && !isErasing) {
       const angle = Math.atan2(coords.y - lastPoint.y, coords.x - lastPoint.x);
       context.lineWidth = brushSize * (1 + Math.abs(Math.sin(angle)));
+      context.beginPath();
+      context.moveTo(lastPoint.x, lastPoint.y);
+      context.lineTo(coords.x, coords.y);
+      context.stroke();
+    } else if (activeBrush === 'marker' && !isErasing) {
+      context.globalAlpha = (brushOpacity / 100) * 0.6;
+      context.lineWidth = brushSize * 1.5;
+      context.beginPath();
+      context.moveTo(lastPoint.x, lastPoint.y);
+      context.lineTo(coords.x, coords.y);
+      context.stroke();
+    } else {
+      context.beginPath();
+      context.moveTo(lastPoint.x, lastPoint.y);
+      context.lineTo(coords.x, coords.y);
+      context.stroke();
     }
     
-    context.beginPath();
-    context.moveTo(lastPoint.x, lastPoint.y);
-    context.lineTo(coords.x, coords.y);
-    context.stroke();
-    
     context.globalCompositeOperation = 'source-over';
+    context.globalAlpha = 1;
     
     setLastPoint(coords);
   };
@@ -625,7 +651,11 @@ export default function MotionStudio() {
                         {brushTypes.map(brush => (
                           <button
                             key={brush.id}
-                            onClick={() => setActiveBrush(brush.id)}
+                            onClick={() => {
+                              setActiveBrush(brush.id);
+                              setBrushSize(brush.width);
+                              setBrushOpacity(brush.opacity);
+                            }}
                             className={`px-2 py-1 text-xs ${
                               activeBrush === brush.id 
                                 ? 'bg-white text-black' 
@@ -748,6 +778,31 @@ export default function MotionStudio() {
                 </button>
                 <button onClick={goToNextFrame} className="p-1.5 hover:bg-zinc-800" title="Next Frame (.)">
                   <SkipForward className="w-3 h-3" />
+                </button>
+                <button onClick={duplicateFrame} className="p-1.5 hover:bg-zinc-800" title="Duplicate Frame">
+                  <Copy className="w-3 h-3" />
+                </button>
+                <button onClick={deleteFrame} className="p-1.5 hover:bg-zinc-800 hover:text-red-400" title="Delete Frame">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-[10px] text-zinc-500">FPS:</span>
+                <input
+                  type="number"
+                  value={fps}
+                  onChange={(e) => setFps(Math.max(1, Math.min(60, Number(e.target.value))))}
+                  className="w-10 bg-zinc-800 border border-zinc-700 px-1 py-0.5 text-[10px] text-center"
+                  min={1}
+                  max={60}
+                />
+                <button
+                  onClick={() => setOnionSkin(!onionSkin)}
+                  className={`p-1 text-[10px] ${onionSkin ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'}`}
+                  title="Toggle Onion Skin"
+                >
+                  <Eye className="w-3 h-3" />
                 </button>
               </div>
               
