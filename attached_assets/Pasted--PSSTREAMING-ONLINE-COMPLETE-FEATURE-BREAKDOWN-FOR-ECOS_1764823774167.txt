@@ -1,0 +1,513 @@
+✅ PSSTREAMING.ONLINE — COMPLETE FEATURE BREAKDOWN FOR ECOSYSTEM INTEGRATION
+(Everything this app does, how it works, and how it plugs into the full PSCoMiXX ecosystem.)
+1. WHAT IS PSSTREAMING? (Purpose Layer)
+
+PSStreaming.online is the community + reader + monetization platform for PSCoMiXX.
+
+Where the other apps create:
+
+Comics
+
+Cards
+
+Covers
+
+Visual Novels
+
+CYOA Stories
+
+PSStreaming is where users publish, share, browse, and monetize them.
+
+Think:
+Wattpad + Webtoon + Tapas + Trading Card Market + STEAM Workshop → but for PSCoMiXX.
+
+2. HOME EXPERIENCE / DISCOVERY LAYER
+✔ Featured Sections
+
+Featured comics
+
+Trending uploads
+
+New releases
+
+Hot creators
+
+Staff picks
+
+Recommended for you
+
+✔ Browsing Filters
+
+Genre
+
+Tags
+
+Format (comic / VN / CYOA / cards / covers)
+
+Popularity (hot, trending)
+
+Recency
+
+Rating / Age category
+
+✔ Search
+
+Search by:
+
+Title
+
+Creator
+
+Genre
+
+Tags
+
+3. USER ACCOUNT SYSTEM (FRONTEND)
+✔ Sign Up / Login
+
+Email + password
+
+Username
+
+Avatar
+
+Profile page
+
+✔ User Profile Includes:
+
+Avatar
+
+Username
+
+Bio
+
+Social links
+
+Stats:
+
+Followers
+
+Likes
+
+Projects uploaded
+
+Following creators
+
+4. CREATOR DASHBOARD
+
+This is critical for integration with your desktop Comic/Cover/Card/VN creators.
+
+Creators get:
+
+Upload new content
+
+Manage currently published comics/cards/stories
+
+Edit metadata
+
+Replace or update pages
+
+Set visibility (public / private / unlisted)
+
+Manage cover art
+
+Track earnings (if monetization is implemented)
+
+5. PUBLISHING PIPELINE
+
+This is where projects made in your desktop/mobile creators get pushed.
+
+Supports publishing:
+
+Comics
+
+Comic Covers
+
+Trading Cards
+
+Visual Novels
+
+CYOA Stories
+
+✔ Upload Flow Includes:
+
+Upload Project File(s)
+
+PNG / JPG for comic pages
+
+PDF for comic books
+
+JSON for VN or CYOA
+
+.card files (JSON cards)
+
+Cover image
+
+Metadata JSON package
+
+Enter Metadata
+
+Title
+
+Creator
+
+Genres
+
+Tags
+
+Languages
+
+Rating (E, Teen, Mature)
+
+Description
+
+Categorization
+
+Comic
+
+Card
+
+Cover
+
+Visual Novel
+
+CYOA
+
+Visibility Settings
+
+Public
+
+Private
+
+Unlisted
+
+Publish
+
+6. CONTENT VIEWERS / READERS
+
+PSStreaming includes multiple reader systems:
+
+🟦 6.1 COMIC READER (Webtoon-style or Page-turn style)
+
+Features:
+
+Fit-to-screen reading
+
+Page-turn (left/right)
+
+Vertical scroll mode (if supported)
+
+Thumbnail navigation
+
+Page list
+
+Zoom
+
+Fullscreen mode
+
+🟪 6.2 VISUAL NOVEL VIEWER
+
+Reads VN JSON created in PSCoMiXX.
+
+Features:
+
+Scene playback
+
+Character sprites
+
+Dialogue box with name + text
+
+Branching choices
+
+Save/Load system
+
+Auto-play mode
+
+Soundtrack (optional future)
+
+🟨 6.3 CYOA / BRANCHING STORY VIEWER
+
+Reads .CYOA or JSON branching graphs.
+
+Features:
+
+Choice buttons
+
+Path tracking
+
+Return/backtrack
+
+Branch map preview
+
+Story statistics
+
+🟥 6.4 TRADING CARD VIEWER
+
+Supports:
+
+Individual card display (front)
+
+Stats & metadata
+
+Card series view
+
+Card evolution stages
+
+Download card PNG
+
+Add card to “collection” (if gamified)
+
+7. SOCIAL + COMMUNITY MODULE
+
+This is why PSStreaming is powerful — it’s not just a viewer, it’s a community.
+
+✔ Likes
+
+Users can like:
+
+Comics
+
+Cards
+
+VN episodes
+
+CYOA stories
+
+Likes feed into trending algorithms.
+
+✔ Comments
+
+User-to-user comments
+
+Creator replies
+
+Comment moderation
+
+✔ Following System
+
+Users can:
+
+Follow creators
+
+Follow comic series
+
+Get notifications
+
+✔ Sharing
+
+Social share links
+
+Link to comic page
+
+Link to whole series
+
+8. SERIES MANAGEMENT
+
+For multi-chapter stories.
+
+Creators can:
+
+Start a series
+
+Add chapters/episodes
+
+Reorder episodes
+
+Set episode thumbnails
+
+Track stats per episode
+
+Readers can:
+
+Subscribe
+
+Get notified of new episodes
+
+9. ANALYTICS (CREATOR ANALYTICS DASHBOARD)
+
+Creators see stats like:
+
+Views (daily/week/month)
+
+Likes
+
+Comments
+
+Followers gained
+
+Retention
+
+Episode drop-off rate
+
+Territories (where readers come from)
+
+Device types (web / mobile)
+
+INTEGRATION NOTE:
+This analytics module should also be available in your desktop Creator App admin panel.
+
+10. MONETIZATION (FUTURE OR PRESENT)
+
+The platform is designed to support (now or future):
+
+✔ Digital monetization:
+
+Pay-per-episode
+
+Pay-per-comic
+
+Premium-tier chapters
+
+Membership-subscription to creators
+
+Tip Jars
+
+✔ Creator Payouts:
+
+Stripe payouts
+
+Earnings dashboard
+
+✔ Ad-supported reading (optional)
+
+Ads between chapters
+
+Creators earn CPM share
+
+11. BACKEND SYSTEMS (LOGICAL MODULES)
+✔ Project Storage (Database)
+
+Users
+
+Creators
+
+Projects
+
+Comic pages
+
+VN scenes
+
+CYOA branches
+
+Cards
+
+Covers
+
+Metadata
+
+✔ File Storage (CDN / S3)
+
+Page images
+
+Card PNGs
+
+VN assets
+
+Covers
+
+Thumbnails
+
+✔ API Endpoints
+
+For your ecosystem to use:
+
+Upload
+
+Publish
+
+Update
+
+Fetch (reader)
+
+Analytics
+
+User account
+
+Series management
+
+Licensing/Pro features
+
+12. ECO-SYSTEM INTEGRATION MAP
+
+The role of PSStreaming inside PSCoMiXX:
+
+Layer	What It Does	Integration
+Creator Tools (desktop/mobile)	Create comics/cards/VNs	Export → Publish to PSStreaming
+PSStreaming (this site)	Community + Reader + Distribution	Receives uploads
+Prompt Factory & Story Forge	Produce content upstream	Used BEFORE publishing
+PSComiXX Website	Marketing + Onboarding	Sends users to Creator Tools → Publishing
+User Accounts	Unified identity	Shared across all apps
+Admin Dashboard	Analytics + Management	Oversee ecosystem usage
+13. FINAL DEVELOPER SUMMARY (Short Version)
+
+PSStreaming.online includes:
+
+Content Types
+
+Comics
+
+Visual Novels
+
+CYOA Stories
+
+Cards
+
+Covers
+
+Series with episodes
+
+User Capabilities
+
+Sign up / log in
+
+Browse
+
+Search
+
+Like
+
+Comment
+
+Follow
+
+Read comics/VNs/CYOA
+
+View cards
+
+Manage profile
+
+Upload & publish projects
+
+Create series
+
+Creator Capabilities
+
+Upload projects
+
+Edit metadata
+
+Manage series/episodes
+
+Replace files
+
+Publish updates
+
+View analytics
+
+(Future) Monetize
+
+System Functions
+
+File storage
+
+Database
+
+API
+
+Analytics
+
+Community moderation
+
+Publishing pipeline
+
+Reader engines for Interactive Stories

@@ -1,0 +1,490 @@
+✅ PSCOMIXX.COM — FULL FEATURE & TOOL BREAKDOWN
+(Everything the site does, what each tool is for, and how to integrate it into a unified ecosystem.)
+1. Home & Marketing Layer
+
+This part is what users see when arriving — the “pitch” of the ecosystem.
+
+✔ Overview Sections:
+
+What PSCoMiXX is
+
+What it can create (Comics, Cards, Covers, Visual Novels)
+
+Links to learn more
+
+Video banners / promo sections
+
+Links to Creator Tools
+
+Integration Purpose
+
+These parts DO NOT require functional integration, but they define:
+
+Brand language
+
+Core tool list
+
+How tools should be named inside the ecosystem
+
+Navigation hierarchy you’ll follow in desktop/mobile apps
+
+2. Creator Tools (The Core of PSCOMIXX)
+
+These are the main functional pillars the site advertises — the same ones that must be present in your desktop app and in the unified backend.
+
+🧰 2.1 COMIC MAKER
+✔ Function: Build full comic pages
+
+This is a complete comic-page building tool.
+
+Core Features:
+
+Panel layout system
+
+Drag-and-drop assets
+
+Background image import
+
+Character image import
+
+Text bubbles
+
+FX / stickers
+
+Layer control
+
+Drawing mode (pen/brush/eraser)
+
+Video-in-panel support (if in your Manus build)
+
+Save/Export comic pages
+
+Export to PDF or PNG
+
+Integration Notes:
+
+Use a ComicProject table
+
+Each comic has:
+
+comic id
+
+user id
+
+pages[]
+
+panel[] per page
+
+assets (images, text, fx)
+
+metadata (title, genres, tags, rating)
+
+🎴 2.2 TRADING CARD MAKER
+✔ Function: Build trading cards (like Marvel cards)
+Core Features:
+
+Card template selection
+
+Character image import
+
+Stat fields:
+
+power
+
+defense
+
+rarity
+
+ability text
+
+Custom borders
+
+Rarity frames
+
+Export to PNG
+
+Future:
+
+Card Evolution System (base → powerful → legendary)
+
+Integration Notes:
+
+Use a CardProject model
+
+Card data should be exportable to:
+
+PNG
+
+JSON (.card format)
+
+🎨 2.3 COVER MAKER
+✔ Function: Create comic book covers
+Features:
+
+Large, HD canvas
+
+Title text editor
+
+Subtitle
+
+Issue number
+
+Logo importer
+
+QR code embedding
+
+Background picker
+
+Character image layers
+
+Export to print-ready PNG/JPEG
+
+Integration Notes:
+
+Covers often feed into:
+
+PSStreaming (Reader App)
+
+Print pipeline
+
+Store in CoverProject model
+
+🎮 2.4 VISUAL NOVEL MAKER
+✔ Function: Create interactive, character-dialogue–based stories
+
+This is a major feature and must be included in your ecosystem.
+
+Core Features:
+
+Scene creation
+
+Background selection
+
+Character sprite layers
+
+Dialogue editor
+
+Branching choices
+
+Story flow / tree
+
+Export as JSON
+
+Preview playback mode
+
+Integration Notes:
+
+Create a VisualNovelProject model containing:
+
+{
+  "scenes": [],
+  "characters": [],
+  "dialogue": {},
+  "branching": {}
+}
+
+
+VN JSON will be used in:
+
+Mobile version
+
+Desktop version
+
+PSStreaming Reader App
+
+Future Game Engine integration
+
+🪜 2.5 CYOA BUILDER
+
+(Choose-Your-Own-Adventure System)
+
+✔ Function: Turn a linear story into a branching interactive story
+Features:
+
+Paste story text
+
+Pick # of branch points
+
+Pick # of choices per branch
+
+AI auto-splits story
+
+Preview interactive choices
+
+Export .CYOA file
+
+Export JSON graph
+
+Integration Notes:
+
+Connects to:
+
+Visual Novel Maker
+
+Comic Panels (branch comics)
+
+PSStreaming interactive reader
+
+3. AI TOOLING INSIDE PSCOMIXX
+
+These are “assistive” modules that power creativity.
+
+🧠 3.1 PROMPT FACTORY / ART GENERATOR
+✔ Function: Generate prompts for art tools (MJ, Pollinations, Higgsfield)
+Features:
+
+Upload reference image
+
+Style DNA extraction
+
+Asset type selection:
+
+Character
+
+Prop
+
+Environment
+
+UI
+
+Sprite sheet
+
+Animation
+
+Style presets:
+
+Anime
+
+Pixar
+
+Comic
+
+Chibi
+
+Ghibli
+
+Cyberpunk
+
+Pixel
+
+Text AI:
+
+Gemini
+
+Claude
+
+Image provider:
+
+Pollinations
+
+GetIMG
+
+Stable Horde
+
+Integration Notes:
+
+Treat as a Prompt Microservice:
+
+Input → (description + style + ref image)
+Output → list of prompts
+
+Useful for:
+
+Card maker
+
+Comic backgrounds
+
+VN characters
+
+Sprite sheets
+
+🧩 3.2 STORY FORGE
+✔ Function: Create structured storylines using AI
+Features:
+
+Character builder
+
+Genre selector
+
+Time period
+
+Tone
+
+Target audience
+
+Central conflict
+
+Themes
+
+Plot summary
+
+Story length
+
+Story format
+
+Generate full story
+
+Export as text / markdown
+
+“Send to CYOA Maker” button
+
+Integration Notes:
+
+Story Forge is the pre-production narrative engine.
+
+It outputs a clean JSON story that can seed:
+
+Comic maker (script → pages)
+
+Visual novel maker
+
+CYOA builder
+
+Game narrative editor
+
+4. System-Level Platform Features
+🔐 4.1 USER ACCOUNT SYSTEM
+
+(Not directly visible on PSCOMIXX.COM homepage, but part of your ecosystem.)
+
+Features to integrate:
+
+User registration
+
+Login
+
+Reset password
+
+User roles:
+
+user
+
+admin
+
+pro
+
+This affects:
+
+Storage
+
+Export limits
+
+AI model access
+
+🗂 4.2 PROJECT LIBRARY
+
+Each user has a “My Projects” dashboard containing:
+
+Comics
+
+Cards
+
+Covers
+
+Visual novels
+
+CYOA projects
+
+🔄 4.3 EXPORT & PUBLISH PIPELINE
+
+Exports available across PSCOMIXX:
+
+Export Types:
+
+PNG
+
+JPEG
+
+PDF
+
+JSON
+
+.CYOA
+
+ZIP (assets bundle)
+
+Publish:
+
+Push to PSStreaming Online (Reader/Community App)
+
+Push to your Desktop App
+
+Print version
+
+📈 4.4 ADMIN DASHBOARD (You Only)
+
+Future/pro ecosystem features:
+
+Analytics (projects created, users active, exports)
+
+Storage usage
+
+Most used tools
+
+System load
+
+Featured creators
+
+Content moderation
+
+This will eventually live in the unified PSComiXX backend.
+
+🧭 5. Navigation Structure
+
+This is important for integrating UI across apps:
+
+Main Sections:
+
+Home
+
+Comic Creator
+
+Card Creator
+
+Cover Maker
+
+Visual Novel Maker
+
+Story Forge
+
+CYOA Maker
+
+Prompt Factory
+
+Contact
+
+Pricing (Pro version)
+
+Learn More (FAQ/Help)
+
+🧩 6. Unifying All These Into Your Ecosystem
+
+Below is the integration model — these represent the services that must exist in your unified backend:
+
+Module	Becomes a Service	Outputs
+Comic Maker	ComicService	comics, pages, panels
+Card Maker	CardService	.card JSON, PNG
+Cover Maker	CoverService	PNG, metadata
+Visual Novel Maker	VNService	VN JSON bundles
+CYOA Maker	BranchingService	branching graphs
+Prompt Factory	PromptService	style DNA, prompts
+Story Forge	StoryService	structured story
+User Accounts	AuthService	JWT, roles
+Exports	ExportService	ZIP, PDF, PNG
+Publish to Reader	PublishService	project → PSStreaming
+🎯 7. Deliverable: Full Ecosystem Map
+PSCOMIXX.COM feeds:
+
+Art prompts → card/comic/VN apps
+
+Stories → CYOA/VN/comic apps
+
+Visual novels → publishing platform
+
+Cards/comics/covers → reader, print
+
+This site is basically the front door + marketing layer + quick-access to tools.
+
+Your desktop app and mobile tools are the “heavy creation environment.”
+
+PSStreaming is the “public distribution hub.”
