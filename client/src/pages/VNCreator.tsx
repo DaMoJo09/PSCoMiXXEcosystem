@@ -226,7 +226,7 @@ export default function VNCreator() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-72 border-r border-border bg-secondary/10 flex flex-col">
+          <div className="w-64 border-r border-border bg-secondary/10 flex flex-col">
             <div className="border-b border-border p-2 flex gap-1">
               <button
                 onClick={() => setActiveTab("scenes")}
@@ -314,7 +314,7 @@ export default function VNCreator() {
           </div>
 
           <div className="flex-1 flex flex-col">
-            <div className="h-[60%] bg-black relative overflow-hidden" onClick={isPlaying ? advanceDialogue : undefined}>
+            <div className="h-[70%] bg-black relative overflow-hidden" onClick={isPlaying ? advanceDialogue : undefined}>
               <img src={currentBackground?.url || vnBg} className="w-full h-full object-cover opacity-50" />
               
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[80%] w-[300px] bg-gradient-to-t from-black to-transparent opacity-50 border-b border-white"></div>

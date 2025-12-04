@@ -144,7 +144,7 @@ export default function CoverCreator() {
 
              <div className="relative shadow-2xl transition-all duration-500">
                 {activeTab === "front" && (
-                  <div className="w-[500px] h-[770px] bg-white border border-border relative overflow-hidden group">
+                  <div className="w-[600px] h-[900px] max-h-[calc(100vh-140px)] bg-white border border-border relative overflow-hidden group">
                     {/* Front Cover Template */}
                     <img src={coverArt} className="w-full h-full object-cover" />
                     
@@ -168,7 +168,7 @@ export default function CoverCreator() {
                 )}
 
                 {activeTab === "back" && (
-                  <div className="w-[500px] h-[770px] bg-background border border-border relative overflow-hidden p-8 flex flex-col">
+                  <div className="w-[600px] h-[900px] max-h-[calc(100vh-140px)] bg-background border border-border relative overflow-hidden p-8 flex flex-col">
                     {/* Back Cover Template */}
                     <div className="absolute inset-0 opacity-10">
                        <img src={backCoverArt} className="w-full h-full object-cover grayscale" />
@@ -201,7 +201,7 @@ export default function CoverCreator() {
                 )}
 
                 {activeTab === "spine" && (
-                  <div className="w-[40px] h-[770px] bg-black text-white border border-border relative flex flex-col items-center justify-between py-8">
+                  <div className="w-[50px] h-[900px] max-h-[calc(100vh-140px)] bg-black text-white border border-border relative flex flex-col items-center justify-between py-8">
                      <div className="w-6 h-6 rounded-full bg-white/20"></div>
                      <div className="flex-1 flex items-center justify-center py-8">
                         <h2 className="text-xl font-display font-bold tracking-widest whitespace-nowrap rotate-90 uppercase">

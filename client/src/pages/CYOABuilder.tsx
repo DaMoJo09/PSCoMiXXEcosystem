@@ -325,7 +325,7 @@ export default function CYOABuilder() {
           </div>
         ) : (
           <div className="flex-1 flex overflow-hidden">
-            <div className="w-1/2 p-6 border-r border-border overflow-auto space-y-6">
+            <div className="w-[45%] p-6 border-r border-border overflow-auto space-y-6">
               <div className="space-y-4">
                 <h2 className="font-display font-bold text-lg flex items-center gap-2">
                   <BookOpen className="w-5 h-5" /> Paste Your Story

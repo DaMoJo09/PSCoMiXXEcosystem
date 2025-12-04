@@ -675,7 +675,7 @@ export default function MotionStudio() {
               </div>
             </div>
 
-            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-8 relative">
+            <main className="flex-1 bg-zinc-950 overflow-auto flex items-center justify-center p-4 relative">
               <div 
                 className="absolute inset-0 pointer-events-none opacity-5"
                 style={{ 
@@ -701,11 +701,12 @@ export default function MotionStudio() {
                 )}
                 <canvas
                   ref={canvasRef}
-                  className="bg-white shadow-2xl"
+                  className="bg-white shadow-2xl border-2 border-zinc-700"
                   style={{ 
                     cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : 'default',
-                    maxWidth: '100%',
-                    maxHeight: 'calc(100vh - 300px)'
+                    width: 'min(100%, calc(100vh - 280px) * 16/9)',
+                    height: 'auto',
+                    maxHeight: 'calc(100vh - 280px)'
                   }}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}

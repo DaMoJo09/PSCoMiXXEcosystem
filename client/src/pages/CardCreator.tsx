@@ -222,7 +222,7 @@ export default function CardCreator() {
             />
             
             {side === "front" ? (
-              <div className="relative w-[350px] aspect-[2.5/3.5] bg-black p-2 shadow-hard group animate-in zoom-in duration-300">
+              <div className="relative w-[450px] max-w-[90%] aspect-[2.5/3.5] bg-black p-2 shadow-hard group animate-in zoom-in duration-300">
                 <div className="w-full h-full bg-white border-2 border-white relative flex flex-col">
                   {/* Header */}
                   <div className="h-8 border-b-2 border-black flex justify-between items-center px-2 bg-white z-10">
@@ -259,7 +259,7 @@ export default function CardCreator() {
                 </div>
               </div>
             ) : (
-              <div className="relative w-[350px] aspect-[2.5/3.5] bg-black p-4 shadow-hard group animate-in zoom-in duration-300 flex items-center justify-center border-2 border-white">
+              <div className="relative w-[450px] max-w-[90%] aspect-[2.5/3.5] bg-black p-4 shadow-hard group animate-in zoom-in duration-300 flex items-center justify-center border-2 border-white">
                  <div className="absolute inset-2 border border-white/50"></div>
                  <div className="absolute inset-0 opacity-20">
                     <img src={backCoverArt} className="w-full h-full object-cover grayscale" />
