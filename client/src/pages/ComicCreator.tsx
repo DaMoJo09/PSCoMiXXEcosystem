@@ -795,10 +795,10 @@ export default function ComicCreator() {
             >
               <div 
                 ref={leftPageRef}
-                className={`bg-white border-4 border-black relative select-none shadow-2xl ${
-                  isFullscreen ? "w-[900px] h-[1280px]" : "w-[720px] h-[1020px]"
+                className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
+                  isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
                 }`}
-                style={{ maxHeight: 'calc(100vh - 160px)' }}
+                style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
                 onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
                 onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
                 onMouseUp={() => handlePageMouseUp("left")}
@@ -819,10 +819,10 @@ export default function ComicCreator() {
 
               <div 
                 ref={rightPageRef}
-                className={`bg-white border-4 border-black relative select-none shadow-2xl ${
-                  isFullscreen ? "w-[900px] h-[1280px]" : "w-[720px] h-[1020px]"
+                className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
+                  isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
                 }`}
-                style={{ maxHeight: 'calc(100vh - 160px)' }}
+                style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
                 onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
                 onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
                 onMouseUp={() => handlePageMouseUp("right")}
