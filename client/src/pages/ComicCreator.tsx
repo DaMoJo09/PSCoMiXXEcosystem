@@ -11,22 +11,39 @@ import {
   Square,
   Layers,
   Download,
-  Film
+  Film,
+  MessageSquare,
+  Wand2,
+  Play,
+  Plus
 } from "lucide-react";
 import { useState } from "react";
+import { DrawingCanvas } from "@/components/tools/DrawingCanvas";
+import { AIGenerator } from "@/components/tools/AIGenerator";
 
 const tools = [
   { icon: MousePointer, label: "Select" },
   { icon: Pen, label: "Draw" },
   { icon: Eraser, label: "Erase" },
   { icon: Type, label: "Text" },
+  { icon: MessageSquare, label: "Bubble" },
   { icon: ImageIcon, label: "Image" },
   { icon: Film, label: "Video" },
   { icon: Square, label: "Panel" },
+  { icon: Wand2, label: "AI Gen" },
 ];
 
 export default function ComicCreator() {
-  const [activeTool, setActiveTool] = useState("Select");
+  const [activeTool, setActiveTool] = useState("Draw");
+  const [showAIGen, setShowAIGen] = useState(false);
+  const [layers, setLayers] = useState(["Background", "Panel 1", "Drawing Layer"]);
+
+  const handleImageGenerated = (url: string) => {
+    // In a real app, this would add the image to the canvas
+    console.log("Adding generated image:", url);
+    setShowAIGen(false);
+    setLayers(prev => [`AI Asset #${prev.length}`, ...prev]);
+  };
 
   return (
     <Layout>
@@ -63,8 +80,11 @@ export default function ComicCreator() {
             {tools.map((tool) => (
               <button
                 key={tool.label}
-                onClick={() => setActiveTool(tool.label)}
-                className={`p-3 border transition-all ${
+                onClick={() => {
+                  setActiveTool(tool.label);
+                  if (tool.label === "AI Gen") setShowAIGen(!showAIGen);
+                }}
+                className={`p-3 border transition-all relative ${
                   activeTool === tool.label
                     ? "bg-primary text-primary-foreground border-primary shadow-hard-sm"
                     : "bg-background text-muted-foreground border-transparent hover:border-border hover:text-foreground"
@@ -72,6 +92,7 @@ export default function ComicCreator() {
                 title={tool.label}
               >
                 <tool.icon className="w-5 h-5" />
+                {tool.label === "Draw" && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Wacom Active" />}
               </button>
             ))}
           </aside>
@@ -79,34 +100,74 @@ export default function ComicCreator() {
           {/* Canvas Area */}
           <main className="flex-1 bg-secondary/50 p-8 overflow-auto flex items-center justify-center relative">
             {/* Grid Pattern Background */}
-            <div className="absolute inset-0 opacity-[0.03]" 
-                 style={{ backgroundImage: "radial-gradient(circle, #000 1px, transparent 1px)", backgroundSize: "20px 20px" }} 
+            <div className="absolute inset-0 opacity-[0.05]" 
+                 style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "20px 20px" }} 
             />
 
-            <div className="bg-white w-[800px] h-[1200px] shadow-hard border border-border relative">
-              {/* Mock Panel 1 */}
-              <div className="absolute top-12 left-12 right-12 h-[400px] border-2 border-black overflow-hidden group">
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="font-mono text-xs">PANEL 1</span>
+            <div className="bg-white w-[800px] h-[1200px] shadow-hard border border-border relative overflow-hidden">
+              {/* Full Page Drawing Canvas Layer */}
+              <div className="absolute inset-0 z-10 pointer-events-none">
+                 {/* We enable pointer events only when drawing tool is active */}
+                 <div className={`w-full h-full ${activeTool === "Draw" || activeTool === "Eraser" ? "pointer-events-auto" : ""}`}>
+                   <DrawingCanvas 
+                      width={800} 
+                      height={1200} 
+                      tool={activeTool === "Eraser" ? "eraser" : "pen"} 
+                      brushSize={activeTool === "Eraser" ? 20 : 3}
+                   />
+                 </div>
+              </div>
+
+              {/* Mock Panels Layer */}
+              <div className="absolute inset-0 p-12 grid grid-cols-2 grid-rows-3 gap-4 pointer-events-none">
+                {/* Panel 1 with Video Placeholder */}
+                <div className="border-4 border-black bg-transparent relative overflow-hidden group pointer-events-auto">
+                   <div className="absolute inset-0 flex items-center justify-center opacity-20 group-hover:opacity-100 transition-opacity">
+                      <div className="text-center">
+                        <Film className="w-8 h-8 mx-auto mb-2" />
+                        <span className="text-xs font-mono font-bold">DROP VIDEO CLIP</span>
+                      </div>
+                   </div>
+                   <div className="absolute bottom-2 right-2 bg-black text-white text-[10px] px-1 font-mono">Frame 1</div>
                 </div>
-                {/* Placeholder Content */}
-                <div className="w-full h-full bg-gray-50 flex items-center justify-center">
-                  <p className="text-gray-300 font-display text-4xl font-bold uppercase">Action Shot</p>
+
+                {/* Panel 2 with Image */}
+                <div className="border-4 border-black bg-gray-100 relative overflow-hidden pointer-events-auto">
+                  <div className="absolute top-2 left-2 bg-white border border-black px-3 py-2 rounded-[50%] rounded-bl-none shadow-sm z-20">
+                    <p className="font-display font-bold text-xs uppercase">Bam!</p>
+                  </div>
+                </div>
+
+                {/* Panel 3 - Animation Strip Mock */}
+                <div className="col-span-2 border-4 border-black relative pointer-events-auto flex">
+                   <div className="w-1/4 border-r border-black border-dashed h-full flex items-center justify-center bg-secondary/10">
+                      <span className="text-[10px] font-mono rotate-90">Keyframe 1</span>
+                   </div>
+                   <div className="w-1/4 border-r border-black border-dashed h-full flex items-center justify-center">
+                      <span className="text-[10px] font-mono rotate-90">Keyframe 2</span>
+                   </div>
+                   <div className="w-1/4 border-r border-black border-dashed h-full flex items-center justify-center">
+                      <span className="text-[10px] font-mono rotate-90">Keyframe 3</span>
+                   </div>
+                   <div className="w-1/4 h-full flex items-center justify-center bg-secondary/10">
+                      <Plus className="w-4 h-4 opacity-50" />
+                   </div>
+                   <div className="absolute top-0 left-0 bg-black text-white px-2 py-1 text-[10px] font-mono font-bold flex items-center gap-2">
+                     <Film className="w-3 h-3" /> ANIMATION STRIP
+                   </div>
                 </div>
               </div>
 
-              {/* Mock Panel 2 */}
-              <div className="absolute top-[430px] left-12 w-[360px] h-[300px] border-2 border-black overflow-hidden"></div>
-
-              {/* Mock Panel 3 */}
-              <div className="absolute top-[430px] right-12 w-[360px] h-[300px] border-2 border-black overflow-hidden"></div>
-              
-              {/* Mock Panel 4 */}
-              <div className="absolute bottom-12 left-12 right-12 h-[400px] border-2 border-black overflow-hidden"></div>
+              {/* AI Generator Modal Overlay */}
+              {showAIGen && (
+                <div className="absolute top-20 left-20 w-80 z-50">
+                  <AIGenerator type="comic" onImageGenerated={handleImageGenerated} />
+                </div>
+              )}
             </div>
           </main>
 
-          {/* Properties Panel */}
+          {/* Layers & Properties */}
           <aside className="w-72 border-l border-border bg-background flex flex-col">
             <div className="p-4 border-b border-border">
               <h3 className="font-display font-bold flex items-center gap-2">
@@ -114,27 +175,31 @@ export default function ComicCreator() {
               </h3>
             </div>
             <div className="flex-1 overflow-auto p-2 space-y-2">
-              {["Text: BOOM!", "Panel 4", "Panel 3", "Panel 2", "Panel 1", "Background"].map((layer, i) => (
+              {layers.map((layer, i) => (
                 <div key={layer} className={`p-2 border border-border text-sm flex items-center gap-2 ${i === 0 ? 'bg-secondary' : 'hover:bg-muted'}`}>
-                  <div className="w-4 h-4 border border-border rounded-sm" />
+                  <div className="w-4 h-4 border border-border rounded-sm bg-white" />
                   {layer}
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t border-border bg-secondary/30">
-              <h4 className="font-bold text-sm mb-2">Properties</h4>
+            <div className="p-4 border-t border-border bg-secondary/10">
+              <h4 className="font-bold text-sm mb-2">Brush Settings</h4>
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-muted-foreground">OPACITY</label>
-                  <input type="range" className="w-full accent-black" />
+                  <div className="flex justify-between">
+                    <label className="text-xs font-mono text-muted-foreground">SIZE</label>
+                    <span className="text-xs font-mono">3px</span>
+                  </div>
+                  <input type="range" className="w-full accent-white" min="1" max="50" defaultValue="3" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-muted-foreground">BLEND MODE</label>
-                  <select className="w-full p-1 text-sm bg-background border border-border">
-                    <option>Normal</option>
-                    <option>Multiply</option>
-                    <option>Screen</option>
-                  </select>
+                  <div className="flex justify-between">
+                    <label className="text-xs font-mono text-muted-foreground">PRESSURE</label>
+                    <span className="text-xs font-mono text-green-500">ACTIVE</span>
+                  </div>
+                  <div className="h-1 w-full bg-secondary rounded overflow-hidden">
+                    <div className="h-full bg-green-500 w-[75%]"></div>
+                  </div>
                 </div>
               </div>
             </div>
