@@ -777,10 +777,10 @@ export default function MotionStudio() {
 
             <div className="h-24 border-t border-zinc-800 bg-zinc-900 flex items-center px-4 gap-2 overflow-x-auto">
               {frames.map((frame, index) => (
-                <button
+                <div
                   key={frame.id}
                   onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(index); }}
-                  className={`flex-shrink-0 w-28 h-16 border-2 relative group transition-all ${
+                  className={`flex-shrink-0 w-28 h-16 border-2 relative group transition-all cursor-pointer ${
                     index === currentFrameIndex 
                       ? 'border-white shadow-lg shadow-white/20' 
                       : 'border-zinc-700 hover:border-zinc-500'
@@ -800,7 +800,7 @@ export default function MotionStudio() {
                   >
                     <X className="w-3 h-3" />
                   </button>
-                </button>
+                </div>
               ))}
               <button
                 onClick={addFrame}

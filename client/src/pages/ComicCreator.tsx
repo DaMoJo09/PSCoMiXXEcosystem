@@ -594,9 +594,10 @@ export default function ComicCreator() {
                 ref={leftPageRef}
                 className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
                   isFullscreen 
-                    ? "w-[45vw] max-w-[600px] h-[calc(100vh-180px)] max-h-[850px]" 
-                    : "w-[42vw] max-w-[480px] h-[calc(100vh-220px)] max-h-[680px]"
+                    ? "w-[850px] h-[1200px] max-h-[calc(100vh-140px)]" 
+                    : "w-[600px] h-[850px] max-h-[calc(100vh-200px)]"
                 }`}
+                style={{ aspectRatio: isFullscreen ? '850/1200' : '600/850' }}
                 onMouseDown={(e) => handleMouseDown(e, "left", leftPageRef)}
                 onMouseMove={(e) => handleMouseMove(e, leftPageRef)}
                 onMouseUp={handleMouseUp}
@@ -620,9 +621,10 @@ export default function ComicCreator() {
                 ref={rightPageRef}
                 className={`bg-white border-2 border-black relative select-none shadow-2xl transition-all duration-300 ${
                   isFullscreen 
-                    ? "w-[45vw] max-w-[600px] h-[calc(100vh-180px)] max-h-[850px]" 
-                    : "w-[42vw] max-w-[480px] h-[calc(100vh-220px)] max-h-[680px]"
+                    ? "w-[850px] h-[1200px] max-h-[calc(100vh-140px)]" 
+                    : "w-[600px] h-[850px] max-h-[calc(100vh-200px)]"
                 }`}
+                style={{ aspectRatio: isFullscreen ? '850/1200' : '600/850' }}
                 onMouseDown={(e) => handleMouseDown(e, "right", rightPageRef)}
                 onMouseMove={(e) => handleMouseMove(e, rightPageRef)}
                 onMouseUp={handleMouseUp}

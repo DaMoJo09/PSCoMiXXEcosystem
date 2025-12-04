@@ -73,9 +73,18 @@ export function DrawingCanvas({
     ctx.beginPath();
     ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(x, y);
-    ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
+    
+    if (tool === "eraser") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = color;
+    }
+    
     ctx.lineWidth = currentLineWidth;
     ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
 
     lastPos.current = { x, y };
   };
