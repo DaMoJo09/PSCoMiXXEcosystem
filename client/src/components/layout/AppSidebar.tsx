@@ -7,16 +7,20 @@ import {
   Image as ImageIcon, 
   Settings, 
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  Film,
+  GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: PenTool, label: "Comic Builder", href: "/creator/comic" },
+  { icon: Film, label: "Motion Studio", href: "/creator/motion" },
   { icon: CreditCard, label: "Card Creator", href: "/creator/card" },
   { icon: BookOpen, label: "Visual Novel", href: "/creator/vn" },
-  { icon: ImageIcon, label: "Cover Art", href: "/creator/cover" },
+  { icon: GitBranch, label: "CYOA Builder", href: "/creator/cyoa" },
+  { icon: ImageIcon, label: "Cover Architect", href: "/creator/cover" },
 ];
 
 export function AppSidebar() {
@@ -28,10 +32,10 @@ export function AppSidebar() {
         <h1 className="text-2xl font-display font-bold tracking-tighter uppercase">
           PSCoMiXX
         </h1>
-        <p className="text-xs text-muted-foreground mt-1 font-mono">CREATOR STUDIO v2.0</p>
+        <p className="text-xs text-muted-foreground mt-1 font-mono">CREATOR STUDIO v2.1</p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => (
           <Link key={item.href} href={item.href}>
             <a className={cn(
@@ -59,7 +63,7 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border bg-background z-10">
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold font-mono text-xs">
             ME

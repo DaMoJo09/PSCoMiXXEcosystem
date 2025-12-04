@@ -5,6 +5,7 @@ import noirComic from "@assets/generated_images/noir_comic_panel.png";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import coverArt from "@assets/generated_images/comic_cover_art.png";
+import motionThumb from "@assets/generated_images/motion_timeline_interface.png";
 
 const recentProjects = [
   {
@@ -39,13 +40,23 @@ const recentProjects = [
     image: coverArt,
     progress: 100,
   },
+  {
+    id: 5,
+    title: "Trailer Teaser",
+    type: "Motion",
+    updated: "3 days ago",
+    image: motionThumb,
+    progress: 20,
+  }
 ];
 
 const quickActions = [
-  { title: "New Comic", href: "/creator/comic", desc: "Create a sequential story" },
-  { title: "New Card", href: "/creator/card", desc: "Design a trading card" },
-  { title: "New Visual Novel", href: "/creator/vn", desc: "Interactive story engine" },
-  { title: "New Cover", href: "/creator/cover", desc: "Poster & cover art" },
+  { title: "New Comic", href: "/creator/comic", desc: "Sequential art builder" },
+  { title: "New Motion", href: "/creator/motion", desc: "Motion comic studio" },
+  { title: "New Card", href: "/creator/card", desc: "TCG card forge" },
+  { title: "New Visual Novel", href: "/creator/vn", desc: "Interactive fiction" },
+  { title: "New CYOA", href: "/creator/cyoa", desc: "Branching story builder" },
+  { title: "New Cover", href: "/creator/cover", desc: "Full wrap designer" },
 ];
 
 export default function Dashboard() {
@@ -79,20 +90,20 @@ export default function Dashboard() {
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
             <Star className="w-5 h-5" /> Quick Start
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {quickActions.map((action) => (
               <Link key={action.title} href={action.href}>
-                <a className="group block p-6 border border-border hover:border-primary hover:shadow-hard transition-all bg-card h-full flex flex-col justify-between">
+                <a className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card h-full flex flex-col justify-between min-h-[140px]">
                   <div>
-                    <h3 className="text-lg font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                    <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4 leading-tight">
                       {action.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-[10px] text-muted-foreground mt-2 leading-tight">
                       {action.desc}
                     </p>
                   </div>
-                  <div className="mt-8 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0">
-                    <ArrowRight className="w-5 h-5" />
+                  <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-5px] group-hover:translate-x-0">
+                    <ArrowRight className="w-4 h-4" />
                   </div>
                 </a>
               </Link>
