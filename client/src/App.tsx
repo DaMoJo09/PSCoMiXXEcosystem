@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import ComicCreator from "@/pages/ComicCreator";
@@ -12,8 +13,24 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import MotionStudio from "@/pages/MotionStudio";
 import CYOABuilder from "@/pages/CYOABuilder";
 import CoverCreator from "@/pages/CoverCreator";
+import AuthPage from "@/pages/AuthPage";
+import { Spinner } from "@/components/ui/spinner";
 
-function Router() {
+function ProtectedRouter() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Spinner className="size-12 text-white" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -32,10 +49,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <ProtectedRouter />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
