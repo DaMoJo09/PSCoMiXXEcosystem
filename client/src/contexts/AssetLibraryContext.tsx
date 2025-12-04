@@ -1,15 +1,23 @@
 import { createContext, useContext, useState, ReactNode, useCallback } from "react";
 
+export interface BubbleAssetData {
+  shape?: string;
+  effectType?: string;
+  elements?: any[];
+  style?: any;
+}
+
 export interface Asset {
   id: string;
   name: string;
-  type: "image" | "sprite" | "background" | "audio" | "video";
+  type: "image" | "sprite" | "background" | "audio" | "video" | "bubble" | "effect";
   url: string;
   thumbnail?: string;
   createdAt: Date;
   projectId?: string;
   folderId?: string;
   tags?: string[];
+  bubbleData?: BubbleAssetData;
 }
 
 export interface AssetFolder {
@@ -44,6 +52,7 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
     { id: "backgrounds", name: "Backgrounds", createdAt: new Date() },
     { id: "characters", name: "Characters", createdAt: new Date() },
     { id: "effects", name: "Effects", createdAt: new Date() },
+    { id: "bubbles", name: "Speech Bubbles", createdAt: new Date() },
   ]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 

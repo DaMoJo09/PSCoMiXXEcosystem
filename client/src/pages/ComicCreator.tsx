@@ -53,9 +53,11 @@ interface Panel {
   y: number;
   width: number;
   height: number;
+  rotation: number;
   type: "rectangle" | "circle";
   contents: PanelContent[];
   zIndex: number;
+  locked: boolean;
 }
 
 interface Spread {
@@ -291,8 +293,10 @@ export default function ComicCreator() {
     const newPanel: Panel = {
       id: `panel_${Date.now()}`,
       ...panelData,
+      rotation: 0,
       contents: [],
       zIndex: page === "left" ? currentSpread.leftPage.length : currentSpread.rightPage.length,
+      locked: false,
     };
 
     setSpreads(prev => prev.map((spread, i) => {
@@ -314,6 +318,60 @@ export default function ComicCreator() {
       return { ...spread, [key]: spread[key].filter(p => p.id !== panelId) };
     }));
     toast.success("Panel deleted");
+  };
+
+  const updatePanelTransform = (page: "left" | "right", panelId: string, transform: { x: number; y: number; width: number; height: number; rotation: number }) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => 
+          p.id === panelId 
+            ? { ...p, x: transform.x, y: transform.y, width: transform.width, height: transform.height, rotation: transform.rotation }
+            : p
+        )
+      };
+    }));
+  };
+
+  const duplicatePanel = (page: "left" | "right", panelId: string) => {
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const original = panels.find(p => p.id === panelId);
+    if (!original) return;
+    
+    const newPanel: Panel = {
+      ...original,
+      id: `panel_${Date.now()}`,
+      x: original.x + 5,
+      y: original.y + 5,
+      contents: original.contents.map(c => ({ ...c, id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })),
+      zIndex: panels.length,
+    };
+    
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      return {
+        ...spread,
+        [page === "left" ? "leftPage" : "rightPage"]: [...spread[page === "left" ? "leftPage" : "rightPage"], newPanel]
+      };
+    }));
+    
+    setSelectedPanelId(newPanel.id);
+    toast.success("Panel duplicated");
+  };
+
+  const togglePanelLock = (page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => 
+          p.id === panelId ? { ...p, locked: !p.locked } : p
+        )
+      };
+    }));
   };
 
   const handlePanelClick = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
@@ -541,11 +599,24 @@ export default function ComicCreator() {
 
   const renderPanel = (panel: Panel, page: "left" | "right") => {
     const isSelected = selectedPanelId === panel.id;
+    const pageRef = page === "left" ? leftPageRef : rightPageRef;
+    
+    const HANDLE_SIZE = 10;
+    const handles = [
+      { position: 'nw', cursor: 'nwse-resize', x: -HANDLE_SIZE/2, y: -HANDLE_SIZE/2 },
+      { position: 'n', cursor: 'ns-resize', x: '50%', y: -HANDLE_SIZE/2, translateX: '-50%' },
+      { position: 'ne', cursor: 'nesw-resize', x: `calc(100% - ${HANDLE_SIZE/2}px)`, y: -HANDLE_SIZE/2 },
+      { position: 'w', cursor: 'ew-resize', x: -HANDLE_SIZE/2, y: '50%', translateY: '-50%' },
+      { position: 'e', cursor: 'ew-resize', x: `calc(100% - ${HANDLE_SIZE/2}px)`, y: '50%', translateY: '-50%' },
+      { position: 'sw', cursor: 'nesw-resize', x: -HANDLE_SIZE/2, y: `calc(100% - ${HANDLE_SIZE/2}px)` },
+      { position: 's', cursor: 'ns-resize', x: '50%', y: `calc(100% - ${HANDLE_SIZE/2}px)`, translateX: '-50%' },
+      { position: 'se', cursor: 'nwse-resize', x: `calc(100% - ${HANDLE_SIZE/2}px)`, y: `calc(100% - ${HANDLE_SIZE/2}px)` },
+    ];
     
     return (
       <div
         key={panel.id}
-        className={`absolute border-2 transition-all cursor-pointer overflow-hidden ${
+        className={`absolute border-2 transition-all cursor-pointer overflow-visible ${
           isSelected ? 'border-white ring-2 ring-white/50 z-20' : 'border-black hover:border-gray-600'
         } ${panel.type === "circle" ? "rounded-full" : ""}`}
         style={{
@@ -554,6 +625,8 @@ export default function ComicCreator() {
           width: `${panel.width}%`,
           height: `${panel.height}%`,
           zIndex: panel.zIndex,
+          transform: `rotate(${panel.rotation || 0}deg)`,
+          transformOrigin: 'center center',
           boxShadow: isSelected 
             ? '0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)' 
             : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
@@ -562,93 +635,292 @@ export default function ComicCreator() {
         onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
         data-testid={`panel-${panel.id}`}
       >
-        {panel.contents.map(content => (
-          <TransformableElement
-            key={content.id}
-            id={content.id}
-            initialTransform={content.transform}
-            isSelected={selectedContentId === content.id}
-            onSelect={(id) => { setSelectedContentId(id); setSelectedPanelId(panel.id); }}
-            onTransformChange={(id, transform) => updateContentTransform(page, panel.id, id, transform)}
-            onDelete={(id) => deleteContentFromPanel(page, panel.id, id)}
-            onDuplicate={(id) => {
-              const original = panel.contents.find(c => c.id === id);
-              if (original) {
-                addContentToPanel(page, panel.id, {
-                  ...original,
-                  transform: { ...original.transform, x: original.transform.x + 20, y: original.transform.y + 20 }
-                });
-              }
-            }}
-            locked={content.locked}
-          >
-            {(content.type === "image" || content.type === "gif") && content.data.url && (
-              <img 
-                src={content.data.url} 
-                alt="Panel content" 
-                className="w-full h-full object-cover"
-                draggable={false}
-              />
-            )}
-            {content.type === "video" && content.data.videoUrl && (
-              <video
-                src={content.data.videoUrl}
-                className="w-full h-full object-cover"
-                autoPlay={content.data.autoplay ?? true}
-                loop={content.data.loop ?? true}
-                muted={content.data.muted ?? true}
-                playsInline
-                draggable={false}
-              />
-            )}
-            {content.type === "drawing" && content.data.drawingData && (
-              <img
-                src={content.data.drawingData}
-                alt="Drawing"
-                className="w-full h-full object-contain"
-                draggable={false}
-              />
-            )}
-            {(content.type === "text" || content.type === "bubble") && (
-              <TextElement
-                id={content.id}
-                text={content.data.text || ""}
-                fontSize={content.data.fontSize}
-                fontFamily={content.data.fontFamily}
-                color={content.data.color}
-                bubbleStyle={content.type === "bubble" ? (content.data.bubbleStyle as any) : "none"}
-                isEditing={editingTextId === content.id}
-                onEditStart={() => setEditingTextId(content.id)}
-                onEditEnd={() => setEditingTextId(null)}
-                onChange={(id, text) => {
-                  setSpreads(prev => prev.map((spread, i) => {
-                    if (i !== currentSpreadIndex) return spread;
-                    const key = page === "left" ? "leftPage" : "rightPage";
-                    return {
-                      ...spread,
-                      [key]: spread[key].map(p => {
-                        if (p.id !== panel.id) return p;
-                        return {
-                          ...p,
-                          contents: p.contents.map(c => c.id === id ? { ...c, data: { ...c.data, text } } : c)
-                        };
-                      })
-                    };
-                  }));
+        <div className="absolute inset-0 overflow-hidden bg-white">
+          {panel.contents.map(content => (
+            <TransformableElement
+              key={content.id}
+              id={content.id}
+              initialTransform={content.transform}
+              isSelected={selectedContentId === content.id}
+              onSelect={(id) => { setSelectedContentId(id); setSelectedPanelId(panel.id); }}
+              onTransformChange={(id, transform) => updateContentTransform(page, panel.id, id, transform)}
+              onDelete={(id) => deleteContentFromPanel(page, panel.id, id)}
+              onDuplicate={(id) => {
+                const original = panel.contents.find(c => c.id === id);
+                if (original) {
+                  addContentToPanel(page, panel.id, {
+                    ...original,
+                    transform: { ...original.transform, x: original.transform.x + 20, y: original.transform.y + 20 }
+                  });
+                }
+              }}
+              locked={content.locked}
+            >
+              {(content.type === "image" || content.type === "gif") && content.data.url && (
+                <img 
+                  src={content.data.url} 
+                  alt="Panel content" 
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              )}
+              {content.type === "video" && content.data.videoUrl && (
+                <video
+                  src={content.data.videoUrl}
+                  className="w-full h-full object-cover"
+                  autoPlay={content.data.autoplay ?? true}
+                  loop={content.data.loop ?? true}
+                  muted={content.data.muted ?? true}
+                  playsInline
+                  draggable={false}
+                />
+              )}
+              {content.type === "drawing" && content.data.drawingData && (
+                <img
+                  src={content.data.drawingData}
+                  alt="Drawing"
+                  className="w-full h-full object-contain"
+                  draggable={false}
+                />
+              )}
+              {(content.type === "text" || content.type === "bubble") && (
+                <TextElement
+                  id={content.id}
+                  text={content.data.text || ""}
+                  fontSize={content.data.fontSize}
+                  fontFamily={content.data.fontFamily}
+                  color={content.data.color}
+                  bubbleStyle={content.type === "bubble" ? (content.data.bubbleStyle as any) : "none"}
+                  isEditing={editingTextId === content.id}
+                  onEditStart={() => setEditingTextId(content.id)}
+                  onEditEnd={() => setEditingTextId(null)}
+                  onChange={(id, text) => {
+                    setSpreads(prev => prev.map((spread, i) => {
+                      if (i !== currentSpreadIndex) return spread;
+                      const key = page === "left" ? "leftPage" : "rightPage";
+                      return {
+                        ...spread,
+                        [key]: spread[key].map(p => {
+                          if (p.id !== panel.id) return p;
+                          return {
+                            ...p,
+                            contents: p.contents.map(c => c.id === id ? { ...c, data: { ...c.data, text } } : c)
+                          };
+                        })
+                      };
+                    }));
+                  }}
+                />
+              )}
+            </TransformableElement>
+          ))}
+
+          {isSelected && panel.contents.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+              <div className="text-center">
+                <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs font-mono">Double-click to add content</p>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {isSelected && !panel.locked && (
+          <>
+            <div className="absolute inset-0 border-2 border-white pointer-events-none" 
+                 style={{ boxShadow: '0 0 0 1px black' }} />
+            
+            {handles.map((handle) => (
+              <div
+                key={handle.position}
+                className="absolute bg-white border-2 border-black hover:bg-gray-300 z-50"
+                style={{
+                  width: HANDLE_SIZE,
+                  height: HANDLE_SIZE,
+                  left: handle.x,
+                  top: handle.y,
+                  cursor: handle.cursor,
+                  transform: `${handle.translateX ? `translateX(${handle.translateX})` : ''} ${handle.translateY ? `translateY(${handle.translateY})` : ''}`,
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startPanel = { ...panel };
+                  const pageEl = pageRef.current;
+                  if (!pageEl) return;
+                  const pageRect = pageEl.getBoundingClientRect();
+                  
+                  const handleMouseMove = (moveE: MouseEvent) => {
+                    const dx = ((moveE.clientX - startX) / pageRect.width) * 100;
+                    const dy = ((moveE.clientY - startY) / pageRect.height) * 100;
+                    
+                    let newX = startPanel.x;
+                    let newY = startPanel.y;
+                    let newWidth = startPanel.width;
+                    let newHeight = startPanel.height;
+                    
+                    if (handle.position.includes('e')) newWidth = Math.max(5, startPanel.width + dx);
+                    if (handle.position.includes('w')) {
+                      const proposedWidth = startPanel.width - dx;
+                      if (proposedWidth >= 5) {
+                        newWidth = proposedWidth;
+                        newX = startPanel.x + dx;
+                      }
+                    }
+                    if (handle.position.includes('s')) newHeight = Math.max(5, startPanel.height + dy);
+                    if (handle.position.includes('n')) {
+                      const proposedHeight = startPanel.height - dy;
+                      if (proposedHeight >= 5) {
+                        newHeight = proposedHeight;
+                        newY = startPanel.y + dy;
+                      }
+                    }
+                    
+                    updatePanelTransform(page, panel.id, {
+                      x: newX,
+                      y: newY,
+                      width: newWidth,
+                      height: newHeight,
+                      rotation: startPanel.rotation || 0
+                    });
+                  };
+                  
+                  const handleMouseUp = () => {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+                  
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
                 }}
               />
-            )}
-          </TransformableElement>
-        ))}
+            ))}
 
-        {isSelected && panel.contents.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
-            <div className="text-center">
-              <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs font-mono">Double-click to add content</p>
+            <div
+              className="absolute -top-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-2 border-black rounded-full flex items-center justify-center cursor-grab hover:bg-gray-300 z-50"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const startAngle = panel.rotation || 0;
+                const panelEl = e.currentTarget.parentElement;
+                if (!panelEl) return;
+                const rect = panelEl.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const startMouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+                
+                const handleMouseMove = (moveE: MouseEvent) => {
+                  const mouseAngle = Math.atan2(moveE.clientY - centerY, moveE.clientX - centerX) * (180 / Math.PI);
+                  let newRotation = startAngle + (mouseAngle - startMouseAngle);
+                  
+                  if (moveE.shiftKey) {
+                    newRotation = Math.round(newRotation / 15) * 15;
+                  }
+                  
+                  updatePanelTransform(page, panel.id, {
+                    x: panel.x,
+                    y: panel.y,
+                    width: panel.width,
+                    height: panel.height,
+                    rotation: newRotation
+                  });
+                };
+                
+                const handleMouseUp = () => {
+                  window.removeEventListener('mousemove', handleMouseMove);
+                  window.removeEventListener('mouseup', handleMouseUp);
+                };
+                
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseup', handleMouseUp);
+              }}
+              title="Rotate panel"
+            >
+              <RotateCcw className="w-3 h-3" />
             </div>
+
+            <div 
+              className="absolute -top-8 right-0 flex gap-1 z-50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="p-1 bg-white border border-black hover:bg-gray-100"
+                onClick={(e) => { e.stopPropagation(); duplicatePanel(page, panel.id); }}
+                title="Duplicate"
+              >
+                <Copy className="w-3 h-3" />
+              </button>
+              <button
+                className="p-1 bg-white border border-black hover:bg-gray-100"
+                onClick={(e) => { e.stopPropagation(); togglePanelLock(page, panel.id); }}
+                title="Lock"
+              >
+                <Unlock className="w-3 h-3" />
+              </button>
+              <button
+                className="p-1 bg-red-500 text-white border border-black hover:bg-red-600"
+                onClick={(e) => { e.stopPropagation(); deletePanel(page, panel.id); setSelectedPanelId(null); }}
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </>
+        )}
+        
+        {isSelected && panel.locked && (
+          <div 
+            className="absolute -top-8 right-0 flex gap-1 z-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="p-1 bg-white border border-black hover:bg-gray-100"
+              onClick={(e) => { e.stopPropagation(); togglePanelLock(page, panel.id); }}
+              title="Unlock"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
           </div>
         )}
+
+        <div
+          className="absolute inset-0 cursor-move z-10"
+          style={{ pointerEvents: panel.locked ? 'none' : 'auto' }}
+          onMouseDown={(e) => {
+            if (panel.locked || !isSelected) return;
+            if ((e.target as HTMLElement).closest('[data-transform-handle]')) return;
+            e.stopPropagation();
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startPanel = { ...panel };
+            const pageEl = pageRef.current;
+            if (!pageEl) return;
+            const pageRect = pageEl.getBoundingClientRect();
+            
+            const handleMouseMove = (moveE: MouseEvent) => {
+              const dx = ((moveE.clientX - startX) / pageRect.width) * 100;
+              const dy = ((moveE.clientY - startY) / pageRect.height) * 100;
+              
+              updatePanelTransform(page, panel.id, {
+                x: startPanel.x + dx,
+                y: startPanel.y + dy,
+                width: startPanel.width,
+                height: startPanel.height,
+                rotation: startPanel.rotation || 0
+              });
+            };
+            
+            const handleMouseUp = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+          }}
+        />
       </div>
     );
   };
@@ -884,6 +1156,46 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
                     <Wand2 className="w-4 h-4 mr-2" /> AI Generate
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <Layers className="w-4 h-4 mr-2" /> Asset Library
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                        <ContextMenuItem
+                          key={asset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addContentToPanel("left", selectedPanelId, {
+                                type: "image",
+                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                data: { url: asset.url },
+                                locked: false,
+                              });
+                              toast.success("Asset added to panel");
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {asset.name}
+                        </ContextMenuItem>
+                      ))}
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
+                        <ContextMenuItem disabled className="text-zinc-500">
+                          No saved assets
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem
+                        onClick={() => window.location.href = "/tools/assets"}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        Open Asset Builder
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuItem onClick={() => setShowLayers(!showLayers)} className="hover:bg-zinc-800 cursor-pointer">
                     <Layers className="w-4 h-4 mr-2" /> {showLayers ? "Hide" : "Show"} Layers
@@ -959,6 +1271,46 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
                     <Wand2 className="w-4 h-4 mr-2" /> AI Generate
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <Layers className="w-4 h-4 mr-2" /> Asset Library
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                        <ContextMenuItem
+                          key={asset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addContentToPanel("right", selectedPanelId, {
+                                type: "image",
+                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                data: { url: asset.url },
+                                locked: false,
+                              });
+                              toast.success("Asset added to panel");
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {asset.name}
+                        </ContextMenuItem>
+                      ))}
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
+                        <ContextMenuItem disabled className="text-zinc-500">
+                          No saved assets
+                        </ContextMenuItem>
+                      )}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem
+                        onClick={() => window.location.href = "/tools/assets"}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                      >
+                        Open Asset Builder
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuItem onClick={() => setShowLayers(!showLayers)} className="hover:bg-zinc-800 cursor-pointer">
                     <Layers className="w-4 h-4 mr-2" /> {showLayers ? "Hide" : "Show"} Layers

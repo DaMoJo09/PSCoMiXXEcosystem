@@ -1094,136 +1094,95 @@ export default function CardCreator() {
                 />
             
                 {mode === "pack" ? (
-              <div className="relative">
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold">{packData.name}</h3>
-                  <p className="text-xs text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
-                </div>
-                
-                <div className="relative w-[280px] aspect-[3/4] mx-auto">
-                  <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
-                    <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                      <div className="bg-black/80 p-4 border border-white/20">
-                        <h4 className="text-xl font-bold uppercase tracking-widest">{packData.name}</h4>
-                        <p className="text-xs text-zinc-400 mt-1">{packData.cardsPerPack} Cards</p>
-                      </div>
+                  <div className="relative">
+                    <div className="text-center mb-4">
+                      <h3 className="text-lg font-bold">{packData.name}</h3>
+                      <p className="text-xs text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
                     </div>
-                    <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-1">
-                      {packData.cards.slice(0, 5).map((card, i) => (
+                    <div className="relative w-[280px] aspect-[3/4] mx-auto">
+                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
+                        <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                          <div className="bg-black/80 p-4 border border-white/20">
+                            <h4 className="text-xl font-bold uppercase tracking-widest">{packData.name}</h4>
+                            <p className="text-xs text-zinc-400 mt-1">{packData.cardsPerPack} Cards</p>
+                          </div>
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-1">
+                          {packData.cards.slice(0, 5).map((card, i) => (
+                            <div 
+                              key={card.id}
+                              className="w-8 h-12 border border-white/20 bg-zinc-800 overflow-hidden"
+                              style={{ transform: `rotate(${(i - 2) * 5}deg)` }}
+                            >
+                              <img src={card.frontImage} className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {packData.cards.slice(0, 3).map((card, i) => (
                         <div 
                           key={card.id}
-                          className="w-8 h-12 border border-white/20 bg-zinc-800 overflow-hidden"
-                          style={{ transform: `rotate(${(i - 2) * 5}deg)` }}
+                          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                          style={{ transform: `translate(${(i + 1) * 8}px, ${(i + 1) * -8}px) rotate(${(i + 1) * 2}deg)`, zIndex: -i - 1 }}
                         >
-                          <img src={card.frontImage} className="w-full h-full object-cover" />
+                          <div className="w-full h-full bg-zinc-800 border-2 border-zinc-700 opacity-50" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                  
-                  {packData.cards.slice(0, 3).map((card, i) => (
-                    <div 
-                      key={card.id}
-                      className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                      style={{ 
-                        transform: `translate(${(i + 1) * 8}px, ${(i + 1) * -8}px) rotate(${(i + 1) * 2}deg)`,
-                        zIndex: -i - 1 
-                      }}
-                    >
-                      <div className="w-full h-full bg-zinc-800 border-2 border-zinc-700 opacity-50" />
-                    </div>
-                  ))}
-                </div>
-                
-                {packData.cards.length === 0 && (
-                  <p className="text-center text-zinc-500 text-sm mt-4">
-                    Add cards to your pack from the sidebar
-                  </p>
-                )}
-              </div>
-            ) : side === "front" ? (
-              <div 
-                className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl group"
-                style={{ backgroundColor: cardData.borderColor }}
-              >
-                <div className="absolute inset-2 bg-white flex flex-col">
-                  <div 
-                    className="h-10 flex justify-between items-center px-3 border-b-2"
-                    style={{ borderColor: cardData.borderColor }}
-                  >
-                    <span 
-                      className="font-bold uppercase tracking-tight text-black"
-                      style={{ fontFamily: cardData.nameFont }}
-                    >
-                      {cardData.name}
-                    </span>
-                    <div className="flex gap-1">
-                      {[...Array(Math.min(cardData.cost, 5))].map((_, i) => (
-                        <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: cardData.accentColor }} />
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 relative overflow-hidden border-b-2" style={{ borderColor: cardData.borderColor }}>
-                    <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
-                    {cardData.filters.halftone && (
-                      <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
-                           style={{ 
-                             backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`,
-                             backgroundSize: '4px 4px'
-                           }} />
+                    {packData.cards.length === 0 && (
+                      <p className="text-center text-zinc-500 text-sm mt-4">Add cards to your pack from the sidebar</p>
                     )}
-                    <div className="absolute bottom-0 left-0 px-2 py-1 text-xs font-bold text-white" style={{ backgroundColor: cardData.borderColor }}>
-                      {cardData.rarity.toUpperCase()}
-                    </div>
                   </div>
-                  
-                  <div className="h-1/3 p-3 flex flex-col justify-between text-black">
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold">{cardData.effect}</p>
-                      <p 
-                        className="text-[10px] italic leading-relaxed opacity-70"
-                        style={{ fontFamily: cardData.loreFont }}
-                      >
-                        "{cardData.lore.substring(0, 100)}..."
-                      </p>
-                    </div>
-                    
-                    <div 
-                      className="flex justify-between items-center border-t-2 pt-2 mt-2"
-                      style={{ borderColor: cardData.borderColor }}
-                    >
-                      <div 
-                        className="flex gap-4 text-sm font-bold"
-                        style={{ fontFamily: cardData.statsFont }}
-                      >
-                        <span>ATK {cardData.attack}</span>
-                        <span>DEF {cardData.defense}</span>
+                ) : side === "front" ? (
+                  <div className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
+                    <div className="absolute inset-2 bg-white flex flex-col">
+                      <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
+                        <span className="font-bold uppercase tracking-tight text-black" style={{ fontFamily: cardData.nameFont }}>{cardData.name}</span>
+                        <div className="flex gap-1">
+                          {[...Array(Math.min(cardData.cost, 5))].map((_, i) => (
+                            <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: cardData.accentColor }} />
+                          ))}
+                        </div>
                       </div>
-                      <span className="text-xs font-bold">{cardData.type}</span>
+                      <div className="flex-1 relative overflow-hidden border-b-2" style={{ borderColor: cardData.borderColor }}>
+                        <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
+                        {cardData.filters.halftone && (
+                          <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
+                               style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
+                        )}
+                        <div className="absolute bottom-0 left-0 px-2 py-1 text-xs font-bold text-white" style={{ backgroundColor: cardData.borderColor }}>
+                          {cardData.rarity.toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="h-1/3 p-3 flex flex-col justify-between text-black">
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold">{cardData.effect}</p>
+                          <p className="text-[10px] italic leading-relaxed opacity-70" style={{ fontFamily: cardData.loreFont }}>
+                            "{cardData.lore.substring(0, 100)}..."
+                          </p>
+                        </div>
+                        <div className="flex justify-between items-center border-t-2 pt-2 mt-2" style={{ borderColor: cardData.borderColor }}>
+                          <div className="flex gap-4 text-sm font-bold" style={{ fontFamily: cardData.statsFont }}>
+                            <span>ATK {cardData.attack}</span>
+                            <span>DEF {cardData.defense}</span>
+                          </div>
+                          <span className="text-xs font-bold">{cardData.type}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div 
-                className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center"
-                style={{ backgroundColor: cardData.borderColor }}
-              >
-                <div className="absolute inset-4 border-2 border-white/30" />
-                <div className="absolute inset-0 opacity-30">
-                  <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />
-                </div>
-                <div 
-                  className="z-10 w-28 h-28 rounded-full border-4 flex items-center justify-center"
-                  style={{ borderColor: cardData.accentColor }}
-                >
-                  <div className="w-20 h-20 rotate-45" style={{ backgroundColor: cardData.accentColor }} />
-                </div>
-              </div>
-            )}
-            
+                ) : (
+                  <div className="relative w-[400px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
+                    <div className="absolute inset-4 border-2 border-white/30" />
+                    <div className="absolute inset-0 opacity-30">
+                      <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />
+                    </div>
+                    <div className="z-10 w-28 h-28 rounded-full border-4 flex items-center justify-center" style={{ borderColor: cardData.accentColor }}>
+                      <div className="w-20 h-20 rotate-45" style={{ backgroundColor: cardData.accentColor }} />
+                    </div>
+                  </div>
+                )}
                 <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
                   {side.toUpperCase()} • 300 DPI PRINT READY
                 </p>

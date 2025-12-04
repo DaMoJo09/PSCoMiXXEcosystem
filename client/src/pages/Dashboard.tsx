@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare } from "lucide-react";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -206,6 +206,66 @@ export default function Dashboard() {
                 </div>
               </button>
             ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
+            <Wrench className="w-5 h-5" /> Tools & Utilities
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button 
+              onClick={() => navigate("/tools/assets")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-assets"
+            >
+              <MessageSquare className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Asset Builder
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Create speech bubbles & effects
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/tools/prompt")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-prompt"
+            >
+              <Wand2 className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Prompt Factory
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                AI prompt generator
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/tools/story")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-story"
+            >
+              <BookOpen className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Story Forge
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Plot & narrative tools
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/settings")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-settings"
+            >
+              <Wrench className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Settings
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                App preferences
+              </p>
+            </button>
           </div>
         </section>
 

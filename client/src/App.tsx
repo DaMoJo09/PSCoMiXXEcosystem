@@ -17,6 +17,7 @@ import CYOABuilder from "@/pages/CYOABuilder";
 import CoverCreator from "@/pages/CoverCreator";
 import PromptFactory from "@/pages/PromptFactory";
 import StoryForge from "@/pages/StoryForge";
+import AssetBuilder from "@/pages/AssetBuilder";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import { Spinner } from "@/components/ui/spinner";
@@ -48,6 +49,7 @@ function ProtectedRouter() {
       <Route path="/creator/cover" component={CoverCreator} />
       <Route path="/tools/prompt" component={PromptFactory} />
       <Route path="/tools/story" component={StoryForge} />
+      <Route path="/tools/assets" component={AssetBuilder} />
       <Route path="/tools/cyoa" component={CYOABuilder} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminDashboard} />
