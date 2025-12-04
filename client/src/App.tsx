@@ -29,16 +29,16 @@ function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
+  if (location === "/welcome" || location === "/landing") {
+    return <LandingPage />;
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <Spinner className="size-12 text-white" />
       </div>
     );
-  }
-
-  if (location === "/welcome") {
-    return <LandingPage />;
   }
 
   if (location === "/login" || location === "/signup") {
