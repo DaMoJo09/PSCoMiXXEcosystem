@@ -94,6 +94,50 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     res.status(401).json({ message: "Not authenticated" });
   });
 
+  // Admin login - creates/uses predefined admin account
+  app.post("/api/auth/admin-login", async (req, res, next) => {
+    try {
+      const { password } = req.body;
+      const adminEmail = "admin@pressstart.space";
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      
+      if (!adminPassword) {
+        return res.status(500).json({ message: "Admin login not configured. Set ADMIN_PASSWORD environment variable." });
+      }
+      
+      if (password !== adminPassword) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
+      }
+      
+      let adminUser = await storage.getUserByEmail(adminEmail);
+      
+      if (!adminUser) {
+        const hashedPassword = await hashPassword(adminPassword);
+        adminUser = await storage.createUser({
+          email: adminEmail,
+          password: hashedPassword,
+          name: "Administrator",
+          role: "admin",
+        });
+      } else if (adminUser.role !== "admin") {
+        await storage.updateUserRole(adminUser.id, "admin");
+        adminUser = { ...adminUser, role: "admin" };
+      }
+      
+      req.login(adminUser, (err) => {
+        if (err) return next(err);
+        return res.json({
+          id: adminUser!.id,
+          email: adminUser!.email,
+          name: adminUser!.name,
+          role: adminUser!.role,
+        });
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {

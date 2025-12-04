@@ -45,6 +45,16 @@ export const authApi = {
     });
     return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
   },
+  
+  adminLogin: async (password: string) => {
+    const response = await fetch(`${API_BASE}/auth/admin-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+      credentials: "include",
+    });
+    return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
+  },
 };
 
 export const projectsApi = {

@@ -20,6 +20,7 @@ import StoryForge from "@/pages/StoryForge";
 import AssetBuilder from "@/pages/AssetBuilder";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
+import AdminLogin from "@/pages/AdminLogin";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -53,6 +54,7 @@ function ProtectedRouter() {
       <Route path="/tools/cyoa" component={CYOABuilder} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin-login" component={AdminLogin} />
       <Route component={NotFound} />
     </Switch>
   );
