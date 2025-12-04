@@ -1135,7 +1135,7 @@ export default function CardCreator() {
                     )}
                   </div>
                 ) : side === "front" ? (
-                  <div className="relative w-[700px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-2 bg-white flex flex-col">
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
                         <span className="font-bold uppercase tracking-tight text-black" style={{ fontFamily: cardData.nameFont }}>{cardData.name}</span>
@@ -1173,7 +1173,7 @@ export default function CardCreator() {
                     </div>
                   </div>
                 ) : (
-                  <div className="relative w-[700px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-4 border-2 border-white/30" />
                     <div className="absolute inset-0 opacity-30">
                       <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />
