@@ -4,13 +4,14 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
+import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
@@ -26,6 +27,18 @@ import {
   ContextMenuShortcut,
 } from "@/components/ui/context-menu";
 
+interface VectorPath {
+  id: string;
+  type: "path" | "line" | "rectangle" | "ellipse" | "arrow" | "text";
+  points: { x: number; y: number; handleIn?: { x: number; y: number }; handleOut?: { x: number; y: number } }[];
+  stroke: string;
+  strokeWidth: number;
+  fill: string;
+  closed: boolean;
+  visible: boolean;
+  locked: boolean;
+}
+
 interface PanelContent {
   id: string;
   type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif";
@@ -38,6 +51,7 @@ interface PanelContent {
     fontSize?: number;
     fontFamily?: string;
     drawingData?: string;
+    vectorData?: VectorPath[];
     videoUrl?: string;
     autoplay?: boolean;
     loop?: boolean;
@@ -503,6 +517,14 @@ export default function ComicCreator() {
   
   const cancelPanelDrawing = () => {
     setDrawingInPanel(null);
+  };
+  
+  const getExistingDrawingData = (panelId: string): string | undefined => {
+    const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    if (!panel) return undefined;
+    const drawingContent = panel.contents.find(c => c.type === "drawing");
+    return drawingContent?.data.drawingData;
   };
 
   const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">) => {
@@ -1583,69 +1605,24 @@ export default function ComicCreator() {
         />
 
         {drawingInPanel && (
-          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-700 p-4 w-[900px]">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <Pen className="w-5 h-5" /> Draw in Panel
-                </h3>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400">Brush:</span>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="50" 
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-20"
-                    />
-                    <span className="text-xs w-8">{brushSize}px</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400">Color:</span>
-                    <input 
-                      type="color" 
-                      value={brushColor}
-                      onChange={(e) => setBrushColor(e.target.value)}
-                      className="w-8 h-8 cursor-pointer"
-                    />
-                  </div>
-                  <button 
-                    onClick={() => setActiveTool(activeTool === 'erase' ? 'draw' : 'erase')}
-                    className={`p-2 ${activeTool === 'erase' ? 'bg-white text-black' : 'hover:bg-zinc-800'}`}
-                  >
-                    <Eraser className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white border-2 border-black">
-                <canvas
-                  ref={panelCanvasRef}
-                  className="w-full aspect-square cursor-crosshair touch-none"
-                  style={{ touchAction: 'none' }}
-                  onPointerDown={handlePanelCanvasPointerDown}
-                  onPointerMove={handlePanelCanvasPointerMove}
-                  onPointerUp={handlePanelCanvasPointerUp}
-                  onPointerLeave={handlePanelCanvasPointerUp}
-                  onPointerCancel={handlePanelCanvasPointerUp}
-                />
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <button 
-                  onClick={cancelPanelDrawing}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={saveDrawingToPanel}
-                  className="px-4 py-2 bg-white text-black font-bold text-sm hover:bg-zinc-200"
-                >
-                  Save Drawing
-                </button>
-              </div>
-            </div>
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-8">
+            <DrawingWorkspace
+              width={800}
+              height={800}
+              initialData={getExistingDrawingData(drawingInPanel)}
+              onSave={(rasterData, vectorData) => {
+                addContentToPanel(selectedPage, drawingInPanel, {
+                  type: "drawing",
+                  transform: { x: 0, y: 0, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 },
+                  data: { drawingData: rasterData, vectorData },
+                  locked: false,
+                });
+                setDrawingInPanel(null);
+                toast.success("Drawing saved to panel");
+              }}
+              onCancel={() => setDrawingInPanel(null)}
+              className="w-full max-w-5xl h-[85vh]"
+            />
           </div>
         )}
 

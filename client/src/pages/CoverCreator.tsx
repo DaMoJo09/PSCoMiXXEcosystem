@@ -1,13 +1,14 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
-  RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy
+  RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
+import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 import {
@@ -231,6 +232,8 @@ export default function CoverCreator() {
   const [activeView, setActiveView] = useState<"front" | "back" | "spine" | "spread">("front");
   const [activeSection, setActiveSection] = useState<"content" | "style" | "images">("content");
   const [showAIGen, setShowAIGen] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [drawingTarget, setDrawingTarget] = useState<"front" | "back" | "spine">("front");
   const [aiTarget, setAiTarget] = useState<"front" | "back" | "spine">("front");
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -1065,6 +1068,15 @@ export default function CoverCreator() {
               <ContextMenuItem onClick={() => { setAiTarget("front"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
                 <Wand2 className="w-4 h-4 mr-2" /> AI Generate Cover
               </ContextMenuItem>
+              <ContextMenuItem 
+                onClick={() => { 
+                  setDrawingTarget(activeView === "spread" ? "front" : activeView);
+                  setShowDrawing(true); 
+                }} 
+                className="hover:bg-zinc-800 cursor-pointer"
+              >
+                <Pen className="w-4 h-4 mr-2" /> Draw on {activeView === "spread" ? "Front" : activeView}
+              </ContextMenuItem>
               <ContextMenuSeparator className="bg-zinc-700" />
               <ContextMenuItem onClick={() => setActiveView("front")} className="hover:bg-zinc-800 cursor-pointer">
                 <Eye className="w-4 h-4 mr-2" /> View Front
@@ -1096,6 +1108,31 @@ export default function CoverCreator() {
               </div>
               <AIGenerator type="cover" onImageGenerated={handleAIGenerated} />
             </div>
+          </div>
+        )}
+
+        {showDrawing && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-8">
+            <DrawingWorkspace
+              width={800}
+              height={1200}
+              initialData={drawingTarget === "front" ? coverData.frontImage : 
+                          drawingTarget === "back" ? coverData.backImage : 
+                          coverData.spineImage}
+              onSave={(rasterData) => {
+                if (drawingTarget === "front") {
+                  setCoverData(prev => ({ ...prev, frontImage: rasterData }));
+                } else if (drawingTarget === "back") {
+                  setCoverData(prev => ({ ...prev, backImage: rasterData }));
+                } else {
+                  setCoverData(prev => ({ ...prev, spineImage: rasterData }));
+                }
+                setShowDrawing(false);
+                toast.success(`Drawing saved to ${drawingTarget} cover`);
+              }}
+              onCancel={() => setShowDrawing(false)}
+              className="w-full max-w-5xl h-[85vh]"
+            />
           </div>
         )}
       </div>

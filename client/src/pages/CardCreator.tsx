@@ -2,13 +2,14 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
-  Copy, Layers, Eye
+  Copy, Layers, Eye, Pen
 } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
+import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
@@ -178,6 +179,7 @@ export default function CardCreator() {
   const [mode, setMode] = useState<"single" | "pack">("single");
   const [side, setSide] = useState<"front" | "back">("front");
   const [showAIGen, setShowAIGen] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
@@ -1231,6 +1233,9 @@ export default function CardCreator() {
                   <ContextMenuItem onClick={() => setSide(side === "front" ? "back" : "front")} className="hover:bg-zinc-800 cursor-pointer">
                     <RotateCw className="w-4 h-4 mr-2" /> Flip Card
                   </ContextMenuItem>
+                  <ContextMenuItem onClick={() => setShowDrawing(true)} className="hover:bg-zinc-800 cursor-pointer">
+                    <Pen className="w-4 h-4 mr-2" /> Draw on {side === "front" ? "Front" : "Back"}
+                  </ContextMenuItem>
                   <ContextMenuItem onClick={() => frontInputRef.current?.click()} className="hover:bg-zinc-800 cursor-pointer">
                     <Upload className="w-4 h-4 mr-2" /> Upload Front Image
                   </ContextMenuItem>
@@ -1280,6 +1285,27 @@ export default function CardCreator() {
               </div>
               <AIGenerator type="card" onImageGenerated={handleAIGenerated} />
             </div>
+          </div>
+        )}
+
+        {showDrawing && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-8">
+            <DrawingWorkspace
+              width={700}
+              height={1000}
+              initialData={side === "front" ? cardData.frontImage : cardData.backImage}
+              onSave={(rasterData) => {
+                if (side === "front") {
+                  setCardData(prev => ({ ...prev, frontImage: rasterData }));
+                } else {
+                  setCardData(prev => ({ ...prev, backImage: rasterData }));
+                }
+                setShowDrawing(false);
+                toast.success(`Drawing saved to ${side} of card`);
+              }}
+              onCancel={() => setShowDrawing(false)}
+              className="w-full max-w-5xl h-[85vh]"
+            />
           </div>
         )}
 
