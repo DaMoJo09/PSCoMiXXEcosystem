@@ -168,16 +168,86 @@ The dust settles, and our characters emerge changed. ${storyConfig.title} conclu
     toast.success("Copied to clipboard!");
   };
 
+  const buildStoryGraph = () => {
+    const sections = generatedStory.split(/##\s/).filter(s => s.trim()).slice(1);
+    const nodes: Array<{
+      id: string;
+      type: 'start' | 'story' | 'choice' | 'ending';
+      title: string;
+      content: string;
+      choices: Array<{ text: string; targetId: string }>;
+      position: { x: number; y: number };
+      visualPlaceholder?: string;
+    }> = [];
+    
+    sections.forEach((section, i) => {
+      const lines = section.split('\n').filter(l => l.trim());
+      const title = lines[0]?.trim() || `Scene ${i + 1}`;
+      const content = lines.slice(1).join('\n').trim();
+      
+      const isStart = i === 0;
+      const isEnding = title.toLowerCase().includes('epilogue') || title.toLowerCase().includes('ending');
+      const hasChoice = title.toLowerCase().includes('choice') || title.toLowerCase().includes('decision');
+      
+      const nodeId = `node_${i}`;
+      const choices: Array<{ text: string; targetId: string }> = [];
+      
+      if (!isEnding && i < sections.length - 1) {
+        if (hasChoice) {
+          choices.push(
+            { text: `Choose path A`, targetId: `node_${i + 1}` },
+            { text: `Choose path B`, targetId: i + 2 < sections.length ? `node_${i + 2}` : `node_${sections.length - 1}` }
+          );
+        } else {
+          choices.push({ text: `Continue`, targetId: `node_${i + 1}` });
+        }
+      }
+      
+      nodes.push({
+        id: nodeId,
+        type: isStart ? 'start' : isEnding ? 'ending' : hasChoice ? 'choice' : 'story',
+        title,
+        content,
+        choices,
+        position: { x: 100, y: 100 + i * 200 },
+        visualPlaceholder: `${storyConfig.genre} scene: ${title}`,
+      });
+    });
+    
+    return nodes;
+  };
+
   const sendToCYOA = () => {
     if (!generatedStory) {
       toast.error("Please generate a story first");
       return;
     }
+    
+    const storyGraph = buildStoryGraph();
+    const cyoaExport = {
+      title: storyConfig.title,
+      genre: storyConfig.genre,
+      description: storyConfig.plotSummary,
+      nodes: storyGraph,
+      characters: characters.filter(c => c.name).map(c => ({
+        id: c.id,
+        name: c.name,
+        role: c.role,
+        appearance: c.appearance,
+        visualPlaceholder: `${storyConfig.genre} character: ${c.name}, ${c.role}, ${c.appearance}`,
+      })),
+      settings: {
+        autoBranch: true,
+        theme: storyConfig.tone || 'dramatic',
+        genre: storyConfig.genre,
+      }
+    };
+    
+    localStorage.setItem("cyoa_import_data", JSON.stringify(cyoaExport));
     localStorage.setItem("cyoa_story", generatedStory);
     localStorage.setItem("cyoa_auto_branch", "true");
-    localStorage.setItem("cyoa_branch_count", String(Math.max(5, Math.ceil(generatedStory.length / 500))));
     navigate("/tools/cyoa");
-    toast.success("Sent to CYOA with auto-branching enabled!");
+    toast.success("Story graph exported to CYOA with branching structure!");
   };
 
   const sendToVN = () => {
@@ -185,32 +255,49 @@ The dust settles, and our characters emerge changed. ${storyConfig.title} conclu
       toast.error("Please generate a story first");
       return;
     }
+    
+    const storyGraph = buildStoryGraph();
+    const backgroundOptions = ["classroom", "forest", "city", "castle", "beach", "space", "cafe", "office"];
+    
     const vnData = {
-      scenes: generatedStory.split(/##\s/).filter(s => s.trim()).slice(1).map((section, i) => ({
-        id: `scene_${i}`,
-        name: section.split('\n')[0]?.trim() || `Scene ${i + 1}`,
-        background: "classroom",
-        characters: characters.filter(c => c.name).map(c => ({
+      title: storyConfig.title,
+      scenes: storyGraph.map((node, i) => ({
+        id: node.id,
+        title: node.title,
+        background: backgroundOptions[i % backgroundOptions.length],
+        backgroundPlaceholder: `${storyConfig.genre} background: ${storyConfig.setting || node.title}`,
+        characters: characters.filter(c => c.name).map((c, ci) => ({
           id: c.id,
-          position: i % 3 === 0 ? "left" : i % 3 === 1 ? "center" : "right" as const,
+          position: ci % 3 === 0 ? "left" : ci % 3 === 1 ? "center" : "right" as const,
           expression: "neutral",
           visible: true
         })),
-        dialogue: section.split('\n').filter(l => l.trim()).slice(1).map(line => ({
-          speaker: characters[0]?.name || "Narrator",
-          text: line.trim()
-        }))
+        dialogue: node.content.split('\n').filter(l => l.trim()).map(line => {
+          const charMatch = characters.find(c => line.includes(c.name));
+          return {
+            speaker: charMatch?.name || (line.startsWith('"') ? characters[0]?.name : "Narrator"),
+            text: line.replace(/^["']|["']$/g, '').trim()
+          };
+        }),
+        choices: node.choices.length > 1 ? node.choices.map(c => ({
+          text: c.text,
+          nextSceneId: c.targetId
+        })) : undefined,
+        nextSceneId: node.choices.length === 1 ? node.choices[0].targetId : undefined,
       })),
       characters: characters.filter(c => c.name).map(c => ({
         id: c.id,
         name: c.name,
-        color: `#${Math.floor(Math.random()*16777215).toString(16)}`,
-        sprites: [{ expression: "neutral", url: "" }]
-      }))
+        color: "#ffffff",
+        spritePlaceholder: `${storyConfig.genre} character sprite: ${c.name}, ${c.appearance || c.role}`,
+        sprites: { neutral: "", happy: "", sad: "", angry: "", surprised: "" }
+      })),
+      storyGraph: storyGraph,
     };
+    
     localStorage.setItem("vn_import_data", JSON.stringify(vnData));
     navigate("/creator/vn");
-    toast.success("Sent to Visual Novel Creator!");
+    toast.success("Story exported to Visual Novel with scene structure and visual placeholders!");
   };
 
   return (

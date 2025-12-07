@@ -844,23 +844,23 @@ export default function MotionStudio() {
                 }} 
               />
               
-              <ContextMenu>
-                <ContextMenuTrigger asChild>
-                  <div className="relative w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom / 100})` }}>
-                    {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
-                      <img 
-                        src={frames[currentFrameIndex - 1].imageData}
-                        className="absolute inset-0 w-full h-full opacity-20 pointer-events-none object-contain"
-                        alt="Previous frame"
-                      />
-                    )}
-                    {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
-                      <img 
-                        src={frames[currentFrameIndex - 2].imageData}
-                        className="absolute inset-0 w-full h-full opacity-10 pointer-events-none object-contain"
-                        alt="Frame -2"
-                      />
-                    )}
+              <div className="relative w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom / 100})` }}>
+                {onionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1].imageData && (
+                  <img 
+                    src={frames[currentFrameIndex - 1].imageData}
+                    className="absolute inset-0 w-full h-full opacity-20 pointer-events-none object-contain"
+                    alt="Previous frame"
+                  />
+                )}
+                {onionSkin && currentFrameIndex > 1 && frames[currentFrameIndex - 2].imageData && (
+                  <img 
+                    src={frames[currentFrameIndex - 2].imageData}
+                    className="absolute inset-0 w-full h-full opacity-10 pointer-events-none object-contain"
+                    alt="Frame -2"
+                  />
+                )}
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
                     <div className="relative" style={{ width: '960px', height: '540px' }}>
                       <canvas
                         ref={canvasRef}
@@ -937,9 +937,8 @@ export default function MotionStudio() {
                     );
                   })}
                     </div>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
                   <ContextMenuItem onClick={() => setActiveTool("brush")} className="hover:bg-zinc-800 cursor-pointer">
                     <Pencil className="w-4 h-4 mr-2" /> Brush <ContextMenuShortcut>B</ContextMenuShortcut>
                   </ContextMenuItem>
@@ -971,7 +970,8 @@ export default function MotionStudio() {
                     <Redo className="w-4 h-4 mr-2" /> Redo <ContextMenuShortcut>Ctrl+Shift+Z</ContextMenuShortcut>
                   </ContextMenuItem>
                 </ContextMenuContent>
-              </ContextMenu>
+                </ContextMenu>
+              </div>
             </main>
 
             <div className="h-14 border-t border-zinc-800 bg-zinc-900 flex items-center px-3 gap-2 overflow-x-auto">
