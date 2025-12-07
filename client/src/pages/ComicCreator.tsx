@@ -26,6 +26,13 @@ import {
   ContextMenuSubContent,
   ContextMenuShortcut,
 } from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 interface VectorPath {
   id: string;
@@ -274,6 +281,184 @@ export default function ComicCreator() {
       toast.error(error.message || "Save failed");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number): Promise<HTMLCanvasElement> => {
+    const canvas = document.createElement("canvas");
+    canvas.width = pageWidth;
+    canvas.height = pageHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get canvas context");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    };
+
+    for (const panel of panels.sort((a, b) => a.zIndex - b.zIndex)) {
+      const panelX = (panel.x / 100) * pageWidth;
+      const panelY = (panel.y / 100) * pageHeight;
+      const panelW = (panel.width / 100) * pageWidth;
+      const panelH = (panel.height / 100) * pageHeight;
+
+      ctx.save();
+      
+      if (panel.type === "circle") {
+        ctx.beginPath();
+        ctx.ellipse(panelX + panelW / 2, panelY + panelH / 2, panelW / 2, panelH / 2, 0, 0, Math.PI * 2);
+        ctx.clip();
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(panelX, panelY, panelW, panelH);
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+      for (const content of panel.contents.sort((a, b) => a.zIndex - b.zIndex)) {
+        const { transform, data, type } = content;
+        const contentX = panelX + transform.x;
+        const contentY = panelY + transform.y;
+        const contentW = transform.width;
+        const contentH = transform.height;
+
+        ctx.save();
+        ctx.translate(contentX + contentW / 2, contentY + contentH / 2);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.scale(transform.scaleX || 1, transform.scaleY || 1);
+        ctx.translate(-contentW / 2, -contentH / 2);
+
+        if ((type === "image" || type === "gif") && data.url) {
+          try {
+            const img = await loadImage(data.url);
+            ctx.drawImage(img, 0, 0, contentW, contentH);
+          } catch (e) {
+            ctx.fillStyle = "#cccccc";
+            ctx.fillRect(0, 0, contentW, contentH);
+          }
+        } else if (type === "drawing" && data.drawingData) {
+          try {
+            const img = await loadImage(data.drawingData);
+            ctx.drawImage(img, 0, 0, contentW, contentH);
+          } catch (e) {}
+        } else if ((type === "text" || type === "bubble") && data.text) {
+          if (data.bubbleStyle && data.bubbleStyle !== "none") {
+            ctx.fillStyle = data.bubbleStyle === "shout" ? "#fef08a" : "#ffffff";
+            ctx.strokeStyle = data.bubbleStyle === "shout" ? "#ef4444" : "#000000";
+            ctx.lineWidth = data.bubbleStyle === "shout" ? 3 : 2;
+            
+            if (data.bubbleStyle === "thought") {
+              ctx.beginPath();
+              ctx.ellipse(contentW / 2, contentH / 2, contentW / 2, contentH / 2, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.fillRect(0, 0, contentW, contentH);
+              ctx.strokeRect(0, 0, contentW, contentH);
+            }
+          }
+          
+          ctx.fillStyle = data.color || "#000000";
+          ctx.font = `${data.fontSize || 16}px ${(data.fontFamily || "Inter").replace(/'/g, "")}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(data.text, contentW / 2, contentH / 2);
+        } else if (type === "video") {
+          ctx.fillStyle = "#1a1a2e";
+          ctx.fillRect(0, 0, contentW, contentH);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "14px Inter";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("[Video Frame]", contentW / 2, contentH / 2);
+        }
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    return canvas;
+  };
+
+  const handleExportCurrentPagePNG = async () => {
+    try {
+      toast.info("Exporting current page...");
+      const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+      const canvas = await exportPageToCanvas(panels, 800, 1200);
+      
+      const link = document.createElement("a");
+      link.download = `${title.replace(/\s+/g, "_")}_page_${currentSpreadIndex * 2 + (selectedPage === "left" ? 1 : 2)}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      
+      toast.success("Page exported successfully!");
+    } catch (error) {
+      toast.error("Failed to export page");
+    }
+  };
+
+  const handleExportAllPagesPNG = async () => {
+    try {
+      toast.info("Exporting all pages...");
+      
+      for (let i = 0; i < spreads.length; i++) {
+        const spread = spreads[i];
+        
+        if (spread.leftPage.length > 0) {
+          const leftCanvas = await exportPageToCanvas(spread.leftPage, 800, 1200);
+          const leftLink = document.createElement("a");
+          leftLink.download = `${title.replace(/\s+/g, "_")}_page_${i * 2 + 1}.png`;
+          leftLink.href = leftCanvas.toDataURL("image/png");
+          leftLink.click();
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        if (spread.rightPage.length > 0) {
+          const rightCanvas = await exportPageToCanvas(spread.rightPage, 800, 1200);
+          const rightLink = document.createElement("a");
+          rightLink.download = `${title.replace(/\s+/g, "_")}_page_${i * 2 + 2}.png`;
+          rightLink.href = rightCanvas.toDataURL("image/png");
+          rightLink.click();
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      toast.success("All pages exported successfully!");
+    } catch (error) {
+      toast.error("Failed to export pages");
+    }
+  };
+
+  const handleExportProjectJSON = () => {
+    try {
+      const projectData = {
+        title,
+        type: "comic",
+        spreads,
+        comicMeta,
+        exportedAt: new Date().toISOString(),
+      };
+      
+      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.download = `${title.replace(/\s+/g, "_")}_project.json`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      
+      toast.success("Project data exported!");
+    } catch (error) {
+      toast.error("Failed to export project data");
     }
   };
 
@@ -1121,9 +1306,25 @@ export default function ComicCreator() {
             >
               <Eye className="w-4 h-4" /> Preview
             </button>
-            <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
-              <Download className="w-4 h-4" /> Export
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
+                  <Download className="w-4 h-4" /> Export
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
+                <DropdownMenuItem onClick={handleExportCurrentPagePNG} className="hover:bg-zinc-800 cursor-pointer">
+                  <ImageIcon className="w-4 h-4 mr-2" /> Current Page as PNG
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportAllPagesPNG} className="hover:bg-zinc-800 cursor-pointer">
+                  <Layers className="w-4 h-4 mr-2" /> All Pages as PNGs
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
+                  <Save className="w-4 h-4 mr-2" /> Project Data (JSON)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -1764,8 +1965,22 @@ export default function ComicCreator() {
                               {content.type === "image" && content.data.url && (
                                 <img src={content.data.url} className="w-full h-full object-cover" />
                               )}
+                              {content.type === "gif" && content.data.url && (
+                                <img src={content.data.url} className="w-full h-full object-cover" />
+                              )}
                               {content.type === "drawing" && content.data.drawingData && (
                                 <img src={content.data.drawingData} className="w-full h-full object-contain" />
+                              )}
+                              {content.type === "video" && content.data.videoUrl && (
+                                <video 
+                                  src={content.data.videoUrl} 
+                                  className="w-full h-full object-cover"
+                                  autoPlay={content.data.autoplay !== false}
+                                  loop={content.data.loop !== false}
+                                  muted={content.data.muted !== false}
+                                  playsInline
+                                  controls
+                                />
                               )}
                               {(content.type === "text" || content.type === "bubble") && (
                                 <div 

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
+import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
@@ -91,10 +92,12 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <AssetLibraryProvider>
-            <TooltipProvider>
-              <Toaster />
-              <ProtectedRouter />
-            </TooltipProvider>
+            <CrossModeAssetProvider>
+              <TooltipProvider>
+                <Toaster />
+                <ProtectedRouter />
+              </TooltipProvider>
+            </CrossModeAssetProvider>
           </AssetLibraryProvider>
         </AuthProvider>
       </ThemeProvider>
