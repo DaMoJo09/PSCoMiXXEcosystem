@@ -318,3 +318,85 @@ export const insertNewsletterSubscriberSchema = createInsertSchema(newsletterSub
 
 export type InsertNewsletterSubscriber = z.infer<typeof insertNewsletterSubscriberSchema>;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
+
+// Artist Profile table
+export const artistProfiles = pgTable("artist_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  displayName: text("display_name").notNull(),
+  bio: text("bio"),
+  artistStatement: text("artist_statement"),
+  cvContent: text("cv_content"),
+  processDescription: text("process_description"),
+  studioPhotos: jsonb("studio_photos"), // array of image URLs
+  socialLinks: jsonb("social_links"), // { instagram, twitter, website, etc }
+  location: text("location"),
+  availableForCommissions: boolean("available_for_commissions").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertArtistProfileSchema = createInsertSchema(artistProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertArtistProfile = z.infer<typeof insertArtistProfileSchema>;
+export type ArtistProfile = typeof artistProfiles.$inferSelect;
+
+// Favorites/Wishlist table
+export const favorites = pgTable("favorites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  artworkId: varchar("artwork_id").notNull().references(() => portfolioArtworks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
+export type Favorite = typeof favorites.$inferSelect;
+
+// Shopping Cart table
+export const cartItems = pgTable("cart_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  artworkId: varchar("artwork_id").notNull().references(() => portfolioArtworks.id, { onDelete: "cascade" }),
+  quantity: integer("quantity").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCartItemSchema = createInsertSchema(cartItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type CartItem = typeof cartItems.$inferSelect;
+
+// Orders table
+export const orders = pgTable("orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"), // pending | paid | shipped | delivered | cancelled
+  totalAmount: integer("total_amount").notNull(), // in cents
+  shippingAddress: jsonb("shipping_address"),
+  paymentIntentId: text("payment_intent_id"),
+  items: jsonb("items").notNull(), // snapshot of ordered items
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof orders.$inferSelect;

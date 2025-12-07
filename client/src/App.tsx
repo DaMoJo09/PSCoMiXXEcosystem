@@ -27,6 +27,8 @@ import PortfolioPage from "@/pages/PortfolioPage";
 import ExhibitionsPage from "@/pages/ExhibitionsPage";
 import BlogPage from "@/pages/BlogPage";
 import ContactPage from "@/pages/ContactPage";
+import ShopPage from "@/pages/ShopPage";
+import ArtistPage from "@/pages/ArtistPage";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -72,6 +74,8 @@ function ProtectedRouter() {
         <Route path="/exhibitions" component={ExhibitionsPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/contact" component={ContactPage} />
+        <Route path="/shop" component={ShopPage} />
+        <Route path="/artist" component={ArtistPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin-login" component={AdminLogin} />

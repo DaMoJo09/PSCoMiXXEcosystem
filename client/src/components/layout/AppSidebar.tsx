@@ -17,7 +17,9 @@ import {
   GalleryHorizontal,
   Calendar,
   Newspaper,
-  Mail
+  Mail,
+  ShoppingBag,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +42,8 @@ const aiTools = [
 
 const galleryTools = [
   { icon: GalleryHorizontal, label: "Portfolio", href: "/portfolio" },
+  { icon: ShoppingBag, label: "Shop", href: "/shop" },
+  { icon: User, label: "Artist", href: "/artist" },
   { icon: Calendar, label: "Exhibitions", href: "/exhibitions" },
   { icon: Newspaper, label: "Blog", href: "/blog" },
   { icon: Mail, label: "Contact", href: "/contact" },

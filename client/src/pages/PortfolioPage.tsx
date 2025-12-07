@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { 
   Search, Filter, Grid, List, X, ZoomIn, ChevronLeft, ChevronRight,
-  Calendar, MapPin, Tag, DollarSign, Maximize2, ExternalLink
+  Calendar, MapPin, Tag, DollarSign, Maximize2, ExternalLink, Heart, ShoppingCart
 } from "lucide-react";
+import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface Artwork {
@@ -140,6 +141,19 @@ export default function PortfolioPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  const toggleFavorite = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (favorites.includes(id)) {
+      setFavorites(favorites.filter(f => f !== id));
+      toast.success("Removed from favorites");
+    } else {
+      setFavorites([...favorites, id]);
+      toast.success("Added to favorites");
+    }
+  };
 
   const filteredArtworks = artworks.filter(artwork => {
     const matchesCategory = selectedCategory === "all" || artwork.category === selectedCategory;
@@ -148,7 +162,8 @@ export default function PortfolioPage() {
                          artwork.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesPrice = artwork.price >= priceRange[0] && artwork.price <= priceRange[1];
     const matchesAvailability = !showAvailableOnly || artwork.available;
-    return matchesCategory && matchesSearch && matchesPrice && matchesAvailability;
+    const matchesFavorites = !showFavoritesOnly || favorites.includes(artwork.id);
+    return matchesCategory && matchesSearch && matchesPrice && matchesAvailability && matchesFavorites;
   });
 
   const openLightbox = (artwork: Artwork) => {
@@ -282,6 +297,18 @@ export default function PortfolioPage() {
                     <span className="text-sm">Available only</span>
                   </label>
                 </div>
+                <div>
+                  <label className="text-xs font-bold uppercase mb-2 block">Favorites</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showFavoritesOnly}
+                      onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Show favorites only ({favorites.length})</span>
+                  </label>
+                </div>
               </div>
             </div>
           )}
@@ -306,6 +333,7 @@ export default function PortfolioPage() {
                       src={artwork.images[0]}
                       alt={artwork.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
                     />
                     {artwork.featured && (
                       <div className="absolute top-2 left-2 px-2 py-1 bg-foreground text-background text-[10px] font-bold uppercase">
@@ -317,7 +345,18 @@ export default function PortfolioPage() {
                         Sold
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      onClick={(e) => toggleFavorite(e, artwork.id)}
+                      className={`absolute top-2 right-2 p-2 transition-colors z-10 ${
+                        favorites.includes(artwork.id) 
+                          ? "bg-red-500 text-white" 
+                          : "bg-background/80 hover:bg-background text-foreground"
+                      } ${!artwork.available ? "top-10" : ""}`}
+                      data-testid={`favorite-${artwork.id}`}
+                    >
+                      <Heart className={`w-4 h-4 ${favorites.includes(artwork.id) ? "fill-current" : ""}`} />
+                    </button>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                       <ZoomIn className="w-8 h-8 text-white" />
                     </div>
                   </div>
