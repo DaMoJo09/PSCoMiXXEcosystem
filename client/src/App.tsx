@@ -23,6 +23,10 @@ import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import AdminLogin from "@/pages/AdminLogin";
 import LandingPage from "@/pages/LandingPage";
+import PortfolioPage from "@/pages/PortfolioPage";
+import ExhibitionsPage from "@/pages/ExhibitionsPage";
+import BlogPage from "@/pages/BlogPage";
+import ContactPage from "@/pages/ContactPage";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -64,6 +68,10 @@ function ProtectedRouter() {
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/assets" component={AssetBuilder} />
         <Route path="/tools/cyoa" component={CYOABuilder} />
+        <Route path="/portfolio" component={PortfolioPage} />
+        <Route path="/exhibitions" component={ExhibitionsPage} />
+        <Route path="/blog" component={BlogPage} />
+        <Route path="/contact" component={ContactPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin-login" component={AdminLogin} />

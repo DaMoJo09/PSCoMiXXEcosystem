@@ -13,7 +13,11 @@ import {
   Wand2,
   Sparkles,
   Sun,
-  Moon
+  Moon,
+  GalleryHorizontal,
+  Calendar,
+  Newspaper,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +36,13 @@ const creatorTools = [
 const aiTools = [
   { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
   { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
+];
+
+const galleryTools = [
+  { icon: GalleryHorizontal, label: "Portfolio", href: "/portfolio" },
+  { icon: Calendar, label: "Exhibitions", href: "/exhibitions" },
+  { icon: Newspaper, label: "Blog", href: "/blog" },
+  { icon: Mail, label: "Contact", href: "/contact" },
 ];
 
 export function AppSidebar() {
@@ -76,6 +87,24 @@ export function AppSidebar() {
         
         <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">AI Tools</div>
         {aiTools.map((item) => (
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
+              location === item.href 
+                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
+                : "hover:bg-muted hover:border-border"
+            )}
+            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+          </Link>
+        ))}
+
+        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">Gallery</div>
+        {galleryTools.map((item) => (
           <Link 
             key={item.href} 
             href={item.href}
