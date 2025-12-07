@@ -43,16 +43,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
-      >
-        <source src="/assets/CoMixxFallIng_1764842025129.mp4" type="video/mp4" />
-      </video>
-
+      <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 z-0" />
+      
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30 z-[1]" />
       
       <div 
