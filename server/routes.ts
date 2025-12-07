@@ -348,5 +348,294 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ============================================
+  // ECOSYSTEM API ROUTES
+  // ============================================
+
+  // Get user progression (XP, badges, teams, schools, hubs)
+  app.get("/api/ecosystem/progression", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const progression = await storage.getUserProgression(userId);
+      res.json(progression);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Earn XP
+  app.post("/api/ecosystem/xp", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { amount, action, description, referenceId, referenceType } = req.body;
+      
+      if (!amount || !action) {
+        return res.status(400).json({ message: "Amount and action are required" });
+      }
+
+      const result = await storage.earnXp(userId, amount, action, description, referenceId, referenceType);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get learning pathways
+  app.get("/api/ecosystem/pathways", async (req, res) => {
+    try {
+      const pathways = await storage.getLearningPathways();
+      res.json(pathways);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get lessons for a pathway
+  app.get("/api/ecosystem/pathways/:id/lessons", async (req, res) => {
+    try {
+      const lessons = await storage.getLessonsForPathway(req.params.id);
+      res.json(lessons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's lesson progress
+  app.get("/api/ecosystem/progress", isAuthenticated, async (req, res) => {
+    try {
+      const progress = await storage.getUserLessonProgress(req.user!.id);
+      res.json(progress);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update lesson progress
+  app.post("/api/ecosystem/progress", isAuthenticated, async (req, res) => {
+    try {
+      const { lessonId, pathwayId, status, progressPercent, challengeSubmission } = req.body;
+      const progress = await storage.updateLessonProgress(
+        req.user!.id, 
+        lessonId, 
+        pathwayId, 
+        status, 
+        progressPercent, 
+        challengeSubmission
+      );
+      res.json(progress);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get all badges
+  app.get("/api/ecosystem/badges", async (req, res) => {
+    try {
+      const badges = await storage.getAllBadges();
+      res.json(badges);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's earned badges
+  app.get("/api/ecosystem/my-badges", isAuthenticated, async (req, res) => {
+    try {
+      const badges = await storage.getUserBadges(req.user!.id);
+      res.json(badges);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get teams
+  app.get("/api/ecosystem/teams", async (req, res) => {
+    try {
+      const teams = await storage.getPublicTeams();
+      res.json(teams);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's teams
+  app.get("/api/ecosystem/my-teams", isAuthenticated, async (req, res) => {
+    try {
+      const teams = await storage.getUserTeams(req.user!.id);
+      res.json(teams);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create team
+  app.post("/api/ecosystem/teams", isAuthenticated, async (req, res) => {
+    try {
+      const { name, description, isPublic, tags } = req.body;
+      const team = await storage.createTeam({
+        name,
+        description,
+        leaderId: req.user!.id,
+        isPublic: isPublic ?? true,
+        tags,
+      });
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get festivals
+  app.get("/api/ecosystem/festivals", async (req, res) => {
+    try {
+      const festivals = await storage.getFestivals();
+      res.json(festivals);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get festival by ID
+  app.get("/api/ecosystem/festivals/:id", async (req, res) => {
+    try {
+      const festival = await storage.getFestival(req.params.id);
+      if (!festival) {
+        return res.status(404).json({ message: "Festival not found" });
+      }
+      res.json(festival);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get festival submissions
+  app.get("/api/ecosystem/festivals/:id/submissions", async (req, res) => {
+    try {
+      const submissions = await storage.getFestivalSubmissions(req.params.id);
+      res.json(submissions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Submit to festival
+  app.post("/api/ecosystem/festivals/:id/submit", isAuthenticated, async (req, res) => {
+    try {
+      const { projectId, category, title, description, thumbnail, schoolId } = req.body;
+      const submission = await storage.createFestivalSubmission({
+        festivalId: req.params.id,
+        projectId,
+        userId: req.user!.id,
+        category,
+        title,
+        description,
+        thumbnail,
+        schoolId,
+      });
+      res.json(submission);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Vote for submission
+  app.post("/api/ecosystem/submissions/:id/vote", isAuthenticated, async (req, res) => {
+    try {
+      const vote = await storage.voteForSubmission(req.params.id, req.user!.id);
+      res.json(vote);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get schools
+  app.get("/api/ecosystem/schools", async (req, res) => {
+    try {
+      const schools = await storage.getSchools();
+      res.json(schools);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get creator hubs
+  app.get("/api/ecosystem/hubs", async (req, res) => {
+    try {
+      const hubs = await storage.getCreatorHubs();
+      res.json(hubs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get publishing channels
+  app.get("/api/ecosystem/channels", async (req, res) => {
+    try {
+      const channels = await storage.getPublishChannels();
+      res.json(channels);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's channels
+  app.get("/api/ecosystem/my-channels", isAuthenticated, async (req, res) => {
+    try {
+      const channels = await storage.getUserChannels(req.user!.id);
+      res.json(channels);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create channel
+  app.post("/api/ecosystem/channels", isAuthenticated, async (req, res) => {
+    try {
+      const { name, slug, description, avatar, banner } = req.body;
+      const channel = await storage.createPublishChannel({
+        ownerId: req.user!.id,
+        ownerType: "user",
+        name,
+        slug,
+        description,
+        avatar,
+        banner,
+      });
+      res.json(channel);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Publish content
+  app.post("/api/ecosystem/publish", isAuthenticated, async (req, res) => {
+    try {
+      const { projectId, channelId, title, description, thumbnail, contentType, tags, monetized } = req.body;
+      const content = await storage.publishContent({
+        projectId,
+        channelId,
+        title,
+        description,
+        thumbnail,
+        contentType,
+        tags,
+        monetized,
+      });
+      res.json(content);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's revenue
+  app.get("/api/ecosystem/revenue", isAuthenticated, async (req, res) => {
+    try {
+      const revenue = await storage.getUserRevenue(req.user!.id);
+      res.json(revenue);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return server;
 }

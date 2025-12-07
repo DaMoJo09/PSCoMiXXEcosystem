@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
 import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
+import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
@@ -30,6 +31,12 @@ import BlogPage from "@/pages/BlogPage";
 import ContactPage from "@/pages/ContactPage";
 import ShopPage from "@/pages/ShopPage";
 import ArtistPage from "@/pages/ArtistPage";
+import EcosystemHub from "@/pages/EcosystemHub";
+import LearnModule from "@/pages/LearnModule";
+import CollaborateModule from "@/pages/CollaborateModule";
+import EarnModule from "@/pages/EarnModule";
+import EventsModule from "@/pages/EventsModule";
+import PublishModule from "@/pages/PublishModule";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -80,6 +87,13 @@ function ProtectedRouter() {
         <Route path="/settings" component={SettingsPage} />
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin-login" component={AdminLogin} />
+        <Route path="/ecosystem" component={EcosystemHub} />
+        <Route path="/ecosystem/learn" component={LearnModule} />
+        <Route path="/ecosystem/collaborate" component={CollaborateModule} />
+        <Route path="/ecosystem/earn" component={EarnModule} />
+        <Route path="/ecosystem/events" component={EventsModule} />
+        <Route path="/ecosystem/events/:id" component={EventsModule} />
+        <Route path="/ecosystem/publish" component={PublishModule} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
@@ -93,10 +107,12 @@ function App() {
         <AuthProvider>
           <AssetLibraryProvider>
             <CrossModeAssetProvider>
-              <TooltipProvider>
-                <Toaster />
-                <ProtectedRouter />
-              </TooltipProvider>
+              <EcosystemProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <ProtectedRouter />
+                </TooltipProvider>
+              </EcosystemProvider>
             </CrossModeAssetProvider>
           </AssetLibraryProvider>
         </AuthProvider>

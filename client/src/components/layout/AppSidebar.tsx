@@ -19,7 +19,13 @@ import {
   Newspaper,
   Mail,
   ShoppingBag,
-  User
+  User,
+  Globe,
+  GraduationCap,
+  Users,
+  DollarSign,
+  Trophy,
+  Rocket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +53,15 @@ const galleryTools = [
   { icon: Calendar, label: "Exhibitions", href: "/exhibitions" },
   { icon: Newspaper, label: "Blog", href: "/blog" },
   { icon: Mail, label: "Contact", href: "/contact" },
+];
+
+const ecosystemTools = [
+  { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem" },
+  { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn" },
+  { icon: Rocket, label: "Publish", href: "/ecosystem/publish" },
+  { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate" },
+  { icon: DollarSign, label: "Earn", href: "/ecosystem/earn" },
+  { icon: Trophy, label: "Events", href: "/ecosystem/events" },
 ];
 
 export function AppSidebar() {
@@ -115,6 +130,24 @@ export function AppSidebar() {
             className={cn(
               "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
               location === item.href 
+                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
+                : "hover:bg-muted hover:border-border"
+            )}
+            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+          </Link>
+        ))}
+
+        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">Community</div>
+        {ecosystemTools.map((item) => (
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
+              location === item.href || location.startsWith(item.href + "/")
                 ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
                 : "hover:bg-muted hover:border-border"
             )}
