@@ -332,9 +332,17 @@ export default function MotionStudio() {
   };
 
   const startDrawing = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const target = e.currentTarget as HTMLCanvasElement;
+    target.setPointerCapture(e.pointerId);
+    
     const coords = getCoordinates(e);
-    if (!coords) return;
+    if (!coords) {
+      console.log("No coords");
+      return;
+    }
 
     if (activeTool === 'text') {
       const newTextLayer = {
@@ -352,12 +360,38 @@ export default function MotionStudio() {
       return;
     }
     
-    if (activeTool !== 'brush' && activeTool !== 'eraser') return;
+    if (activeTool !== 'brush' && activeTool !== 'eraser') {
+      console.log("Tool not brush/eraser:", activeTool);
+      return;
+    }
     
-    if (!contextRef.current) return;
+    // Re-initialize context if null
+    if (!contextRef.current) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          contextRef.current = ctx;
+        }
+      }
+    }
+    
+    if (!contextRef.current) {
+      console.log("No context ref");
+      return;
+    }
     
     setIsDrawing(true);
     setLastPoint({ x: coords.x, y: coords.y });
+    
+    // Draw a single point for immediate feedback
+    const context = contextRef.current;
+    context.fillStyle = brushColor;
+    context.beginPath();
+    context.arc(coords.x, coords.y, brushSize / 2, 0, Math.PI * 2);
+    context.fill();
     
     const canvas = canvasRef.current;
     if (canvas) {
@@ -367,13 +401,26 @@ export default function MotionStudio() {
   };
 
   const draw = (e: React.PointerEvent) => {
-    if (!isDrawing || !lastPoint || !contextRef.current) return;
+    if (!isDrawing || !lastPoint) return;
     if (activeTool !== 'brush' && activeTool !== 'eraser') return;
     
     const coords = getCoordinates(e);
     if (!coords) return;
     
-    const context = contextRef.current;
+    // Ensure context is available
+    let context = contextRef.current;
+    if (!context) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        context = canvas.getContext('2d');
+        if (context) {
+          context.lineCap = 'round';
+          context.lineJoin = 'round';
+          contextRef.current = context;
+        }
+      }
+    }
+    if (!context) return;
     const isErasing = activeTool === 'eraser';
     const pressure = coords.pressure;
     
@@ -876,12 +923,13 @@ export default function MotionStudio() {
                         ref={canvasRef}
                         width={1920}
                         height={1080}
-                        className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0 touch-none"
+                        className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0"
                         style={{ 
                           cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
                           width: '100%',
                           height: '100%',
                           touchAction: 'none',
+                          zIndex: 10,
                         }}
                         onPointerDown={startDrawing}
                         onPointerMove={draw}
