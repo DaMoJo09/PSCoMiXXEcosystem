@@ -11,6 +11,7 @@ import {
   socialPosts, socialPostLikes, socialPostComments, userFollows,
   dmThreads, dmParticipants, dmMessages, notifications,
   collabSessions, collabMembers, collabPresence,
+  communityChains, chainContributions, chainLikes,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Asset, type InsertAsset,
@@ -41,6 +42,9 @@ import {
   type Notification, type InsertNotification,
   type CollabSession, type InsertCollabSession,
   type CollabMember, type InsertCollabMember,
+  type CommunityChain, type InsertCommunityChain,
+  type ChainContribution, type InsertChainContribution,
+  type ChainLike, type InsertChainLike,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -140,6 +144,18 @@ export interface IStorage {
   getCollabMembers(sessionId: string): Promise<any[]>;
   getUserCollabSessions(userId: string): Promise<CollabSession[]>;
   updateCollabSession(id: string, updates: Partial<InsertCollabSession>): Promise<CollabSession | undefined>;
+  
+  // Community Chain operations
+  createCommunityChain(chain: InsertCommunityChain): Promise<CommunityChain>;
+  getCommunityChain(id: string): Promise<CommunityChain | undefined>;
+  getPublicChains(limit?: number, offset?: number): Promise<any[]>;
+  getMutualsChains(userId: string, limit?: number, offset?: number): Promise<any[]>;
+  getUserChains(userId: string): Promise<CommunityChain[]>;
+  addChainContribution(contribution: InsertChainContribution): Promise<ChainContribution>;
+  getChainContributions(chainId: string): Promise<any[]>;
+  likeContribution(contributionId: string, userId: string): Promise<ChainLike>;
+  unlikeContribution(contributionId: string, userId: string): Promise<boolean>;
+  canContributeToChain(chainId: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1057,6 +1073,188 @@ export class DatabaseStorage implements IStorage {
       .where(eq(collabSessions.id, id))
       .returning();
     return updated;
+  }
+
+  // ============================================
+  // COMMUNITY CHAIN OPERATIONS
+  // ============================================
+
+  async createCommunityChain(chain: InsertCommunityChain): Promise<CommunityChain> {
+    const [created] = await db.insert(communityChains)
+      .values(chain)
+      .returning();
+    return created;
+  }
+
+  async getCommunityChain(id: string): Promise<CommunityChain | undefined> {
+    const [chain] = await db.select()
+      .from(communityChains)
+      .where(eq(communityChains.id, id));
+    return chain;
+  }
+
+  async getPublicChains(limit = 20, offset = 0): Promise<any[]> {
+    const chains = await db.select({
+      chain: communityChains,
+      creator: {
+        id: users.id,
+        name: users.name,
+      },
+    })
+    .from(communityChains)
+    .leftJoin(users, eq(communityChains.creatorId, users.id))
+    .where(and(
+      eq(communityChains.visibility, "public"),
+      eq(communityChains.status, "active")
+    ))
+    .orderBy(desc(communityChains.updatedAt))
+    .limit(limit)
+    .offset(offset);
+
+    return chains.map(c => ({
+      ...c.chain,
+      creator: c.creator,
+    }));
+  }
+
+  async getMutualsChains(userId: string, limit = 20, offset = 0): Promise<any[]> {
+    const mutuals = await db.select({ id: users.id })
+      .from(userFollows)
+      .innerJoin(users, eq(userFollows.followingId, users.id))
+      .where(eq(userFollows.followerId, userId));
+
+    const mutualIds = mutuals.map(m => m.id);
+    
+    const myFollowing = await db.select({ id: userFollows.followingId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    
+    const followingIds = new Set(myFollowing.map(f => f.id));
+    const mutualFollowers = mutualIds.filter(id => followingIds.has(id));
+    mutualFollowers.push(userId);
+
+    if (mutualFollowers.length === 0) return [];
+
+    const chains = await db.select({
+      chain: communityChains,
+      creator: {
+        id: users.id,
+        name: users.name,
+      },
+    })
+    .from(communityChains)
+    .leftJoin(users, eq(communityChains.creatorId, users.id))
+    .where(and(
+      eq(communityChains.visibility, "mutuals"),
+      eq(communityChains.status, "active"),
+      sql`${communityChains.creatorId} = ANY(${mutualFollowers})`
+    ))
+    .orderBy(desc(communityChains.updatedAt))
+    .limit(limit)
+    .offset(offset);
+
+    return chains.map(c => ({
+      ...c.chain,
+      creator: c.creator,
+    }));
+  }
+
+  async getUserChains(userId: string): Promise<CommunityChain[]> {
+    return db.select()
+      .from(communityChains)
+      .where(eq(communityChains.creatorId, userId))
+      .orderBy(desc(communityChains.updatedAt));
+  }
+
+  async addChainContribution(contribution: InsertChainContribution): Promise<ChainContribution> {
+    const [created] = await db.insert(chainContributions)
+      .values(contribution)
+      .returning();
+
+    await db.update(communityChains)
+      .set({ 
+        contributionCount: sql`${communityChains.contributionCount} + 1`,
+        updatedAt: new Date(),
+        thumbnail: contribution.mediaUrl,
+      })
+      .where(eq(communityChains.id, contribution.chainId));
+
+    return created;
+  }
+
+  async getChainContributions(chainId: string): Promise<any[]> {
+    const contributions = await db.select({
+      contribution: chainContributions,
+      user: {
+        id: users.id,
+        name: users.name,
+      },
+    })
+    .from(chainContributions)
+    .leftJoin(users, eq(chainContributions.userId, users.id))
+    .where(eq(chainContributions.chainId, chainId))
+    .orderBy(chainContributions.position);
+
+    return contributions.map(c => ({
+      ...c.contribution,
+      user: c.user,
+    }));
+  }
+
+  async likeContribution(contributionId: string, userId: string): Promise<ChainLike> {
+    const [existing] = await db.select()
+      .from(chainLikes)
+      .where(and(
+        eq(chainLikes.contributionId, contributionId),
+        eq(chainLikes.userId, userId)
+      ));
+
+    if (existing) return existing;
+
+    const [like] = await db.insert(chainLikes)
+      .values({ contributionId, userId })
+      .returning();
+
+    await db.update(chainContributions)
+      .set({ likesCount: sql`${chainContributions.likesCount} + 1` })
+      .where(eq(chainContributions.id, contributionId));
+
+    return like;
+  }
+
+  async unlikeContribution(contributionId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(chainLikes)
+      .where(and(
+        eq(chainLikes.contributionId, contributionId),
+        eq(chainLikes.userId, userId)
+      ));
+
+    if (result.rowCount && result.rowCount > 0) {
+      await db.update(chainContributions)
+        .set({ likesCount: sql`${chainContributions.likesCount} - 1` })
+        .where(eq(chainContributions.id, contributionId));
+      return true;
+    }
+    return false;
+  }
+
+  async canContributeToChain(chainId: string, userId: string): Promise<boolean> {
+    const chain = await this.getCommunityChain(chainId);
+    if (!chain || chain.status !== "active") return false;
+
+    if (chain.maxContributions && chain.contributionCount >= chain.maxContributions) {
+      return false;
+    }
+
+    if (chain.visibility === "public") return true;
+
+    if (chain.visibility === "mutuals") {
+      const isFollowing = await this.isFollowing(userId, chain.creatorId);
+      const isFollowedBy = await this.isFollowing(chain.creatorId, userId);
+      return isFollowing && isFollowedBy;
+    }
+
+    return false;
   }
 }
 
