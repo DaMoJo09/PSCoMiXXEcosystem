@@ -11,20 +11,26 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/logo-dark.png",
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo-dark.png",
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/logo-light.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
@@ -42,21 +48,21 @@
       "short_name": "Comic",
       "description": "Start a new comic project",
       "url": "/creator/comic",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.png", "sizes": "512x512" }]
     },
     {
       "name": "Create Card",
       "short_name": "Card",
       "description": "Design a trading card",
       "url": "/creator/card",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.png", "sizes": "512x512" }]
     },
     {
       "name": "Motion Studio",
       "short_name": "Motion",
       "description": "Create motion comics",
       "url": "/creator/motion",
-      "icons": [{ "src": "/favicon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.png", "sizes": "512x512" }]
     }
   ],
   "screenshots": [],

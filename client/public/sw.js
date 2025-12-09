@@ -6,8 +6,9 @@ const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/logo-dark.png',
-  '/logo-light.png',
+  '/logo.png',
+  '/icon-192.png',
+  '/icon-512.png',
   '/favicon.png',
   '/offline.html'
 ];

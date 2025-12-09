@@ -59,7 +59,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
           <img 
-            src="/logo-dark.png" 
+            src="/logo.png" 
             alt="Press Start CoMixx" 
             className="h-32 w-auto mx-auto"
           />

@@ -86,14 +86,9 @@ export function AppSidebar() {
     <aside className="w-64 h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50" aria-label="Main navigation">
       <div className="p-4 border-b border-border">
         <img 
-          src="/logo-dark.png" 
+          src="/logo.png" 
           alt="Press Start CoMixx logo" 
-          className="h-16 w-auto mx-auto dark:block hidden"
-        />
-        <img 
-          src="/logo-light.png" 
-          alt="Press Start CoMixx logo" 
-          className="h-16 w-auto mx-auto dark:hidden block"
+          className="h-16 w-auto mx-auto"
         />
         <p className="text-xs text-muted-foreground mt-2 text-center font-mono">CREATOR STUDIO</p>
       </div>
