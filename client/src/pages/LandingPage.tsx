@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ChevronRight, Gamepad2, Sparkles, Zap, Film, Book, Wand2 } from "lucide-react";
+import comicsVideo from "@assets/generated_videos/comics_falling_from_sky.mp4";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -43,7 +44,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      {/* VIDEO TEMPORARILY HIDDEN - RESTORE BEFORE PRODUCTION 
       <video
         autoPlay
         loop
@@ -51,9 +51,8 @@ export default function LandingPage() {
         playsInline
         className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
       >
-        <source src="/assets/CoMixxFallIng_1764842025129.mp4" type="video/mp4" />
+        <source src={comicsVideo} type="video/mp4" />
       </video>
-      */}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30 z-[1]" />
       
