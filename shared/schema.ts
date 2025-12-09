@@ -1315,3 +1315,72 @@ export const insertCollabPresenceSchema = createInsertSchema(collabPresence).omi
 
 export type InsertCollabPresence = z.infer<typeof insertCollabPresenceSchema>;
 export type CollabPresence = typeof collabPresence.$inferSelect;
+
+// ============================================
+// COMMUNITY CHAINS (Collaborative Comic Game)
+// ============================================
+
+// Community Chains - A collaborative comic thread
+export const communityChains = pgTable("community_chains", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  visibility: text("visibility").notNull().default("public"), // public (open community) | mutuals (mutual followers only)
+  status: text("status").notNull().default("active"), // active | completed | archived
+  maxContributions: integer("max_contributions"), // null = unlimited
+  contributionCount: integer("contribution_count").notNull().default(1),
+  thumbnail: text("thumbnail"),
+  tags: text("tags").array(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCommunityChainSchema = createInsertSchema(communityChains).omit({
+  id: true,
+  contributionCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCommunityChain = z.infer<typeof insertCommunityChainSchema>;
+export type CommunityChain = typeof communityChains.$inferSelect;
+
+// Chain Contributions - Individual entries in a chain
+export const chainContributions = pgTable("chain_contributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  chainId: varchar("chain_id").notNull().references(() => communityChains.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentId: varchar("parent_id").references((): any => chainContributions.id, { onDelete: "set null" }),
+  position: integer("position").notNull(), // Order in chain (1, 2, 3...)
+  contentType: text("content_type").notNull(), // image | video | drawing | animation
+  mediaUrl: text("media_url").notNull(),
+  caption: text("caption"),
+  likesCount: integer("likes_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChainContributionSchema = createInsertSchema(chainContributions).omit({
+  id: true,
+  likesCount: true,
+  createdAt: true,
+});
+
+export type InsertChainContribution = z.infer<typeof insertChainContributionSchema>;
+export type ChainContribution = typeof chainContributions.$inferSelect;
+
+// Chain Likes
+export const chainLikes = pgTable("chain_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contributionId: varchar("contribution_id").notNull().references(() => chainContributions.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChainLikeSchema = createInsertSchema(chainLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertChainLike = z.infer<typeof insertChainLikeSchema>;
+export type ChainLike = typeof chainLikes.$inferSelect;
