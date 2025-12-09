@@ -8,6 +8,9 @@ import {
   publishChannels, publishedContent,
   revenueEvents, payouts, tipJars,
   festivals, festivalWorkshops, workshopRegistrations, festivalSubmissions, festivalVotes, festivalAwards,
+  socialPosts, socialPostLikes, socialPostComments, userFollows,
+  dmThreads, dmParticipants, dmMessages, notifications,
+  collabSessions, collabMembers, collabPresence,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Asset, type InsertAsset,
@@ -28,6 +31,16 @@ import {
   type FestivalSubmission, type InsertFestivalSubmission,
   type FestivalVote, type InsertFestivalVote,
   type RevenueEvent, type InsertRevenueEvent,
+  type SocialPost, type InsertSocialPost,
+  type SocialPostLike, type InsertSocialPostLike,
+  type SocialPostComment, type InsertSocialPostComment,
+  type UserFollow, type InsertUserFollow,
+  type DmThread, type InsertDmThread,
+  type DmParticipant, type InsertDmParticipant,
+  type DmMessage, type InsertDmMessage,
+  type Notification, type InsertNotification,
+  type CollabSession, type InsertCollabSession,
+  type CollabMember, type InsertCollabMember,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -84,6 +97,49 @@ export interface IStorage {
   createPublishChannel(channel: InsertPublishChannel): Promise<PublishChannel>;
   publishContent(content: InsertPublishedContent): Promise<PublishedContent>;
   getUserRevenue(userId: string): Promise<any>;
+  
+  // Social Media operations
+  createSocialPost(post: InsertSocialPost): Promise<SocialPost>;
+  getSocialPost(id: string): Promise<SocialPost | undefined>;
+  getFeedPosts(userId: string, limit?: number, offset?: number): Promise<any[]>;
+  getExplorePosts(limit?: number, offset?: number): Promise<any[]>;
+  getUserPosts(userId: string): Promise<SocialPost[]>;
+  likePost(postId: string, userId: string): Promise<SocialPostLike>;
+  unlikePost(postId: string, userId: string): Promise<boolean>;
+  isPostLiked(postId: string, userId: string): Promise<boolean>;
+  addComment(comment: InsertSocialPostComment): Promise<SocialPostComment>;
+  getPostComments(postId: string): Promise<any[]>;
+  followUser(followerId: string, followingId: string): Promise<UserFollow>;
+  unfollowUser(followerId: string, followingId: string): Promise<boolean>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+  getFollowers(userId: string): Promise<any[]>;
+  getFollowing(userId: string): Promise<any[]>;
+  getFollowCounts(userId: string): Promise<{ followers: number; following: number }>;
+  getUserProfile(userId: string): Promise<any>;
+  
+  // DM operations
+  createDmThread(isGroup: boolean, name?: string): Promise<DmThread>;
+  addDmParticipant(threadId: string, userId: string, role?: string): Promise<DmParticipant>;
+  getUserDmThreads(userId: string): Promise<any[]>;
+  getDmThread(threadId: string): Promise<DmThread | undefined>;
+  sendDmMessage(message: InsertDmMessage): Promise<DmMessage>;
+  getDmMessages(threadId: string, limit?: number): Promise<DmMessage[]>;
+  findExistingDmThread(userId1: string, userId2: string): Promise<DmThread | undefined>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+  markNotificationRead(id: string): Promise<boolean>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  
+  // Collab operations
+  createCollabSession(session: InsertCollabSession & { inviteCode: string }): Promise<CollabSession>;
+  getCollabSession(id: string): Promise<CollabSession | undefined>;
+  getCollabSessionByCode(inviteCode: string): Promise<CollabSession | undefined>;
+  joinCollabSession(sessionId: string, userId: string, role?: string): Promise<CollabMember>;
+  getCollabMembers(sessionId: string): Promise<any[]>;
+  getUserCollabSessions(userId: string): Promise<CollabSession[]>;
+  updateCollabSession(id: string, updates: Partial<InsertCollabSession>): Promise<CollabSession | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -522,6 +578,485 @@ export class DatabaseStorage implements IStorage {
       recentEvents: events.slice(0, 20),
       payouts: payoutHistory,
     };
+  }
+
+  // ============================================
+  // SOCIAL MEDIA OPERATIONS
+  // ============================================
+
+  async createSocialPost(post: InsertSocialPost): Promise<SocialPost> {
+    const [created] = await db.insert(socialPosts).values(post).returning();
+    return created;
+  }
+
+  async getSocialPost(id: string): Promise<SocialPost | undefined> {
+    const [post] = await db.select().from(socialPosts).where(eq(socialPosts.id, id));
+    return post;
+  }
+
+  async getFeedPosts(userId: string, limit = 20, offset = 0): Promise<any[]> {
+    const following = await db.select({ followingId: userFollows.followingId })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    
+    const followingIds = following.map(f => f.followingId);
+    followingIds.push(userId);
+
+    const posts = await db.select({
+      post: socialPosts,
+      author: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+      project: projects,
+    })
+    .from(socialPosts)
+    .leftJoin(users, eq(socialPosts.authorId, users.id))
+    .leftJoin(projects, eq(socialPosts.projectId, projects.id))
+    .where(sql`${socialPosts.authorId} = ANY(${followingIds})`)
+    .orderBy(desc(socialPosts.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+    return posts.map(p => ({
+      ...p.post,
+      author: p.author,
+      project: p.project,
+    }));
+  }
+
+  async getExplorePosts(limit = 20, offset = 0): Promise<any[]> {
+    const posts = await db.select({
+      post: socialPosts,
+      author: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+      project: projects,
+    })
+    .from(socialPosts)
+    .leftJoin(users, eq(socialPosts.authorId, users.id))
+    .leftJoin(projects, eq(socialPosts.projectId, projects.id))
+    .where(eq(socialPosts.visibility, "public"))
+    .orderBy(desc(socialPosts.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+    return posts.map(p => ({
+      ...p.post,
+      author: p.author,
+      project: p.project,
+    }));
+  }
+
+  async getUserPosts(userId: string): Promise<SocialPost[]> {
+    return db.select()
+      .from(socialPosts)
+      .where(eq(socialPosts.authorId, userId))
+      .orderBy(desc(socialPosts.createdAt));
+  }
+
+  async likePost(postId: string, userId: string): Promise<SocialPostLike> {
+    const [like] = await db.insert(socialPostLikes)
+      .values({ postId, userId })
+      .returning();
+
+    await db.update(socialPosts)
+      .set({ likeCount: sql`${socialPosts.likeCount} + 1` })
+      .where(eq(socialPosts.id, postId));
+
+    return like;
+  }
+
+  async unlikePost(postId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(socialPostLikes)
+      .where(and(
+        eq(socialPostLikes.postId, postId),
+        eq(socialPostLikes.userId, userId)
+      ));
+
+    if (result.rowCount && result.rowCount > 0) {
+      await db.update(socialPosts)
+        .set({ likeCount: sql`GREATEST(${socialPosts.likeCount} - 1, 0)` })
+        .where(eq(socialPosts.id, postId));
+      return true;
+    }
+    return false;
+  }
+
+  async isPostLiked(postId: string, userId: string): Promise<boolean> {
+    const [like] = await db.select()
+      .from(socialPostLikes)
+      .where(and(
+        eq(socialPostLikes.postId, postId),
+        eq(socialPostLikes.userId, userId)
+      ));
+    return !!like;
+  }
+
+  async addComment(comment: InsertSocialPostComment): Promise<SocialPostComment> {
+    const [created] = await db.insert(socialPostComments)
+      .values(comment)
+      .returning();
+
+    await db.update(socialPosts)
+      .set({ commentCount: sql`${socialPosts.commentCount} + 1` })
+      .where(eq(socialPosts.id, comment.postId));
+
+    return created;
+  }
+
+  async getPostComments(postId: string): Promise<any[]> {
+    const comments = await db.select({
+      comment: socialPostComments,
+      author: {
+        id: users.id,
+        name: users.name,
+      },
+    })
+    .from(socialPostComments)
+    .leftJoin(users, eq(socialPostComments.authorId, users.id))
+    .where(eq(socialPostComments.postId, postId))
+    .orderBy(socialPostComments.createdAt);
+
+    return comments.map(c => ({
+      ...c.comment,
+      author: c.author,
+    }));
+  }
+
+  async followUser(followerId: string, followingId: string): Promise<UserFollow> {
+    const [follow] = await db.insert(userFollows)
+      .values({ followerId, followingId })
+      .returning();
+    return follow;
+  }
+
+  async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
+    const result = await db.delete(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const [follow] = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ));
+    return !!follow;
+  }
+
+  async getFollowers(userId: string): Promise<any[]> {
+    const followers = await db.select({
+      follow: userFollows,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(userFollows)
+    .leftJoin(users, eq(userFollows.followerId, users.id))
+    .where(eq(userFollows.followingId, userId));
+
+    return followers.map(f => ({
+      ...f.follow,
+      user: f.user,
+    }));
+  }
+
+  async getFollowing(userId: string): Promise<any[]> {
+    const following = await db.select({
+      follow: userFollows,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(userFollows)
+    .leftJoin(users, eq(userFollows.followingId, users.id))
+    .where(eq(userFollows.followerId, userId));
+
+    return following.map(f => ({
+      ...f.follow,
+      user: f.user,
+    }));
+  }
+
+  async getFollowCounts(userId: string): Promise<{ followers: number; following: number }> {
+    const [followersCount] = await db.select({ count: count() })
+      .from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+
+    const [followingCount] = await db.select({ count: count() })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+
+    return {
+      followers: Number(followersCount?.count || 0),
+      following: Number(followingCount?.count || 0),
+    };
+  }
+
+  async getUserProfile(userId: string): Promise<any> {
+    const [user] = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    }).from(users).where(eq(users.id, userId));
+
+    if (!user) return undefined;
+
+    const counts = await this.getFollowCounts(userId);
+    const posts = await this.getUserPosts(userId);
+
+    return {
+      ...user,
+      ...counts,
+      postCount: posts.length,
+      posts,
+    };
+  }
+
+  // ============================================
+  // DM OPERATIONS
+  // ============================================
+
+  async createDmThread(isGroup: boolean, name?: string): Promise<DmThread> {
+    const [thread] = await db.insert(dmThreads)
+      .values({ isGroup, name })
+      .returning();
+    return thread;
+  }
+
+  async addDmParticipant(threadId: string, userId: string, role = "member"): Promise<DmParticipant> {
+    const [participant] = await db.insert(dmParticipants)
+      .values({ threadId, userId, role })
+      .returning();
+    return participant;
+  }
+
+  async getUserDmThreads(userId: string): Promise<any[]> {
+    const threads = await db.select({
+      participant: dmParticipants,
+      thread: dmThreads,
+    })
+    .from(dmParticipants)
+    .leftJoin(dmThreads, eq(dmParticipants.threadId, dmThreads.id))
+    .where(eq(dmParticipants.userId, userId))
+    .orderBy(desc(dmThreads.updatedAt));
+
+    const threadIds = threads.map(t => t.thread?.id).filter(Boolean) as string[];
+    
+    const participantsByThread: Record<string, any[]> = {};
+    for (const threadId of threadIds) {
+      const participants = await db.select({
+        participant: dmParticipants,
+        user: {
+          id: users.id,
+          name: users.name,
+        },
+      })
+      .from(dmParticipants)
+      .leftJoin(users, eq(dmParticipants.userId, users.id))
+      .where(eq(dmParticipants.threadId, threadId));
+      
+      participantsByThread[threadId] = participants.map(p => ({
+        ...p.participant,
+        user: p.user,
+      }));
+    }
+
+    return threads.map(t => ({
+      ...t.thread,
+      participants: participantsByThread[t.thread?.id || ''] || [],
+    }));
+  }
+
+  async getDmThread(threadId: string): Promise<DmThread | undefined> {
+    const [thread] = await db.select()
+      .from(dmThreads)
+      .where(eq(dmThreads.id, threadId));
+    return thread;
+  }
+
+  async sendDmMessage(message: InsertDmMessage): Promise<DmMessage> {
+    const [created] = await db.insert(dmMessages)
+      .values(message)
+      .returning();
+
+    await db.update(dmThreads)
+      .set({ updatedAt: new Date() })
+      .where(eq(dmThreads.id, message.threadId));
+
+    return created;
+  }
+
+  async getDmMessages(threadId: string, limit = 50): Promise<DmMessage[]> {
+    return db.select()
+      .from(dmMessages)
+      .where(eq(dmMessages.threadId, threadId))
+      .orderBy(dmMessages.createdAt)
+      .limit(limit);
+  }
+
+  async findExistingDmThread(userId1: string, userId2: string): Promise<DmThread | undefined> {
+    const user1Threads = await db.select({ threadId: dmParticipants.threadId })
+      .from(dmParticipants)
+      .where(eq(dmParticipants.userId, userId1));
+
+    for (const t of user1Threads) {
+      const [thread] = await db.select()
+        .from(dmThreads)
+        .where(and(
+          eq(dmThreads.id, t.threadId),
+          eq(dmThreads.isGroup, false)
+        ));
+      
+      if (thread) {
+        const [otherParticipant] = await db.select()
+          .from(dmParticipants)
+          .where(and(
+            eq(dmParticipants.threadId, thread.id),
+            eq(dmParticipants.userId, userId2)
+          ));
+        
+        if (otherParticipant) {
+          return thread;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  // ============================================
+  // NOTIFICATION OPERATIONS
+  // ============================================
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [created] = await db.insert(notifications)
+      .values(notification)
+      .returning();
+    return created;
+  }
+
+  async getUserNotifications(userId: string, limit = 50): Promise<Notification[]> {
+    return db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+  }
+
+  async markNotificationRead(id: string): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+    return Number(result?.count || 0);
+  }
+
+  // ============================================
+  // COLLAB OPERATIONS
+  // ============================================
+
+  async createCollabSession(session: InsertCollabSession & { inviteCode: string }): Promise<CollabSession> {
+    const [created] = await db.insert(collabSessions)
+      .values(session)
+      .returning();
+    return created;
+  }
+
+  async getCollabSession(id: string): Promise<CollabSession | undefined> {
+    const [session] = await db.select()
+      .from(collabSessions)
+      .where(eq(collabSessions.id, id));
+    return session;
+  }
+
+  async getCollabSessionByCode(inviteCode: string): Promise<CollabSession | undefined> {
+    const [session] = await db.select()
+      .from(collabSessions)
+      .where(eq(collabSessions.inviteCode, inviteCode));
+    return session;
+  }
+
+  async joinCollabSession(sessionId: string, userId: string, role = "editor"): Promise<CollabMember> {
+    const [existing] = await db.select()
+      .from(collabMembers)
+      .where(and(
+        eq(collabMembers.sessionId, sessionId),
+        eq(collabMembers.userId, userId)
+      ));
+
+    if (existing) return existing;
+
+    const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const [member] = await db.insert(collabMembers)
+      .values({ sessionId, userId, role, color: randomColor })
+      .returning();
+    return member;
+  }
+
+  async getCollabMembers(sessionId: string): Promise<any[]> {
+    const members = await db.select({
+      member: collabMembers,
+      user: {
+        id: users.id,
+        name: users.name,
+      },
+    })
+    .from(collabMembers)
+    .leftJoin(users, eq(collabMembers.userId, users.id))
+    .where(eq(collabMembers.sessionId, sessionId));
+
+    return members.map(m => ({
+      ...m.member,
+      user: m.user,
+    }));
+  }
+
+  async getUserCollabSessions(userId: string): Promise<CollabSession[]> {
+    const memberships = await db.select()
+      .from(collabMembers)
+      .where(eq(collabMembers.userId, userId));
+
+    const sessionIds = memberships.map(m => m.sessionId);
+    if (sessionIds.length === 0) return [];
+
+    return db.select()
+      .from(collabSessions)
+      .where(sql`${collabSessions.id} = ANY(${sessionIds})`)
+      .orderBy(desc(collabSessions.updatedAt));
+  }
+
+  async updateCollabSession(id: string, updates: Partial<InsertCollabSession>): Promise<CollabSession | undefined> {
+    const [updated] = await db.update(collabSessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(collabSessions.id, id))
+      .returning();
+    return updated;
   }
 }
 

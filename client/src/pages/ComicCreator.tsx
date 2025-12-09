@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -15,6 +15,7 @@ import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import { PostComposer } from "@/components/social/PostComposer";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -1330,6 +1331,18 @@ export default function ComicCreator() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {projectId && (
+              <PostComposer
+                projectId={projectId}
+                projectType="comic"
+                projectTitle={title}
+                trigger={
+                  <button className="px-4 py-2 bg-gradient-to-r from-zinc-700 to-zinc-800 hover:from-zinc-600 hover:to-zinc-700 border border-zinc-600 text-sm font-bold flex items-center gap-2" data-testid="button-share">
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                }
+              />
+            )}
           </div>
         </header>
 

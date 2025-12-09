@@ -38,6 +38,11 @@ import EarnModule from "@/pages/EarnModule";
 import EventsModule from "@/pages/EventsModule";
 import PublishModule from "@/pages/PublishModule";
 import CardBattle from "@/pages/CardBattle";
+import SocialFeed from "@/pages/SocialFeed";
+import SocialProfile from "@/pages/SocialProfile";
+import SocialMessages from "@/pages/SocialMessages";
+import CollabHub from "@/pages/CollabHub";
+import CollabSession from "@/pages/CollabSession";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -96,6 +101,12 @@ function ProtectedRouter() {
         <Route path="/ecosystem/events/:id" component={EventsModule} />
         <Route path="/ecosystem/publish" component={PublishModule} />
         <Route path="/battle" component={CardBattle} />
+        <Route path="/social" component={SocialFeed} />
+        <Route path="/social/profile/:userId" component={SocialProfile} />
+        <Route path="/social/messages" component={SocialMessages} />
+        <Route path="/social/messages/:threadId" component={SocialMessages} />
+        <Route path="/social/collab" component={CollabHub} />
+        <Route path="/social/collab/:sessionId" component={CollabSession} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>

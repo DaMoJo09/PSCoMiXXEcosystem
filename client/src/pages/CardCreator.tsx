@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
-  Copy, Layers, Eye, Pen
+  Copy, Layers, Eye, Pen, Share2
 } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
@@ -13,6 +13,7 @@ import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import { PostComposer } from "@/components/social/PostComposer";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -505,6 +506,18 @@ export default function CardCreator() {
             <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
               <Download className="w-4 h-4" /> Export
             </button>
+            {projectId && (
+              <PostComposer
+                projectId={projectId}
+                projectType="card"
+                projectTitle={cardData.name || "Trading Card"}
+                trigger={
+                  <button className="px-4 py-2 bg-gradient-to-r from-zinc-700 to-zinc-800 hover:from-zinc-600 hover:to-zinc-700 border border-zinc-600 text-sm font-bold flex items-center gap-2" data-testid="button-share-card">
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                }
+              />
+            )}
           </div>
         </header>
 

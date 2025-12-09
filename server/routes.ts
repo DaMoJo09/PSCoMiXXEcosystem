@@ -1,9 +1,32 @@
 import type { Express, Request, Response } from "express";
 import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema } from "@shared/schema";
+
+interface CollabClient {
+  ws: WebSocket;
+  userId: string;
+  userName: string;
+  sessionId: string;
+  color: string;
+  cursor?: { x: number; y: number; pageId: string };
+  activeTool?: string;
+}
+
+const collabClients = new Map<string, CollabClient[]>();
+
+function broadcastToSession(sessionId: string, message: any, excludeUserId?: string) {
+  const clients = collabClients.get(sessionId) || [];
+  const messageStr = JSON.stringify(message);
+  clients.forEach(client => {
+    if (client.userId !== excludeUserId && client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(messageStr);
+    }
+  });
+}
 
 export async function registerRoutes(server: ReturnType<typeof createServer>, app: Express) {
   setupAuth(app);
@@ -635,6 +658,607 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // ============================================
+  // SOCIAL MEDIA ROUTES
+  // ============================================
+
+  // Create a social post
+  app.post("/api/social/posts", isAuthenticated, async (req, res) => {
+    try {
+      const { projectId, type, caption, mediaUrls, visibility } = req.body;
+      const post = await storage.createSocialPost({
+        authorId: req.user!.id,
+        projectId,
+        type: type || "post",
+        caption,
+        mediaUrls,
+        visibility: visibility || "public",
+      });
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get feed (posts from followed users)
+  app.get("/api/social/feed", isAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const posts = await storage.getFeedPosts(req.user!.id, limit, offset);
+      
+      const postsWithLikeStatus = await Promise.all(
+        posts.map(async (post) => ({
+          ...post,
+          isLiked: await storage.isPostLiked(post.id, req.user!.id),
+        }))
+      );
+      
+      res.json(postsWithLikeStatus);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get explore feed (all public posts)
+  app.get("/api/social/explore", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const posts = await storage.getExplorePosts(limit, offset);
+      
+      if (req.isAuthenticated()) {
+        const postsWithLikeStatus = await Promise.all(
+          posts.map(async (post) => ({
+            ...post,
+            isLiked: await storage.isPostLiked(post.id, req.user!.id),
+          }))
+        );
+        return res.json(postsWithLikeStatus);
+      }
+      
+      res.json(posts.map(p => ({ ...p, isLiked: false })));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get single post
+  app.get("/api/social/posts/:id", async (req, res) => {
+    try {
+      const post = await storage.getSocialPost(req.params.id);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      if (post.visibility === "private") {
+        if (!req.isAuthenticated() || req.user!.id !== post.authorId) {
+          return res.status(403).json({ message: "This post is private" });
+        }
+      }
+      
+      if (post.visibility === "followers") {
+        if (!req.isAuthenticated()) {
+          return res.status(403).json({ message: "Please sign in to view this post" });
+        }
+        if (req.user!.id !== post.authorId) {
+          const isFollowing = await storage.isFollowing(req.user!.id, post.authorId);
+          if (!isFollowing) {
+            return res.status(403).json({ message: "You must follow this user to view their post" });
+          }
+        }
+      }
+      
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Like a post
+  app.post("/api/social/posts/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const isAlreadyLiked = await storage.isPostLiked(req.params.id, req.user!.id);
+      if (isAlreadyLiked) {
+        return res.status(400).json({ message: "Already liked" });
+      }
+      
+      const like = await storage.likePost(req.params.id, req.user!.id);
+      
+      const post = await storage.getSocialPost(req.params.id);
+      if (post && post.authorId !== req.user!.id) {
+        await storage.createNotification({
+          userId: post.authorId,
+          actorId: req.user!.id,
+          type: "like",
+          metadata: { postId: req.params.id },
+        });
+      }
+      
+      res.json(like);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Unlike a post
+  app.delete("/api/social/posts/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const success = await storage.unlikePost(req.params.id, req.user!.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add comment to post
+  app.post("/api/social/posts/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const { body, parentId } = req.body;
+      const comment = await storage.addComment({
+        postId: req.params.id,
+        authorId: req.user!.id,
+        body,
+        parentId,
+      });
+      
+      const post = await storage.getSocialPost(req.params.id);
+      if (post && post.authorId !== req.user!.id) {
+        await storage.createNotification({
+          userId: post.authorId,
+          actorId: req.user!.id,
+          type: "comment",
+          metadata: { postId: req.params.id, commentId: comment.id },
+        });
+      }
+      
+      res.json(comment);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get comments for a post
+  app.get("/api/social/posts/:id/comments", async (req, res) => {
+    try {
+      const comments = await storage.getPostComments(req.params.id);
+      res.json(comments);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Follow a user
+  app.post("/api/social/follow/:userId", isAuthenticated, async (req, res) => {
+    try {
+      if (req.params.userId === req.user!.id) {
+        return res.status(400).json({ message: "Cannot follow yourself" });
+      }
+      
+      const isAlreadyFollowing = await storage.isFollowing(req.user!.id, req.params.userId);
+      if (isAlreadyFollowing) {
+        return res.status(400).json({ message: "Already following" });
+      }
+      
+      const follow = await storage.followUser(req.user!.id, req.params.userId);
+      
+      await storage.createNotification({
+        userId: req.params.userId,
+        actorId: req.user!.id,
+        type: "follow",
+        metadata: {},
+      });
+      
+      res.json(follow);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Unfollow a user
+  app.delete("/api/social/follow/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const success = await storage.unfollowUser(req.user!.id, req.params.userId);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user profile
+  app.get("/api/social/profile/:userId", async (req, res) => {
+    try {
+      const profile = await storage.getUserProfile(req.params.userId);
+      if (!profile) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      let isFollowing = false;
+      if (req.isAuthenticated()) {
+        isFollowing = await storage.isFollowing(req.user!.id, req.params.userId);
+      }
+      
+      res.json({ ...profile, isFollowing });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get current user's followers
+  app.get("/api/social/followers", isAuthenticated, async (req, res) => {
+    try {
+      const followers = await storage.getFollowers(req.user!.id);
+      res.json(followers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get current user's following
+  app.get("/api/social/following", isAuthenticated, async (req, res) => {
+    try {
+      const following = await storage.getFollowing(req.user!.id);
+      res.json(following);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // DM ROUTES
+  // ============================================
+
+  // Get user's DM threads
+  app.get("/api/dm/threads", isAuthenticated, async (req, res) => {
+    try {
+      const threads = await storage.getUserDmThreads(req.user!.id);
+      res.json(threads);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Start or get existing DM with a user
+  app.post("/api/dm/threads", isAuthenticated, async (req, res) => {
+    try {
+      const { userId, isGroup, name } = req.body;
+      
+      if (!isGroup && userId) {
+        const existing = await storage.findExistingDmThread(req.user!.id, userId);
+        if (existing) {
+          return res.json(existing);
+        }
+        
+        const thread = await storage.createDmThread(false);
+        await storage.addDmParticipant(thread.id, req.user!.id, "owner");
+        await storage.addDmParticipant(thread.id, userId, "member");
+        return res.json(thread);
+      }
+      
+      const thread = await storage.createDmThread(true, name);
+      await storage.addDmParticipant(thread.id, req.user!.id, "owner");
+      res.json(thread);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get messages in a thread
+  app.get("/api/dm/threads/:threadId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getDmMessages(req.params.threadId);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Send message in a thread
+  app.post("/api/dm/threads/:threadId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const { body, attachments } = req.body;
+      const message = await storage.sendDmMessage({
+        threadId: req.params.threadId,
+        senderId: req.user!.id,
+        body,
+        attachments,
+      });
+      res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // NOTIFICATION ROUTES
+  // ============================================
+
+  // Get user's notifications
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const notifications = await storage.getUserNotifications(req.user!.id);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get unread count
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.user!.id);
+      res.json({ count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const success = await storage.markNotificationRead(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // COLLAB ROUTES
+  // ============================================
+
+  // Create a collab session
+  app.post("/api/collab/sessions", isAuthenticated, async (req, res) => {
+    try {
+      const { title, description, pageCount, maxEditors, projectId, settings } = req.body;
+      
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const session = await storage.createCollabSession({
+        ownerId: req.user!.id,
+        projectId,
+        title,
+        description,
+        inviteCode,
+        pageCount: pageCount || 1,
+        maxEditors: maxEditors || 4,
+        status: "active",
+        settings,
+      });
+      
+      await storage.joinCollabSession(session.id, req.user!.id, "owner");
+      
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get collab session by ID
+  app.get("/api/collab/sessions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const session = await storage.getCollabSession(req.params.id);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      const members = await storage.getCollabMembers(session.id);
+      res.json({ ...session, members });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Join collab session by invite code
+  app.post("/api/collab/join/:inviteCode", isAuthenticated, async (req, res) => {
+    try {
+      const session = await storage.getCollabSessionByCode(req.params.inviteCode);
+      if (!session) {
+        return res.status(404).json({ message: "Invalid invite code" });
+      }
+      
+      if (session.status !== "active") {
+        return res.status(400).json({ message: "Session is not active" });
+      }
+      
+      const members = await storage.getCollabMembers(session.id);
+      if (members.length >= session.maxEditors) {
+        return res.status(400).json({ message: "Session is full" });
+      }
+      
+      const member = await storage.joinCollabSession(session.id, req.user!.id, "editor");
+      res.json({ session, member });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's collab sessions
+  app.get("/api/collab/my-sessions", isAuthenticated, async (req, res) => {
+    try {
+      const sessions = await storage.getUserCollabSessions(req.user!.id);
+      res.json(sessions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update collab session status
+  app.patch("/api/collab/sessions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const session = await storage.getCollabSession(req.params.id);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.ownerId !== req.user!.id) {
+        return res.status(403).json({ message: "Only the owner can update the session" });
+      }
+      
+      const { status, title, description, settings } = req.body;
+      const updated = await storage.updateCollabSession(req.params.id, {
+        status,
+        title,
+        description,
+        settings,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Publish collab to timeline (for all members)
+  app.post("/api/collab/sessions/:id/publish", isAuthenticated, async (req, res) => {
+    try {
+      const session = await storage.getCollabSession(req.params.id);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      const { caption, mediaUrls } = req.body;
+      
+      const post = await storage.createSocialPost({
+        authorId: req.user!.id,
+        projectId: session.projectId,
+        type: "comic",
+        caption: caption || `Check out our collab: ${session.title}`,
+        mediaUrls,
+        visibility: "public",
+      });
+      
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // WebSocket server for real-time collaboration
+  const wss = new WebSocketServer({ server, path: "/ws/collab" });
+  
+  const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"];
+  
+  wss.on("connection", (ws: WebSocket) => {
+    let clientInfo: CollabClient | null = null;
+    
+    ws.on("message", async (data: Buffer) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        switch (message.type) {
+          case "join": {
+            const { sessionId, userId, userName } = message;
+            
+            const session = await storage.getCollabSession(sessionId);
+            if (!session || session.status !== "active") {
+              ws.send(JSON.stringify({ type: "error", message: "Invalid session" }));
+              return;
+            }
+            
+            const existingClients = collabClients.get(sessionId) || [];
+            const colorIndex = existingClients.length % colors.length;
+            
+            clientInfo = {
+              ws,
+              userId,
+              userName,
+              sessionId,
+              color: colors[colorIndex],
+            };
+            
+            existingClients.push(clientInfo);
+            collabClients.set(sessionId, existingClients);
+            
+            ws.send(JSON.stringify({
+              type: "joined",
+              color: clientInfo.color,
+              participants: existingClients.map(c => ({
+                userId: c.userId,
+                userName: c.userName,
+                color: c.color,
+                cursor: c.cursor,
+                activeTool: c.activeTool,
+              })),
+            }));
+            
+            broadcastToSession(sessionId, {
+              type: "user_joined",
+              userId,
+              userName,
+              color: clientInfo.color,
+            }, userId);
+            break;
+          }
+          
+          case "cursor_move": {
+            if (!clientInfo) return;
+            clientInfo.cursor = message.cursor;
+            broadcastToSession(clientInfo.sessionId, {
+              type: "cursor_update",
+              userId: clientInfo.userId,
+              userName: clientInfo.userName,
+              color: clientInfo.color,
+              cursor: message.cursor,
+            }, clientInfo.userId);
+            break;
+          }
+          
+          case "tool_change": {
+            if (!clientInfo) return;
+            clientInfo.activeTool = message.tool;
+            broadcastToSession(clientInfo.sessionId, {
+              type: "tool_update",
+              userId: clientInfo.userId,
+              tool: message.tool,
+            }, clientInfo.userId);
+            break;
+          }
+          
+          case "layer_update": {
+            if (!clientInfo) return;
+            broadcastToSession(clientInfo.sessionId, {
+              type: "layer_update",
+              userId: clientInfo.userId,
+              userName: clientInfo.userName,
+              layerId: message.layerId,
+              changes: message.changes,
+            }, clientInfo.userId);
+            break;
+          }
+          
+          case "chat": {
+            if (!clientInfo) return;
+            broadcastToSession(clientInfo.sessionId, {
+              type: "chat",
+              userId: clientInfo.userId,
+              userName: clientInfo.userName,
+              message: message.text,
+              timestamp: new Date().toISOString(),
+            });
+            break;
+          }
+        }
+      } catch (err) {
+        console.error("WebSocket message error:", err);
+      }
+    });
+    
+    ws.on("close", () => {
+      if (clientInfo) {
+        const clients = collabClients.get(clientInfo.sessionId) || [];
+        const updated = clients.filter(c => c.userId !== clientInfo!.userId);
+        collabClients.set(clientInfo.sessionId, updated);
+        
+        broadcastToSession(clientInfo.sessionId, {
+          type: "user_left",
+          userId: clientInfo.userId,
+          userName: clientInfo.userName,
+        });
+      }
+    });
   });
 
   return server;
