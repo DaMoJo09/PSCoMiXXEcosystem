@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { 
   Heart, MessageCircle, Share2, Send, Plus, Home, Compass, Bell, 
-  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video
+  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -485,6 +485,15 @@ export default function SocialFeed() {
           >
             <MessageSquare className="w-6 h-6" />
             <span className="text-xs font-bold">DMs</span>
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/social/chains")}
+            className="flex flex-col items-center gap-1 text-white/50 hover:bg-white/10"
+            data-testid="nav-chains"
+          >
+            <Link2 className="w-6 h-6" />
+            <span className="text-xs font-bold">CHAINS</span>
           </Button>
           <Button
             variant="ghost"

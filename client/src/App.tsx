@@ -43,6 +43,7 @@ import SocialProfile from "@/pages/SocialProfile";
 import SocialMessages from "@/pages/SocialMessages";
 import CollabHub from "@/pages/CollabHub";
 import CollabSession from "@/pages/CollabSession";
+import CommunityChains from "@/pages/CommunityChains";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -107,6 +108,7 @@ function ProtectedRouter() {
         <Route path="/social/messages/:threadId" component={SocialMessages} />
         <Route path="/social/collab" component={CollabHub} />
         <Route path="/social/collab/:sessionId" component={CollabSession} />
+        <Route path="/social/chains" component={CommunityChains} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
