@@ -110,6 +110,10 @@ export default function MotionStudio() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<{x: number, y: number} | null>(null);
   
+  // Use refs for immediate access in event handlers (React state is async)
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<{x: number, y: number} | null>(null);
+  
   const [frames, setFrames] = useState<Frame[]>([
     { id: "frame_1", imageData: "", duration: 100, layers: [] }
   ]);
@@ -961,6 +965,9 @@ export default function MotionStudio() {
                         }
                         if (!ctx) return;
                         
+                        // Use refs for immediate access
+                        isDrawingRef.current = true;
+                        lastPointRef.current = { x, y };
                         setIsDrawing(true);
                         setLastPoint({ x, y });
                         
@@ -974,7 +981,8 @@ export default function MotionStudio() {
                         setHistoryIndex(prev => prev + 1);
                       }}
                       onMouseMove={(e) => {
-                        if (!isDrawing || !lastPoint) return;
+                        // Use refs for immediate access (React state is async)
+                        if (!isDrawingRef.current || !lastPointRef.current) return;
                         if (activeTool !== 'brush' && activeTool !== 'eraser') return;
                         
                         const canvas = canvasRef.current;
@@ -998,6 +1006,7 @@ export default function MotionStudio() {
                         if (!ctx) return;
                         
                         const isErasing = activeTool === 'eraser';
+                        const lp = lastPointRef.current;
                         
                         ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
                         ctx.globalAlpha = isErasing ? 1 : brushOpacity / 100;
@@ -1005,24 +1014,29 @@ export default function MotionStudio() {
                         ctx.lineWidth = isErasing ? brushSize * 3 : brushSize;
                         
                         ctx.beginPath();
-                        ctx.moveTo(lastPoint.x, lastPoint.y);
+                        ctx.moveTo(lp.x, lp.y);
                         ctx.lineTo(x, y);
                         ctx.stroke();
                         
                         ctx.globalCompositeOperation = 'source-over';
                         ctx.globalAlpha = 1;
                         
+                        lastPointRef.current = { x, y };
                         setLastPoint({ x, y });
                       }}
                       onMouseUp={() => {
-                        if (isDrawing) {
+                        if (isDrawingRef.current) {
+                          isDrawingRef.current = false;
+                          lastPointRef.current = null;
                           setIsDrawing(false);
                           setLastPoint(null);
                           saveCurrentFrame();
                         }
                       }}
                       onMouseLeave={() => {
-                        if (isDrawing) {
+                        if (isDrawingRef.current) {
+                          isDrawingRef.current = false;
+                          lastPointRef.current = null;
                           setIsDrawing(false);
                           setLastPoint(null);
                           saveCurrentFrame();
