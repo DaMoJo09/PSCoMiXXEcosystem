@@ -89,6 +89,14 @@ export interface IStorage {
   getPublicTeams(): Promise<Team[]>;
   getUserTeams(userId: string): Promise<Team[]>;
   createTeam(team: InsertTeam): Promise<Team>;
+  getTeam(id: string): Promise<Team | undefined>;
+  getTeamByInviteCode(inviteCode: string): Promise<Team | undefined>;
+  getTeamMembers(teamId: string): Promise<any[]>;
+  joinTeam(teamId: string, userId: string, role?: string): Promise<TeamMember>;
+  leaveTeam(teamId: string, userId: string): Promise<boolean>;
+  regenerateTeamInviteCode(teamId: string): Promise<Team | undefined>;
+  updateTeamMemberRole(teamId: string, userId: string, role: string): Promise<boolean>;
+  isTeamMember(teamId: string, userId: string): Promise<boolean>;
   getFestivals(): Promise<Festival[]>;
   getFestival(id: string): Promise<Festival | undefined>;
   getFestivalSubmissions(festivalId: string): Promise<FestivalSubmission[]>;
@@ -473,7 +481,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeam(team: InsertTeam): Promise<Team> {
-    const [created] = await db.insert(teams).values(team).returning();
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const [created] = await db.insert(teams).values({ ...team, inviteCode }).returning();
     
     await db.insert(teamMembers).values({
       teamId: created.id,
@@ -482,6 +491,91 @@ export class DatabaseStorage implements IStorage {
     });
     
     return created;
+  }
+
+  async getTeam(id: string): Promise<Team | undefined> {
+    const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    return team;
+  }
+
+  async getTeamByInviteCode(inviteCode: string): Promise<Team | undefined> {
+    const [team] = await db.select()
+      .from(teams)
+      .where(eq(teams.inviteCode, inviteCode));
+    return team;
+  }
+
+  async getTeamMembers(teamId: string): Promise<any[]> {
+    const members = await db.select({
+      member: teamMembers,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+      },
+    })
+    .from(teamMembers)
+    .leftJoin(users, eq(teamMembers.userId, users.id))
+    .where(eq(teamMembers.teamId, teamId));
+
+    return members.map(m => ({
+      ...m.member,
+      user: m.user,
+    }));
+  }
+
+  async joinTeam(teamId: string, userId: string, role = "member"): Promise<TeamMember> {
+    const [existing] = await db.select()
+      .from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+
+    if (existing) return existing;
+
+    const [member] = await db.insert(teamMembers)
+      .values({ teamId, userId, role })
+      .returning();
+    return member;
+  }
+
+  async leaveTeam(teamId: string, userId: string): Promise<boolean> {
+    await db.delete(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+    return true;
+  }
+
+  async regenerateTeamInviteCode(teamId: string): Promise<Team | undefined> {
+    const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const [updated] = await db.update(teams)
+      .set({ inviteCode: newCode, updatedAt: new Date() })
+      .where(eq(teams.id, teamId))
+      .returning();
+    return updated;
+  }
+
+  async updateTeamMemberRole(teamId: string, userId: string, role: string): Promise<boolean> {
+    await db.update(teamMembers)
+      .set({ role })
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+    return true;
+  }
+
+  async isTeamMember(teamId: string, userId: string): Promise<boolean> {
+    const [member] = await db.select()
+      .from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId)
+      ));
+    return !!member;
   }
 
   async getFestivals(): Promise<Festival[]> {

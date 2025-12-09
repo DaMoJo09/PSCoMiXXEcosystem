@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { 
   Heart, MessageCircle, Share2, Send, Plus, Home, Compass, Bell, 
-  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2
+  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2, Search
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -362,20 +362,31 @@ export default function SocialFeed() {
             <ArrowLeft className="w-6 h-6" />
           </Button>
           <h1 className="font-black text-xl tracking-tight">PSCOMIXX</h1>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/social/notifications")}
-            className="text-white hover:bg-white/10 relative"
-            data-testid="notifications-button"
-          >
-            <Bell className="w-6 h-6" />
-            {notificationCount.count > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                {notificationCount.count}
-              </span>
-            )}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/social/search")}
+              className="text-white hover:bg-white/10"
+              data-testid="search-button"
+            >
+              <Search className="w-5 h-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/social/notifications")}
+              className="text-white hover:bg-white/10 relative"
+              data-testid="notifications-button"
+            >
+              <Bell className="w-6 h-6" />
+              {notificationCount.count > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {notificationCount.count}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 

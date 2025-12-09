@@ -27,10 +27,6 @@ externalPort = 3001
 localPort = 36605
 externalPort = 3003
 
-[[ports]]
-localPort = 45885
-externalPort = 3002
-
 [env]
 PORT = "5000"
 
@@ -62,4 +58,5 @@ integrations = ["javascript_database:1.0.0"]
 [userenv]
 
 [userenv.shared]
-ADMIN_PASSWORD = "PressStart2025Admin!"
+ADMIN_PASSWORD = "Psgaming09!"
+ADMIN_EMAIL = "mojocreative1@gmail.com"

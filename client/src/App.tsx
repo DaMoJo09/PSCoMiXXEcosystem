@@ -10,6 +10,9 @@ import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
+import { useEffect } from "react";
+import { initGA } from "./lib/analytics";
+import { useAnalytics } from "./hooks/use-analytics";
 import Dashboard from "@/pages/Dashboard";
 import ComicCreator from "@/pages/ComicCreator";
 import CardCreator from "@/pages/CardCreator";
@@ -44,11 +47,15 @@ import SocialMessages from "@/pages/SocialMessages";
 import CollabHub from "@/pages/CollabHub";
 import CollabSession from "@/pages/CollabSession";
 import CommunityChains from "@/pages/CommunityChains";
+import Notifications from "@/pages/Notifications";
+import UserSearch from "@/pages/UserSearch";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  
+  useAnalytics();
 
   if (location === "/welcome" || location === "/landing") {
     return <LandingPage />;
@@ -109,6 +116,8 @@ function ProtectedRouter() {
         <Route path="/social/collab" component={CollabHub} />
         <Route path="/social/collab/:sessionId" component={CollabSession} />
         <Route path="/social/chains" component={CommunityChains} />
+        <Route path="/social/notifications" component={Notifications} />
+        <Route path="/social/search" component={UserSearch} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
@@ -116,6 +125,12 @@ function ProtectedRouter() {
 }
 
 function App() {
+  useEffect(() => {
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID) {
+      initGA();
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

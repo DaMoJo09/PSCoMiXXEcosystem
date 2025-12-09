@@ -14,7 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  adminLogin: (password: string) => Promise<void>;
+  adminLogin: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -47,8 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries();
   }
 
-  async function adminLogin(password: string) {
-    const userData = await authApi.adminLogin(password);
+  async function adminLogin(email: string, password: string) {
+    const userData = await authApi.adminLogin(email, password);
     setUser(userData);
     queryClient.invalidateQueries();
   }

@@ -117,15 +117,19 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     res.status(401).json({ message: "Not authenticated" });
   });
 
-  // Admin login - creates/uses predefined admin account
+  // Admin login - requires specific admin credentials stored in environment variables
   app.post("/api/auth/admin-login", async (req, res, next) => {
     try {
-      const { password } = req.body;
-      const adminEmail = "admin@pressstart.space";
+      const { email, password } = req.body;
+      const adminEmail = process.env.ADMIN_EMAIL;
       const adminPassword = process.env.ADMIN_PASSWORD;
       
-      if (!adminPassword) {
-        return res.status(500).json({ message: "Admin login not configured. Set ADMIN_PASSWORD environment variable." });
+      if (!adminEmail || !adminPassword) {
+        return res.status(500).json({ message: "Admin login not configured. Contact system administrator." });
+      }
+      
+      if (email !== adminEmail) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
       }
       
       if (password !== adminPassword) {
@@ -503,6 +507,126 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         tags,
       });
       res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get team by ID with members
+  app.get("/api/ecosystem/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      const members = await storage.getTeamMembers(team.id);
+      const isMember = await storage.isTeamMember(team.id, req.user!.id);
+      res.json({ ...team, members, isMember });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Join team by invite code
+  app.post("/api/ecosystem/teams/join/:inviteCode", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeamByInviteCode(req.params.inviteCode);
+      if (!team) {
+        return res.status(404).json({ message: "Invalid invite code" });
+      }
+      
+      const members = await storage.getTeamMembers(team.id);
+      if (team.maxMembers && members.length >= team.maxMembers) {
+        return res.status(400).json({ message: "Team is full" });
+      }
+      
+      const member = await storage.joinTeam(team.id, req.user!.id, "member");
+      res.json({ team, member });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Leave team
+  app.delete("/api/ecosystem/teams/:id/leave", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.leaderId === req.user!.id) {
+        return res.status(400).json({ message: "Leader cannot leave the team. Transfer leadership first." });
+      }
+      
+      const success = await storage.leaveTeam(req.params.id, req.user!.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Regenerate team invite code (leader only)
+  app.post("/api/ecosystem/teams/:id/regenerate-invite", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.leaderId !== req.user!.id) {
+        return res.status(403).json({ message: "Only the team leader can regenerate the invite code" });
+      }
+      
+      const updated = await storage.regenerateTeamInviteCode(req.params.id);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update team member role (leader only)
+  app.patch("/api/ecosystem/teams/:id/members/:userId/role", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.leaderId !== req.user!.id) {
+        return res.status(403).json({ message: "Only the team leader can change member roles" });
+      }
+      
+      const { role } = req.body;
+      if (!["member", "co-leader"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const success = await storage.updateTeamMemberRole(req.params.id, req.params.userId, role);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Remove team member (leader only)
+  app.delete("/api/ecosystem/teams/:id/members/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.leaderId !== req.user!.id) {
+        return res.status(403).json({ message: "Only the team leader can remove members" });
+      }
+      
+      if (req.params.userId === team.leaderId) {
+        return res.status(400).json({ message: "Cannot remove the team leader" });
+      }
+      
+      const success = await storage.leaveTeam(req.params.id, req.params.userId);
+      res.json({ success });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -901,6 +1025,75 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const following = await storage.getFollowing(req.user!.id);
       res.json(following);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Search users
+  app.get("/api/social/search-users", isAuthenticated, async (req, res) => {
+    try {
+      const query = (req.query.q as string) || "";
+      if (query.length < 2) {
+        return res.json([]);
+      }
+      
+      const allUsers = await storage.getAllUsers();
+      const filtered = allUsers
+        .filter(u => u.id !== req.user!.id && u.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 20);
+      
+      const usersWithFollowStatus = await Promise.all(
+        filtered.map(async (u) => {
+          const isFollowing = await storage.isFollowing(req.user!.id, u.id);
+          const counts = await storage.getFollowCounts(u.id);
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            createdAt: u.createdAt,
+            followerCount: counts.followers,
+            followingCount: counts.following,
+            isFollowing,
+          };
+        })
+      );
+      
+      res.json(usersWithFollowStatus);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get suggested users to follow
+  app.get("/api/social/suggested-users", isAuthenticated, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const following = await storage.getFollowing(req.user!.id);
+      const followingIds = new Set(following.map(f => f.id));
+      
+      const suggestions = allUsers
+        .filter(u => u.id !== req.user!.id && !followingIds.has(u.id))
+        .slice(0, 10);
+      
+      const usersWithStats = await Promise.all(
+        suggestions.map(async (u) => {
+          const counts = await storage.getFollowCounts(u.id);
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            createdAt: u.createdAt,
+            followerCount: counts.followers,
+            followingCount: counts.following,
+            isFollowing: false,
+          };
+        })
+      );
+      
+      res.json(usersWithStats);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
