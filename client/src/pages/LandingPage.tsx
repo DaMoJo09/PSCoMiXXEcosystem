@@ -43,6 +43,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
+      {/* VIDEO TEMPORARILY HIDDEN - RESTORE BEFORE PRODUCTION 
       <video
         autoPlay
         loop
@@ -52,6 +53,7 @@ export default function LandingPage() {
       >
         <source src="/assets/CoMixxFallIng_1764842025129.mp4" type="video/mp4" />
       </video>
+      */}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30 z-[1]" />
       

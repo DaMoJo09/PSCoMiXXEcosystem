@@ -9,13 +9,15 @@ interface TextElementProps {
   backgroundColor?: string;
   padding?: number;
   borderRadius?: number;
-  bubbleStyle?: "none" | "speech" | "thought" | "shout" | "whisper";
+  bubbleStyle?: BubbleStyleType;
   onChange?: (id: string, text: string) => void;
   onStyleChange?: (id: string, styles: TextStyles) => void;
   isEditing?: boolean;
   onEditStart?: () => void;
   onEditEnd?: () => void;
 }
+
+type BubbleStyleType = "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
 
 interface TextStyles {
   fontSize: number;
@@ -24,7 +26,7 @@ interface TextStyles {
   backgroundColor: string;
   padding: number;
   borderRadius: number;
-  bubbleStyle: "none" | "speech" | "thought" | "shout" | "whisper";
+  bubbleStyle: BubbleStyleType;
 }
 
 const FONT_OPTIONS = [
@@ -112,8 +114,16 @@ const BUBBLE_STYLES = {
   none: { bg: "transparent", border: "none", tail: false },
   speech: { bg: "white", border: "2px solid black", tail: true, tailType: "triangle" },
   thought: { bg: "white", border: "2px solid black", tail: true, tailType: "bubbles" },
-  shout: { bg: "yellow", border: "3px solid red", tail: true, tailType: "jagged" },
-  whisper: { bg: "#f0f0f0", border: "1px dashed gray", tail: true, tailType: "small" },
+  shout: { bg: "#ffeb3b", border: "3px solid #999", tail: true, tailType: "jagged" },
+  whisper: { bg: "rgba(200,200,200,0.7)", border: "2px dashed #999", tail: true, tailType: "small" },
+  burst: { bg: "#ff5722", border: "none", tail: false, clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" },
+  scream: { bg: "#ff1744", border: "4px solid #b71c1c", tail: true, tailType: "triangle", textColor: "white", animation: "shake" },
+  robot: { bg: "#263238", border: "2px solid #4fc3f7", tail: true, tailType: "triangle", textColor: "#4fc3f7", fontFamily: "'Courier New', monospace" },
+  drip: { bg: "linear-gradient(180deg, #e040fb, #7c4dff)", border: "none", tail: true, tailType: "triangle", textColor: "white" },
+  glitch: { bg: "#000", border: "2px solid #0f0", tail: true, tailType: "triangle", textColor: "#0f0", fontFamily: "'Courier New', monospace", animation: "glitch" },
+  retro: { bg: "#f5e6d3", border: "3px solid #8d6e63", tail: true, tailType: "triangle", textColor: "#5d4037", boxShadow: "4px 4px 0 #5d4037" },
+  neon: { bg: "#0a0a1a", border: "2px solid #00ffff", tail: true, tailType: "triangle", textColor: "white", boxShadow: "0 0 10px #00ffff, inset 0 0 10px rgba(0,255,255,0.1)", textShadow: "0 0 10px #00ffff" },
+  graffiti: { bg: "linear-gradient(135deg, #ff6b35, #f7931e, #ffeb3b)", border: "3px solid #000", tail: false, textColor: "#000" },
 };
 
 export function TextElement({
@@ -175,7 +185,23 @@ export function TextElement({
       case "shout":
         return "relative";
       case "whisper":
-        return "relative opacity-80";
+        return "relative opacity-80 italic";
+      case "burst":
+        return "relative flex items-center justify-center";
+      case "scream":
+        return "relative font-black uppercase animate-pulse";
+      case "robot":
+        return "relative rounded";
+      case "drip":
+        return "relative rounded-2xl";
+      case "glitch":
+        return "relative rounded";
+      case "retro":
+        return "relative rounded";
+      case "neon":
+        return "relative rounded";
+      case "graffiti":
+        return "relative rounded-lg font-black";
       default:
         return "";
     }

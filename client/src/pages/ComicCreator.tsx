@@ -53,7 +53,7 @@ interface PanelContent {
   data: {
     url?: string;
     text?: string;
-    bubbleStyle?: "none" | "speech" | "thought" | "shout";
+    bubbleStyle?: "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
     color?: string;
     fontSize?: number;
     fontFamily?: string;
@@ -1780,10 +1780,19 @@ export default function ComicCreator() {
                           className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
                           data-testid="select-bubble-style"
                         >
+                          <option value="none">None</option>
                           <option value="speech">Speech</option>
                           <option value="thought">Thought</option>
                           <option value="shout">Shout</option>
-                          <option value="none">None</option>
+                          <option value="whisper">Whisper</option>
+                          <option value="burst">Burst</option>
+                          <option value="scream">Scream</option>
+                          <option value="robot">Robot</option>
+                          <option value="drip">Drip</option>
+                          <option value="glitch">Glitch</option>
+                          <option value="retro">Retro</option>
+                          <option value="neon">Neon</option>
+                          <option value="graffiti">Graffiti</option>
                         </select>
                       </div>
                     )}

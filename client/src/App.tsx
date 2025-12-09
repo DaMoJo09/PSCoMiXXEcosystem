@@ -37,6 +37,7 @@ import CollaborateModule from "@/pages/CollaborateModule";
 import EarnModule from "@/pages/EarnModule";
 import EventsModule from "@/pages/EventsModule";
 import PublishModule from "@/pages/PublishModule";
+import CardBattle from "@/pages/CardBattle";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -94,6 +95,7 @@ function ProtectedRouter() {
         <Route path="/ecosystem/events" component={EventsModule} />
         <Route path="/ecosystem/events/:id" component={EventsModule} />
         <Route path="/ecosystem/publish" component={PublishModule} />
+        <Route path="/battle" component={CardBattle} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
