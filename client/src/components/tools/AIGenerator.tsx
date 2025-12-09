@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets } from "lucide-react";
 import { AI_MODELS, AIModel, generateImageUrl } from "@/lib/aiModels";
 import {
   Tooltip,
@@ -21,6 +21,10 @@ const iconMap: Record<string, React.ReactNode> = {
   palette: <Palette className="w-4 h-4" />,
   user: <User className="w-4 h-4" />,
   smile: <Smile className="w-4 h-4" />,
+  camera: <Camera className="w-4 h-4" />,
+  shapes: <Shapes className="w-4 h-4" />,
+  grid: <Grid3X3 className="w-4 h-4" />,
+  droplets: <Droplets className="w-4 h-4" />,
 };
 
 const categoryColors: Record<AIModel["category"], string> = {
@@ -30,6 +34,8 @@ const categoryColors: Record<AIModel["category"], string> = {
   comic: "border-blue-500 bg-blue-500/10",
   artistic: "border-purple-500 bg-purple-500/10",
   character: "border-orange-500 bg-orange-500/10",
+  photo: "border-cyan-500 bg-cyan-500/10",
+  abstract: "border-red-500 bg-red-500/10",
 };
 
 const categoryLabels: Record<AIModel["category"], string> = {
@@ -39,6 +45,8 @@ const categoryLabels: Record<AIModel["category"], string> = {
   comic: "COMIC",
   artistic: "ART",
   character: "CHAR",
+  photo: "PHOTO",
+  abstract: "ABSTRACT",
 };
 
 export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
@@ -65,6 +73,31 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
 
   const useStyleTip = () => {
     setPrompt(currentModel.samplePrompt);
+  };
+
+  const downloadImage = async () => {
+    if (!generatedImage) return;
+    
+    try {
+      const response = await fetch(generatedImage);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pscomixx-${type}-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      const link = document.createElement('a');
+      link.href = generatedImage;
+      link.download = `pscomixx-${type}-${Date.now()}.png`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -200,24 +233,41 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
           </div>
           <div className="aspect-square w-full bg-black relative group border border-border overflow-hidden">
             <img src={generatedImage} className="w-full h-full object-cover" alt="Generated artwork" />
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <button 
-                onClick={() => onImageGenerated(generatedImage)}
-                className="bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90"
-                data-testid="ai-use-image-button"
-              >
-                USE THIS IMAGE
-              </button>
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => onImageGenerated(generatedImage)}
+                  className="bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:opacity-90"
+                  data-testid="ai-use-image-button"
+                  aria-label="Use this image in your project"
+                >
+                  USE IMAGE
+                </button>
+                <button 
+                  onClick={downloadImage}
+                  className="bg-green-600 text-white px-4 py-2 text-xs font-bold hover:opacity-90 flex items-center gap-1"
+                  data-testid="ai-download-image-button"
+                  aria-label="Download generated image"
+                >
+                  <Download className="w-3 h-3" />
+                  DOWNLOAD
+                </button>
+              </div>
               <button 
                 onClick={generateImage}
                 disabled={isGenerating}
-                className="bg-muted text-foreground px-4 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-50"
+                className="bg-muted text-foreground px-4 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 data-testid="ai-regenerate-button"
+                aria-label="Generate a new image"
               >
+                <RefreshCw className="w-3 h-3" />
                 REGENERATE
               </button>
             </div>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+            Powered by {currentModel.engineLabel} via Pollinations - Free AI Image Generation
+          </p>
         </div>
       )}
     </div>
