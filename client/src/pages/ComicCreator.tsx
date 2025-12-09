@@ -33,6 +33,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface VectorPath {
   id: string;
@@ -1331,29 +1336,43 @@ export default function ComicCreator() {
         <div className="flex-1 flex overflow-hidden">
           <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
             {tools.map((tool) => (
-              <button
-                key={tool.id}
-                onClick={() => setActiveTool(tool.id)}
-                className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
-                  activeTool === tool.id ? 'bg-white text-black' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
-                }`}
-                title={`${tool.label} (${tool.shortcut})`}
-              >
-                <tool.icon className="w-5 h-5" />
-              </button>
+              <Tooltip key={tool.id} delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveTool(tool.id)}
+                    className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
+                      activeTool === tool.id ? 'bg-white text-black' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    }`}
+                    data-testid={`tool-${tool.id}`}
+                  >
+                    <tool.icon className="w-5 h-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs">
+                  <p>{tool.label} <span className="text-zinc-400 ml-1">({tool.shortcut})</span></p>
+                </TooltipContent>
+              </Tooltip>
             ))}
             <div className="w-10 h-px bg-zinc-700 my-2" />
-            <div 
-              className="w-8 h-8 border-2 border-zinc-600 cursor-pointer"
-              style={{ backgroundColor: brushColor }}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'color';
-                input.value = brushColor;
-                input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
-                input.click();
-              }}
-            />
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div 
+                  className="w-8 h-8 border-2 border-zinc-600 cursor-pointer"
+                  style={{ backgroundColor: brushColor }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'color';
+                    input.value = brushColor;
+                    input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
+                    input.click();
+                  }}
+                  data-testid="tool-color-picker"
+                />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs">
+                <p>Brush Color</p>
+              </TooltipContent>
+            </Tooltip>
           </aside>
 
           <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
