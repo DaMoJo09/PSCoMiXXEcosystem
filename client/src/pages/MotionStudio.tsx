@@ -179,6 +179,7 @@ export default function MotionStudio() {
     }
   }, [project]);
 
+  // Initialize canvas context once on mount
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -191,8 +192,17 @@ export default function MotionStudio() {
     
     context.lineCap = 'round';
     context.lineJoin = 'round';
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
     contextRef.current = context;
     setCanvasReady(true);
+  }, []);
+
+  // Load frame content when frame changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!canvas || !context) return;
     
     if (currentFrame.imageData) {
       const img = new Image();
@@ -205,7 +215,7 @@ export default function MotionStudio() {
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
     }
-  }, [currentFrameIndex]);
+  }, [currentFrameIndex, currentFrame.imageData]);
 
   useEffect(() => {
     if (panelId && canvasReady && !panelDataLoaded) {
