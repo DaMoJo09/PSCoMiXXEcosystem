@@ -916,123 +916,129 @@ export default function MotionStudio() {
                     alt="Frame -2"
                   />
                 )}
-                <div className="relative" style={{ width: '960px', height: '540px' }}>
-                  <canvas
-                    ref={canvasRef}
-                    width={1920}
-                    height={1080}
-                    className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0"
-                    style={{ 
-                      cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default',
-                      width: '100%',
-                      height: '100%',
-                      touchAction: 'none',
-                    }}
-                    onMouseDown={(e) => {
-                      const canvas = canvasRef.current;
-                      if (!canvas) return;
-                      
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      const x = (e.clientX - rect.left) * scaleX;
-                      const y = (e.clientY - rect.top) * scaleY;
-                      
-                      if (activeTool === 'text') {
-                        const newTextLayer = {
-                          id: `text_${Date.now()}`,
-                          text: "Enter text",
-                          x, y,
-                          fontSize: brushSize * 4,
-                          color: brushColor,
-                          editing: true
-                        };
-                        setTextLayers(prev => [...prev, newTextLayer]);
-                        setEditingTextId(newTextLayer.id);
-                        return;
-                      }
-                      
-                      if (activeTool !== 'brush' && activeTool !== 'eraser') return;
-                      
-                      let ctx = contextRef.current;
-                      if (!ctx) {
-                        ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          ctx.lineCap = 'round';
-                          ctx.lineJoin = 'round';
-                          contextRef.current = ctx;
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
+                    <div 
+                      className="relative" 
+                      style={{ width: '960px', height: '540px', cursor: activeTool === 'brush' || activeTool === 'eraser' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default' }}
+                      onMouseDown={(e) => {
+                        // Only handle left-click for drawing
+                        if (e.button !== 0) return;
+                        
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+                        
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        const x = (e.clientX - rect.left) * scaleX;
+                        const y = (e.clientY - rect.top) * scaleY;
+                        
+                        if (activeTool === 'text') {
+                          const newTextLayer = {
+                            id: `text_${Date.now()}`,
+                            text: "Enter text",
+                            x, y,
+                            fontSize: brushSize * 4,
+                            color: brushColor,
+                            editing: true
+                          };
+                          setTextLayers(prev => [...prev, newTextLayer]);
+                          setEditingTextId(newTextLayer.id);
+                          return;
                         }
-                      }
-                      if (!ctx) return;
-                      
-                      setIsDrawing(true);
-                      setLastPoint({ x, y });
-                      
-                      // Draw initial dot
-                      ctx.fillStyle = activeTool === 'eraser' ? '#ffffff' : brushColor;
-                      ctx.beginPath();
-                      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-                      ctx.fill();
-                      
-                      setHistory(prev => [...prev.slice(0, historyIndex + 1), canvas.toDataURL()]);
-                      setHistoryIndex(prev => prev + 1);
-                    }}
-                    onMouseMove={(e) => {
-                      if (!isDrawing || !lastPoint) return;
-                      if (activeTool !== 'brush' && activeTool !== 'eraser') return;
-                      
-                      const canvas = canvasRef.current;
-                      if (!canvas) return;
-                      
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      const x = (e.clientX - rect.left) * scaleX;
-                      const y = (e.clientY - rect.top) * scaleY;
-                      
-                      let ctx = contextRef.current;
-                      if (!ctx) {
-                        ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          ctx.lineCap = 'round';
-                          ctx.lineJoin = 'round';
-                          contextRef.current = ctx;
+                        
+                        if (activeTool !== 'brush' && activeTool !== 'eraser') return;
+                        
+                        let ctx = contextRef.current;
+                        if (!ctx) {
+                          ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                            contextRef.current = ctx;
+                          }
                         }
-                      }
-                      if (!ctx) return;
-                      
-                      const isErasing = activeTool === 'eraser';
-                      
-                      ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
-                      ctx.globalAlpha = isErasing ? 1 : brushOpacity / 100;
-                      ctx.strokeStyle = brushColor;
-                      ctx.lineWidth = isErasing ? brushSize * 3 : brushSize;
-                      
-                      ctx.beginPath();
-                      ctx.moveTo(lastPoint.x, lastPoint.y);
-                      ctx.lineTo(x, y);
-                      ctx.stroke();
-                      
-                      ctx.globalCompositeOperation = 'source-over';
-                      ctx.globalAlpha = 1;
-                      
-                      setLastPoint({ x, y });
-                    }}
-                    onMouseUp={() => {
-                      if (isDrawing) {
-                        setIsDrawing(false);
-                        setLastPoint(null);
-                        saveCurrentFrame();
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (isDrawing) {
-                        setIsDrawing(false);
-                        setLastPoint(null);
-                        saveCurrentFrame();
-                      }
-                    }}
-                  />
+                        if (!ctx) return;
+                        
+                        setIsDrawing(true);
+                        setLastPoint({ x, y });
+                        
+                        // Draw initial dot
+                        ctx.fillStyle = activeTool === 'eraser' ? '#ffffff' : brushColor;
+                        ctx.beginPath();
+                        ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        setHistory(prev => [...prev.slice(0, historyIndex + 1), canvas.toDataURL()]);
+                        setHistoryIndex(prev => prev + 1);
+                      }}
+                      onMouseMove={(e) => {
+                        if (!isDrawing || !lastPoint) return;
+                        if (activeTool !== 'brush' && activeTool !== 'eraser') return;
+                        
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+                        
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        const x = (e.clientX - rect.left) * scaleX;
+                        const y = (e.clientY - rect.top) * scaleY;
+                        
+                        let ctx = contextRef.current;
+                        if (!ctx) {
+                          ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                            contextRef.current = ctx;
+                          }
+                        }
+                        if (!ctx) return;
+                        
+                        const isErasing = activeTool === 'eraser';
+                        
+                        ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
+                        ctx.globalAlpha = isErasing ? 1 : brushOpacity / 100;
+                        ctx.strokeStyle = brushColor;
+                        ctx.lineWidth = isErasing ? brushSize * 3 : brushSize;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(lastPoint.x, lastPoint.y);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                        
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.globalAlpha = 1;
+                        
+                        setLastPoint({ x, y });
+                      }}
+                      onMouseUp={() => {
+                        if (isDrawing) {
+                          setIsDrawing(false);
+                          setLastPoint(null);
+                          saveCurrentFrame();
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (isDrawing) {
+                          setIsDrawing(false);
+                          setLastPoint(null);
+                          saveCurrentFrame();
+                        }
+                      }}
+                    >
+                      <canvas
+                        ref={canvasRef}
+                        width={1920}
+                        height={1080}
+                        className="bg-white shadow-2xl border-2 border-zinc-700 block absolute inset-0 pointer-events-none"
+                        style={{ 
+                          width: '100%',
+                          height: '100%',
+                        }}
+                      />
                   {textLayers.map(layer => {
                     const canvas = canvasRef.current;
                     if (!canvas) return null;
@@ -1091,7 +1097,41 @@ export default function MotionStudio() {
                       </div>
                     );
                   })}
-                </div>
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                    <ContextMenuItem onClick={() => setActiveTool("brush")} className="hover:bg-zinc-800 cursor-pointer">
+                      <Pencil className="w-4 h-4 mr-2" /> Brush <ContextMenuShortcut>B</ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => setActiveTool("eraser")} className="hover:bg-zinc-800 cursor-pointer">
+                      <Eraser className="w-4 h-4 mr-2" /> Eraser <ContextMenuShortcut>E</ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
+                      <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuSeparator className="bg-zinc-700" />
+                    <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                      <Wand2 className="w-4 h-4 mr-2" /> AI Generate
+                    </ContextMenuItem>
+                    <ContextMenuSeparator className="bg-zinc-700" />
+                    <ContextMenuItem onClick={addFrame} className="hover:bg-zinc-800 cursor-pointer">
+                      <Plus className="w-4 h-4 mr-2" /> Add Frame
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={duplicateFrame} className="hover:bg-zinc-800 cursor-pointer">
+                      <Copy className="w-4 h-4 mr-2" /> Duplicate Frame
+                    </ContextMenuItem>
+                    <ContextMenuSeparator className="bg-zinc-700" />
+                    <ContextMenuItem onClick={() => setOnionSkin(!onionSkin)} className="hover:bg-zinc-800 cursor-pointer">
+                      <Layers className="w-4 h-4 mr-2" /> {onionSkin ? "Hide" : "Show"} Onion Skin
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={undo} className="hover:bg-zinc-800 cursor-pointer">
+                      <Undo className="w-4 h-4 mr-2" /> Undo <ContextMenuShortcut>Ctrl+Z</ContextMenuShortcut>
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={redo} className="hover:bg-zinc-800 cursor-pointer">
+                      <Redo className="w-4 h-4 mr-2" /> Redo <ContextMenuShortcut>Ctrl+Shift+Z</ContextMenuShortcut>
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               </div>
             </main>
 
