@@ -1094,3 +1094,224 @@ export const insertFestivalAwardSchema = createInsertSchema(festivalAwards).omit
 
 export type InsertFestivalAward = z.infer<typeof insertFestivalAwardSchema>;
 export type FestivalAward = typeof festivalAwards.$inferSelect;
+
+// ============================================
+// SOCIAL MEDIA MODULE
+// ============================================
+
+// Social Posts - Instagram/TikTok style posts
+export const socialPosts = pgTable("social_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  type: text("type").notNull().default("post"), // post, comic, card, repost
+  caption: text("caption"),
+  mediaUrls: jsonb("media_urls"), // array of image/video URLs
+  visibility: text("visibility").notNull().default("public"), // public, followers, private
+  likeCount: integer("like_count").notNull().default(0),
+  commentCount: integer("comment_count").notNull().default(0),
+  shareCount: integer("share_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
+  id: true,
+  likeCount: true,
+  commentCount: true,
+  shareCount: true,
+  createdAt: true,
+});
+
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+export type SocialPost = typeof socialPosts.$inferSelect;
+
+// Social Post Likes
+export const socialPostLikes = pgTable("social_post_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => socialPosts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSocialPostLikeSchema = createInsertSchema(socialPostLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSocialPostLike = z.infer<typeof insertSocialPostLikeSchema>;
+export type SocialPostLike = typeof socialPostLikes.$inferSelect;
+
+// Social Post Comments
+export const socialPostComments = pgTable("social_post_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => socialPosts.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  parentId: varchar("parent_id"), // for nested replies
+  body: text("body").notNull(),
+  likeCount: integer("like_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSocialPostCommentSchema = createInsertSchema(socialPostComments).omit({
+  id: true,
+  likeCount: true,
+  createdAt: true,
+});
+
+export type InsertSocialPostComment = z.infer<typeof insertSocialPostCommentSchema>;
+export type SocialPostComment = typeof socialPostComments.$inferSelect;
+
+// User Follows (social graph)
+export const userFollows = pgTable("user_follows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type UserFollow = typeof userFollows.$inferSelect;
+
+// Direct Messages - Threads
+export const dmThreads = pgTable("dm_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isGroup: boolean("is_group").notNull().default(false),
+  name: text("name"), // for group chats
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDmThreadSchema = createInsertSchema(dmThreads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDmThread = z.infer<typeof insertDmThreadSchema>;
+export type DmThread = typeof dmThreads.$inferSelect;
+
+// DM Thread Participants
+export const dmParticipants = pgTable("dm_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => dmThreads.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"), // owner, admin, member
+  lastReadAt: timestamp("last_read_at"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
+export const insertDmParticipantSchema = createInsertSchema(dmParticipants).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export type InsertDmParticipant = z.infer<typeof insertDmParticipantSchema>;
+export type DmParticipant = typeof dmParticipants.$inferSelect;
+
+// DM Messages
+export const dmMessages = pgTable("dm_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => dmThreads.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  attachments: jsonb("attachments"), // array of { type, url }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDmMessageSchema = createInsertSchema(dmMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDmMessage = z.infer<typeof insertDmMessageSchema>;
+export type DmMessage = typeof dmMessages.$inferSelect;
+
+// Notifications
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actorId: varchar("actor_id").references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // like, comment, follow, mention, collab_invite, dm
+  metadata: jsonb("metadata"), // { postId, commentId, etc }
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  isRead: true,
+  createdAt: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+// ============================================
+// LIVE COLLABORATION MODULE
+// ============================================
+
+// Collab Sessions
+export const collabSessions = pgTable("collab_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  inviteCode: varchar("invite_code").notNull().unique(),
+  maxEditors: integer("max_editors").notNull().default(4),
+  pageCount: integer("page_count").notNull().default(1),
+  status: text("status").notNull().default("active"), // active, paused, completed
+  settings: jsonb("settings"), // { allowChat, allowVoice, etc }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCollabSessionSchema = createInsertSchema(collabSessions).omit({
+  id: true,
+  inviteCode: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCollabSession = z.infer<typeof insertCollabSessionSchema>;
+export type CollabSession = typeof collabSessions.$inferSelect;
+
+// Collab Session Members
+export const collabMembers = pgTable("collab_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => collabSessions.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("editor"), // owner, editor, viewer
+  color: text("color"), // cursor/highlight color
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
+export const insertCollabMemberSchema = createInsertSchema(collabMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export type InsertCollabMember = z.infer<typeof insertCollabMemberSchema>;
+export type CollabMember = typeof collabMembers.$inferSelect;
+
+// Collab Presence (real-time state, may be in memory/redis in production)
+export const collabPresence = pgTable("collab_presence", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => collabSessions.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  cursor: jsonb("cursor"), // { x, y, pageId }
+  activeTool: text("active_tool"),
+  lastSeen: timestamp("last_seen").defaultNow().notNull(),
+});
+
+export const insertCollabPresenceSchema = createInsertSchema(collabPresence).omit({
+  id: true,
+});
+
+export type InsertCollabPresence = z.infer<typeof insertCollabPresenceSchema>;
+export type CollabPresence = typeof collabPresence.$inferSelect;
