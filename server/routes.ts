@@ -1111,6 +1111,169 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ============================================
+  // COMMUNITY CHAINS ROUTES
+  // ============================================
+
+  const chainThemes = [
+    "A mysterious traveler arrives at midnight...",
+    "The last robot on Earth wakes up...",
+    "Two rivals must work together to...",
+    "A secret door appears in the city...",
+    "The hero discovers their power is fading...",
+    "An unlikely friendship between enemies...",
+    "The final message from another dimension...",
+    "A curse that can only be broken by...",
+    "When magic and technology collide...",
+    "The adventure begins with a stolen artifact...",
+    "In a world where dreams become real...",
+    "The forgotten kingdom rises again...",
+    "A detective uncovers an impossible crime...",
+    "The last stand against the darkness...",
+    "Two timelines begin to merge...",
+    "An ancient prophecy comes true...",
+    "The city that exists between worlds...",
+    "A villain's redemption story...",
+    "When the monsters become heroes...",
+    "The day everything changed forever...",
+  ];
+
+  // Get random theme
+  app.get("/api/chains/random-theme", (req, res) => {
+    const theme = chainThemes[Math.floor(Math.random() * chainThemes.length)];
+    res.json({ theme });
+  });
+
+  // Create a new chain
+  app.post("/api/chains", isAuthenticated, async (req, res) => {
+    try {
+      const { title, description, visibility, maxContributions, tags, mediaUrl, contentType } = req.body;
+      
+      const chain = await storage.createCommunityChain({
+        creatorId: req.user!.id,
+        title,
+        description,
+        visibility: visibility || "public",
+        maxContributions,
+        tags,
+        thumbnail: mediaUrl,
+      });
+
+      // Add the first contribution (the starter)
+      await storage.addChainContribution({
+        chainId: chain.id,
+        userId: req.user!.id,
+        position: 1,
+        contentType: contentType || "image",
+        mediaUrl,
+        caption: description,
+      });
+
+      res.json(chain);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get public chains (open community)
+  app.get("/api/chains/public", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const chains = await storage.getPublicChains(limit, offset);
+      res.json(chains);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get mutuals chains (friends only)
+  app.get("/api/chains/mutuals", isAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const chains = await storage.getMutualsChains(req.user!.id, limit, offset);
+      res.json(chains);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's chains
+  app.get("/api/chains/mine", isAuthenticated, async (req, res) => {
+    try {
+      const chains = await storage.getUserChains(req.user!.id);
+      res.json(chains);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get single chain with contributions
+  app.get("/api/chains/:id", async (req, res) => {
+    try {
+      const chain = await storage.getCommunityChain(req.params.id);
+      if (!chain) {
+        return res.status(404).json({ message: "Chain not found" });
+      }
+      const contributions = await storage.getChainContributions(chain.id);
+      res.json({ ...chain, contributions });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add contribution to chain
+  app.post("/api/chains/:id/contribute", isAuthenticated, async (req, res) => {
+    try {
+      const chain = await storage.getCommunityChain(req.params.id);
+      if (!chain) {
+        return res.status(404).json({ message: "Chain not found" });
+      }
+
+      const canContribute = await storage.canContributeToChain(chain.id, req.user!.id);
+      if (!canContribute) {
+        return res.status(403).json({ message: "You cannot contribute to this chain" });
+      }
+
+      const { mediaUrl, contentType, caption, parentId } = req.body;
+      
+      const contribution = await storage.addChainContribution({
+        chainId: chain.id,
+        userId: req.user!.id,
+        parentId,
+        position: chain.contributionCount + 1,
+        contentType: contentType || "image",
+        mediaUrl,
+        caption,
+      });
+
+      res.json(contribution);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Like a contribution
+  app.post("/api/chains/contributions/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const like = await storage.likeContribution(req.params.id, req.user!.id);
+      res.json(like);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Unlike a contribution
+  app.delete("/api/chains/contributions/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      await storage.unlikeContribution(req.params.id, req.user!.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Publish collab to timeline (for all members)
   app.post("/api/collab/sessions/:id/publish", isAuthenticated, async (req, res) => {
     try {
