@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   ShoppingCart, Heart, Search, Filter, X, Plus, Minus, 
   Package, Truck, CreditCard, Check, ChevronRight, Loader2,
-  ZoomIn
+  ZoomIn, BookOpen, ExternalLink, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -295,6 +295,47 @@ export default function ShopPage() {
               <p className="text-muted-foreground">Try adjusting your search or filters</p>
             </div>
           )}
+
+          <div className="mt-16 border-t-4 border-border pt-12">
+            <div className="flex items-center gap-3 mb-6">
+              <BookOpen className="w-8 h-8" />
+              <h2 className="text-3xl font-black font-display">BOOKS & PUBLICATIONS</h2>
+            </div>
+            <p className="text-muted-foreground mb-8 max-w-2xl">
+              Explore our book series and publications. Dive into immersive stories and visual narratives from the Press Start CoMixx universe.
+            </p>
+            
+            <a 
+              href="https://darling-palmier-bed7cc.netlify.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block border-4 border-border hover:border-foreground transition-all bg-card overflow-hidden"
+              data-testid="link-book-series"
+            >
+              <div className="flex flex-col md:flex-row">
+                <div className="md:w-1/3 aspect-[3/4] md:aspect-auto bg-gradient-to-br from-zinc-900 via-zinc-800 to-black flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <Sparkles className="w-16 h-16 mx-auto mb-4 text-white/80" />
+                    <span className="text-2xl font-black text-white tracking-tight">BOOK SERIES</span>
+                  </div>
+                </div>
+                <div className="md:w-2/3 p-8 flex flex-col justify-center">
+                  <span className="text-xs font-bold uppercase text-muted-foreground mb-2 flex items-center gap-2">
+                    <ExternalLink className="w-3 h-3" /> External Site
+                  </span>
+                  <h3 className="text-2xl font-black mb-3 group-hover:underline">Press Start CoMixx Book Series</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Visit our dedicated book website to explore the complete collection, read sample chapters, 
+                    and discover the stories behind the Press Start universe. Available in digital and print formats.
+                  </p>
+                  <div className="flex items-center gap-2 text-sm font-bold">
+                    <span>Visit Book Site</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
         </div>
 
         {showCart && (
