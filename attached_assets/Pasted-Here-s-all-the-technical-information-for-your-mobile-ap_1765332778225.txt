@@ -1,0 +1,96 @@
+Here's all the technical information for your mobile app developer:
+
+1. DATA STRUCTURES
+Users Table
+id: string (UUID)
+email: string (unique)
+password: string (hashed)
+firstName: string
+lastName: string
+profileImageUrl: string
+username: string
+displayName: string
+avatar: string
+bio: string
+credits: integer (default: 50)
+level: integer (default: 1)
+xp: integer (default: 0)
+isPro: boolean (default: false)
+isAdmin: boolean (default: false)
+createdAt: timestamp
+updatedAt: timestamp
+
+Posts Table (Social Feed)
+id: string (UUID)
+userId: string (foreign key → users.id)
+contentType: string ('comic' | 'card' | 'cover')
+contentId: string (references the comic/card/cover ID)
+caption: string
+likesCount: integer (default: 0)
+commentsCount: integer (default: 0)
+createdAt: timestamp
+
+Comments Table
+id: string (UUID)
+userId: string (foreign key → users.id)
+postId: string (foreign key → posts.id)
+content: string
+createdAt: timestamp
+
+Likes Table
+id: string (UUID)
+userId: string (foreign key → users.id)
+postId: string (foreign key → posts.id)
+createdAt: timestamp
+
+Follows Table
+id: string (UUID)
+followerId: string (foreign key → users.id)
+followingId: string (foreign key → users.id)
+createdAt: timestamp
+
+2. AUTHENTICATION
+Type: Session-based with Passport.js (Local Strategy)
+
+Sessions are stored in PostgreSQL (sessions table)
+Passwords are hashed using scrypt with random salt
+Session cookies with 7-day expiration
+For mobile app integration: You'll need to add JWT token-based auth since mobile apps can't easily use browser sessions.
+
+3. API ENDPOINTS
+Authentication
+Method	Endpoint	Description
+POST	/api/auth/signup	Create account: { email, password, name }
+POST	/api/auth/login	Login: { email, password }
+POST	/api/auth/logout	Logout
+GET	/api/auth/me	Get current user
+Posts (Social Feed)
+Method	Endpoint	Description
+POST	/api/posts	Create post: { userId, contentType, contentId, caption }
+GET	/api/posts/feed?limit=20	Get public feed
+GET	/api/posts/following/:userId?limit=20	Get posts from followed users
+GET	/api/posts/:id	Get single post
+DELETE	/api/posts/:id	Delete post
+Likes
+Method	Endpoint	Description
+POST	/api/posts/:postId/like	Like post: { userId }
+DELETE	/api/posts/:postId/like	Unlike post: { userId }
+Comments
+Method	Endpoint	Description
+POST	/api/posts/:postId/comments	Add comment: { userId, content }
+GET	/api/posts/:postId/comments	Get post comments
+DELETE	/api/comments/:id	Delete comment
+Follows
+Method	Endpoint	Description
+POST	/api/users/:userId/follow	Follow user: { followerId }
+DELETE	/api/users/:userId/follow	Unfollow user: { followerId }
+GET	/api/users/:userId/followers	Get user's followers
+GET	/api/users/:userId/following	Get who user follows
+Users
+Method	Endpoint	Description
+GET	/api/users/:id	Get user by ID
+GET	/api/users/username/:username	Get user by username
+4. DATABASE CONNECTION
+The app uses PostgreSQL with Drizzle ORM. Your mobile app would need to connect to the same database, or call these API endpoints.
+
+Would you like me to add JWT authentication so your mobile app can connect more easily? That would let both apps share the same user accounts and data.
