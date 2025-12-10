@@ -309,6 +309,8 @@ export default function MotionStudio() {
   }, [project]);
 
   useEffect(() => {
+    if (studioMode !== "timeline") return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -324,7 +326,16 @@ export default function MotionStudio() {
     context.fillRect(0, 0, canvas.width, canvas.height);
     contextRef.current = context;
     setCanvasReady(true);
-  }, []);
+    
+    if (currentFrame.imageData) {
+      const img = new Image();
+      img.onload = () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0);
+      };
+      img.src = currentFrame.imageData;
+    }
+  }, [studioMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
