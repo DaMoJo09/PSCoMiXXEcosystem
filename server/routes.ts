@@ -1619,19 +1619,20 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   // ============================================
   // MOBILE APP COMPATIBILITY ROUTES
-  // Aliases that match mobile app's expected endpoints
+  // Aliases that match mobile app's expected endpoints with full validation
   // ============================================
   
-  // Posts aliases (mobile uses /api/posts, web uses /api/social/posts)
+  // Create post (mobile uses /api/posts, web uses /api/social/posts)
   app.post("/api/posts", isAuthenticated, async (req, res) => {
     try {
-      const { contentType, contentId, caption } = req.body;
+      const { contentType, contentId, caption, mediaUrls, visibility } = req.body;
       const post = await storage.createSocialPost({
         authorId: req.user!.id,
         projectId: contentId || null,
         type: contentType || "post",
         caption,
-        visibility: "public",
+        mediaUrls,
+        visibility: visibility || "public",
       });
       res.json(post);
     } catch (error: any) {
@@ -1639,88 +1640,150 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Get public feed (explore)
   app.get("/api/posts/feed", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
       const posts = await storage.getExplorePosts(limit, offset);
-      res.json(posts);
+      
+      if (req.isAuthenticated()) {
+        const postsWithLikeStatus = await Promise.all(
+          posts.map(async (post) => ({
+            ...post,
+            isLiked: await storage.isPostLiked(post.id, req.user!.id),
+          }))
+        );
+        return res.json(postsWithLikeStatus);
+      }
+      
+      res.json(posts.map(p => ({ ...p, isLiked: false })));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Get posts from followed users (uses authenticated user's ID for security)
   app.get("/api/posts/following/:userId", isAuthenticated, async (req, res) => {
     try {
+      // Security: Only allow users to view their own following feed
+      if (req.params.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Cannot view another user's feed" });
+      }
+      
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
-      const posts = await storage.getFeedPosts(req.params.userId, limit, offset);
-      res.json(posts);
+      const posts = await storage.getFeedPosts(req.user!.id, limit, offset);
+      
+      const postsWithLikeStatus = await Promise.all(
+        posts.map(async (post) => ({
+          ...post,
+          isLiked: await storage.isPostLiked(post.id, req.user!.id),
+        }))
+      );
+      
+      res.json(postsWithLikeStatus);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Get single post with visibility checks
   app.get("/api/posts/:id", async (req, res) => {
     try {
       const post = await storage.getSocialPost(req.params.id);
       if (!post) {
         return res.status(404).json({ message: "Post not found" });
       }
+      
+      if (post.visibility === "private") {
+        if (!req.isAuthenticated() || req.user!.id !== post.authorId) {
+          return res.status(403).json({ message: "This post is private" });
+        }
+      }
+      
+      if (post.visibility === "followers") {
+        if (!req.isAuthenticated()) {
+          return res.status(403).json({ message: "Please sign in to view this post" });
+        }
+        if (req.user!.id !== post.authorId) {
+          const isFollowing = await storage.isFollowing(req.user!.id, post.authorId);
+          if (!isFollowing) {
+            return res.status(403).json({ message: "You must follow this user to view their post" });
+          }
+        }
+      }
+      
       res.json(post);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.delete("/api/posts/:id", isAuthenticated, async (req, res) => {
-    try {
-      const post = await storage.getSocialPost(req.params.id);
-      if (!post) {
-        return res.status(404).json({ message: "Post not found" });
-      }
-      if (post.authorId !== req.user!.id && req.user!.role !== "admin") {
-        return res.status(403).json({ message: "Not authorized" });
-      }
-      // Note: Would need to add deleteSocialPost to storage
-      res.json({ message: "Post deleted" });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
+  // Like post with duplicate check and notification
   app.post("/api/posts/:postId/like", isAuthenticated, async (req, res) => {
     try {
+      const isAlreadyLiked = await storage.isPostLiked(req.params.postId, req.user!.id);
+      if (isAlreadyLiked) {
+        return res.status(400).json({ message: "Already liked" });
+      }
+      
       const like = await storage.likePost(req.params.postId, req.user!.id);
+      
+      const post = await storage.getSocialPost(req.params.postId);
+      if (post && post.authorId !== req.user!.id) {
+        await storage.createNotification({
+          userId: post.authorId,
+          actorId: req.user!.id,
+          type: "like",
+          metadata: { postId: req.params.postId },
+        });
+      }
+      
       res.json(like);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Unlike post
   app.delete("/api/posts/:postId/like", isAuthenticated, async (req, res) => {
     try {
-      await storage.unlikePost(req.params.postId, req.user!.id);
-      res.json({ message: "Unliked" });
+      const success = await storage.unlikePost(req.params.postId, req.user!.id);
+      res.json({ success });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Add comment with notification
   app.post("/api/posts/:postId/comments", isAuthenticated, async (req, res) => {
     try {
-      const { content } = req.body;
+      const { content, body, parentId } = req.body;
       const comment = await storage.addComment({
         postId: req.params.postId,
         authorId: req.user!.id,
-        body: content,
+        body: body || content,
+        parentId,
       });
+      
+      const post = await storage.getSocialPost(req.params.postId);
+      if (post && post.authorId !== req.user!.id) {
+        await storage.createNotification({
+          userId: post.authorId,
+          actorId: req.user!.id,
+          type: "comment",
+          metadata: { postId: req.params.postId, commentId: comment.id },
+        });
+      }
+      
       res.json(comment);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Get comments
   app.get("/api/posts/:postId/comments", async (req, res) => {
     try {
       const comments = await storage.getPostComments(req.params.postId);
@@ -1730,28 +1793,44 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  // User/follow aliases (mobile uses /api/users, web uses /api/social)
+  // Follow user with duplicate check and notification
   app.post("/api/users/:userId/follow", isAuthenticated, async (req, res) => {
     try {
       if (req.user!.id === req.params.userId) {
         return res.status(400).json({ message: "Cannot follow yourself" });
       }
+      
+      const isAlreadyFollowing = await storage.isFollowing(req.user!.id, req.params.userId);
+      if (isAlreadyFollowing) {
+        return res.status(400).json({ message: "Already following" });
+      }
+      
       const follow = await storage.followUser(req.user!.id, req.params.userId);
+      
+      await storage.createNotification({
+        userId: req.params.userId,
+        actorId: req.user!.id,
+        type: "follow",
+        metadata: {},
+      });
+      
       res.json(follow);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Unfollow user
   app.delete("/api/users/:userId/follow", isAuthenticated, async (req, res) => {
     try {
-      await storage.unfollowUser(req.user!.id, req.params.userId);
-      res.json({ message: "Unfollowed" });
+      const success = await storage.unfollowUser(req.user!.id, req.params.userId);
+      res.json({ success });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
+  // Get user's followers
   app.get("/api/users/:userId/followers", async (req, res) => {
     try {
       const followers = await storage.getFollowers(req.params.userId);
@@ -1761,6 +1840,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Get user's following
   app.get("/api/users/:userId/following", async (req, res) => {
     try {
       const following = await storage.getFollowing(req.params.userId);
@@ -1770,6 +1850,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Get user by ID with follow counts
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
