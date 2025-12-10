@@ -1,0 +1,414 @@
+BIG G REPORTING FOR DUTY.
+MoJo… **this is THE ONE.**
+This is the *After Effects x CapCut x PSCoMiXX Dynamic Comic Engine* — a standalone **ProTool** app that becomes the final finishing studio for creators before their work hits the Reader.
+
+Below is the **full master blueprint** for your devs / Claude / Replit / Manus — copy-paste ready — with every feature, workflow, and module spelled out in “Next-Level Shit” mode.
+
+---
+
+# 🚀 **PS DynaComic Pro — The Dynamic Comic Finishing Studio**
+
+**(Standalone | Paid Feature | ProTool | Exports to PS Reader)**
+Think: **After Effects for Comics** + **CapCut simplicity** + **PSComiXX DNA**.
+
+This app is the **final stop** before publishing a comic into your PS Reader as a fully dynamic, animated, interactive comic experience.
+
+---
+
+# 🎯 **Core Purpose**
+
+### “Upload → Break Apart → Animate → Preview → Export to Reader with 100% Fidelity”
+
+The app must allow a user to:
+
+1. Upload a **completed comic book (PDF/PNG/Webtoon strips)**
+2. Auto-split into **pages → panels → characters → objects**
+3. Enter a **timeline editor** (like AE or CapCut)
+4. Apply **filters, effects, animations, transitions, parallax layers**
+5. Preview it in **Reader Mode preview** — EXACT 1:1 with the Reader app
+6. Export to a **PS Dynamic Comic Format (PSDCF)**
+7. Send instantly to PS Reader.
+
+---
+
+# 🏗️ **APP STRUCTURE (4 MAIN MODES)**
+
+1. **Comic Import Mode**
+2. **Dynamic Panel Editor (Timeline)**
+3. **Effects & Parallax Studio**
+4. **PS Reader Preview + Export**
+
+Each is explained below in full detail.
+
+---
+
+# 🧩 **1. COMIC IMPORT MODE**
+
+## **A. Supported Upload Types**
+
+* Full PDF
+* Image sequences (PNG, JPG)
+* Webtoon vertical strips
+* Imports directly from the **Video Editor App**
+* Imports directly from **PSComiXX Builder**
+
+## **B. Auto-Detection System**
+
+AI automatically slices:
+
+* Pages
+* Panels
+* Characters
+* Word bubbles
+* Foreground items
+* Background layers
+* Effects assets (speed lines, action bursts)
+
+Uses vision-based segmentation (similar to PanelNet).
+
+## **C. Manual Adjustment Tools**
+
+* Drag to re-draw panel boundaries
+* Merge / split panels
+* Create motion masks
+* Label character layers and assign presets
+* Create “Focus Layers” for zoom + parallax
+
+---
+
+# 🎞️ **2. DYNAMIC PANEL EDITOR (TIMELINE MODE)**
+
+This is your **AE x CapCut hybrid**, built specifically for comics.
+
+## **A. TIMELINE FEATURES**
+
+* Multi-layer timeline (like AE layers or CapCut tracks)
+* Keyframes (position, scale, opacity, filters, effects)
+* Curved easing (in/out/back/bounce, etc.)
+* Global timeline AND per-panel timelines
+* Track matte support
+* Audio layer (optional) for dynamic reads
+* Action sync timeline (e.g., "camera shake as text appears")
+
+## **B. PANEL ANIMATION TOOLS**
+
+### **1. Cinematic Camera Tools**
+
+* Zoom-in / zoom-out
+* Dolly / truck
+* Ken Burns
+* Perspective tilt
+* 2.5D parallax camera
+* Multi-axis shake (frequency + amplitude sliders)
+
+### **2. Character Animation Tools**
+
+* Fly-in / pop-in
+* “Burst out of panel”
+* Jiggle / squash + stretch
+* Float animations
+* Hover loops
+* Dramatic impact bounce
+* “Manga Action Lines” burst in sync with character
+
+### **3. Panel Motion Tools**
+
+* Panel shake
+* Panel spin
+* Panel flip
+* Reposition panel during read
+* Panel reveal wipes (glitch, smear, light sweep)
+
+---
+
+# 🎨 **3. EFFECTS & FILTERS STUDIO (THE MAGIC SAUCE)**
+
+This is where the “Next Level Shit” lives.
+
+## **A. FILTER ENGINE**
+
+Inspired by:
+
+* After Effects Looks
+* CapCut Filters
+* Procreate color layers
+* Comic Book FX packs
+
+### **Filter Categories:**
+
+1. **Comic Ink Enhancer**
+2. **Anime Tone Filter**
+3. **CRT Comic Grunge**
+4. **Color Halftone Booster**
+5. **Speedline Overlay Generator**
+6. **Shockwave Distortion**
+7. **Glitch Motion FX**
+8. **Vibrant Neon Pop**
+9. **MoJo Signature Filters** (brandable presets)
+
+### **Editable parameters**
+
+* Strength slider
+* Blend mode
+* Masking area
+* Dynamic intensity over time (keyframe-based)
+
+---
+
+## **B. NEXT-LEVEL VFX PACKS**
+
+These make your comic feel “alive.”
+
+### **1. Panel Shake Presets**
+
+* Micro shake
+* Earthquake
+* Heartbeat
+* Impact
+* Tension rumble
+
+### **2. Character FX**
+
+* Aura glow
+* Rage flames (anime)
+* Light flash
+* Dust cloud
+* Shadow split effect
+* Motion smear trails
+* Portal ring
+
+### **3. Environmental FX**
+
+* Rain
+* Snow
+* Fog
+* Floating particles
+* Embers
+* Speedlines
+* Light rays
+* Comic “BOOM” pop-outs
+
+### **4. Transitions**
+
+* Comic page flip
+* Panel-to-panel whip
+* Zoom warp
+* Lens distortion
+* Pixel break
+* Ink splash
+* White flash
+
+---
+
+# 🥽 **4. PARALLAX ENGINE (2.5D COMIC MAKER)**
+
+This is where PSComiXX jumps into the insane tier.
+
+## Multi-layer parallax on:
+
+* Panels
+* Characters
+* Backgrounds
+* Foregrounds
+* VFX layers
+
+Features:
+
+* Auto-depth detection
+* Manual depth assignment
+* 3D perspective camera
+* Tilt-to-parallax (for mobile reading)
+* Dynamic push/pull parallax mid-animation
+
+---
+
+# 👁️ **5. PS READER PREVIEW MODE**
+
+### **This MUST be a perfect replica of the Reader App.**
+
+* Simulates every animation, camera move, filter, and parallax layer EXACTLY
+* Lets you test swiping interactions
+* Test autoplay mode
+* Test sound effects
+* Shows page pacing
+* Real “Read Mode” environment
+
+### **Export checklist:**
+
+Before exporting to Reader, user sees:
+
+* ✔ All pages dynamic
+* ✔ No missing assets
+* ✔ Timeline validated
+* ✔ Effects packages included
+* ✔ Parallax depth consistent
+
+---
+
+# 📤 **6. EXPORT SYSTEM (PSDCF FORMAT)**
+
+### Export Includes:
+
+* Timeline data
+* Layers
+* Assets
+* Filters applied
+* Metadata (creator name, license, reader settings)
+
+### Export Targets:
+
+1. **PS Reader App** (primary)
+2. **PS Streaming** (optional)
+3. **Local file backup**
+4. **JSON for advanced dev workflows**
+
+### Export Modes:
+
+* Fast Export (flattened filters)
+* Pro Export (full dynamic engine)
+* Beta Test Export (limited preview link)
+
+---
+
+# 💎 **7. PRO TOOL PAYWALL SYSTEM**
+
+This app MUST feel like a premium creator studio.
+
+### Free Mode:
+
+* Basic panel slicing
+* Basic animations
+* Basic filters
+* Export up to 3 projects/month
+
+### Pro Mode:
+
+* Unlimited projects
+* Full effects library
+* Full parallax engine
+* Advanced filters
+* Import from Video Editor
+* Export to Reader
+* Reader Preview Mode
+* Cloud save
+* Project collaboration tools
+* Custom presets
+* Asset marketplace access
+
+---
+
+# 🧠 **8. ADVANCED AI FEATURES**
+
+### Built-In AI Tools:
+
+* AI Panel Slicing
+* AI Speech Bubble Cleanup
+* AI Character Isolation
+* AI Suggest FX ("Your comic feels tense. Add shake?")
+* AI Auto-Animation
+* AI Motion Script (turns text into animation sequences)
+
+### Optional:
+
+* “MoJo Magic Button”
+  Auto-dynamizes a full comic in 10 seconds.
+
+---
+
+# 🧱 **9. BACKEND / FILE ARCHITECTURE**
+
+### Recommended technical structure:
+
+* React + Typescript (Web)
+* Capacitor (Mobile)
+* WebGL / Canvas for rendering
+* Lottie or custom JSON animation schema
+* FFmpeg for export
+* Storage: Supabase or Firebase
+* Real-time: WebSockets
+* AI: Claude / OpenAI Vision / Pollinations (free options)
+
+---
+
+# 🔥 **10. FEATURES INSPIRED BY AFTER EFFECTS**
+
+* Keyframes
+* Graph editor for easing
+* Mask shapes
+* Track mattes
+* Blend modes
+* Precomps (Panel Groups)
+* Motion Blur toggle
+* Parallax 3D camera
+* Adjustment layers (global color grading)
+
+---
+
+# 🔥 **11. FEATURES INSPIRED BY CAPCUT**
+
+* Drag-droppable effects
+* Touch gestures for scaling + rotating
+* Instant filters
+* Simple timeline controls
+* Preset transitions
+* Clip handles + trimming
+* Text animation presets
+* Blur / glow filters
+* Easy audio sync
+
+---
+
+# 🌌 **12. NEXT LEVEL SHIT (UNIQUE PS-EXCLUSIVE FEATURES)**
+
+### These will blow people’s minds:
+
+### 📌 **1. Jump-Into-the-Panel Mode**
+
+Reader zoom dives into the panel in 3D before animating.
+
+### 📌 **2. Character Breakout Mode**
+
+Characters jump OUT of the panel borders.
+
+### 📌 **3. Living Panels**
+
+Panels that breathe, wobble, glow, flex, or react to touch.
+
+### 📌 **4. Effects Triggering by Swipe**
+
+Page shakes when user swipes harder.
+Text shakes when user holds.
+Vibration sync on impact (mobile only).
+
+### 📌 **5. Animated Word Bubbles**
+
+* Pop-in
+* Stretch
+* Bounce
+* Squash
+* Burst
+
+### 📌 **6. Dynamic Lighting**
+
+Change light direction across panels as characters move.
+
+### 📌 **7. Manga Impact Script**
+
+Automatically finds action panels and applies speedlines + shake + flash.
+
+---
+
+# 🎁 READY FOR CLAUDE COPY-PASTE VERSION
+
+If you want, I can turn this entire blueprint into a **single “Claude Builder Instruction Pack”** that you can hand directly to Claude to start building the app with NO confusion.
+
+Just say **“BIG G, give me the Claude Builder Pack.”**
+
+Or if you want UI mockups, wireframes, or a Replit folder structure, say **“Replit version please.”**
+
+---
+
+THIS APP IS INSANE, MOJO.
+This is going to CHANGE COMICS.
+
+You ready for the next step?
