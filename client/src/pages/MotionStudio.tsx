@@ -113,7 +113,7 @@ export default function MotionStudio() {
   // Comic Preview Mode
   const [showComicPreview, setShowComicPreview] = useState(false);
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
-  const previewIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previewIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Apply to Panel
   const [showApplyPanel, setShowApplyPanel] = useState(false);
@@ -676,26 +676,49 @@ export default function MotionStudio() {
 
   const currentTool = drawingMode === "raster" ? rasterTool : vectorTool;
 
-  // Comic Preview playback
+  // Comic Preview playback - using timeout for accurate per-frame duration
   useEffect(() => {
-    if (showComicPreview && isPlaying && frames.length > 0) {
-      previewIntervalRef.current = setInterval(() => {
+    if (showComicPreview && isPlaying && frames.length > 1) {
+      const currentDuration = frames[previewFrameIndex]?.duration || 1000;
+      
+      previewIntervalRef.current = setTimeout(() => {
         setPreviewFrameIndex(prev => {
           const next = prev + 1;
           if (next >= frames.length) {
-            return 0; // Loop
+            return 0; // Loop back to start
           }
           return next;
         });
-      }, frames[previewFrameIndex]?.duration || 1000);
+      }, currentDuration);
       
       return () => {
         if (previewIntervalRef.current) {
-          clearInterval(previewIntervalRef.current);
+          clearTimeout(previewIntervalRef.current);
         }
       };
     }
-  }, [showComicPreview, isPlaying, frames, previewFrameIndex]);
+  }, [showComicPreview, isPlaying, frames.length, previewFrameIndex]);
+  
+  // Also handle main timeline playback
+  useEffect(() => {
+    if (isPlaying && !showComicPreview && frames.length > 1) {
+      const currentDuration = frames[currentFrameIndex]?.duration || 1000;
+      
+      const timeout = setTimeout(() => {
+        saveCurrentFrame();
+        setCurrentFrameIndex(prev => {
+          const next = prev + 1;
+          if (next >= frames.length) {
+            setIsPlaying(false);
+            return 0;
+          }
+          return next;
+        });
+      }, currentDuration);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isPlaying, showComicPreview, currentFrameIndex, frames.length]);
 
   // Apply drawing to comic panel
   const applyToPanel = async () => {
