@@ -9,10 +9,11 @@ import {
   Eye, EyeOff, Lock, Unlock,
   X, Pen, Eraser, MousePointer, Undo2, Redo2,
   Circle, Square, Minus, ArrowRight, PenTool, Pencil,
-  Palette, Type, Image as ImageIcon
+  Palette, Type, Image as ImageIcon,
+  BookOpen, Layers, MonitorPlay, Check
 } from "lucide-react";
 import { toast } from "sonner";
-import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
 
 // Drawing Types
 type DrawingMode = "raster" | "vector";
@@ -108,6 +109,18 @@ export default function MotionStudio() {
   // History
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Comic Preview Mode
+  const [showComicPreview, setShowComicPreview] = useState(false);
+  const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
+  const previewIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Apply to Panel
+  const [showApplyPanel, setShowApplyPanel] = useState(false);
+  const { data: comicProjects } = useProjects();
+  const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
+  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
+  const { data: selectedComic } = useProject(selectedComicId || '');
 
   // Initialize project
   useEffect(() => {
@@ -663,6 +676,131 @@ export default function MotionStudio() {
 
   const currentTool = drawingMode === "raster" ? rasterTool : vectorTool;
 
+  // Comic Preview playback
+  useEffect(() => {
+    if (showComicPreview && isPlaying && frames.length > 0) {
+      previewIntervalRef.current = setInterval(() => {
+        setPreviewFrameIndex(prev => {
+          const next = prev + 1;
+          if (next >= frames.length) {
+            return 0; // Loop
+          }
+          return next;
+        });
+      }, frames[previewFrameIndex]?.duration || 1000);
+      
+      return () => {
+        if (previewIntervalRef.current) {
+          clearInterval(previewIntervalRef.current);
+        }
+      };
+    }
+  }, [showComicPreview, isPlaying, frames, previewFrameIndex]);
+
+  // Apply drawing to comic panel
+  const applyToPanel = async () => {
+    if (!selectedComicId || !selectedPanelId) {
+      toast.error("Please select a comic and panel");
+      return;
+    }
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const imageData = canvas.toDataURL('image/png');
+    
+    try {
+      const comicData = selectedComic?.data as any;
+      if (!comicData?.spreads) {
+        toast.error("Invalid comic data");
+        return;
+      }
+      
+      // Find and update the panel
+      const updatedSpreads = comicData.spreads.map((spread: any) => ({
+        ...spread,
+        leftPage: spread.leftPage.map((panel: any) => {
+          if (panel.id === selectedPanelId) {
+            return {
+              ...panel,
+              contents: [
+                ...panel.contents,
+                {
+                  id: `content_${Date.now()}`,
+                  type: "drawing",
+                  transform: { x: 0, y: 0, width: panel.width, height: panel.height, rotation: 0, scaleX: 1, scaleY: 1 },
+                  data: { 
+                    drawingData: imageData,
+                    vectorData: vectorPaths,
+                    motionFrames: frames,
+                    isMotion: true
+                  },
+                  zIndex: panel.contents.length,
+                  locked: false
+                }
+              ]
+            };
+          }
+          return panel;
+        }),
+        rightPage: spread.rightPage.map((panel: any) => {
+          if (panel.id === selectedPanelId) {
+            return {
+              ...panel,
+              contents: [
+                ...panel.contents,
+                {
+                  id: `content_${Date.now()}`,
+                  type: "drawing",
+                  transform: { x: 0, y: 0, width: panel.width, height: panel.height, rotation: 0, scaleX: 1, scaleY: 1 },
+                  data: { 
+                    drawingData: imageData,
+                    vectorData: vectorPaths,
+                    motionFrames: frames,
+                    isMotion: true
+                  },
+                  zIndex: panel.contents.length,
+                  locked: false
+                }
+              ]
+            };
+          }
+          return panel;
+        })
+      }));
+      
+      await updateProject.mutateAsync({
+        id: selectedComicId,
+        data: { data: { ...comicData, spreads: updatedSpreads } }
+      });
+      
+      toast.success("Applied to panel!");
+      setShowApplyPanel(false);
+      setSelectedComicId(null);
+      setSelectedPanelId(null);
+    } catch (err) {
+      toast.error("Failed to apply to panel");
+    }
+  };
+
+  // Get panels from selected comic
+  const getComicPanels = () => {
+    if (!selectedComic?.data) return [];
+    const data = selectedComic.data as any;
+    if (!data.spreads) return [];
+    
+    const panels: { id: string; label: string }[] = [];
+    data.spreads.forEach((spread: any, sIdx: number) => {
+      spread.leftPage?.forEach((panel: any, pIdx: number) => {
+        panels.push({ id: panel.id, label: `Spread ${sIdx + 1} Left - Panel ${pIdx + 1}` });
+      });
+      spread.rightPage?.forEach((panel: any, pIdx: number) => {
+        panels.push({ id: panel.id, label: `Spread ${sIdx + 1} Right - Panel ${pIdx + 1}` });
+      });
+    });
+    return panels;
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden select-none">
       {/* Top Command Bar */}
@@ -702,6 +840,18 @@ export default function MotionStudio() {
         </div>
         
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowComicPreview(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2"
+            data-testid="button-preview">
+            <MonitorPlay className="w-3.5 h-3.5" />
+            Preview
+          </button>
+          <button onClick={() => setShowApplyPanel(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-2"
+            data-testid="button-apply-panel">
+            <Layers className="w-3.5 h-3.5" />
+            Apply to Panel
+          </button>
           <button onClick={handleSave} disabled={isSaving}
             className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             data-testid="button-save">
@@ -1142,6 +1292,158 @@ export default function MotionStudio() {
           </aside>
         )}
       </div>
+
+      {/* Comic Preview Modal */}
+      {showComicPreview && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
+          <div className="h-14 bg-[#111] border-b border-[#252525] flex items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-5 h-5 text-violet-400" />
+              <span className="text-sm font-semibold">Comic Preview</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setPreviewFrameIndex(Math.max(0, previewFrameIndex - 1))}
+                className="p-2 hover:bg-[#252525] rounded-lg">
+                <SkipBack className="w-4 h-4 text-zinc-400" />
+              </button>
+              <button onClick={() => setIsPlaying(!isPlaying)}
+                className={`p-2.5 rounded-lg ${isPlaying ? 'bg-violet-600' : 'bg-[#252525]'}`}>
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <button onClick={() => setPreviewFrameIndex(Math.min(frames.length - 1, previewFrameIndex + 1))}
+                className="p-2 hover:bg-[#252525] rounded-lg">
+                <SkipForward className="w-4 h-4 text-zinc-400" />
+              </button>
+              <span className="text-xs text-zinc-400 ml-2">
+                Frame {previewFrameIndex + 1} of {frames.length}
+              </span>
+            </div>
+            <button onClick={() => { setShowComicPreview(false); setIsPlaying(false); }}
+              className="p-2 hover:bg-[#252525] rounded-lg">
+              <X className="w-5 h-5 text-zinc-400" />
+            </button>
+          </div>
+          
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="relative bg-white rounded-lg shadow-2xl overflow-hidden" style={{ maxWidth: '80vw', maxHeight: '80vh' }}>
+              {frames[previewFrameIndex]?.imageData ? (
+                <img 
+                  src={frames[previewFrameIndex].imageData} 
+                  alt={`Frame ${previewFrameIndex + 1}`}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              ) : (
+                <div className="w-[640px] h-[360px] bg-zinc-900 flex items-center justify-center">
+                  <span className="text-zinc-500">No content in this frame</span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Frame Thumbnails */}
+          <div className="h-24 bg-[#111] border-t border-[#252525] flex items-center gap-2 px-4 overflow-x-auto">
+            {frames.map((frame, idx) => (
+              <button key={frame.id}
+                onClick={() => setPreviewFrameIndex(idx)}
+                className={`w-20 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition-all ${
+                  idx === previewFrameIndex ? 'border-violet-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                }`}>
+                {frame.imageData ? (
+                  <img src={frame.imageData} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                    <span className="text-[10px] text-zinc-500">{idx + 1}</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Apply to Panel Modal */}
+      {showApplyPanel && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141414] rounded-xl border border-[#252525] w-full max-w-lg">
+            <div className="p-4 border-b border-[#252525] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-emerald-400" />
+                <span className="text-sm font-semibold">Apply to Comic Panel</span>
+              </div>
+              <button onClick={() => setShowApplyPanel(false)} className="p-1 hover:bg-[#252525] rounded">
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Select Comic */}
+              <div>
+                <label className="text-xs text-zinc-400 block mb-2">Select Comic Project</label>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {comicProjects?.filter(p => p.type === 'comic').map(comic => (
+                    <button key={comic.id}
+                      onClick={() => { setSelectedComicId(comic.id); setSelectedPanelId(null); }}
+                      className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
+                        selectedComicId === comic.id 
+                          ? 'bg-emerald-600/20 border border-emerald-500/50' 
+                          : 'bg-[#1a1a1a] hover:bg-[#202020] border border-transparent'
+                      }`}>
+                      <BookOpen className="w-4 h-4 text-zinc-400" />
+                      <span className="text-sm">{comic.title}</span>
+                      {selectedComicId === comic.id && <Check className="w-4 h-4 text-emerald-400 ml-auto" />}
+                    </button>
+                  ))}
+                  {(!comicProjects || comicProjects.filter(p => p.type === 'comic').length === 0) && (
+                    <div className="p-4 text-center text-zinc-500 text-xs">
+                      No comic projects found. Create a comic first.
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Select Panel */}
+              {selectedComicId && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-2">Select Panel</label>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {getComicPanels().map(panel => (
+                      <button key={panel.id}
+                        onClick={() => setSelectedPanelId(panel.id)}
+                        className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
+                          selectedPanelId === panel.id 
+                            ? 'bg-emerald-600/20 border border-emerald-500/50' 
+                            : 'bg-[#1a1a1a] hover:bg-[#202020] border border-transparent'
+                        }`}>
+                        <Square className="w-4 h-4 text-zinc-400" />
+                        <span className="text-sm">{panel.label}</span>
+                        {selectedPanelId === panel.id && <Check className="w-4 h-4 text-emerald-400 ml-auto" />}
+                      </button>
+                    ))}
+                    {getComicPanels().length === 0 && (
+                      <div className="p-4 text-center text-zinc-500 text-xs">
+                        No panels found. Add panels to your comic first.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-[#252525] flex justify-end gap-2">
+              <button onClick={() => setShowApplyPanel(false)}
+                className="px-4 py-2 text-sm bg-[#1a1a1a] hover:bg-[#252525] rounded-lg">
+                Cancel
+              </button>
+              <button onClick={applyToPanel}
+                disabled={!selectedComicId || !selectedPanelId}
+                className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                Apply to Panel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
