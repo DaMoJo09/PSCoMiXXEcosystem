@@ -90,6 +90,90 @@ const COLORS = [
   "#888888", "#444444"
 ];
 
+// Map CSS blend modes to Canvas composite operations
+const mapBlendMode = (mode: string): GlobalCompositeOperation => {
+  const modeMap: Record<string, GlobalCompositeOperation> = {
+    'normal': 'source-over',
+    'multiply': 'multiply',
+    'screen': 'screen',
+    'overlay': 'overlay',
+    'darken': 'darken',
+    'lighten': 'lighten',
+    'color-dodge': 'color-dodge',
+    'color-burn': 'color-burn',
+    'hard-light': 'hard-light',
+    'soft-light': 'soft-light',
+    'difference': 'difference',
+    'exclusion': 'exclusion',
+    'hue': 'hue',
+    'saturation': 'saturation',
+    'color': 'color',
+    'luminosity': 'luminosity',
+  };
+  return modeMap[mode] || 'source-over';
+};
+
+// Composite frame with effects applied
+const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!frame.imageData) {
+      resolve("");
+      return;
+    }
+    
+    const offscreen = document.createElement('canvas');
+    offscreen.width = 1920;
+    offscreen.height = 1080;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) {
+      resolve(frame.imageData);
+      return;
+    }
+    
+    // Fill with black background
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+    
+    // Load the frame image
+    const img = new Image();
+    img.onload = () => {
+      // Apply blend mode and opacity from frame metadata
+      ctx.globalAlpha = (frame.opacity ?? 100) / 100;
+      ctx.globalCompositeOperation = mapBlendMode(frame.blendMode || 'normal');
+      
+      // Draw the frame
+      ctx.drawImage(img, 0, 0);
+      
+      // Reset for any additional effects
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // Apply quick FX overlays if any (visual indicators)
+      if (frame.effects?.length) {
+        // Add subtle effect indicators to exported frame
+        frame.effects.forEach(effectId => {
+          if (effectId === 'vignette') {
+            const gradient = ctx.createRadialGradient(960, 540, 0, 960, 540, 1100);
+            gradient.addColorStop(0.7, 'transparent');
+            gradient.addColorStop(1, 'rgba(0,0,0,0.6)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+          } else if (effectId === 'sepia') {
+            ctx.fillStyle = 'rgba(112,66,20,0.2)';
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+            ctx.globalCompositeOperation = 'source-over';
+          }
+        });
+      }
+      
+      resolve(offscreen.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(frame.imageData);
+    img.src = frame.imageData;
+  });
+};
+
 export default function MotionStudio() {
   const [location, navigate] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
@@ -267,6 +351,35 @@ export default function MotionStudio() {
     }
   }, [currentFrameIndex, frames]);
 
+  // Auto-save effects metadata when changed (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const currentFrame = frames[currentFrameIndex];
+      if (!currentFrame) return;
+      
+      // Only update if metadata differs from stored
+      const needsUpdate = 
+        JSON.stringify(currentFrame.effects) !== JSON.stringify(activeEffects) ||
+        currentFrame.opacity !== frameOpacity ||
+        currentFrame.blendMode !== blendMode ||
+        currentFrame.easing !== selectedEasing;
+        
+      if (needsUpdate) {
+        setFrames(prev => prev.map((f, i) => 
+          i === currentFrameIndex ? {
+            ...f,
+            effects: activeEffects,
+            opacity: frameOpacity,
+            blendMode,
+            easing: selectedEasing
+          } : f
+        ));
+      }
+    }, 300); // Debounce 300ms
+    
+    return () => clearTimeout(timeoutId);
+  }, [activeEffects, frameOpacity, blendMode, selectedEasing, currentFrameIndex]);
+
   // History management
   const saveToHistory = useCallback(() => {
     const canvas = canvasRef.current;
@@ -424,7 +537,9 @@ export default function MotionStudio() {
     toast.success("Frame duplicated");
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    toast.info("Compositing frames with effects...");
+    
     // Compute updated frames inline to include current state
     const canvas = canvasRef.current;
     const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
@@ -444,11 +559,19 @@ export default function MotionStudio() {
       } : f
     );
     
+    // Composite all frames with their effects applied
+    const compositedFrames = await Promise.all(
+      updatedFrames.map(async (frame) => {
+        const compositedImage = await compositeFrameWithEffects(frame);
+        return { ...frame, compositedImageData: compositedImage };
+      })
+    );
+    
     const exportData = {
       version: "1.0",
       format: "PSDCF",
       project: { title, createdAt: new Date().toISOString() },
-      frames: updatedFrames,
+      frames: compositedFrames,
       tracks,
     };
     
@@ -459,7 +582,7 @@ export default function MotionStudio() {
     a.download = `${title.replace(/\s+/g, '_')}.psdcf`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Exported successfully");
+    toast.success("Exported with effects applied!");
   };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
