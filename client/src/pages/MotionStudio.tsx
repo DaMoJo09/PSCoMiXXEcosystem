@@ -10,10 +10,44 @@ import {
   X, Pen, Eraser, MousePointer, Undo2, Redo2,
   Circle, Square, Minus, ArrowRight, PenTool, Pencil,
   Palette, Type, Image as ImageIcon,
-  BookOpen, Layers, MonitorPlay, Check
+  BookOpen, Layers, MonitorPlay, Check,
+  Blend, Droplets, Zap, Move, RotateCcw, FlipHorizontal,
+  Diamond, Clock, TrendingUp, Sliders, GitBranch, Aperture,
+  Volume2, Grid3X3, Focus, Lightbulb, Wind, Flame
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
+import { AssetBrowser } from "@/components/tools/AssetBrowser";
+
+// Easing presets
+const EASING_PRESETS = [
+  { id: "linear", name: "Linear", curve: "linear" },
+  { id: "ease-in", name: "Ease In", curve: "ease-in" },
+  { id: "ease-out", name: "Ease Out", curve: "ease-out" },
+  { id: "ease-in-out", name: "Ease In Out", curve: "ease-in-out" },
+  { id: "bounce", name: "Bounce", curve: "bounce" },
+  { id: "elastic", name: "Elastic", curve: "elastic" },
+];
+
+// FX Presets
+const FX_PRESETS = [
+  { id: "shake", name: "Shake", icon: Wind, color: "text-orange-400" },
+  { id: "zoom-in", name: "Zoom In", icon: ZoomIn, color: "text-blue-400" },
+  { id: "zoom-out", name: "Zoom Out", icon: ZoomOut, color: "text-blue-400" },
+  { id: "pan-left", name: "Pan Left", icon: ArrowLeft, color: "text-green-400" },
+  { id: "pan-right", name: "Pan Right", icon: ArrowRight, color: "text-green-400" },
+  { id: "fade-in", name: "Fade In", icon: Aperture, color: "text-purple-400" },
+  { id: "fade-out", name: "Fade Out", icon: Aperture, color: "text-purple-400" },
+  { id: "blur", name: "Blur", icon: Focus, color: "text-cyan-400" },
+  { id: "flash", name: "Flash", icon: Lightbulb, color: "text-yellow-400" },
+  { id: "glow", name: "Glow", icon: Flame, color: "text-amber-400" },
+];
+
+// Blend Modes
+const BLEND_MODES = [
+  "normal", "multiply", "screen", "overlay", "darken", "lighten",
+  "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion"
+];
 
 // Drawing Types
 type DrawingMode = "raster" | "vector";
@@ -35,6 +69,11 @@ interface Frame {
   imageData: string;
   vectorPaths: VectorPath[];
   duration: number;
+  effects?: string[];
+  opacity?: number;
+  blendMode?: string;
+  easing?: string;
+  keyframe?: { x: number; y: number; scale: number; rotation: number; opacity: number };
 }
 
 interface Track {
@@ -121,6 +160,31 @@ export default function MotionStudio() {
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const { data: selectedComic } = useProject(selectedComicId || '');
+  
+  // Enhanced Motion Studio Features
+  const [showOnionSkin, setShowOnionSkin] = useState(false);
+  const [onionSkinOpacity, setOnionSkinOpacity] = useState(30);
+  const [onionSkinFrames, setOnionSkinFrames] = useState(2);
+  
+  // Effects & Blend
+  const [frameOpacity, setFrameOpacity] = useState(100);
+  const [blendMode, setBlendMode] = useState("normal");
+  const [selectedEasing, setSelectedEasing] = useState("ease-in-out");
+  const [activeEffects, setActiveEffects] = useState<string[]>([]);
+  
+  // FX Panel
+  const [showFXPanel, setShowFXPanel] = useState(false);
+  
+  // Asset Browser
+  const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  
+  // Timeline zoom and scrubbing
+  const [timelineZoom, setTimelineZoom] = useState(100);
+  const [isDraggingScrubber, setIsDraggingScrubber] = useState(false);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  
+  // Keyframes (per-frame animation properties)
+  const [keyframes, setKeyframes] = useState<Record<string, { x: number; y: number; scale: number; rotation: number; opacity: number }>>({});
 
   // Initialize project
   useEffect(() => {
@@ -169,7 +233,7 @@ export default function MotionStudio() {
     saveToHistory();
   }, []);
 
-  // Load frame image when switching frames
+  // Load frame image and effects when switching frames
   useEffect(() => {
     const canvas = canvasRef.current;
     const context = ctxRef.current;
@@ -190,6 +254,17 @@ export default function MotionStudio() {
     
     // Load vector paths for this frame
     setVectorPaths(currentFrame?.vectorPaths || []);
+    
+    // Restore frame effects state
+    if (currentFrame) {
+      setActiveEffects(currentFrame.effects || []);
+      setFrameOpacity(currentFrame.opacity ?? 100);
+      setBlendMode(currentFrame.blendMode || 'normal');
+      setSelectedEasing(currentFrame.easing || 'linear');
+      if (currentFrame.keyframe) {
+        setKeyframes(prev => ({ ...prev, [currentFrame.id]: currentFrame.keyframe! }));
+      }
+    }
   }, [currentFrameIndex, frames]);
 
   // History management
@@ -256,19 +331,52 @@ export default function MotionStudio() {
     if (!canvas) return;
     
     const imageData = canvas.toDataURL('image/png');
+    const frameId = frames[currentFrameIndex]?.id;
+    const currentKeyframe = frameId ? keyframes[frameId] : undefined;
+    
     setFrames(prev => prev.map((f, i) => 
-      i === currentFrameIndex ? { ...f, imageData, vectorPaths } : f
+      i === currentFrameIndex ? { 
+        ...f, 
+        imageData, 
+        vectorPaths,
+        effects: activeEffects,
+        opacity: frameOpacity,
+        blendMode,
+        easing: selectedEasing,
+        keyframe: currentKeyframe
+      } : f
     ));
-  }, [currentFrameIndex, vectorPaths]);
+  }, [currentFrameIndex, vectorPaths, activeEffects, frameOpacity, blendMode, selectedEasing, keyframes, frames]);
 
   const handleSave = async () => {
     if (!projectId) return;
     setIsSaving(true);
-    saveCurrentFrame();
+    
+    // Compute updated frames inline to avoid stale state
+    const canvas = canvasRef.current;
+    const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
+    const frameId = frames[currentFrameIndex]?.id;
+    const currentKeyframe = frameId ? keyframes[frameId] : undefined;
+    
+    const updatedFrames = frames.map((f, i) => 
+      i === currentFrameIndex ? { 
+        ...f, 
+        imageData, 
+        vectorPaths,
+        effects: activeEffects,
+        opacity: frameOpacity,
+        blendMode,
+        easing: selectedEasing,
+        keyframe: currentKeyframe
+      } : f
+    );
+    
+    setFrames(updatedFrames);
+    
     try {
       await updateProject.mutateAsync({
         id: projectId,
-        data: { title, data: { frames, tracks } },
+        data: { title, data: { frames: updatedFrames, tracks } },
       });
       toast.success("Project saved");
     } catch {
@@ -317,12 +425,30 @@ export default function MotionStudio() {
   };
 
   const handleExport = () => {
-    saveCurrentFrame();
+    // Compute updated frames inline to include current state
+    const canvas = canvasRef.current;
+    const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
+    const frameId = frames[currentFrameIndex]?.id;
+    const currentKeyframe = frameId ? keyframes[frameId] : undefined;
+    
+    const updatedFrames = frames.map((f, i) => 
+      i === currentFrameIndex ? { 
+        ...f, 
+        imageData, 
+        vectorPaths,
+        effects: activeEffects,
+        opacity: frameOpacity,
+        blendMode,
+        easing: selectedEasing,
+        keyframe: currentKeyframe
+      } : f
+    );
+    
     const exportData = {
       version: "1.0",
       format: "PSDCF",
       project: { title, createdAt: new Date().toISOString() },
-      frames,
+      frames: updatedFrames,
       tracks,
     };
     
@@ -824,10 +950,66 @@ export default function MotionStudio() {
     return panels;
   };
 
+  // Apply FX preset to current frame
+  const applyFXPreset = (fxId: string) => {
+    if (activeEffects.includes(fxId)) {
+      setActiveEffects(prev => prev.filter(id => id !== fxId));
+      toast.success(`${FX_PRESETS.find(fx => fx.id === fxId)?.name} removed`);
+    } else {
+      setActiveEffects(prev => [...prev, fxId]);
+      toast.success(`${FX_PRESETS.find(fx => fx.id === fxId)?.name} applied!`);
+    }
+  };
+
+  // Handle asset selection from browser
+  const handleAssetSelect = (asset: { id: string; name: string; url: string }) => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(200 / img.width, 200 / img.height, 1);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+      saveToHistory();
+      saveCurrentFrame();
+      toast.success(`${asset.name} added to canvas`);
+    };
+    img.src = asset.url;
+  };
+
+  // Toggle keyframe for current frame
+  const toggleKeyframe = () => {
+    const frameId = frames[currentFrameIndex]?.id;
+    if (!frameId) return;
+    
+    if (keyframes[frameId]) {
+      const newKeyframes = { ...keyframes };
+      delete newKeyframes[frameId];
+      setKeyframes(newKeyframes);
+      toast.success("Keyframe removed");
+    } else {
+      setKeyframes(prev => ({
+        ...prev,
+        [frameId]: { x: 0, y: 0, scale: 100, rotation: 0, opacity: 100 }
+      }));
+      toast.success("Keyframe added");
+    }
+  };
+
+  // Check if current frame has a keyframe
+  const hasKeyframe = frames[currentFrameIndex] ? !!keyframes[frames[currentFrameIndex].id] : false;
+
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden select-none">
-      {/* Top Command Bar */}
-      <header className="h-12 bg-[#141414] border-b border-[#252525] flex items-center justify-between px-3 shrink-0">
+      {/* Top Command Bar - Enhanced with subtle gradient */}
+      <header className="h-12 bg-gradient-to-r from-[#141414] via-[#161618] to-[#141414] border-b border-[#252525] flex items-center justify-between px-3 shrink-0 relative">
+        {/* Subtle top highlight */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/20 to-transparent" />
         <div className="flex items-center gap-3">
           <Link href="/">
             <button className="p-2 hover:bg-[#252525] rounded-lg transition-colors" data-testid="button-back">
@@ -850,7 +1032,11 @@ export default function MotionStudio() {
             <SkipBack className="w-4 h-4 text-zinc-400" />
           </button>
           <button onClick={() => setIsPlaying(!isPlaying)}
-            className={`p-2.5 rounded-lg transition-colors ${isPlaying ? 'bg-violet-600 hover:bg-violet-500' : 'bg-[#252525] hover:bg-[#303030]'}`}>
+            className={`p-2.5 rounded-lg transition-all duration-200 ${
+              isPlaying 
+                ? 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 shadow-lg shadow-violet-500/40 scale-105' 
+                : 'bg-[#252525] hover:bg-[#303030]'
+            }`}>
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </button>
           <button onClick={() => setCurrentFrameIndex(Math.min(frames.length - 1, currentFrameIndex + 1))}
@@ -863,6 +1049,43 @@ export default function MotionStudio() {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* FX Button */}
+          <button onClick={() => setShowFXPanel(!showFXPanel)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
+              showFXPanel 
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg shadow-orange-500/20' 
+                : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300'
+            }`}
+            data-testid="button-fx">
+            <Zap className="w-3.5 h-3.5" />
+            FX
+            {activeEffects.length > 0 && (
+              <span className="px-1.5 py-0.5 bg-white/20 rounded-full text-[10px]">{activeEffects.length}</span>
+            )}
+          </button>
+          
+          {/* Asset Library Button */}
+          <button onClick={() => setShowAssetBrowser(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2"
+            data-testid="button-assets">
+            <Grid3X3 className="w-3.5 h-3.5" />
+            Assets
+          </button>
+          
+          {/* Onion Skin Toggle */}
+          <button onClick={() => setShowOnionSkin(!showOnionSkin)}
+            className={`p-2 rounded-lg transition-all ${
+              showOnionSkin 
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white' 
+                : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-400'
+            }`}
+            title="Onion Skinning"
+            data-testid="button-onion-skin">
+            <Layers className="w-4 h-4" />
+          </button>
+          
+          <div className="h-6 w-px bg-[#303030] mx-1" />
+          
           <button onClick={() => setShowComicPreview(true)}
             className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2"
             data-testid="button-preview">
@@ -873,16 +1096,16 @@ export default function MotionStudio() {
             className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors flex items-center gap-2"
             data-testid="button-apply-panel">
             <Layers className="w-3.5 h-3.5" />
-            Apply to Panel
+            Apply
           </button>
           <button onClick={handleSave} disabled={isSaving}
             className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             data-testid="button-save">
             <Save className="w-3.5 h-3.5" />
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "..." : "Save"}
           </button>
           <button onClick={handleExport}
-            className="px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-500 rounded-lg transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-violet-500/20"
             data-testid="button-export">
             <Download className="w-3.5 h-3.5" />
             Export
@@ -1107,10 +1330,52 @@ export default function MotionStudio() {
                 maxWidth: '100%',
                 maxHeight: '100%'
               }}>
+              {/* Onion Skin - Previous Frames (red tint) */}
+              {showOnionSkin && Array.from({ length: onionSkinFrames }).map((_, i) => {
+                const prevIdx = currentFrameIndex - (i + 1);
+                if (prevIdx < 0 || !frames[prevIdx]?.imageData) return null;
+                const opacity = (onionSkinOpacity / 100) * (1 - i * 0.3);
+                return (
+                  <img key={`onion-prev-${i}`}
+                    src={frames[prevIdx].imageData}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    style={{ 
+                      opacity: opacity,
+                      filter: 'sepia(100%) saturate(300%) hue-rotate(-50deg)',
+                      mixBlendMode: 'multiply',
+                      zIndex: 1
+                    }}
+                    alt="" />
+                );
+              })}
+              
+              {/* Onion Skin - Next Frames (green tint) */}
+              {showOnionSkin && Array.from({ length: onionSkinFrames }).map((_, i) => {
+                const nextIdx = currentFrameIndex + (i + 1);
+                if (nextIdx >= frames.length || !frames[nextIdx]?.imageData) return null;
+                const opacity = (onionSkinOpacity / 100) * (1 - i * 0.3);
+                return (
+                  <img key={`onion-next-${i}`}
+                    src={frames[nextIdx].imageData}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    style={{ 
+                      opacity: opacity,
+                      filter: 'sepia(100%) saturate(300%) hue-rotate(80deg)',
+                      mixBlendMode: 'multiply',
+                      zIndex: 1
+                    }}
+                    alt="" />
+                );
+              })}
+              
               {/* Raster Canvas */}
               <canvas ref={canvasRef} width={1920} height={1080}
                 className={`absolute inset-0 w-full h-full ${drawingMode === "raster" ? "z-10" : "z-0"}`}
-                style={{ cursor: currentTool === "select" ? "default" : "crosshair" }}
+                style={{ 
+                  cursor: currentTool === "select" ? "default" : "crosshair",
+                  opacity: frameOpacity / 100,
+                  mixBlendMode: blendMode as any
+                }}
                 onPointerDown={drawingMode === "raster" ? handlePointerDown : undefined}
                 onPointerMove={drawingMode === "raster" ? handlePointerMove : undefined}
                 onPointerUp={drawingMode === "raster" ? handlePointerUp : undefined}
@@ -1196,22 +1461,34 @@ export default function MotionStudio() {
                     {track.type === "effects" && <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
                     {track.type === "audio" && <Music className="w-3.5 h-3.5 text-emerald-400" />}
                   </div>
-                  <div className="flex-1 bg-[#0d0d0d] relative">
+                  <div className="flex-1 bg-[#0d0d0d] relative" ref={timelineRef}>
                     {track.type === "video" && frames.map((frame, idx) => (
                       <div key={frame.id}
-                        className={`absolute top-1 bottom-1 rounded cursor-pointer transition-all ${
-                          idx === currentFrameIndex ? 'bg-violet-600' : 'bg-violet-900/50 hover:bg-violet-800/50'
+                        className={`absolute top-1 bottom-1 rounded-lg cursor-pointer transition-all group ${
+                          idx === currentFrameIndex 
+                            ? 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-lg shadow-violet-500/30' 
+                            : 'bg-gradient-to-r from-violet-900/50 to-purple-900/50 hover:from-violet-800/50 hover:to-purple-800/50'
                         }`}
                         style={{ left: `${(idx * 10)}%`, width: `${Math.max(8, 100 / Math.max(frames.length, 1) - 1)}%` }}
                         onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(idx); }}>
-                        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/70 truncate px-1">
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/80 font-medium truncate px-1">
                           {idx + 1}
                         </span>
+                        {/* Keyframe Diamond Indicator */}
+                        {keyframes[frame.id] && (
+                          <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45 shadow-lg shadow-yellow-500/50" />
+                        )}
+                        {/* Frame duration indicator */}
+                        <div className="absolute bottom-0.5 right-1 text-[8px] text-white/40 font-mono">
+                          {(frame.duration / 1000).toFixed(1)}s
+                        </div>
                       </div>
                     ))}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+                    {/* Enhanced Playhead */}
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-400 to-red-600 z-10 shadow-lg shadow-red-500/50"
                       style={{ left: `${(currentFrameIndex / Math.max(frames.length, 1)) * 100}%` }}>
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-red-500 rotate-45" />
+                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rotate-45 shadow-lg" />
+                      <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rotate-45 shadow-lg" />
                     </div>
                   </div>
                 </div>
@@ -1467,6 +1744,176 @@ export default function MotionStudio() {
           </div>
         </div>
       )}
+
+      {/* FX Panel - Floating Panel */}
+      {showFXPanel && (
+        <div className="fixed top-16 right-4 w-80 bg-[#111111] border border-[#303030] rounded-xl shadow-2xl z-40 overflow-hidden">
+          <div className="p-3 border-b border-[#252525] flex items-center justify-between bg-gradient-to-r from-amber-900/30 to-orange-900/30">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-semibold">Effects Studio</span>
+            </div>
+            <button onClick={() => setShowFXPanel(false)} className="p-1 hover:bg-[#252525] rounded">
+              <X className="w-4 h-4 text-zinc-400" />
+            </button>
+          </div>
+          
+          <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* FX Presets Grid */}
+            <div>
+              <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-3">Quick Effects</div>
+              <div className="grid grid-cols-5 gap-2">
+                {FX_PRESETS.map(fx => (
+                  <button key={fx.id}
+                    onClick={() => applyFXPreset(fx.id)}
+                    className={`p-3 rounded-xl flex flex-col items-center gap-1.5 transition-all ${
+                      activeEffects.includes(fx.id)
+                        ? 'bg-gradient-to-br from-amber-600/30 to-orange-600/30 border border-amber-500/50 scale-105'
+                        : 'bg-[#1a1a1a] hover:bg-[#202020] border border-transparent hover:border-[#303030]'
+                    }`}
+                    title={fx.name}>
+                    <fx.icon className={`w-4 h-4 ${fx.color}`} />
+                    <span className="text-[9px] text-zinc-400">{fx.name.split(' ')[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Opacity Control */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-semibold text-zinc-500 uppercase">Opacity</div>
+                <span className="text-xs text-violet-400 font-mono">{frameOpacity}%</span>
+              </div>
+              <input type="range" min="0" max="100" value={frameOpacity}
+                onChange={(e) => setFrameOpacity(parseInt(e.target.value))}
+                className="w-full h-2 bg-[#252525] rounded-full appearance-none cursor-pointer accent-violet-500" />
+            </div>
+            
+            {/* Blend Mode */}
+            <div>
+              <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-2">Blend Mode</div>
+              <select value={blendMode} onChange={(e) => setBlendMode(e.target.value)}
+                className="w-full bg-[#1a1a1a] border border-[#303030] rounded-lg px-3 py-2 text-xs outline-none focus:border-violet-500 capitalize">
+                {BLEND_MODES.map(mode => (
+                  <option key={mode} value={mode} className="capitalize">{mode.replace('-', ' ')}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Easing Presets */}
+            <div>
+              <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-2">Easing Curve</div>
+              <div className="grid grid-cols-3 gap-1">
+                {EASING_PRESETS.map(easing => (
+                  <button key={easing.id}
+                    onClick={() => setSelectedEasing(easing.id)}
+                    className={`p-2 text-[10px] rounded-lg transition-all ${
+                      selectedEasing === easing.id
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-[#1a1a1a] text-zinc-400 hover:bg-[#202020]'
+                    }`}>
+                    {easing.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Keyframe Button */}
+            <div>
+              <button onClick={toggleKeyframe}
+                className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  hasKeyframe
+                    ? 'bg-gradient-to-r from-yellow-600 to-amber-600 text-white'
+                    : 'bg-[#1a1a1a] hover:bg-[#202020] text-zinc-400 border border-dashed border-[#303030]'
+                }`}>
+                <Diamond className={`w-4 h-4 ${hasKeyframe ? 'fill-current' : ''}`} />
+                {hasKeyframe ? 'Remove Keyframe' : 'Add Keyframe'}
+              </button>
+            </div>
+            
+            {/* Active Effects List */}
+            {activeEffects.length > 0 && (
+              <div>
+                <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-2">Active Effects</div>
+                <div className="space-y-1">
+                  {activeEffects.map(fxId => {
+                    const fx = FX_PRESETS.find(f => f.id === fxId);
+                    if (!fx) return null;
+                    return (
+                      <div key={fxId}
+                        className="flex items-center justify-between p-2 bg-[#1a1a1a] rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <fx.icon className={`w-3.5 h-3.5 ${fx.color}`} />
+                          <span className="text-xs">{fx.name}</span>
+                        </div>
+                        <button onClick={() => applyFXPreset(fxId)}
+                          className="p-1 hover:bg-red-900/50 rounded">
+                          <X className="w-3 h-3 text-zinc-500" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Onion Skin Controls - Floating when active */}
+      {showOnionSkin && (
+        <div className="fixed bottom-52 left-4 w-56 bg-[#111111] border border-[#303030] rounded-xl shadow-2xl z-40 overflow-hidden">
+          <div className="p-3 border-b border-[#252525] flex items-center justify-between bg-gradient-to-r from-cyan-900/30 to-blue-900/30">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-semibold">Onion Skin</span>
+            </div>
+            <button onClick={() => setShowOnionSkin(false)} className="p-1 hover:bg-[#252525] rounded">
+              <X className="w-3.5 h-3.5 text-zinc-400" />
+            </button>
+          </div>
+          
+          <div className="p-3 space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-zinc-500">Opacity</span>
+                <span className="text-[10px] text-cyan-400 font-mono">{onionSkinOpacity}%</span>
+              </div>
+              <input type="range" min="10" max="80" value={onionSkinOpacity}
+                onChange={(e) => setOnionSkinOpacity(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-[#252525] rounded-full appearance-none cursor-pointer accent-cyan-500" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-zinc-500">Frames</span>
+                <span className="text-[10px] text-cyan-400 font-mono">{onionSkinFrames}</span>
+              </div>
+              <input type="range" min="1" max="5" value={onionSkinFrames}
+                onChange={(e) => setOnionSkinFrames(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-[#252525] rounded-full appearance-none cursor-pointer accent-cyan-500" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-red-500/50" />
+                <span className="text-[10px] text-zinc-500">Previous</span>
+              </div>
+              <div className="flex-1 flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-green-500/50" />
+                <span className="text-[10px] text-zinc-500">Next</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Browser Modal */}
+      <AssetBrowser
+        isOpen={showAssetBrowser}
+        onClose={() => setShowAssetBrowser(false)}
+        onSelectAsset={handleAssetSelect}
+        mode="insert"
+      />
     </div>
   );
 }
