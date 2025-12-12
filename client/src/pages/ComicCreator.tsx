@@ -93,15 +93,74 @@ interface Spread {
   rightPage: Panel[];
 }
 
+// Panel templates organized by category - inspired by standard comic book template layouts
+// Using integer values to avoid precision issues with thirds
+const third = 100/3;
+const twoThird = 200/3;
+
 const panelTemplates = [
-  { id: "action_impact", name: "Action Impact", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
-  { id: "dialogue_flow", name: "Dialogue Flow", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
-  { id: "full_splash", name: "Full Splash", panels: [{x:0,y:0,width:100,height:100}] },
-  { id: "grid_2x2", name: "2x2 Grid", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
-  { id: "manga_action", name: "Manga Action", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
-  { id: "webtoon_scroll", name: "Webtoon Scroll", panels: [{x:0,y:0,width:100,height:33},{x:0,y:33,width:100,height:34},{x:0,y:67,width:100,height:33}] },
-  { id: "cinematic_wide", name: "Cinematic Wide", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
-  { id: "broken_grid", name: "Broken Grid", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
+  // Basic Layouts
+  { id: "full_splash", name: "Full Splash", category: "basic", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "split_vertical", name: "Split Vertical", category: "basic", panels: [{x:0,y:0,width:50,height:100},{x:50,y:0,width:50,height:100}] },
+  { id: "split_horizontal", name: "Split Horizontal", category: "basic", panels: [{x:0,y:0,width:100,height:50},{x:0,y:50,width:100,height:50}] },
+  
+  // Grid Layouts
+  { id: "grid_2x2", name: "2x2 Grid", category: "grid", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
+  { id: "grid_3x3", name: "3x3 Grid", category: "grid", panels: [{x:0,y:0,width:third,height:third},{x:third,y:0,width:third,height:third},{x:twoThird,y:0,width:third,height:third},{x:0,y:third,width:third,height:third},{x:third,y:third,width:third,height:third},{x:twoThird,y:third,width:third,height:third},{x:0,y:twoThird,width:third,height:third},{x:third,y:twoThird,width:third,height:third},{x:twoThird,y:twoThird,width:third,height:third}] },
+  { id: "grid_2x3", name: "2x3 Grid", category: "grid", panels: [{x:0,y:0,width:50,height:third},{x:50,y:0,width:50,height:third},{x:0,y:third,width:50,height:third},{x:50,y:third,width:50,height:third},{x:0,y:twoThird,width:50,height:third},{x:50,y:twoThird,width:50,height:third}] },
+  { id: "grid_3x2", name: "3x2 Grid", category: "grid", panels: [{x:0,y:0,width:third,height:50},{x:third,y:0,width:third,height:50},{x:twoThird,y:0,width:third,height:50},{x:0,y:50,width:third,height:50},{x:third,y:50,width:third,height:50},{x:twoThird,y:50,width:third,height:50}] },
+  
+  // Action Layouts
+  { id: "action_impact", name: "Action Impact", category: "action", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:50},{x:60,y:50,width:40,height:50}] },
+  { id: "action_sequence", name: "Action Sequence", category: "action", panels: [{x:0,y:0,width:100,height:40},{x:0,y:40,width:third,height:60},{x:third,y:40,width:third,height:60},{x:twoThird,y:40,width:third,height:60}] },
+  { id: "hero_moment", name: "Hero Moment", category: "action", panels: [{x:0,y:0,width:70,height:70},{x:70,y:0,width:30,height:35},{x:70,y:35,width:30,height:35},{x:0,y:70,width:50,height:30},{x:50,y:70,width:50,height:30}] },
+  { id: "explosion", name: "Explosion", category: "action", panels: [{x:20,y:10,width:60,height:60},{x:0,y:0,width:25,height:40},{x:75,y:0,width:25,height:40},{x:0,y:60,width:40,height:40},{x:60,y:60,width:40,height:40}] },
+  
+  // Dialogue Layouts
+  { id: "dialogue_flow", name: "Dialogue Flow", category: "dialogue", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:100,height:50}] },
+  { id: "reaction_shot", name: "Reaction Shot", category: "dialogue", panels: [{x:0,y:0,width:100,height:60},{x:0,y:60,width:third,height:40},{x:third,y:60,width:third,height:40},{x:twoThird,y:60,width:third,height:40}] },
+  
+  // Manga Layouts
+  { id: "manga_action", name: "Manga Action", category: "manga", panels: [{x:0,y:0,width:60,height:40},{x:60,y:0,width:40,height:60},{x:0,y:40,width:60,height:60},{x:60,y:60,width:40,height:40}] },
+  { id: "manga_intro", name: "Manga Intro", category: "manga", panels: [{x:0,y:0,width:100,height:50},{x:0,y:50,width:40,height:50},{x:40,y:50,width:30,height:50},{x:70,y:50,width:30,height:50}] },
+  { id: "manga_dramatic", name: "Manga Dramatic", category: "manga", panels: [{x:0,y:0,width:100,height:30},{x:0,y:30,width:50,height:70},{x:50,y:30,width:50,height:35},{x:50,y:65,width:50,height:35}] },
+  { id: "manga_closeup", name: "Manga Closeup", category: "manga", panels: [{x:0,y:0,width:40,height:50},{x:40,y:0,width:60,height:50},{x:0,y:50,width:60,height:50},{x:60,y:50,width:40,height:50}] },
+  
+  // Webtoon Layouts
+  { id: "webtoon_scroll", name: "Webtoon Scroll", category: "webtoon", panels: [{x:0,y:0,width:100,height:third},{x:0,y:third,width:100,height:third},{x:0,y:twoThird,width:100,height:third}] },
+  { id: "webtoon_dramatic", name: "Webtoon Dramatic", category: "webtoon", panels: [{x:0,y:0,width:100,height:50},{x:0,y:50,width:100,height:25},{x:0,y:75,width:100,height:25}] },
+  { id: "webtoon_conversation", name: "Webtoon Conversation", category: "webtoon", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:25},{x:0,y:50,width:100,height:25},{x:0,y:75,width:100,height:25}] },
+  
+  // Cinematic Layouts
+  { id: "cinematic_wide", name: "Cinematic Wide", category: "cinematic", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:50},{x:0,y:75,width:100,height:25}] },
+  { id: "cinematic_letterbox", name: "Cinematic Letterbox", category: "cinematic", panels: [{x:0,y:15,width:100,height:70}] },
+  { id: "cinematic_triptych", name: "Cinematic Triptych", category: "cinematic", panels: [{x:0,y:0,width:third,height:100},{x:third,y:0,width:third,height:100},{x:twoThird,y:0,width:third,height:100}] },
+  { id: "cinematic_sequence", name: "Cinematic Sequence", category: "cinematic", panels: [{x:0,y:0,width:100,height:20},{x:0,y:20,width:100,height:20},{x:0,y:40,width:100,height:20},{x:0,y:60,width:100,height:20},{x:0,y:80,width:100,height:20}] },
+  
+  // Creative Layouts
+  { id: "broken_grid", name: "Broken Grid", category: "creative", panels: [{x:0,y:0,width:60,height:60},{x:40,y:40,width:60,height:60}] },
+  { id: "diagonal_split", name: "Diagonal Split", category: "creative", panels: [{x:0,y:0,width:100,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
+  { id: "l_shape", name: "L-Shape", category: "creative", panels: [{x:0,y:0,width:70,height:100},{x:70,y:0,width:30,height:50},{x:70,y:50,width:30,height:50}] },
+  { id: "t_shape", name: "T-Shape", category: "creative", panels: [{x:0,y:0,width:100,height:40},{x:0,y:40,width:third,height:60},{x:third,y:40,width:third,height:60},{x:twoThird,y:40,width:third,height:60}] },
+  { id: "pyramid", name: "Pyramid", category: "creative", panels: [{x:25,y:0,width:50,height:third},{x:0,y:third,width:50,height:third},{x:50,y:third,width:50,height:third},{x:0,y:twoThird,width:third,height:third},{x:third,y:twoThird,width:third,height:third},{x:twoThird,y:twoThird,width:third,height:third}] },
+  
+  // Classic Comic Layouts - with traditional gutters (2% margins)
+  { id: "classic_6panel", name: "Classic 6-Panel", category: "classic", panels: [{x:1,y:1,width:48,height:31},{x:51,y:1,width:48,height:31},{x:1,y:34,width:48,height:31},{x:51,y:34,width:48,height:31},{x:1,y:67,width:48,height:32},{x:51,y:67,width:48,height:32}] },
+  { id: "classic_splash_bottom", name: "Splash + Bottom", category: "classic", panels: [{x:0,y:0,width:100,height:70},{x:0,y:70,width:50,height:30},{x:50,y:70,width:50,height:30}] },
+  { id: "classic_top_splash", name: "Top + Splash", category: "classic", panels: [{x:0,y:0,width:50,height:30},{x:50,y:0,width:50,height:30},{x:0,y:30,width:100,height:70}] },
+];
+
+// Template categories for UI organization
+const templateCategories = [
+  { id: "basic", name: "Basic" },
+  { id: "grid", name: "Grids" },
+  { id: "action", name: "Action" },
+  { id: "dialogue", name: "Dialogue" },
+  { id: "manga", name: "Manga" },
+  { id: "webtoon", name: "Webtoon" },
+  { id: "cinematic", name: "Cinematic" },
+  { id: "creative", name: "Creative" },
+  { id: "classic", name: "Classic" },
 ];
 
 const FONT_OPTIONS = [
