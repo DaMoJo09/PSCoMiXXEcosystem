@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema } from "@shared/schema";
+import express from "express";
+import path from "path";
 
 interface CollabClient {
   ws: WebSocket;
@@ -30,6 +32,10 @@ function broadcastToSession(sessionId: string, message: any, excludeUserId?: str
 
 export async function registerRoutes(server: ReturnType<typeof createServer>, app: Express) {
   setupAuth(app);
+
+  // Serve attached_assets as static files
+  const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");
+  app.use("/attached_assets", express.static(attachedAssetsPath));
 
   // Auth middleware
   function isAuthenticated(req: Request, res: Response, next: Function) {
