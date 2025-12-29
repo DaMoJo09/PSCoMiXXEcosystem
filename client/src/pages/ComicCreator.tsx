@@ -59,8 +59,6 @@ interface PanelContent {
   data: {
     url?: string;
     text?: string;
-    bubbleText?: string;
-    isBubbleAsset?: boolean;
     bubbleStyle?: "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
     color?: string;
     fontSize?: number;
@@ -408,43 +406,6 @@ export default function ComicCreator() {
           try {
             const img = await loadImage(data.url);
             ctx.drawImage(img, 0, 0, contentW, contentH);
-            
-            if (data.isBubbleAsset && data.bubbleText) {
-              ctx.fillStyle = data.color || "#000000";
-              const fontFamily = (data.fontFamily || "'Bangers', cursive").replace(/'/g, "");
-              ctx.font = `${data.fontSize || 14}px ${fontFamily}`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              
-              const textAreaX = contentW * 0.1;
-              const textAreaY = contentH * 0.15;
-              const textAreaW = contentW * 0.8;
-              const textAreaH = contentH * 0.6;
-              
-              const words = data.bubbleText.split(' ');
-              const lines: string[] = [];
-              let currentLine = '';
-              
-              for (const word of words) {
-                const testLine = currentLine ? `${currentLine} ${word}` : word;
-                const metrics = ctx.measureText(testLine);
-                if (metrics.width > textAreaW && currentLine) {
-                  lines.push(currentLine);
-                  currentLine = word;
-                } else {
-                  currentLine = testLine;
-                }
-              }
-              if (currentLine) lines.push(currentLine);
-              
-              const lineHeight = (data.fontSize || 14) * 1.3;
-              const totalHeight = lines.length * lineHeight;
-              const startY = textAreaY + textAreaH / 2 - totalHeight / 2 + lineHeight / 2;
-              
-              lines.forEach((line, i) => {
-                ctx.fillText(line, textAreaX + textAreaW / 2, startY + i * lineHeight);
-              });
-            }
           } catch (e) {
             ctx.fillStyle = "#cccccc";
             ctx.fillRect(0, 0, contentW, contentH);
@@ -1040,76 +1001,12 @@ export default function ComicCreator() {
               locked={content.locked}
             >
               {(content.type === "image" || content.type === "gif") && content.data.url && (
-                <div className="w-full h-full relative">
-                  <img 
-                    src={content.data.url} 
-                    alt="Panel content" 
-                    className={`w-full h-full ${content.data.isBubbleAsset ? 'object-contain' : 'object-cover'}`}
-                    draggable={false}
-                  />
-                  {content.data.isBubbleAsset && (
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center p-4 cursor-text"
-                      style={{ 
-                        top: '15%', 
-                        bottom: '25%', 
-                        left: '10%', 
-                        right: '10%',
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setEditingTextId(content.id);
-                      }}
-                    >
-                      {editingTextId === content.id ? (
-                        <textarea
-                          autoFocus
-                          value={content.data.bubbleText || ""}
-                          onChange={(e) => {
-                            const newText = e.target.value;
-                            setSpreads(prev => prev.map((spread, i) => {
-                              if (i !== currentSpreadIndex) return spread;
-                              const key = page === "left" ? "leftPage" : "rightPage";
-                              return {
-                                ...spread,
-                                [key]: spread[key].map(p => {
-                                  if (p.id !== panel.id) return p;
-                                  return {
-                                    ...p,
-                                    contents: p.contents.map(c => c.id === content.id ? { ...c, data: { ...c.data, bubbleText: newText } } : c)
-                                  };
-                                })
-                              };
-                            }));
-                          }}
-                          onBlur={() => setEditingTextId(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") setEditingTextId(null);
-                          }}
-                          className="w-full h-full bg-transparent outline-none resize-none text-center"
-                          style={{
-                            fontSize: content.data.fontSize || 14,
-                            fontFamily: content.data.fontFamily || "'Bangers', cursive",
-                            color: content.data.color || "#000000",
-                            lineHeight: 1.3,
-                          }}
-                        />
-                      ) : (
-                        <p
-                          className="w-full text-center whitespace-pre-wrap break-words leading-tight"
-                          style={{
-                            fontSize: content.data.fontSize || 14,
-                            fontFamily: content.data.fontFamily || "'Bangers', cursive",
-                            color: content.data.color || "#000000",
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          {content.data.bubbleText || "Double-click to add text"}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <img 
+                  src={content.data.url} 
+                  alt="Panel content" 
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
               )}
               {content.type === "video" && content.data.videoUrl && (
                 <video
@@ -1650,37 +1547,27 @@ export default function ComicCreator() {
                       <Layers className="w-4 h-4 mr-2" /> Asset Library
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => {
-                        const isBubble = asset.type === "bubble" || asset.folderId === "bubbles";
-                        return (
-                          <ContextMenuItem
-                            key={asset.id}
-                            onClick={() => {
-                              if (selectedPanelId) {
-                                addContentToPanel("left", selectedPanelId, {
-                                  type: "image",
-                                  transform: { x: 50, y: 50, width: 180, height: 120, rotation: 0, scaleX: 1, scaleY: 1 },
-                                  data: { 
-                                    url: asset.url,
-                                    isBubbleAsset: isBubble,
-                                    bubbleText: isBubble ? "Dialog here..." : undefined,
-                                    fontSize: 14,
-                                    fontFamily: "'Bangers', cursive",
-                                    color: "#000000",
-                                  },
-                                  locked: false,
-                                });
-                                toast.success(isBubble ? "Speech bubble added - double-click to edit text" : "Asset added to panel");
-                              } else {
-                                toast.error("Select a panel first");
-                              }
-                            }}
-                            className="hover:bg-zinc-800 cursor-pointer"
-                          >
-                            {asset.name}
-                          </ContextMenuItem>
-                        );
-                      })}
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                        <ContextMenuItem
+                          key={asset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addContentToPanel("left", selectedPanelId, {
+                                type: "image",
+                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                data: { url: asset.url },
+                                locked: false,
+                              });
+                              toast.success("Asset added to panel");
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {asset.name}
+                        </ContextMenuItem>
+                      ))}
                       {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
                         <ContextMenuItem disabled className="text-zinc-500">
                           No saved assets
@@ -1800,37 +1687,27 @@ export default function ComicCreator() {
                       <Layers className="w-4 h-4 mr-2" /> Asset Library
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => {
-                        const isBubble = asset.type === "bubble" || asset.folderId === "bubbles";
-                        return (
-                          <ContextMenuItem
-                            key={asset.id}
-                            onClick={() => {
-                              if (selectedPanelId) {
-                                addContentToPanel("right", selectedPanelId, {
-                                  type: "image",
-                                  transform: { x: 50, y: 50, width: 180, height: 120, rotation: 0, scaleX: 1, scaleY: 1 },
-                                  data: { 
-                                    url: asset.url,
-                                    isBubbleAsset: isBubble,
-                                    bubbleText: isBubble ? "Dialog here..." : undefined,
-                                    fontSize: 14,
-                                    fontFamily: "'Bangers', cursive",
-                                    color: "#000000",
-                                  },
-                                  locked: false,
-                                });
-                                toast.success(isBubble ? "Speech bubble added - double-click to edit text" : "Asset added to panel");
-                              } else {
-                                toast.error("Select a panel first");
-                              }
-                            }}
-                            className="hover:bg-zinc-800 cursor-pointer"
-                          >
-                            {asset.name}
-                          </ContextMenuItem>
-                        );
-                      })}
+                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                        <ContextMenuItem
+                          key={asset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addContentToPanel("right", selectedPanelId, {
+                                type: "image",
+                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                data: { url: asset.url },
+                                locked: false,
+                              });
+                              toast.success("Asset added to panel");
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {asset.name}
+                        </ContextMenuItem>
+                      ))}
                       {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
                         <ContextMenuItem disabled className="text-zinc-500">
                           No saved assets
@@ -2012,68 +1889,6 @@ export default function ComicCreator() {
                     )}
                     <div className="text-xs text-zinc-500 mt-2">
                       Double-click text to edit content
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {selectedContent && selectedContent.type === 'image' && selectedContent.data.isBubbleAsset && selectedPanelId && (
-                <div className="border-t border-zinc-800 p-3">
-                  <h4 className="font-bold text-xs mb-3 flex items-center gap-2">
-                    <MessageSquare className="w-3 h-3" /> Bubble Text Properties
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Font</label>
-                      <select
-                        value={selectedContent.data.fontFamily || "'Bangers', cursive"}
-                        onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { fontFamily: e.target.value })}
-                        className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
-                        data-testid="select-bubble-font"
-                      >
-                        {FONT_OPTIONS.map(font => (
-                          <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                            {font.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="text-xs text-zinc-400 block mb-1">Size</label>
-                        <input
-                          type="number"
-                          min="8"
-                          max="48"
-                          value={selectedContent.data.fontSize || 14}
-                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { fontSize: Number(e.target.value) })}
-                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
-                          data-testid="input-bubble-font-size"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-zinc-400 block mb-1">Color</label>
-                        <input
-                          type="color"
-                          value={selectedContent.data.color || "#000000"}
-                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { color: e.target.value })}
-                          className="w-full h-7 bg-zinc-800 border border-zinc-700 cursor-pointer"
-                          data-testid="input-bubble-text-color"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-400 block mb-1">Bubble Text</label>
-                      <textarea
-                        value={selectedContent.data.bubbleText || ""}
-                        onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { bubbleText: e.target.value })}
-                        className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-2 h-20 resize-none"
-                        placeholder="Enter dialog text..."
-                        data-testid="input-bubble-text"
-                      />
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      Double-click bubble to edit text directly
                     </div>
                   </div>
                 </div>
