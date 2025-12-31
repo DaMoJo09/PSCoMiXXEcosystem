@@ -1,0 +1,21 @@
+# Netlify Configuration for PSCoMiXX Creator
+# 
+# IMPORTANT: This app has a backend server (Express + PostgreSQL)
+# For full functionality, Replit's built-in publishing is recommended
+# as it runs the complete stack including the database.
+#
+# This Netlify config is for frontend-only static deployment.
+# API endpoints (/api/*) will NOT work without additional serverless setup.
+
+[build]
+  command = "cd client && npm install && npx vite build --outDir ../dist/public"
+  publish = "dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

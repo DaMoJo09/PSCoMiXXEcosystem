@@ -42,22 +42,34 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div 
+      className="min-h-screen bg-black text-white relative overflow-hidden"
+      style={{ minHeight: '100vh', backgroundColor: '#000', color: '#fff', position: 'relative', overflow: 'hidden' }}
+    >
       <video
         autoPlay
         loop
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover opacity-50 z-0"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5, zIndex: 0 }}
       >
         <source src="/assets/comics_falling_from_sky.mp4" type="video/mp4" />
       </video>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30 z-[1]" />
+      <div 
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30 z-[1]" 
+        style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #000, rgba(0,0,0,0.7), rgba(0,0,0,0.3))', zIndex: 1 }}
+      />
       
       <div 
         className="absolute inset-0 z-[2] pointer-events-none opacity-[0.15]"
         style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 2,
+          pointerEvents: 'none',
+          opacity: 0.15,
           backgroundImage: `repeating-linear-gradient(
             0deg,
             transparent,
@@ -68,7 +80,10 @@ export default function LandingPage() {
         }}
       />
 
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8">
+      <div 
+        className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8"
+        style={{ position: 'relative', zIndex: 10, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}
+      >
         <div className="text-center mb-8 relative">
           {glitchText && (
             <>
@@ -101,6 +116,13 @@ export default function LandingPage() {
             className="text-7xl md:text-9xl font-black uppercase mb-4 tracking-tight text-white relative"
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: '7rem',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              marginBottom: '1rem',
+              letterSpacing: '-0.025em',
+              color: '#fff',
+              position: 'relative',
               textShadow: glitchText 
                 ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff, 0 0 80px rgba(255,255,255,0.8)` 
                 : '0 0 60px rgba(255,255,255,0.5), 0 0 120px rgba(255,255,255,0.2)',
@@ -108,8 +130,8 @@ export default function LandingPage() {
               transition: glitchText ? 'none' : 'transform 0.1s ease-out',
             }}
           >
-            <span className="block">PRESS</span>
-            <span className="block">START</span>
+            <span style={{ display: 'block' }}>PRESS</span>
+            <span style={{ display: 'block' }}>START</span>
           </h1>
           
           <div 
@@ -166,14 +188,27 @@ export default function LandingPage() {
           onClick={() => navigate("/login")}
           className="group px-10 py-4 bg-white text-black font-bold text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative"
           style={{
+            padding: '1rem 2.5rem',
+            backgroundColor: '#fff',
+            color: '#000',
+            fontWeight: 700,
+            fontSize: '1.25rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            cursor: 'pointer',
+            border: 'none',
+            position: 'relative',
             boxShadow: glitchText 
               ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff`
               : '0 0 30px rgba(255,255,255,0.3)',
           }}
         >
-          <Gamepad2 className="w-6 h-6" />
+          <Gamepad2 className="w-6 h-6" style={{ width: '1.5rem', height: '1.5rem' }} />
           ENTER THE STUDIO
-          <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+          <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" style={{ width: '1.5rem', height: '1.5rem' }} />
           <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
         </button>
       </div>
