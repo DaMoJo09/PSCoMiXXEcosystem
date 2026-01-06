@@ -50,5 +50,5 @@ integrations = ["javascript_database:1.0.0"]
 [userenv]
 
 [userenv.shared]
-ADMIN_PASSWORD = "Psgaming09!"
+ADMIN_PASSWORD = "tyjo09!"
 ADMIN_EMAIL = "mojocreative1@gmail.com"
