@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +132,11 @@ export default function AuthPage() {
                 >
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
+                <div className="text-center">
+                  <Link href="/forgot-password" className="text-sm text-zinc-400 hover:text-white" data-testid="link-forgot-password">
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
 
             </TabsContent>

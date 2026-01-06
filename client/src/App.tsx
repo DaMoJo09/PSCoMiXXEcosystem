@@ -49,6 +49,8 @@ import CollabSession from "@/pages/CollabSession";
 import CommunityChains from "@/pages/CommunityChains";
 import Notifications from "@/pages/Notifications";
 import UserSearch from "@/pages/UserSearch";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -71,6 +73,14 @@ function ProtectedRouter() {
 
   if (location === "/login" || location === "/signup") {
     return <AuthPage />;
+  }
+
+  if (location === "/forgot-password") {
+    return <ForgotPassword />;
+  }
+
+  if (location.startsWith("/reset-password")) {
+    return <ResetPassword />;
   }
 
   if (!isAuthenticated) {

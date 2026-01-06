@@ -221,26 +221,26 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const user = await storage.getUserByEmail(email);
       
-      res.json({ message: "If an account exists with this email, a reset link has been sent." });
+      if (user) {
+        const crypto = await import("crypto");
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-      if (!user) return;
+        await storage.createPasswordResetToken(user.id, token, expiresAt);
 
-      const crypto = await import("crypto");
-      const token = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
-      await storage.createPasswordResetToken(user.id, token, expiresAt);
-
-      const { sendPasswordResetEmail } = await import("./email");
-      const baseUrl = process.env.REPLIT_DEPLOYMENT 
-        ? "https://pressstart.space" 
-        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
-      
-      try {
-        await sendPasswordResetEmail(email, token, baseUrl);
-      } catch (emailError) {
-        console.error("Failed to send password reset email:", emailError);
+        const { sendPasswordResetEmail } = await import("./email");
+        const baseUrl = req.headers.origin || (process.env.REPLIT_DEPLOYMENT 
+          ? "https://pressstart.space" 
+          : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+        
+        try {
+          await sendPasswordResetEmail(email, token, baseUrl);
+        } catch (emailError) {
+          console.error("Failed to send password reset email:", emailError);
+        }
       }
+      
+      res.json({ message: "If an account exists with this email, a reset link has been sent." });
     } catch (error: any) {
       console.error("Forgot password error:", error);
       res.status(500).json({ message: "An error occurred" });
