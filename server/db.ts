@@ -13,8 +13,28 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  max: 5,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 10,
+  idleTimeoutMillis: 60000,
+  connectionTimeoutMillis: 30000,
 });
+
+async function wakeDatabase() {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      console.log('[database] Connection established');
+      return;
+    } catch (error: any) {
+      console.log(`[database] Wake attempt ${attempt + 1}/3 failed:`, error.message);
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+}
+
+wakeDatabase();
+
 export const db = drizzle({ client: pool, schema });
