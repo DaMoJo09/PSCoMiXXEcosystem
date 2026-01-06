@@ -34,25 +34,26 @@ declare global {
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
+  
+  // Always trust proxy and use secure cookies in Replit environment
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.REPLIT_DEPLOYMENT;
+  
+  app.set("trust proxy", 1);
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "pressstart-comixx-secret",
+    secret: process.env.SESSION_SECRET || process.env.REPL_ID || "pressstart-comixx-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {},
+    cookie: {
+      secure: isProduction,
+      sameSite: "lax" as const,
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    },
     store: new MemoryStore({
       checkPeriod: 86400000,
     }),
   };
-
-  if (app.get("env") === "production") {
-    app.set("trust proxy", 1);
-    sessionSettings.cookie = {
-      secure: true,
-      sameSite: "lax",
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-  }
 
   app.use(session(sessionSettings));
   app.use(passport.initialize());
