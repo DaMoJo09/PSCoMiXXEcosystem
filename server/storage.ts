@@ -12,7 +12,9 @@ import {
   dmThreads, dmParticipants, dmMessages, notifications,
   collabSessions, collabMembers, collabPresence,
   communityChains, chainContributions, chainLikes,
+  passwordResetTokens,
   type User, type InsertUser,
+  type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
   type Asset, type InsertAsset,
   type CreatorXp, type InsertCreatorXp,
@@ -164,6 +166,12 @@ export interface IStorage {
   likeContribution(contributionId: string, userId: string): Promise<ChainLike>;
   unlikeContribution(contributionId: string, userId: string): Promise<boolean>;
   canContributeToChain(chainId: string, userId: string): Promise<boolean>;
+  
+  // Password reset operations
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<boolean>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1349,6 +1357,35 @@ export class DatabaseStorage implements IStorage {
     }
 
     return false;
+  }
+
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    const [resetToken] = await db.insert(passwordResetTokens)
+      .values({ userId, token, expiresAt })
+      .returning();
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db.select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return resetToken || undefined;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<boolean> {
+    const result = await db.update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
   }
 }
 
