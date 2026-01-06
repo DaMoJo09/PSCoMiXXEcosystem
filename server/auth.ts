@@ -2,10 +2,11 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
+import { pool } from "./db";
 import type { User as SelectUser } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
@@ -33,10 +34,7 @@ declare global {
 }
 
 export function setupAuth(app: Express) {
-  const MemoryStore = createMemoryStore(session);
-  
-  // Always trust proxy and use secure cookies in Replit environment
-  const isProduction = process.env.NODE_ENV === "production" || !!process.env.REPLIT_DEPLOYMENT;
+  const PgStore = connectPgSimple(session);
   
   app.set("trust proxy", 1);
   
@@ -45,13 +43,15 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: isProduction,
-      sameSite: "lax" as const,
+      secure: true,
+      sameSite: "none" as const,
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
-    store: new MemoryStore({
-      checkPeriod: 86400000,
+    store: new PgStore({
+      pool: pool,
+      tableName: "user_sessions",
+      createTableIfMissing: true,
     }),
   };
 
