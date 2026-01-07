@@ -123,3 +123,137 @@ Preferred communication style: Simple, everyday language.
 - Static file serving from dist/public
 - Environment variable configuration for database and session secrets
 - Vite plugin for OpenGraph image meta tag updates based on Replit domain
+
+---
+
+## PSCoMiXX Mobile Companion - Build Plan
+
+### Design Consistency Requirements
+
+The mobile version MUST maintain visual and interaction consistency with the desktop app:
+
+**Visual Identity (Match Desktop Exactly):**
+- Brutalist aesthetic with hard shadows (shadow-brutal class)
+- Dark theme with zinc-900/950 backgrounds
+- Neon accent colors: Cyan (#0ff), Magenta (#f0f), Yellow (#ff0)
+- Card-style containers with thick borders (border-2, border-white/black)
+- Gradient accents (bg-gradient-to-r from-cyan-500 to-purple-500)
+
+**Typography (Same Fonts):**
+- Space Grotesk for headings/display text
+- Inter for body text and UI elements
+- JetBrains Mono for code/stats
+
+**UI Components (Shared Design System):**
+- Reuse all shadcn/ui components with same styling
+- Same button variants (default, outline, ghost)
+- Same form inputs with consistent focus states
+- Same toast notifications (sonner)
+- Same icons (lucide-react)
+
+**Navigation Patterns:**
+- Bottom tab bar for mobile (mirrors desktop sidebar)
+- Consistent page headers with back navigation
+- Same modal/dialog styling
+- Familiar iconography throughout
+
+### Mobile Build Phases
+
+#### Phase 1: Core Infrastructure & Authentication
+- Mobile-optimized responsive layouts
+- Same auth flow (login/register/password reset)
+- Device token storage for push notifications
+- Offline session caching
+- Bottom tab navigation: Home | Create | Social | Profile
+
+#### Phase 2: Card Builder & XP System Foundation
+**Database Additions:**
+- `card_templates` - Pre-designed card layouts
+- `cards` - User cards with stats (attack, defense, speed, special)
+- `xp_wallets` - User XP balance (synced desktop/mobile)
+- `xp_events` - Activity log for XP earning
+
+**XP Economy:**
+| Activity | XP Earned |
+|----------|-----------|
+| Daily Login | +5 XP |
+| Post Content | +10 XP |
+| Get a Like | +2 XP |
+| Collab Session | +25 XP |
+| Win Card Battle | +50 XP |
+| Complete VN/CYOA | +15 XP |
+
+| Card Upgrade | XP Cost |
+|--------------|---------|
+| Stat +1 (Lvl 1-5) | 20 XP |
+| Stat +1 (Lvl 6-10) | 50 XP |
+| Stat +1 (Lvl 11+) | 100 XP |
+| Unlock Special Ability | 200 XP |
+
+**Features:**
+- Touch-friendly card designer
+- Template gallery
+- Stat upgrade system
+- Offline draft saving
+
+#### Phase 3: Social Media Hub
+**Database Additions:**
+- `post_reactions` - Multiple reaction types (❤️ 🔥 😂 💎 🎨)
+- `notifications` - Activity alerts
+
+**Features:**
+- Infinite scroll feed
+- Quick post composer
+- Comments & reactions
+- Follow system
+- Direct messages
+- Push notifications
+
+#### Phase 4: Real-time Collaboration
+**Database Additions:**
+- `collab_sessions` - Active collaboration rooms
+- `collab_share_codes` - 6-character invite codes (e.g., "ABC123")
+- `collab_presence` - Live cursor positions
+
+**Features:**
+- Share code generation & entry
+- Live cursors showing collaborators
+- Edit locking to prevent conflicts
+- WebSocket real-time updates
+- In-session chat
+- Roles: Owner, Editor, Viewer
+
+#### Phase 5: Card Games & Competitive Features
+**Database Additions:**
+- `card_decks` - Battle deck collections
+- `card_matches` - Game history
+- `leaderboards` - Global rankings
+
+**Features:**
+- Deck builder UI
+- Quick match (random opponent)
+- Friend battles (challenge system)
+- Stat-based combat mechanics
+- Win rewards (XP + rare drops)
+- Weekly tournaments
+- Global & friend leaderboards
+
+#### Phase 6: VN/CYOA Viewer
+**Database Additions:**
+- `viewer_progress` - Reading position tracking
+- `published_stories` - Public content library
+
+**Features:**
+- Browse published Visual Novels
+- CYOA reader with choice tracking
+- Save/resume progress
+- Bookmarks & favorites
+- Ratings & comments
+
+#### Phase 7: Polish & Launch
+- Performance optimization
+- Offline content packs
+- Tutorial & onboarding
+- Dark/light mode toggle
+- Accessibility improvements
+- App store compliance
