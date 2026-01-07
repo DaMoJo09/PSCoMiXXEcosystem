@@ -1418,3 +1418,59 @@ export const insertChainLikeSchema = createInsertSchema(chainLikes).omit({
 
 export type InsertChainLike = z.infer<typeof insertChainLikeSchema>;
 export type ChainLike = typeof chainLikes.$inferSelect;
+
+// ============================================
+// IMPORT PIPELINE (Reallusion/ComfyUI)
+// ============================================
+
+export const assetImports = pgTable("asset_imports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  bundleName: text("bundle_name").notNull(),
+  sourceApp: text("source_app").notNull(), // iClone | CharacterCreator | CartoonAnimator | ComfyUI | Unknown
+  exportType: text("export_type").notNull(), // render | image | image_sequence | video | asset_pack
+  targetMode: text("target_mode").notNull(), // library_card | cover | comic | cyoa | visual_novel
+  assetName: text("asset_name").notNull(),
+  assetRole: text("asset_role"), // character | background | panel | overlay | cutscene | prop
+  status: text("status").notNull().default("pending"), // pending | imported | failed
+  manifest: jsonb("manifest"), // Full manifest JSON
+  files: jsonb("files"), // Array of file objects
+  errorMessage: text("error_message"),
+  tags: text("tags").array(),
+  thumbnail: text("thumbnail"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  importedAt: timestamp("imported_at"),
+});
+
+export const insertAssetImportSchema = createInsertSchema(assetImports).omit({
+  id: true,
+  createdAt: true,
+  importedAt: true,
+});
+
+export type InsertAssetImport = z.infer<typeof insertAssetImportSchema>;
+export type AssetImport = typeof assetImports.$inferSelect;
+
+// Import manifest schema for validation
+export const importManifestSchema = z.object({
+  schema_version: z.string().default("1.0"),
+  source_app: z.enum(["iClone", "CharacterCreator", "CartoonAnimator", "ComfyUI", "Unknown"]),
+  source_app_version: z.string().optional(),
+  export_type: z.enum(["render", "image", "image_sequence", "video", "asset_pack"]),
+  target_mode: z.enum(["library_card", "cover", "comic", "cyoa", "visual_novel"]),
+  project_slug: z.string().optional(),
+  asset_name: z.string(),
+  style: z.string().optional(),
+  created_at: z.string().optional(),
+  files: z.array(z.object({
+    role: z.enum(["beauty", "alpha", "depth", "normal", "mask", "frames", "video", "thumb", "project"]),
+    path: z.string(),
+  })),
+  tags: z.array(z.string()).optional(),
+  fps: z.number().optional(),
+  prompt: z.string().optional(),
+  workflow_path: z.string().optional(),
+});
+
+export type ImportManifest = z.infer<typeof importManifestSchema>;
