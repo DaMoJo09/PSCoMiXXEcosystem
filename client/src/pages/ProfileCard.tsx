@@ -42,39 +42,19 @@ interface UserProfile {
 }
 
 const CREATOR_CLASSES = [
-  { value: "Rookie", label: "Rookie", icon: Star, color: "text-gray-400" },
-  { value: "Artist", label: "Artist", icon: Palette, color: "text-pink-500" },
-  { value: "Writer", label: "Writer", icon: BookOpen, color: "text-blue-500" },
-  { value: "Storyteller", label: "Storyteller", icon: Sparkles, color: "text-purple-500" },
-  { value: "Legend", label: "Legend", icon: Trophy, color: "text-yellow-500" },
+  { value: "Rookie", label: "ROOKIE", icon: Star },
+  { value: "Artist", label: "ARTIST", icon: Palette },
+  { value: "Writer", label: "WRITER", icon: BookOpen },
+  { value: "Storyteller", label: "STORYTELLER", icon: Sparkles },
+  { value: "Legend", label: "LEGEND", icon: Trophy },
 ];
 
-const StatBar = ({ label, value, max = 100, icon: Icon, color }: { 
-  label: string; 
-  value: number; 
-  max?: number; 
-  icon: any; 
-  color: string;
-}) => {
-  const percentage = Math.min((value / max) * 100, 100);
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5">
-          <Icon className={`w-3.5 h-3.5 ${color}`} />
-          <span className="font-bold uppercase tracking-wider">{label}</span>
-        </div>
-        <span className="font-mono font-bold">{value}</span>
-      </div>
-      <div className="h-2 bg-black/50 border border-white/20 overflow-hidden">
-        <div 
-          className={`h-full ${color.replace('text-', 'bg-')} transition-all duration-500`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-};
+const StatBlock = ({ label, value, abbrev }: { label: string; value: number; abbrev: string }) => (
+  <div className="flex items-center gap-1">
+    <span className="text-red-500 font-black text-xs">{abbrev}</span>
+    <span className="text-white font-mono font-bold text-sm">{value}</span>
+  </div>
+);
 
 export default function ProfileCard() {
   const [, navigate] = useLocation();
@@ -179,9 +159,8 @@ export default function ProfileCard() {
     e.target.value = "";
   };
 
-  const getClassIcon = (className: string) => {
-    const cls = CREATOR_CLASSES.find(c => c.value === className);
-    return cls || CREATOR_CLASSES[0];
+  const getClassInfo = (className: string) => {
+    return CREATOR_CLASSES.find(c => c.value === className) || CREATOR_CLASSES[0];
   };
 
   const xpToNextLevel = (profile?.level || 1) * 100;
@@ -190,7 +169,7 @@ export default function ProfileCard() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -199,31 +178,44 @@ export default function ProfileCard() {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
         <p className="text-white/70">Please log in to view your profile</p>
-        <Button onClick={() => navigate("/login")} className="mt-4 bg-white text-black">
+        <Button onClick={() => navigate("/login")} className="mt-4 bg-red-600 text-white border-2 border-black">
           Login
         </Button>
       </div>
     );
   }
 
-  const CreatorClassInfo = getClassIcon(profile.creatorClass);
+  const ClassInfo = getClassInfo(profile.creatorClass);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-black to-zinc-900 text-white">
+    <div className="min-h-screen bg-black text-white overflow-hidden">
+      {/* Diagonal background pattern */}
+      <div className="fixed inset-0 pointer-events-none opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            white 10px,
+            white 11px
+          )`
+        }} />
+      </div>
+
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b-2 border-white/20 p-4">
+      <div className="sticky top-0 z-50 bg-black border-b-4 border-red-600 p-4">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => window.history.back()}
-            className="text-white hover:bg-white/10"
+            className="text-white hover:bg-red-600/20 hover:text-red-500"
             data-testid="back-button"
           >
             <ArrowLeft className="w-6 h-6" />
           </Button>
-          <h1 className="font-black text-lg tracking-tight bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-            CREATOR PROFILE
+          <h1 className="font-black text-xl tracking-widest text-white uppercase" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            PROFILE
           </h1>
           {isEditing ? (
             <div className="flex gap-2">
@@ -239,7 +231,7 @@ export default function ProfileCard() {
               <Button 
                 size="icon"
                 onClick={handleSave}
-                className="bg-green-500 hover:bg-green-600"
+                className="bg-red-600 hover:bg-red-700 border-2 border-black"
                 disabled={updateProfileMutation.isPending}
                 data-testid="save-profile"
               >
@@ -251,7 +243,7 @@ export default function ProfileCard() {
               variant="ghost" 
               size="icon"
               onClick={handleStartEdit}
-              className="text-white hover:bg-white/10"
+              className="text-white hover:bg-red-600/20 hover:text-red-500"
               data-testid="edit-profile"
             >
               <Edit3 className="w-5 h-5" />
@@ -260,61 +252,50 @@ export default function ProfileCard() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 pb-24">
+      <div className="max-w-2xl mx-auto p-4 pb-24 relative">
         {/* PERSONA CARD */}
-        <div className="relative bg-gradient-to-br from-zinc-900 to-zinc-950 border-4 border-white shadow-[8px_8px_0px_0px_rgba(0,255,255,0.3)] overflow-hidden">
+        <div className="relative bg-black border-4 border-white overflow-hidden" style={{
+          clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%)"
+        }}>
           
-          {/* Cover Image */}
-          <div className="relative h-32 sm:h-40 bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600">
-            {profile.coverImage && (
-              <img 
-                src={profile.coverImage} 
-                alt="Cover" 
-                className="w-full h-full object-cover"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-            {isEditing && (
-              <button
-                onClick={() => coverInputRef.current?.click()}
-                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
-                data-testid="upload-cover"
-              >
-                <Camera className="w-5 h-5" />
-              </button>
-            )}
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, "cover")}
-            />
-          </div>
+          {/* Red accent slash */}
+          <div className="absolute top-0 right-0 w-32 h-full bg-red-600 transform skew-x-[-12deg] translate-x-16 z-0" />
+          
+          {/* Grungy overlay pattern */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
+          }} />
 
-          {/* Avatar & Level Badge */}
-          <div className="relative px-4 -mt-12 sm:-mt-16">
-            <div className="relative inline-block">
-              <div className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white bg-zinc-900 overflow-hidden shadow-[4px_4px_0px_0px_rgba(255,0,255,0.5)]">
+          {/* Main content area */}
+          <div className="relative z-10 flex flex-col md:flex-row">
+            
+            {/* Left side - Avatar */}
+            <div className="relative w-full md:w-2/5 aspect-square md:aspect-auto">
+              <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black">
                 {profile.avatar ? (
                   <img 
                     src={profile.avatar} 
                     alt={profile.name} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover mix-blend-luminosity hover:mix-blend-normal transition-all duration-300"
+                    style={{ filter: "contrast(1.2)" }}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-500 to-purple-600 text-4xl sm:text-5xl font-black">
-                    {profile.name.charAt(0).toUpperCase()}
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                    <span className="text-8xl font-black text-white/20">{profile.name.charAt(0).toUpperCase()}</span>
                   </div>
                 )}
+                {/* Dramatic shadow overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/80" />
               </div>
+              
               {isEditing && (
                 <button
                   onClick={() => avatarInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 p-2 bg-white text-black hover:bg-white/90 transition-colors border-2 border-black"
+                  className="absolute bottom-4 left-4 p-3 bg-red-600 text-white hover:bg-red-700 transition-colors border-2 border-black"
                   data-testid="upload-avatar"
                 >
-                  <Upload className="w-4 h-4" />
+                  <Camera className="w-5 h-5" />
                 </button>
               )}
               <input
@@ -324,128 +305,140 @@ export default function ProfileCard() {
                 className="hidden"
                 onChange={(e) => handleImageUpload(e, "avatar")}
               />
-              {/* Level Badge */}
-              <div className="absolute -top-2 -right-2 w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 border-2 border-black flex items-center justify-center font-black text-black text-lg shadow-brutal">
-                {profile.level}
-              </div>
-            </div>
-          </div>
-
-          {/* Name & Class */}
-          <div className="px-4 pt-3 pb-2">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                {isEditing ? (
-                  <Input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="font-black text-2xl bg-white/10 border-2 border-white h-auto py-1 px-2"
-                    data-testid="input-name"
-                  />
-                ) : (
-                  <h2 className="font-black text-2xl sm:text-3xl tracking-tight">{profile.name}</h2>
-                )}
-                
-                <div className="flex items-center gap-2 mt-1">
-                  {isEditing ? (
-                    <Select
-                      value={editForm.creatorClass}
-                      onValueChange={(val) => setEditForm({ ...editForm, creatorClass: val })}
-                    >
-                      <SelectTrigger className="w-40 h-8 bg-white/10 border-2 border-white/50" data-testid="select-class">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CREATOR_CLASSES.map((cls) => (
-                          <SelectItem key={cls.value} value={cls.value}>
-                            <span className="flex items-center gap-2">
-                              <cls.icon className={`w-4 h-4 ${cls.color}`} />
-                              {cls.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className={`flex items-center gap-1.5 text-sm font-bold ${CreatorClassInfo.color}`}>
-                      <CreatorClassInfo.icon className="w-4 h-4" />
-                      {profile.creatorClass}
-                    </span>
-                  )}
+              
+              {/* Level badge - angular style */}
+              <div className="absolute top-4 left-4">
+                <div className="relative">
+                  <div className="bg-red-600 text-white px-4 py-2 font-black text-2xl border-2 border-black transform -skew-x-6">
+                    LV.{profile.level}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Tagline */}
-            <div className="mt-3">
-              {isEditing ? (
-                <Input
-                  value={editForm.tagline}
-                  onChange={(e) => setEditForm({ ...editForm, tagline: e.target.value })}
-                  placeholder="Your epic tagline..."
-                  className="bg-white/10 border-2 border-white/50 italic"
-                  data-testid="input-tagline"
-                />
-              ) : profile.tagline ? (
-                <p className="text-white/70 italic">"{profile.tagline}"</p>
-              ) : null}
-            </div>
-          </div>
+            {/* Right side - Info */}
+            <div className="flex-1 p-6 relative">
+              {/* Name with angular underline */}
+              <div className="mb-4">
+                {isEditing ? (
+                  <Input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="font-black text-3xl bg-zinc-900 border-2 border-white h-auto py-2 px-3 text-white"
+                    data-testid="input-name"
+                  />
+                ) : (
+                  <>
+                    <h2 className="font-black text-3xl md:text-4xl tracking-tight uppercase text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      {profile.name}
+                    </h2>
+                    <div className="h-1 w-24 bg-red-600 mt-2 transform -skew-x-12" />
+                  </>
+                )}
+              </div>
 
-          {/* XP Bar */}
-          <div className="px-4 py-3 border-t-2 border-white/10">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5" />
-                EXPERIENCE
-              </span>
-              <span className="text-xs font-mono">{profile.xp} / {xpToNextLevel} XP</span>
-            </div>
-            <div className="h-3 bg-black border-2 border-cyan-500/50 overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-500"
-                style={{ width: `${xpProgress}%` }}
-              />
-            </div>
-          </div>
+              {/* Class badge */}
+              <div className="mb-4">
+                {isEditing ? (
+                  <Select
+                    value={editForm.creatorClass}
+                    onValueChange={(val) => setEditForm({ ...editForm, creatorClass: val })}
+                  >
+                    <SelectTrigger className="w-48 bg-zinc-900 border-2 border-white text-white" data-testid="select-class">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-2 border-white">
+                      {CREATOR_CLASSES.map((cls) => (
+                        <SelectItem key={cls.value} value={cls.value} className="text-white hover:bg-red-600">
+                          <span className="flex items-center gap-2 font-bold">
+                            <cls.icon className="w-4 h-4" />
+                            {cls.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="inline-flex items-center gap-2 bg-white text-black px-3 py-1 font-black text-sm uppercase tracking-wider transform -skew-x-6">
+                    <ClassInfo.icon className="w-4 h-4" />
+                    {profile.creatorClass}
+                  </div>
+                )}
+              </div>
 
-          {/* Stats Grid */}
-          <div className="px-4 py-4 border-t-2 border-white/10 grid grid-cols-2 gap-3">
-            <StatBar 
-              label="Creativity" 
-              value={profile.statCreativity} 
-              icon={Sparkles} 
-              color="text-pink-500"
-            />
-            <StatBar 
-              label="Storytelling" 
-              value={profile.statStorytelling} 
-              icon={BookOpen} 
-              color="text-blue-500"
-            />
-            <StatBar 
-              label="Artistry" 
-              value={profile.statArtistry} 
-              icon={Palette} 
-              color="text-purple-500"
-            />
-            <StatBar 
-              label="Collab" 
-              value={profile.statCollaboration} 
-              icon={Users} 
-              color="text-green-500"
-            />
+              {/* Tagline */}
+              <div className="mb-6">
+                {isEditing ? (
+                  <Input
+                    value={editForm.tagline}
+                    onChange={(e) => setEditForm({ ...editForm, tagline: e.target.value })}
+                    placeholder="Your epic tagline..."
+                    className="bg-zinc-900 border-2 border-white/50 text-white italic"
+                    data-testid="input-tagline"
+                  />
+                ) : profile.tagline ? (
+                  <p className="text-white/70 italic text-lg">"{profile.tagline}"</p>
+                ) : null}
+              </div>
+
+              {/* XP Bar - Persona style */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-red-500 tracking-widest flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    EXPERIENCE
+                  </span>
+                  <span className="text-xs font-mono text-white/70">{profile.xp} / {xpToNextLevel}</span>
+                </div>
+                <div className="h-4 bg-zinc-900 border-2 border-white overflow-hidden transform -skew-x-6">
+                  <div 
+                    className="h-full bg-red-600 transition-all duration-500"
+                    style={{ width: `${xpProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Stats row - card game style */}
+              <div className="flex items-center gap-4 p-3 bg-zinc-900 border-2 border-white mb-6 transform -skew-x-3">
+                <StatBlock label="Creativity" value={profile.statCreativity} abbrev="CR" />
+                <div className="w-px h-6 bg-white/30" />
+                <StatBlock label="Story" value={profile.statStorytelling} abbrev="ST" />
+                <div className="w-px h-6 bg-white/30" />
+                <StatBlock label="Art" value={profile.statArtistry} abbrev="AR" />
+                <div className="w-px h-6 bg-white/30" />
+                <StatBlock label="Collab" value={profile.statCollaboration} abbrev="CO" />
+              </div>
+
+              {/* Social stats */}
+              <div className="grid grid-cols-3 gap-2 mb-6">
+                <div className="text-center p-2 bg-zinc-900 border border-white/30">
+                  <p className="font-black text-2xl text-white">{profile.postCount}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-red-500 font-bold">POSTS</p>
+                </div>
+                <div className="text-center p-2 bg-zinc-900 border border-white/30">
+                  <p className="font-black text-2xl text-white">{profile.followers}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-red-500 font-bold">FOLLOWERS</p>
+                </div>
+                <div className="text-center p-2 bg-zinc-900 border border-white/30">
+                  <p className="font-black text-2xl text-white">{profile.projectCount}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-red-500 font-bold">PROJECTS</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Bio Section */}
-          <div className="px-4 py-4 border-t-2 border-white/10">
-            <h3 className="text-xs font-black uppercase tracking-wider text-white/50 mb-2">BIO</h3>
+          <div className="relative z-10 px-6 py-4 border-t-2 border-white/20 bg-zinc-900/50">
+            <h3 className="text-xs font-black uppercase tracking-widest text-red-500 mb-3 flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500" />
+              BIO
+            </h3>
             {isEditing ? (
               <Textarea
                 value={editForm.bio}
                 onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
                 placeholder="Tell the world about your creative journey..."
-                className="bg-white/10 border-2 border-white/50 min-h-[100px] resize-none"
+                className="bg-zinc-900 border-2 border-white/50 min-h-[100px] resize-none text-white"
                 data-testid="input-bio"
               />
             ) : profile.bio ? (
@@ -456,12 +449,15 @@ export default function ProfileCard() {
           </div>
 
           {/* Social Links */}
-          <div className="px-4 py-4 border-t-2 border-white/10">
-            <h3 className="text-xs font-black uppercase tracking-wider text-white/50 mb-3">LINKS</h3>
+          <div className="relative z-10 px-6 py-4 border-t-2 border-white/20">
+            <h3 className="text-xs font-black uppercase tracking-widest text-red-500 mb-3 flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500" />
+              LINKS
+            </h3>
             {isEditing ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                  <Twitter className="w-4 h-4 text-white" />
                   <Input
                     value={editForm.socialLinks.twitter || ""}
                     onChange={(e) => setEditForm({ 
@@ -469,12 +465,12 @@ export default function ProfileCard() {
                       socialLinks: { ...editForm.socialLinks, twitter: e.target.value }
                     })}
                     placeholder="Twitter username"
-                    className="bg-white/10 border border-white/30 h-8 text-sm"
+                    className="bg-zinc-900 border border-white/30 h-8 text-sm text-white"
                     data-testid="input-twitter"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Instagram className="w-4 h-4 text-[#E4405F]" />
+                  <Instagram className="w-4 h-4 text-white" />
                   <Input
                     value={editForm.socialLinks.instagram || ""}
                     onChange={(e) => setEditForm({ 
@@ -482,12 +478,12 @@ export default function ProfileCard() {
                       socialLinks: { ...editForm.socialLinks, instagram: e.target.value }
                     })}
                     placeholder="Instagram username"
-                    className="bg-white/10 border border-white/30 h-8 text-sm"
+                    className="bg-zinc-900 border border-white/30 h-8 text-sm text-white"
                     data-testid="input-instagram"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-cyan-400" />
+                  <Globe className="w-4 h-4 text-white" />
                   <Input
                     value={editForm.socialLinks.website || ""}
                     onChange={(e) => setEditForm({ 
@@ -495,7 +491,7 @@ export default function ProfileCard() {
                       socialLinks: { ...editForm.socialLinks, website: e.target.value }
                     })}
                     placeholder="Website URL"
-                    className="bg-white/10 border border-white/30 h-8 text-sm"
+                    className="bg-zinc-900 border border-white/30 h-8 text-sm text-white"
                     data-testid="input-website"
                   />
                 </div>
@@ -507,10 +503,10 @@ export default function ProfileCard() {
                     href={`https://twitter.com/${profile.socialLinks.twitter}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-white/10 hover:bg-[#1DA1F2]/20 transition-colors border border-white/20"
+                    className="p-3 bg-zinc-900 hover:bg-red-600 transition-colors border-2 border-white transform -skew-x-6"
                     data-testid="link-twitter"
                   >
-                    <Twitter className="w-5 h-5 text-[#1DA1F2]" />
+                    <Twitter className="w-5 h-5 text-white" />
                   </a>
                 )}
                 {profile.socialLinks?.instagram && (
@@ -518,10 +514,10 @@ export default function ProfileCard() {
                     href={`https://instagram.com/${profile.socialLinks.instagram}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-white/10 hover:bg-[#E4405F]/20 transition-colors border border-white/20"
+                    className="p-3 bg-zinc-900 hover:bg-red-600 transition-colors border-2 border-white transform -skew-x-6"
                     data-testid="link-instagram"
                   >
-                    <Instagram className="w-5 h-5 text-[#E4405F]" />
+                    <Instagram className="w-5 h-5 text-white" />
                   </a>
                 )}
                 {profile.socialLinks?.website && (
@@ -529,10 +525,10 @@ export default function ProfileCard() {
                     href={profile.socialLinks.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 bg-white/10 hover:bg-cyan-500/20 transition-colors border border-white/20"
+                    className="p-3 bg-zinc-900 hover:bg-red-600 transition-colors border-2 border-white transform -skew-x-6"
                     data-testid="link-website"
                   >
-                    <Globe className="w-5 h-5 text-cyan-400" />
+                    <Globe className="w-5 h-5 text-white" />
                   </a>
                 )}
                 {!profile.socialLinks?.twitter && !profile.socialLinks?.instagram && !profile.socialLinks?.website && (
@@ -542,41 +538,25 @@ export default function ProfileCard() {
             )}
           </div>
 
-          {/* Quick Stats Footer */}
-          <div className="grid grid-cols-3 divide-x-2 divide-white/10 border-t-2 border-white/10 bg-white/5">
-            <div className="py-3 text-center">
-              <p className="font-black text-xl">{profile.postCount}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/50">Posts</p>
-            </div>
-            <div className="py-3 text-center">
-              <p className="font-black text-xl">{profile.followers}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/50">Followers</p>
-            </div>
-            <div className="py-3 text-center">
-              <p className="font-black text-xl">{profile.projectCount}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/50">Projects</p>
-            </div>
-          </div>
-
-          {/* Card Border Decorations */}
-          <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-cyan-400" />
-          <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-purple-500" />
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-pink-500" />
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-yellow-400" />
+          {/* Corner cut decoration */}
+          <div className="absolute bottom-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-b-[20px] border-b-red-600" />
         </div>
 
-        {/* View Public Profile */}
+        {/* View Public Profile Button */}
         <div className="mt-6 text-center">
           <Button
-            variant="outline"
             onClick={() => navigate(`/social/profile/${profile.id}`)}
-            className="border-2 border-white/30 text-white/70 hover:bg-white/10"
+            className="bg-white text-black border-4 border-black font-black uppercase tracking-wider hover:bg-red-600 hover:text-white hover:border-red-600 transition-all transform -skew-x-6 px-8"
             data-testid="view-public-profile"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
-            View Public Profile
+            VIEW PUBLIC PROFILE
           </Button>
         </div>
+
+        {/* Decorative elements */}
+        <div className="absolute bottom-10 left-0 w-32 h-1 bg-red-600 transform -skew-x-12" />
+        <div className="absolute bottom-6 left-0 w-20 h-1 bg-white transform -skew-x-12" />
       </div>
     </div>
   );
