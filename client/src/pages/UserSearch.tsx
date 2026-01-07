@@ -4,10 +4,11 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { 
   ArrowLeft, Search, UserPlus, UserMinus, Users, 
-  Sparkles, TrendingUp, Star, MessageCircle
+  Sparkles, TrendingUp, Star, MessageCircle, UserCheck
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -148,6 +149,7 @@ export default function UserSearch() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("newest");
 
   const { data: suggestedUsers = [], isLoading: loadingSuggested } = useQuery<UserProfile[]>({
     queryKey: ["/api/social/suggested-users"],
@@ -158,7 +160,16 @@ export default function UserSearch() {
     },
   });
 
-  const { data: searchResults = [], isLoading: loadingSearch, refetch: searchRefetch } = useQuery<UserProfile[]>({
+  const { data: newestMembers = [], isLoading: loadingNewest } = useQuery<UserProfile[]>({
+    queryKey: ["/api/social/newest-members"],
+    queryFn: async () => {
+      const res = await fetch("/api/social/newest-members");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const { data: searchResults = [], isLoading: loadingSearch } = useQuery<UserProfile[]>({
     queryKey: ["/api/social/search-users", searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) return [];
@@ -171,13 +182,24 @@ export default function UserSearch() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/social/suggested-users"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/social/newest-members"] });
     if (searchQuery) {
       queryClient.invalidateQueries({ queryKey: ["/api/social/search-users", searchQuery] });
     }
   };
 
-  const displayUsers = searchQuery.length >= 2 ? searchResults : suggestedUsers;
-  const isLoading = searchQuery.length >= 2 ? loadingSearch : loadingSuggested;
+  const getDisplayUsers = () => {
+    if (searchQuery.length >= 2) return searchResults;
+    return activeTab === "newest" ? newestMembers : suggestedUsers;
+  };
+  
+  const getIsLoading = () => {
+    if (searchQuery.length >= 2) return loadingSearch;
+    return activeTab === "newest" ? loadingNewest : loadingSuggested;
+  };
+  
+  const displayUsers = getDisplayUsers();
+  const isLoading = getIsLoading();
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -200,7 +222,7 @@ export default function UserSearch() {
       </div>
 
       <div className="max-w-lg mx-auto p-4">
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
           <Input
             value={searchQuery}
@@ -219,12 +241,26 @@ export default function UserSearch() {
             </h2>
           </div>
         ) : (
-          <div className="mb-4">
-            <h2 className="font-bold text-sm text-white/50 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              SUGGESTED CREATORS
-            </h2>
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
+            <TabsList className="w-full grid grid-cols-2 bg-white/5 border-4 border-black rounded-none h-12">
+              <TabsTrigger 
+                value="newest" 
+                className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black font-bold"
+                data-testid="tab-newest"
+              >
+                <UserCheck className="w-4 h-4 mr-2" />
+                NEWEST
+              </TabsTrigger>
+              <TabsTrigger 
+                value="suggested" 
+                className="data-[state=active]:bg-white data-[state=active]:text-black font-bold"
+                data-testid="tab-suggested"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                SUGGESTED
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         )}
 
         {isLoading ? (
@@ -238,6 +274,12 @@ export default function UserSearch() {
                 <Users className="w-12 h-12 mx-auto text-white/30 mb-4" />
                 <p className="text-white/70">No users found</p>
                 <p className="text-white/50 text-sm">Try a different search term</p>
+              </>
+            ) : activeTab === "newest" ? (
+              <>
+                <UserCheck className="w-12 h-12 mx-auto text-white/30 mb-4" />
+                <p className="text-white/70">No members yet</p>
+                <p className="text-white/50 text-sm">Be the first to invite friends!</p>
               </>
             ) : (
               <>

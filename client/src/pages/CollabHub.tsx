@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -660,9 +660,46 @@ function SessionCard({ session }: { session: CollabSession }) {
 
 export default function CollabHub() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("sessions");
   const [sessionFilter, setSessionFilter] = useState("active");
+  const [autoJoinCode, setAutoJoinCode] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const joinCode = params.get("join");
+    if (joinCode && joinCode.length === 6) {
+      setAutoJoinCode(joinCode.toUpperCase());
+    }
+  }, [search]);
+
+  const autoJoinMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await fetch(`/api/collab/join/${code}`, { method: "POST" });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Joined!", description: `Welcome to ${data.session.title}` });
+      setAutoJoinCode(null);
+      navigate(`/social/collab/${data.session.id}`);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't join", description: error.message, variant: "destructive" });
+      setAutoJoinCode(null);
+    },
+  });
+
+  useEffect(() => {
+    if (autoJoinCode && !autoJoinMutation.isPending) {
+      autoJoinMutation.mutate(autoJoinCode);
+    }
+  }, [autoJoinCode]);
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<CollabSession[]>({
     queryKey: ["/api/collab/my-sessions"],

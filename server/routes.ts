@@ -1234,6 +1234,38 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Get newest members (most recent signups)
+  app.get("/api/social/newest-members", isAuthenticated, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const newest = allUsers
+        .filter(u => u.id !== req.user!.id)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 20);
+      
+      const usersWithStats = await Promise.all(
+        newest.map(async (u) => {
+          const isFollowing = await storage.isFollowing(req.user!.id, u.id);
+          const counts = await storage.getFollowCounts(u.id);
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            createdAt: u.createdAt,
+            followerCount: counts.followers,
+            followingCount: counts.following,
+            isFollowing,
+          };
+        })
+      );
+      
+      res.json(usersWithStats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ============================================
   // DM ROUTES
   // ============================================
