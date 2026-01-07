@@ -1,0 +1,433 @@
+Absolutely — here is the **single, copy-paste Replit build doc** that includes **everything**: Reallusion → CoMiXX folder pipeline, **ComfyUI compatibility**, **connection status UI**, **auto + manual import**, **manifest spec**, **routing rules**, **failure handling**, and a **Replit implementation checklist**.
+
+You can drop this straight into Replit/Manus as the build requirements.
+
+---
+
+```md
+# CoMiXX Desktop App — Replit Build Spec
+## Reallusion (iClone / Character Creator / Cartoon Animator) + ComfyUI Unified Integration
+**Goal:** A bulletproof import pipeline that moves assets from Reallusion tools (and ComfyUI renders) into CoMiXX, auto-sorts them into correct project/mode folders, and shows clear connection + import status to the user.
+
+---
+
+## 0) Core Principles (Non-Negotiable)
+1. **Source-agnostic imports**: CoMiXX should import from Reallusion tools AND ComfyUI the same way (Inbox + Manifest + Routing).
+2. **Never lose files**: Nothing is deleted; failed imports go to `_FAILED_IMPORTS`.
+3. **Zero confusion for users**: Provide **Connection Status** + **Import Center UI** that clearly shows:
+   - Are we connected?
+   - What sources are connected?
+   - What is waiting to import?
+   - What was imported?
+   - What failed?
+
+---
+
+## 1) CoMiXX Root Directory Standard (User-configurable)
+Default root directory:
+- **Windows**: `%USERPROFILE%\Documents\CoMiXX\`
+- **macOS**: `~/Documents/CoMiXX/`
+
+Required folder structure:
+```
+
+CoMiXX/
+_INBOX/
+REALLUSION/
+COMFYUI/
+_MANIFESTS/
+_FAILED_IMPORTS/
+Projects/
+Library/
+Templates/
+Exports/
+Cache/
+logs/
+config/
+
+```
+
+Why:
+- `_INBOX/` = watch folder for incoming bundles
+- `_MANIFESTS/` = copy/registry of processed manifests
+- `_FAILED_IMPORTS/` = safety net for import errors
+- `Projects/` = each project workspace
+- `Library/` = global reusable assets
+
+---
+
+## 2) Unified Import Flow (Main Loop)
+### A) Export into Inbox
+Exports from Reallusion tools or ComfyUI land in:
+```
+
+CoMiXX/_INBOX/REALLUSION/<bundle_name>/
+CoMiXX/_INBOX/COMFYUI/<bundle_name>/
+
+```
+
+### B) CoMiXX Importer (Background Service)
+A file watcher + import queue does:
+1. Detect new bundle folder
+2. Locate `manifest.json` (recommended) OR infer metadata via fallback rules
+3. Validate required files
+4. Prompt user (optional) OR auto-route (if confident)
+5. Copy/move files into destination project folders
+6. Register assets in internal index/db
+7. Log success/failure and update UI
+
+---
+
+## 3) Bundle Folder Naming Convention
+Bundle name format:
+```
+
+YYYYMMDD_HHMM_<SOURCE>*<TARGETMODE>*<PROJECT>_<ASSETNAME>
+
+```
+
+Examples:
+- `20260107_1412_ICLONE_COMIC_RonJambo_Scene01ShotA/`
+- `20260107_1440_COMFYUI_COVER_RonJambo_NoiriPosterV2/`
+
+---
+
+## 4) Manifest Spec (Preferred, Strongly Recommended)
+Path:
+```
+
+CoMiXX/_INBOX/<SOURCE>/<bundle>/manifest.json
+
+````
+
+Minimum JSON:
+```json
+{
+  "schema_version": "1.0",
+  "source_app": "iClone",
+  "source_app_version": "8.6+",
+  "export_type": "render",
+  "target_mode": "comic",
+  "project_slug": "ron-jambo",
+  "asset_name": "scene01_shotA",
+  "style": "noir_cinematic",
+  "created_at": "2026-01-07T14:12:00-08:00",
+  "files": [
+    { "role": "beauty", "path": "renders/beauty.png" },
+    { "role": "alpha",  "path": "renders/alpha.png" },
+    { "role": "thumb",  "path": "thumbs/thumb.jpg" }
+  ],
+  "tags": ["shot", "scene01", "iclonerender"]
+}
+````
+
+Supported values:
+
+* `source_app`: `"iClone" | "CharacterCreator" | "CartoonAnimator" | "ComfyUI" | "Unknown"`
+* `export_type`: `"render" | "image" | "image_sequence" | "video" | "asset_pack"`
+* `target_mode`: `"library_card" | "cover" | "comic" | "cyoa" | "visual_novel"`
+* `files[].role`: `"beauty" | "alpha" | "depth" | "normal" | "mask" | "frames" | "video" | "thumb" | "project"`
+
+Optional fields:
+
+* `fps` (for sequences/video)
+* `prompt`, `workflow_path` (ComfyUI)
+* `camera_data_path`
+* `license`, `attribution`
+
+---
+
+## 5) Fallback Inference Rules (No Manifest)
+
+If `manifest.json` is missing, CoMiXX should infer:
+
+* `source_app` from `_INBOX/REALLUSION` vs `_INBOX/COMFYUI`
+* `target_mode` from bundle name token (e.g. `_COMIC_`, `_COVER_`)
+* `project_slug` from bundle name token
+* `asset_name` from remaining bundle name
+* `export_type` from file types:
+
+  * many pngs with sequential naming => `image_sequence`
+  * mp4/mov => `video`
+  * single png/jpg => `image`
+
+If inference confidence < threshold:
+
+* show Import Modal and require user selection before routing.
+
+---
+
+## 6) Destination Routing (Mode → Folder Mapping)
+
+All routed assets land in:
+
+```
+CoMiXX/Projects/<project_slug>/<target_mode>/
+```
+
+### target_mode = comic
+
+```
+Projects/<project>/comic/
+  panels/
+  backgrounds/
+  overlays/
+  characters/
+  props/
+  renders/
+  thumbs/
+  manifests/
+```
+
+### target_mode = visual_novel
+
+```
+Projects/<project>/visual_novel/
+  sprites/
+  expressions/
+  backgrounds/
+  cutscenes/
+  ui/
+  audio/
+  renders/
+  thumbs/
+  manifests/
+```
+
+### target_mode = cyoa
+
+```
+Projects/<project>/cyoa/
+  scenes/
+  choices/
+  backgrounds/
+  characters/
+  overlays/
+  renders/
+  thumbs/
+  manifests/
+```
+
+### target_mode = cover
+
+```
+Projects/<project>/cover/
+  drafts/
+  finals/
+  typography/
+  exports/
+  thumbs/
+  manifests/
+```
+
+### target_mode = library_card
+
+```
+Projects/<project>/library_card/
+  characters/
+  stats/
+  frames/
+  exports/
+  thumbs/
+  manifests/
+```
+
+Global reusable assets can also be routed into:
+
+```
+CoMiXX/Library/
+  characters/
+  backgrounds/
+  overlays/
+  props/
+  styles/
+```
+
+---
+
+## 7) ComfyUI Compatibility (Required)
+
+ComfyUI outputs can include:
+
+* single images
+* image sequences (frames)
+* videos
+* workflow JSON and prompt text
+
+Recommended ComfyUI output path:
+
+```
+~/Documents/CoMiXX/_INBOX/COMFYUI/
+```
+
+ComfyUI example bundle:
+
+```
+CoMiXX/_INBOX/COMFYUI/2026-01-07_scene01_noir/
+  image_0001.png
+  image_0002.png
+  workflow.json
+  prompt.txt
+  manifest.json (optional)
+```
+
+If `workflow.json` exists:
+
+* store in `Projects/<project>/<mode>/manifests/`
+* show “View Workflow” in Import Details (phase 2 optional)
+
+---
+
+## 8) CoMiXX UI Requirements (Must Build)
+
+### A) Connection Status Indicator (Top Right Global)
+
+States:
+
+* 🟢 Connected — watchers running, root valid, permissions OK
+* 🟡 Paused — watcher intentionally paused by user
+* 🔴 Disconnected — invalid path, no permissions, watcher crashed
+
+Display:
+
+* current root path
+* watch folders enabled
+* sources detected: `Reallusion | ComfyUI`
+* last import time
+
+### B) Import Center (Primary)
+
+A dedicated UI panel showing:
+
+* **Incoming** (waiting bundles)
+* **Imported** (history)
+* **Failed** (with reasons + “retry”)
+
+Each incoming bundle card shows:
+
+* thumbnail (if available)
+* inferred/manifested: source, project, mode, type
+* file count
+* actions: `Import`, `Rename`, `Choose Project`, `Choose Mode`, `Ignore`
+
+### C) Import Modal (When Needed)
+
+User selects:
+
+* Target Project (dropdown + create new)
+* Target Mode (comic / VN / cover / card / cyoa)
+* Asset Role (character/background/panel/overlay/cutscene/prop)
+* Optional tags
+
+Buttons:
+
+* `Import`
+* `Import & Add to Library`
+* `Ignore`
+* `Retry (if failed)`
+
+### D) Manual Import Options (Always Available)
+
+* Menu: `File → Import Assets`
+* Drag & drop into Import Center
+* Right-click folder: `Import to Project...`
+
+Manual imports generate an internal manifest automatically.
+
+---
+
+## 9) Failure Handling (Never Lose Data)
+
+If an import fails, move the bundle to:
+
+```
+CoMiXX/_FAILED_IMPORTS/<timestamp>_<reason>_<bundle>/
+```
+
+Log:
+
+* error reason
+* stack trace (in logs)
+* missing file list
+* allow “Retry Import” after user fixes issue
+
+---
+
+## 10) Logging + Telemetry (Local Only for MVP)
+
+Required logs:
+
+* `logs/importer.log`
+* `logs/watcher.log`
+* `logs/ui.log`
+
+Each import event logs:
+
+* timestamp
+* source_app
+* target_mode
+* project_slug
+* file list
+* result: success/failure
+* duration
+
+---
+
+## 11) Replit Implementation Checklist (Build Order)
+
+### Phase 1 (MVP — Must Ship)
+
+* Root folder config + validation
+* Watcher service (recursive)
+* Import queue worker
+* Manifest parser + fallback inference
+* Routing engine (mode → folders)
+* Connection status indicator
+* Import Center UI (Incoming/Imported/Failed)
+* Manual import (File menu + drag drop)
+* Failed import safety net
+* Logs
+
+### Phase 2 (Power Features)
+
+* Batch import + batch tagging
+* Workflow preview (ComfyUI)
+* Prompt viewer (ComfyUI)
+* Auto-tagging + style clustering
+* Re-link missing files
+* Plugin handshake for “Export to CoMiXX” (iClone/CC panel)
+
+---
+
+## 12) Plugin/Exporter Hook (Reallusion Side — Preferred)
+
+If/when plugin exists, it should:
+
+* export bundle to `_INBOX/REALLUSION`
+* include manifest.json
+* optionally write a `connection_ping.json` so CoMiXX can show “Reallusion connected”
+
+Fallback (no plugin):
+
+* user exports renders to `_INBOX/REALLUSION` using naming convention
+* CoMiXX importer handles it the same way
+
+---
+
+## 13) Done Definition (No Questions Left)
+
+This integration is complete when:
+
+1. User can export from iClone/CC/CA into `_INBOX/REALLUSION` and see it appear in Import Center
+2. User can output from ComfyUI into `_INBOX/COMFYUI` and see it appear in Import Center
+3. CoMiXX shows connection status clearly
+4. User can choose project + mode and import successfully
+5. Assets end up in correct project folders
+6. Failed imports are preserved and retryable
+
+---
+
+```
+
+If you want, I can also add **a tiny “example bundle pack”** (fake files + manifests) that Replit can use to test the importer instantly (comic, cover, VN, comfy sequence, iClone render).
+```
