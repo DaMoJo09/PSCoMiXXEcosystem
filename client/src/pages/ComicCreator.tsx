@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -54,7 +54,7 @@ interface VectorPath {
 
 interface PanelContent {
   id: string;
-  type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif";
+  type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif" | "audio";
   transform: TransformState;
   data: {
     url?: string;
@@ -69,6 +69,8 @@ interface PanelContent {
     drawingData?: string;
     vectorData?: VectorPath[];
     videoUrl?: string;
+    audioUrl?: string;
+    audioName?: string;
     autoplay?: boolean;
     loop?: boolean;
     muted?: boolean;
@@ -891,7 +893,15 @@ export default function ComicCreator() {
       const fileType = file.type.toLowerCase();
       const fileName = file.name.toLowerCase();
       
-      if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
+      if (fileType.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a')) {
+        addContentToPanel(selectedPage, selectedPanelId, {
+          type: "audio",
+          transform: { x: 50, y: 50, width: 280, height: 80, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: { audioUrl: url, audioName: file.name, autoplay: false, loop: false },
+          locked: false,
+        });
+        toast.success("Audio added to panel - drag to position");
+      } else if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "video",
           transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -1021,6 +1031,22 @@ export default function ComicCreator() {
                   playsInline
                   draggable={false}
                 />
+              )}
+              {content.type === "audio" && content.data.audioUrl && (
+                <div className="w-full h-full bg-zinc-900 rounded-lg flex flex-col items-center justify-center p-2 gap-1">
+                  <div className="flex items-center gap-2 text-white text-xs">
+                    <Volume2 className="w-4 h-4 text-blue-400" />
+                    <span className="truncate max-w-[180px]">{content.data.audioName || "Audio"}</span>
+                  </div>
+                  <audio
+                    src={content.data.audioUrl}
+                    controls
+                    loop={content.data.loop ?? false}
+                    autoPlay={content.data.autoplay ?? false}
+                    className="w-full h-8"
+                    style={{ maxHeight: '32px' }}
+                  />
+                </div>
               )}
               {content.type === "drawing" && content.data.drawingData && (
                 <img
@@ -1938,7 +1964,7 @@ export default function ComicCreator() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*,.gif,.mp4,.webm,.mov"
+          accept="image/*,video/*,audio/*,.gif,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a"
           className="hidden"
           onChange={handleFileUpload}
         />
@@ -2119,6 +2145,16 @@ export default function ComicCreator() {
                                   playsInline
                                   controls
                                 />
+                              )}
+                              {content.type === "audio" && content.data.audioUrl && (
+                                <div className="w-full h-full bg-zinc-800 rounded flex items-center justify-center p-1">
+                                  <audio
+                                    src={content.data.audioUrl}
+                                    controls
+                                    className="w-full"
+                                    style={{ maxHeight: '24px' }}
+                                  />
+                                </div>
                               )}
                               {(content.type === "text" || content.type === "bubble") && (
                                 <div 
