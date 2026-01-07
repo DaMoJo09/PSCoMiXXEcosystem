@@ -159,6 +159,18 @@ export function TextElement({
   }, [text]);
 
   useEffect(() => {
+    setStyles({
+      fontSize,
+      fontFamily,
+      color,
+      backgroundColor,
+      padding,
+      borderRadius,
+      bubbleStyle,
+    });
+  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle]);
+
+  useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
       textareaRef.current.select();
