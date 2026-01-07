@@ -63,6 +63,9 @@ interface PanelContent {
     color?: string;
     fontSize?: number;
     fontFamily?: string;
+    backgroundColor?: string;
+    padding?: number;
+    borderRadius?: number;
     drawingData?: string;
     vectorData?: VectorPath[];
     videoUrl?: string;
@@ -1034,6 +1037,9 @@ export default function ComicCreator() {
                   fontSize={content.data.fontSize}
                   fontFamily={content.data.fontFamily}
                   color={content.data.color}
+                  backgroundColor={content.data.backgroundColor}
+                  padding={content.data.padding}
+                  borderRadius={content.data.borderRadius}
                   bubbleStyle={content.type === "bubble" ? (content.data.bubbleStyle as any) : "none"}
                   isEditing={editingTextId === content.id}
                   onEditStart={() => setEditingTextId(content.id)}
@@ -1852,7 +1858,7 @@ export default function ComicCreator() {
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="text-xs text-zinc-400 block mb-1">Color</label>
+                        <label className="text-xs text-zinc-400 block mb-1">Text Color</label>
                         <input
                           type="color"
                           value={selectedContent.data.color || "#000000"}
@@ -1861,6 +1867,38 @@ export default function ComicCreator() {
                           data-testid="input-text-color"
                         />
                       </div>
+                    </div>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Background</label>
+                        <input
+                          type="color"
+                          value={selectedContent.data.backgroundColor || "#ffffff"}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { backgroundColor: e.target.value })}
+                          className="w-full h-7 bg-zinc-800 border border-zinc-700 cursor-pointer"
+                          data-testid="input-bg-color"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Padding</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          value={selectedContent.data.padding || 8}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { padding: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                          data-testid="input-padding"
+                        />
+                      </div>
+                      <button
+                        onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { backgroundColor: "transparent" })}
+                        className="px-2 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs rounded"
+                        title="Remove background"
+                        data-testid="button-remove-bg"
+                      >
+                        Clear
+                      </button>
                     </div>
                     {selectedContent.type === 'bubble' && (
                       <div>
