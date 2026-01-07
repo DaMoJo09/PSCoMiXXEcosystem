@@ -32,6 +32,7 @@ interface Post {
     id: string;
     name: string;
     email: string;
+    avatar?: string | null;
   };
   project: {
     id: string;
@@ -50,6 +51,7 @@ interface Comment {
   author: {
     id: string;
     name: string;
+    avatar?: string | null;
   };
 }
 
@@ -85,10 +87,14 @@ function PostCard({ post, onLike, onUnlike, onComment }: {
       <div className="flex items-center gap-3 p-4 border-b-4 border-black">
         <button 
           onClick={() => navigate(`/social/profile/${post.author.id}`)}
-          className="w-10 h-10 bg-white/20 border-2 border-black flex items-center justify-center font-bold"
+          className="w-10 h-10 border-2 border-black flex items-center justify-center font-bold overflow-hidden bg-zinc-800"
           data-testid={`post-author-avatar-${post.id}`}
         >
-          {post.author.name.charAt(0).toUpperCase()}
+          {post.author.avatar ? (
+            <img src={post.author.avatar} alt={post.author.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-white/70">{post.author.name.charAt(0).toUpperCase()}</span>
+          )}
         </button>
         <div className="flex-1">
           <button 

@@ -21,6 +21,7 @@ interface DmThread {
     user: {
       id: string;
       name: string;
+      avatar?: string | null;
     };
   }[];
 }
@@ -104,26 +105,34 @@ function ThreadList({ onSelectThread }: { onSelectThread: (thread: DmThread) => 
             <p className="text-white/30 text-sm mt-1">Start chatting with other creators!</p>
           </div>
         ) : (
-          filteredThreads.map((thread) => (
-            <button
-              key={thread.id}
-              onClick={() => onSelectThread(thread)}
-              className="w-full p-4 border-b-2 border-white/10 hover:bg-white/5 transition-colors text-left"
-              data-testid={`thread-${thread.id}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 border-2 border-black flex items-center justify-center font-bold">
-                  {getThreadDisplayName(thread).charAt(0).toUpperCase()}
+          filteredThreads.map((thread) => {
+            const otherParticipant = thread.participants.find(p => p.userId !== user?.id);
+            const avatarUrl = otherParticipant?.user?.avatar;
+            return (
+              <button
+                key={thread.id}
+                onClick={() => onSelectThread(thread)}
+                className="w-full p-4 border-b-2 border-white/10 hover:bg-white/5 transition-colors text-left"
+                data-testid={`thread-${thread.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 border-2 border-white flex items-center justify-center font-bold overflow-hidden bg-zinc-800">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white/70">{getThreadDisplayName(thread).charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white truncate">{getThreadDisplayName(thread)}</p>
+                    <p className="text-white/50 text-sm">
+                      {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white truncate">{getThreadDisplayName(thread)}</p>
-                  <p className="text-white/50 text-sm">
-                    {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
-                  </p>
-                </div>
-              </div>
-            </button>
-          ))
+              </button>
+            );
+          })
         )}
       </ScrollArea>
     </div>

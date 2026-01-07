@@ -742,6 +742,7 @@ export class DatabaseStorage implements IStorage {
         id: users.id,
         name: users.name,
         email: users.email,
+        avatar: users.avatar,
       },
       project: projects,
     })
@@ -767,6 +768,7 @@ export class DatabaseStorage implements IStorage {
         id: users.id,
         name: users.name,
         email: users.email,
+        avatar: users.avatar,
       },
       project: projects,
     })
@@ -848,6 +850,7 @@ export class DatabaseStorage implements IStorage {
       author: {
         id: users.id,
         name: users.name,
+        avatar: users.avatar,
       },
     })
     .from(socialPostComments)
@@ -1003,6 +1006,7 @@ export class DatabaseStorage implements IStorage {
         user: {
           id: users.id,
           name: users.name,
+          avatar: users.avatar,
         },
       })
       .from(dmParticipants)
