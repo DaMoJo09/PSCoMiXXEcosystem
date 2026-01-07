@@ -4,7 +4,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema } from "@shared/schema";
+import { z } from "zod";
 
 interface CollabClient {
   ws: WebSocket;
@@ -2034,6 +2035,127 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         followerCount: counts.followers,
         followingCount: counts.following,
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // IMPORT PIPELINE ROUTES
+  // ============================================
+
+  // Get all user imports
+  app.get("/api/imports", isAuthenticated, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const imports = await storage.getUserAssetImports(req.user!.id, status);
+      res.json(imports);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create new import - with Zod validation
+  const createImportSchema = z.object({
+    bundleName: z.string().min(1, "Bundle name required"),
+    sourceApp: z.enum(["iClone", "CharacterCreator", "CartoonAnimator", "ComfyUI", "Unknown"]),
+    exportType: z.enum(["render", "image", "image_sequence", "video", "asset_pack"]),
+    targetMode: z.enum(["library_card", "cover", "comic", "cyoa", "visual_novel"]),
+    assetName: z.string().min(1, "Asset name required"),
+    assetRole: z.enum(["character", "background", "panel", "overlay", "cutscene", "prop"]).optional(),
+    projectId: z.string().optional(),
+  });
+
+  app.post("/api/imports", isAuthenticated, async (req, res) => {
+    try {
+      const result = createImportSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
+      }
+      const importData = {
+        userId: req.user!.id,
+        bundleName: result.data.bundleName,
+        sourceApp: result.data.sourceApp,
+        exportType: result.data.exportType,
+        targetMode: result.data.targetMode,
+        assetName: result.data.assetName,
+        assetRole: result.data.assetRole || null,
+        projectId: result.data.projectId || null,
+        status: "pending",
+      };
+      const newImport = await storage.createAssetImport(importData);
+      res.json(newImport);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get single import
+  app.get("/api/imports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const importData = await storage.getAssetImport(req.params.id);
+      if (!importData) {
+        return res.status(404).json({ message: "Import not found" });
+      }
+      res.json(importData);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update import status - with validation
+  const updateImportSchema = z.object({
+    status: z.enum(["pending", "imported", "failed"]).optional(),
+    projectId: z.string().optional(),
+    assetRole: z.enum(["character", "background", "panel", "overlay", "cutscene", "prop"]).optional(),
+    errorMessage: z.string().optional(),
+  });
+
+  app.patch("/api/imports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const result = updateImportSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
+      }
+      
+      const existingImport = await storage.getAssetImport(req.params.id);
+      if (!existingImport) {
+        return res.status(404).json({ message: "Import not found" });
+      }
+      if (existingImport.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized to update this import" });
+      }
+      
+      const updates: any = {};
+      if (result.data.status) {
+        updates.status = result.data.status;
+        if (result.data.status === "imported") {
+          updates.importedAt = new Date();
+        }
+      }
+      if (result.data.projectId) updates.projectId = result.data.projectId;
+      if (result.data.assetRole) updates.assetRole = result.data.assetRole;
+      if (result.data.errorMessage) updates.errorMessage = result.data.errorMessage;
+      
+      const updated = await storage.updateAssetImport(req.params.id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete import - with ownership check
+  app.delete("/api/imports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existingImport = await storage.getAssetImport(req.params.id);
+      if (!existingImport) {
+        return res.status(404).json({ message: "Import not found" });
+      }
+      if (existingImport.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized to delete this import" });
+      }
+      const success = await storage.deleteAssetImport(req.params.id);
+      res.json({ success });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

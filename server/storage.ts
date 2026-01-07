@@ -13,6 +13,7 @@ import {
   collabSessions, collabMembers, collabPresence,
   communityChains, chainContributions, chainLikes,
   passwordResetTokens,
+  assetImports,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -47,6 +48,7 @@ import {
   type CommunityChain, type InsertCommunityChain,
   type ChainContribution, type InsertChainContribution,
   type ChainLike, type InsertChainLike,
+  type AssetImport, type InsertAssetImport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -179,6 +181,13 @@ export interface IStorage {
   getFollowerCount(userId: string): Promise<number>;
   getFollowingCount(userId: string): Promise<number>;
   updateUserProfile(userId: string, updates: Partial<User>): Promise<User | undefined>;
+  
+  // Import operations
+  createAssetImport(importData: InsertAssetImport): Promise<AssetImport>;
+  getUserAssetImports(userId: string, status?: string): Promise<AssetImport[]>;
+  getAssetImport(id: string): Promise<AssetImport | undefined>;
+  updateAssetImport(id: string, updates: Partial<InsertAssetImport>): Promise<AssetImport | undefined>;
+  deleteAssetImport(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1434,6 +1443,41 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user || undefined;
+  }
+
+  // Import operations
+  async createAssetImport(importData: InsertAssetImport): Promise<AssetImport> {
+    const [assetImport] = await db.insert(assetImports).values(importData).returning();
+    return assetImport;
+  }
+
+  async getUserAssetImports(userId: string, status?: string): Promise<AssetImport[]> {
+    if (status) {
+      return db.select().from(assetImports)
+        .where(and(eq(assetImports.userId, userId), eq(assetImports.status, status)))
+        .orderBy(desc(assetImports.createdAt));
+    }
+    return db.select().from(assetImports)
+      .where(eq(assetImports.userId, userId))
+      .orderBy(desc(assetImports.createdAt));
+  }
+
+  async getAssetImport(id: string): Promise<AssetImport | undefined> {
+    const [assetImport] = await db.select().from(assetImports).where(eq(assetImports.id, id));
+    return assetImport || undefined;
+  }
+
+  async updateAssetImport(id: string, updates: Partial<InsertAssetImport>): Promise<AssetImport | undefined> {
+    const [assetImport] = await db.update(assetImports)
+      .set(updates as any)
+      .where(eq(assetImports.id, id))
+      .returning();
+    return assetImport || undefined;
+  }
+
+  async deleteAssetImport(id: string): Promise<boolean> {
+    const result = await db.delete(assetImports).where(eq(assetImports.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

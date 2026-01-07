@@ -30,7 +30,8 @@ import {
   Bell,
   Search,
   Handshake,
-  Link2
+  Link2,
+  Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,11 +50,11 @@ const creatorTools = [
 const aiTools = [
   { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
   { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
+  { icon: Download, label: "Import Center", href: "/tools/import" },
 ];
 
 const galleryTools = [
   { icon: GalleryHorizontal, label: "Portfolio", href: "/portfolio" },
-  { icon: ShoppingBag, label: "Shop", href: "/shop" },
   { icon: User, label: "Artist", href: "/artist" },
   { icon: Calendar, label: "Exhibitions", href: "/exhibitions" },
   { icon: Newspaper, label: "Blog", href: "/blog" },
@@ -62,10 +63,8 @@ const galleryTools = [
 
 const ecosystemTools = [
   { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem" },
-  { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn" },
   { icon: Rocket, label: "Publish", href: "/ecosystem/publish" },
   { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate" },
-  { icon: DollarSign, label: "Earn", href: "/ecosystem/earn" },
   { icon: Trophy, label: "Events", href: "/ecosystem/events" },
 ];
 

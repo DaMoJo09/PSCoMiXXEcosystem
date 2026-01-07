@@ -52,6 +52,7 @@ import UserSearch from "@/pages/UserSearch";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ProfileCard from "@/pages/ProfileCard";
+import ImportCenter from "@/pages/ImportCenter";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -130,6 +131,7 @@ function ProtectedRouter() {
         <Route path="/social/chains" component={CommunityChains} />
         <Route path="/social/notifications" component={Notifications} />
         <Route path="/social/search" component={UserSearch} />
+        <Route path="/tools/import" component={ImportCenter} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
