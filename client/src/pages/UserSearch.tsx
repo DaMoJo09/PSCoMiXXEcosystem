@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
 import { 
   ArrowLeft, Search, UserPlus, UserMinus, Users, 
-  Sparkles, TrendingUp, Star
+  Sparkles, TrendingUp, Star, MessageCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -51,6 +51,24 @@ function UserCard({ profile, onFollowChange }: { profile: UserProfile; onFollowC
     },
   });
 
+  const startDmMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/dm/threads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile.id }),
+      });
+      if (!res.ok) throw new Error("Failed to start conversation");
+      return res.json();
+    },
+    onSuccess: (thread) => {
+      navigate(`/social/messages/${thread.id}`);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to start conversation", variant: "destructive" });
+    },
+  });
+
   return (
     <div 
       className="bg-white/5 border-4 border-black p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
@@ -83,30 +101,42 @@ function UserCard({ profile, onFollowChange }: { profile: UserProfile; onFollowC
         </div>
 
         {!isOwnProfile && (
-          profile.isFollowing ? (
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => unfollowMutation.mutate()}
-              disabled={unfollowMutation.isPending}
-              className="border-2 border-white text-white hover:bg-white/10"
-              data-testid={`unfollow-${profile.id}`}
+              onClick={() => startDmMutation.mutate()}
+              disabled={startDmMutation.isPending}
+              className="border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+              data-testid={`message-${profile.id}`}
             >
-              <UserMinus className="w-4 h-4 mr-1" />
-              Following
+              <MessageCircle className="w-4 h-4" />
             </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={() => followMutation.mutate()}
-              disabled={followMutation.isPending}
-              className="bg-white text-black border-2 border-black font-bold hover:bg-white/90"
-              data-testid={`follow-${profile.id}`}
-            >
-              <UserPlus className="w-4 h-4 mr-1" />
-              Follow
-            </Button>
-          )
+            {profile.isFollowing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => unfollowMutation.mutate()}
+                disabled={unfollowMutation.isPending}
+                className="border-2 border-white text-white hover:bg-white/10"
+                data-testid={`unfollow-${profile.id}`}
+              >
+                <UserMinus className="w-4 h-4 mr-1" />
+                Following
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => followMutation.mutate()}
+                disabled={followMutation.isPending}
+                className="bg-white text-black border-2 border-black font-bold hover:bg-white/90"
+                data-testid={`follow-${profile.id}`}
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                Follow
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

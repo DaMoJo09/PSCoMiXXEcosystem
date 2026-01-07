@@ -932,12 +932,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserProfile(userId: string): Promise<any> {
-    const [user] = await db.select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      createdAt: users.createdAt,
-    }).from(users).where(eq(users.id, userId));
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
 
     if (!user) return undefined;
 
@@ -945,7 +940,17 @@ export class DatabaseStorage implements IStorage {
     const posts = await this.getUserPosts(userId);
 
     return {
-      ...user,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: (user as any).avatar || null,
+      coverImage: (user as any).coverImage || null,
+      tagline: (user as any).tagline || null,
+      bio: (user as any).bio || null,
+      creatorClass: (user as any).creatorClass || "Rookie",
+      xp: (user as any).xp || 0,
+      level: (user as any).level || 1,
+      createdAt: user.createdAt,
       ...counts,
       postCount: posts.length,
       posts,
