@@ -278,6 +278,74 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Profile routes
+  app.get("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get counts for the profile
+      const [postCount, projectCount, followers, following] = await Promise.all([
+        storage.getUserPostCount(req.user!.id),
+        storage.getUserProjectCount(req.user!.id),
+        storage.getFollowerCount(req.user!.id),
+        storage.getFollowingCount(req.user!.id),
+      ]);
+      
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: (user as any).avatar || null,
+        coverImage: (user as any).coverImage || null,
+        tagline: (user as any).tagline || null,
+        bio: (user as any).bio || null,
+        creatorClass: (user as any).creatorClass || "Rookie",
+        xp: (user as any).xp || 0,
+        level: (user as any).level || 1,
+        statCreativity: (user as any).statCreativity || 10,
+        statStorytelling: (user as any).statStorytelling || 10,
+        statArtistry: (user as any).statArtistry || 10,
+        statCollaboration: (user as any).statCollaboration || 10,
+        socialLinks: (user as any).socialLinks || null,
+        createdAt: user.createdAt,
+        postCount,
+        projectCount,
+        followers,
+        following,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const allowedFields = [
+        'name', 'avatar', 'coverImage', 'tagline', 'bio', 
+        'creatorClass', 'socialLinks'
+      ];
+      
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+      
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+      
+      const user = await storage.updateUserProfile(req.user!.id, updates);
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {

@@ -172,6 +172,13 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<boolean>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
+  
+  // Profile operations
+  getUserPostCount(userId: string): Promise<number>;
+  getUserProjectCount(userId: string): Promise<number>;
+  getFollowerCount(userId: string): Promise<number>;
+  getFollowingCount(userId: string): Promise<number>;
+  updateUserProfile(userId: string, updates: Partial<User>): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1383,6 +1390,42 @@ export class DatabaseStorage implements IStorage {
   async updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined> {
     const [user] = await db.update(users)
       .set({ password: hashedPassword })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
+
+  async getUserPostCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() })
+      .from(socialPosts)
+      .where(eq(socialPosts.authorId, userId));
+    return result?.count || 0;
+  }
+
+  async getUserProjectCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() })
+      .from(projects)
+      .where(eq(projects.userId, userId));
+    return result?.count || 0;
+  }
+
+  async getFollowerCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() })
+      .from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+    return result?.count || 0;
+  }
+
+  async getFollowingCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    return result?.count || 0;
+  }
+
+  async updateUserProfile(userId: string, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set(updates as any)
       .where(eq(users.id, userId))
       .returning();
     return user || undefined;

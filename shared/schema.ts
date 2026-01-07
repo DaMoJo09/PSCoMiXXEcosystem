@@ -10,6 +10,21 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull().default("creator"), // creator | admin
+  // Profile fields
+  avatar: text("avatar"), // URL to profile image
+  coverImage: text("cover_image"), // URL to cover/banner image
+  tagline: text("tagline"), // Short catchphrase
+  bio: text("bio"), // Longer description
+  creatorClass: text("creator_class").default("Rookie"), // Rookie, Artist, Writer, etc.
+  xp: integer("xp").default(0), // Experience points
+  level: integer("level").default(1), // User level
+  // Stats (persona card style)
+  statCreativity: integer("stat_creativity").default(10),
+  statStorytelling: integer("stat_storytelling").default(10),
+  statArtistry: integer("stat_artistry").default(10),
+  statCollaboration: integer("stat_collaboration").default(10),
+  // Social links
+  socialLinks: jsonb("social_links"), // { twitter, instagram, website, etc. }
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

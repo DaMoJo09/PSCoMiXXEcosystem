@@ -51,6 +51,7 @@ import Notifications from "@/pages/Notifications";
 import UserSearch from "@/pages/UserSearch";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+import ProfileCard from "@/pages/ProfileCard";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -120,6 +121,7 @@ function ProtectedRouter() {
         <Route path="/ecosystem/publish" component={PublishModule} />
         <Route path="/battle" component={CardBattle} />
         <Route path="/social" component={SocialFeed} />
+        <Route path="/profile" component={ProfileCard} />
         <Route path="/social/profile/:userId" component={SocialProfile} />
         <Route path="/social/messages" component={SocialMessages} />
         <Route path="/social/messages/:threadId" component={SocialMessages} />
