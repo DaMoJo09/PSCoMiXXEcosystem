@@ -1,0 +1,234 @@
+TITLE: PSCoMiXX — FULL PLATFORM BUILD PLAN
+(SEO-FIRST • MARKETPLACE-OPTIMIZED • DESKTOP + MOBILE READY)
+
+PRIORITY:
+This is a NON-NEGOTIABLE, PRODUCTION-READY BUILD.
+The platform must be discoverable, indexable, monetizable, and scalable.
+
+==================================================
+1. PLATFORM GOALS
+==================================================
+Build PSCoMiXX as:
+- A crawlable, search-optimized product website
+- A high-conversion digital marketplace (assets, templates, packs)
+- A foundation for desktop + mobile CoMiXX apps
+- A creator-first ecosystem that drives sales, retention, and trust
+
+Primary objectives:
+- Strong Google indexing
+- Clean social previews
+- Fast performance on mobile
+- Clear marketplace purchase flows
+- Future-proof architecture
+
+==================================================
+2. STACK REQUIREMENTS (MANDATORY)
+==================================================
+- Framework: Next.js (App Router preferred)
+  (Remix / Nuxt / SvelteKit acceptable if SSR/SSG parity is met)
+- Rendering:
+  - ALL marketing + marketplace pages MUST be SSR or SSG
+  - NO client-only rendering for public pages
+- Styling:
+  - PS|MMM brutalist black/white aesthetic
+  - Light/Dark mode toggle
+- Hosting:
+  - Replit, Vercel, or equivalent with edge caching
+- Analytics:
+  - Deferred, non-blocking
+
+==================================================
+3. REQUIRED PUBLIC ROUTES
+==================================================
+/                         (Home)
+/features                  (Product overview)
+/marketplace               (Marketplace index)
+/marketplace/[slug]        (Individual product pages – indexable)
+/pricing                   (Plans + creator revenue split)
+/creators                  (Why sell on PSCoMiXX)
+/download or /app           (CTA landing)
+/docs or /faq
+/blog or /updates           (SEO growth engine)
+/privacy
+/terms
+/contact
+/sitemap.xml
+/robots.txt
+
+Private / App routes:
+- /app/*
+- /dashboard/*
+- /admin/*
+→ MUST be noindex, nofollow
+
+==================================================
+4. SEO + CRAWLABILITY (NON-NEGOTIABLE)
+==================================================
+A. SERVER-RENDERED HTML
+- View-source MUST show:
+  - One H1 per page
+  - Real paragraph text
+  - Crawlable <a href> links
+- No “image-only” pages
+- No empty root div waiting for JS hydration
+
+B. INTERNAL LINKING
+- Header + footer use real anchor links
+- Marketplace category → product → creator interlinking
+- All key pages reachable within 2 clicks from homepage
+
+C. CANONICALIZATION
+- Enforce ONE canonical domain (www OR non-www)
+- 301 redirects:
+  - http → https
+  - non-canonical → canonical
+- <link rel="canonical"> on every indexable page
+
+D. ROBOTS + SITEMAP
+- robots.txt allows crawling of all public routes
+- sitemap.xml auto-generated with:
+  - All indexable pages
+  - Marketplace listings
+  - <lastmod> timestamps
+
+E. METADATA (EVERY PAGE)
+- Unique <title> (≤60 chars)
+- Meta description (150–160 chars)
+- OpenGraph:
+  - og:title
+  - og:description
+  - og:image (1200x630, absolute URL)
+  - og:url
+- Twitter Cards (summary_large_image)
+
+F. STRUCTURED DATA (JSON-LD)
+- Organization schema (PSCoMiXX)
+- WebSite schema
+- SoftwareApplication schema
+- Product schema for marketplace items:
+  - name
+  - description
+  - image
+  - price
+  - currency
+  - availability
+  - seller
+- AggregateRating schema (when reviews exist)
+
+==================================================
+5. MARKETPLACE ARCHITECTURE & CONVERSION
+==================================================
+A. MARKETPLACE LISTING PAGES MUST INCLUDE
+- Product title
+- Visual preview (image/video)
+- Short benefit-driven summary
+- “What’s included” bullets
+- Compatible formats (Comic / VN / CYOA)
+- Creator profile card
+- License clarity
+- Price
+- CTA: Buy / Add to Library / Use in Project
+
+B. TRUST SIGNALS
+- “Made for PSCoMiXX” badge
+- Creator verification badge
+- Usage count / installs
+- Featured creators
+- Refund + license policy visibility
+
+C. FRICTION REDUCTION
+- Guest browsing allowed
+- Login only at checkout or save-to-library
+- Checkout ≤ 2 steps
+- Clear post-purchase flow:
+  “Open in CoMiXX” / “Download Pack”
+
+D. UPSELL & RETENTION
+- “Used in these projects”
+- “Creators also bought”
+- Bundles (Starter Kits, Genre Packs)
+- Featured collections
+- Limited-time promos
+
+==================================================
+6. PERFORMANCE (CORE WEB VITALS)
+==================================================
+- Mobile-first optimization
+- LCP < 2.5s
+- CLS < 0.1
+- INP minimized
+- Image optimization (lazy loading, responsive sizes)
+- Defer all non-critical JS
+
+==================================================
+7. ACCESSIBILITY (BASELINE)
+==================================================
+- Semantic HTML (header/nav/main/footer)
+- Proper heading hierarchy
+- Buttons have accessible names
+- Keyboard navigation + focus states
+- Alt text on images
+- Color contrast WCAG AA compliant
+
+==================================================
+8. ANALYTICS & GROWTH (SEO-SAFE)
+==================================================
+- Analytics loaded AFTER page render
+- Track:
+  - Page views
+  - Marketplace impressions
+  - Product views
+  - Add-to-cart
+  - Purchase completion
+- Structure must support:
+  - Heatmaps
+  - Funnel tracking
+- Include placeholders for:
+  - Google Search Console verification
+  - Bing Webmaster Tools
+
+==================================================
+9. INDEX CONTROL & DUPLICATES
+==================================================
+- Marketing + marketplace pages:
+  index, follow
+- App/dashboard routes:
+  noindex, nofollow
+- Prevent duplicate content:
+  - Canonical URLs for filters and query params
+
+==================================================
+10. QA ACCEPTANCE CHECKLIST (MUST PASS)
+==================================================
+- View-source shows readable HTML
+- Lighthouse (Mobile):
+  - SEO ≥ 95
+  - Accessibility ≥ 90
+  - Best Practices ≥ 90
+- robots.txt accessible
+- sitemap.xml accessible
+- Social previews render correctly
+- 404 pages return true 404 status
+- Canonical redirects verified
+
+==================================================
+11. REQUIRED DELIVERABLES
+==================================================
+1. Sitemap URL
+2. robots.txt contents
+3. List of indexable routes
+4. Lighthouse screenshots
+5. Marketplace conversion flow diagram
+6. Core Web Vitals summary
+7. Confirmation product pages are indexable
+
+==================================================
+END GOAL
+==================================================
+PSCoMiXX must function as:
+- A search-discoverable product site
+- A high-conversion digital marketplace
+- A trust-first creator economy
+- A scalable foundation for desktop + mobile CoMiXX apps
+
+This build should be launch-ready, investor-ready, and monetization-ready.
