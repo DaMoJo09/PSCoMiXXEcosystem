@@ -71,6 +71,7 @@ const ecosystemTools = [
 
 const socialTools = [
   { icon: MessageCircle, label: "Social Feed", href: "/social" },
+  { icon: User, label: "My Profile", href: "/profile" },
   { icon: Handshake, label: "Collab Hub", href: "/social/collab" },
   { icon: Link2, label: "Community Chains", href: "/social/chains" },
   { icon: Bell, label: "Notifications", href: "/social/notifications" },
