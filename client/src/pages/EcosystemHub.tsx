@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
+import { toast } from "sonner";
 import { 
   GraduationCap, Rocket, Users, Trophy, DollarSign, Calendar, 
   School, Building2, Sparkles, TrendingUp, Award, Star,
@@ -326,13 +327,13 @@ export default function EcosystemHub() {
               <p className="text-zinc-400 text-sm mb-4">
                 Connect your school, upload student projects, and participate in challenges.
               </p>
-              <Link 
-                href="/ecosystem/schools"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black font-bold text-sm hover:bg-zinc-200"
+              <button 
+                onClick={() => toast.info("School Stations coming soon!")}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-zinc-300 font-bold text-sm cursor-not-allowed"
                 data-testid="link-school-stations"
               >
-                Explore Schools <ChevronRight className="w-4 h-4" />
-              </Link>
+                Coming Soon <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="bg-zinc-900 border-4 border-zinc-800 p-6">
@@ -343,13 +344,13 @@ export default function EcosystemHub() {
               <p className="text-zinc-400 text-sm mb-4">
                 Access local studios, equipment, and collaborate with nearby creators.
               </p>
-              <Link 
-                href="/ecosystem/hubs"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black font-bold text-sm hover:bg-zinc-200"
+              <button 
+                onClick={() => toast.info("Creator Hubs coming soon!")}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-zinc-300 font-bold text-sm cursor-not-allowed"
                 data-testid="link-creator-hubs"
               >
-                Find Hubs <ChevronRight className="w-4 h-4" />
-              </Link>
+                Coming Soon <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </section>
 
@@ -371,13 +372,13 @@ export default function EcosystemHub() {
                       >
                         Learn More
                       </Link>
-                      <Link 
-                        href={`/ecosystem/events/${festivals[0].id}/submit`}
-                        className="px-6 py-3 border-2 border-white font-bold hover:bg-white/10"
+                      <button 
+                        onClick={() => toast.info("Festival submissions opening soon!")}
+                        className="px-6 py-3 border-2 border-zinc-600 text-zinc-400 font-bold cursor-not-allowed"
                         data-testid="link-festival-submit"
                       >
                         Submit Work
-                      </Link>
+                      </button>
                     </div>
                   </div>
                   <Trophy className="w-24 h-24 text-white" />

@@ -262,7 +262,7 @@ export default function SocialProfile() {
                 {profile.posts.map((post) => (
                   <button
                     key={post.id}
-                    onClick={() => navigate(`/social/post/${post.id}`)}
+                    onClick={() => navigate(`/social`)}
                     className="aspect-square bg-white/10 border-2 border-black relative group overflow-hidden"
                     data-testid={`profile-post-${post.id}`}
                   >
