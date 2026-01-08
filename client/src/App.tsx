@@ -53,6 +53,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ProfileCard from "@/pages/ProfileCard";
 import ImportCenter from "@/pages/ImportCenter";
+import AdminControlRoom from "@/pages/AdminControlRoom";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -112,6 +113,7 @@ function ProtectedRouter() {
         <Route path="/artist" component={ArtistPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/control" component={AdminControlRoom} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />
         <Route path="/ecosystem/learn" component={LearnModule} />

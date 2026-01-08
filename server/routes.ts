@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
@@ -2665,6 +2666,402 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       
       const success = await storage.deleteBlogPost(req.params.id);
       res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // PLATFORM MONETIZATION API ROUTES
+  // ============================================
+
+  // Feature Flags
+  app.get("/api/admin/feature-flags", isAdmin, async (req, res) => {
+    try {
+      const flags = await storage.getFeatureFlags();
+      res.json(flags);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/admin/feature-flags/:key", isAdmin, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      const flag = await storage.setFeatureFlag(req.params.key, enabled, req.user!.id);
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "toggle_feature_flag",
+        targetType: "feature_flag",
+        targetId: req.params.key,
+        details: { enabled },
+      });
+      res.json(flag);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public feature flag check
+  app.get("/api/feature-flags/:key", async (req, res) => {
+    try {
+      const flag = await storage.getFeatureFlag(req.params.key);
+      res.json({ enabled: flag?.enabled ?? false });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Waitlist
+  app.get("/api/admin/waitlist", isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const entries = await storage.getWaitlist(status);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/waitlist", async (req, res) => {
+    try {
+      const { email, name, source, referredBy } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      const existing = await storage.getWaitlistEntry(email);
+      if (existing) {
+        return res.status(400).json({ message: "Already on waitlist" });
+      }
+      
+      const entry = await storage.addToWaitlist({ email, name, source, referredBy });
+      res.json(entry);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/waitlist/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const entry = await storage.approveWaitlistEntry(req.params.id, req.user!.id);
+      if (!entry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "approve_waitlist",
+        targetType: "waitlist",
+        targetId: req.params.id,
+      });
+      res.json(entry);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/waitlist/:id/reject", isAdmin, async (req, res) => {
+    try {
+      const entry = await storage.updateWaitlistStatus(req.params.id, "rejected");
+      if (!entry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "reject_waitlist",
+        targetType: "waitlist",
+        targetId: req.params.id,
+      });
+      res.json(entry);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Invite Codes
+  app.get("/api/admin/invite-codes", isAdmin, async (req, res) => {
+    try {
+      const codes = await storage.getInviteCodes();
+      res.json(codes);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/invite-codes", isAdmin, async (req, res) => {
+    try {
+      const { code, type, maxUses, expiresAt, metadata } = req.body;
+      const inviteCode = await storage.createInviteCode({
+        code: code || randomUUID().substring(0, 8).toUpperCase(),
+        createdBy: req.user!.id,
+        type: type || "standard",
+        maxUses,
+        expiresAt,
+        metadata,
+      });
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "create_invite_code",
+        targetType: "invite_code",
+        targetId: inviteCode.id,
+        details: { code: inviteCode.code, type, maxUses },
+      });
+      res.json(inviteCode);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/invite-codes/validate", async (req, res) => {
+    try {
+      const { code } = req.body;
+      const inviteCode = await storage.getInviteCode(code);
+      
+      if (!inviteCode || !inviteCode.isActive) {
+        return res.json({ valid: false, message: "Invalid invite code" });
+      }
+      if (inviteCode.maxUses && inviteCode.usedCount >= inviteCode.maxUses) {
+        return res.json({ valid: false, message: "Code has reached maximum uses" });
+      }
+      if (inviteCode.expiresAt && new Date(inviteCode.expiresAt) < new Date()) {
+        return res.json({ valid: false, message: "Code has expired" });
+      }
+      
+      res.json({ valid: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/invite-codes/redeem", isAuthenticated, async (req, res) => {
+    try {
+      const { code } = req.body;
+      const success = await storage.redeemInviteCode(code, req.user!.id);
+      
+      if (!success) {
+        return res.status(400).json({ message: "Failed to redeem invite code" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/invite-codes/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deactivateInviteCode(req.params.id);
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "deactivate_invite_code",
+        targetType: "invite_code",
+        targetId: req.params.id,
+      });
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // AppSumo Codes
+  app.get("/api/admin/appsumo-codes", isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const codes = await storage.getAppSumoCodes(status);
+      res.json(codes);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/appsumo-codes", isAdmin, async (req, res) => {
+    try {
+      const { code, tier, purchaseEmail, orderId } = req.body;
+      const appSumoCode = await storage.createAppSumoCode({
+        code: code || `APPSUMO-${randomUUID().substring(0, 8).toUpperCase()}`,
+        tier: tier || "lifetime",
+        purchaseEmail,
+        orderId,
+      });
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "create_appsumo_code",
+        targetType: "appsumo_code",
+        targetId: appSumoCode.id,
+        details: { code: appSumoCode.code, tier },
+      });
+      res.json(appSumoCode);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/appsumo/redeem", isAuthenticated, async (req, res) => {
+    try {
+      const { code } = req.body;
+      const result = await storage.redeemAppSumoCode(code, req.user!.id);
+      
+      if (!result) {
+        return res.status(400).json({ message: "Invalid or already used AppSumo code" });
+      }
+      res.json({ success: true, tier: result.tier });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Subscriptions
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const subscription = await storage.getUserSubscription(req.user!.id);
+      res.json(subscription || { tier: "free", status: "active" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/subscriptions", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const subscriptionsData = await Promise.all(
+        users.map(async (user) => {
+          const sub = await storage.getUserSubscription(user.id);
+          return {
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+            subscription: sub,
+          };
+        })
+      );
+      res.json(subscriptionsData.filter(s => s.subscription));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/subscription", isAdmin, async (req, res) => {
+    try {
+      const { tier, status, entitlements } = req.body;
+      const existingSub = await storage.getUserSubscription(req.params.id);
+      
+      let subscription;
+      if (existingSub) {
+        subscription = await storage.updateSubscription(req.params.id, { tier, status, entitlements });
+      } else {
+        subscription = await storage.createSubscription({
+          userId: req.params.id,
+          tier: tier || "free",
+          status: status || "active",
+          entitlements,
+        });
+      }
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "update_subscription",
+        targetType: "user",
+        targetId: req.params.id,
+        details: { tier, status },
+      });
+      res.json(subscription);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Platform Settings
+  app.get("/api/admin/settings", isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/admin/settings/:key", isAdmin, async (req, res) => {
+    try {
+      const { value, description } = req.body;
+      const setting = await storage.setPlatformSetting(req.params.key, value, req.user!.id);
+      
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "update_setting",
+        targetType: "setting",
+        targetId: req.params.key,
+        details: { value },
+      });
+      res.json(setting);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin Logs
+  app.get("/api/admin/logs", isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getAdminLogs(limit);
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Jobs (for async operations)
+  app.get("/api/jobs", isAuthenticated, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const jobs = await storage.getUserJobs(req.user!.id, status);
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/jobs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const job = await storage.getJob(req.params.id);
+      if (!job) {
+        return res.status(404).json({ message: "Job not found" });
+      }
+      if (job.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      res.json(job);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin dashboard stats
+  app.get("/api/admin/dashboard", isAdmin, async (req, res) => {
+    try {
+      const [users, waitlistEntries, featureFlagsData, settingsData, logs] = await Promise.all([
+        storage.getAllUsers(),
+        storage.getWaitlist(),
+        storage.getFeatureFlags(),
+        storage.getAllPlatformSettings(),
+        storage.getAdminLogs(10),
+      ]);
+
+      const stats = {
+        totalUsers: users.length,
+        adminCount: users.filter(u => u.role === "admin").length,
+        creatorCount: users.filter(u => u.role === "creator").length,
+        waitlistPending: waitlistEntries.filter(e => e.status === "pending").length,
+        waitlistApproved: waitlistEntries.filter(e => e.status === "approved").length,
+        waitlistRejected: waitlistEntries.filter(e => e.status === "rejected").length,
+        featureFlags: featureFlagsData,
+        settings: settingsData,
+        recentLogs: logs,
+      };
+      res.json(stats);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

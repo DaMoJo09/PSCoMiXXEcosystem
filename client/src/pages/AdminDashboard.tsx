@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar } from "lucide-react";
+import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings } from "lucide-react";
+import { Link } from "wouter";
 import { useAdminStats, useAdminUsers, useAdminProjects } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/spinner";
@@ -168,10 +169,19 @@ export default function AdminDashboard() {
     <Layout>
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <header className="border-b border-border pb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-black text-white text-xs px-2 py-0.5 font-mono font-bold">ADMIN MODE</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-black text-white text-xs px-2 py-0.5 font-mono font-bold">ADMIN MODE</span>
+              </div>
+              <h1 className="text-4xl font-display font-bold" data-testid="text-admin-title">Analytics Console</h1>
+            </div>
+            <Link href="/admin/control">
+              <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-control-room">
+                <Settings className="w-4 h-4 mr-2" /> Control Room
+              </Button>
+            </Link>
           </div>
-          <h1 className="text-4xl font-display font-bold" data-testid="text-admin-title">Analytics Console</h1>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
