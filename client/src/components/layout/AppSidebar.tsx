@@ -66,6 +66,7 @@ const ecosystemTools = [
   { icon: Rocket, label: "Publish", href: "/ecosystem/publish" },
   { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate" },
   { icon: Trophy, label: "Events", href: "/ecosystem/events" },
+  { icon: DollarSign, label: "Pricing", href: "/pricing" },
 ];
 
 const socialTools = [
