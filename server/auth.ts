@@ -38,13 +38,15 @@ export function setupAuth(app: Express) {
   
   app.set("trust proxy", 1);
   
+  const isProduction = process.env.NODE_ENV === "production";
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || process.env.REPL_ID || "pressstart-comixx-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true,
-      sameSite: "none" as const,
+      secure: isProduction || !!process.env.REPLIT_DOMAINS,
+      sameSite: isProduction || process.env.REPLIT_DOMAINS ? "none" as const : "lax" as const,
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
