@@ -7,6 +7,8 @@ import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema } from "@shared/schema";
 import { z } from "zod";
+import { stripeService } from "./stripeService";
+import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 
 interface CollabClient {
   ws: WebSocket;
@@ -3062,6 +3064,137 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         recentLogs: logs,
       };
       res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // STRIPE PAYMENT API ROUTES
+  // ============================================
+
+  app.get("/api/stripe/config", async (req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/stripe/products", async (req, res) => {
+    try {
+      const products = await stripeService.listProductsWithPrices();
+      
+      const productsMap = new Map<string, any>();
+      for (const row of products as any[]) {
+        const productId = row.product_id as string;
+        const priceId = row.price_id as string | null;
+        
+        if (!productsMap.has(productId)) {
+          productsMap.set(productId, {
+            id: productId,
+            name: row.product_name,
+            description: row.product_description,
+            active: row.product_active,
+            metadata: row.product_metadata,
+            prices: []
+          });
+        }
+        if (priceId) {
+          productsMap.get(productId).prices.push({
+            id: priceId,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            active: row.price_active,
+            metadata: row.price_metadata,
+          });
+        }
+      }
+
+      res.json({ data: Array.from(productsMap.values()) });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/stripe/prices", async (req, res) => {
+    try {
+      const prices = await stripeService.listPrices();
+      res.json({ data: prices });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/stripe/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const { priceId } = req.body;
+      const user = await storage.getUser(req.user!.id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get or create subscription record with Stripe customer
+      let subscription = await storage.getUserSubscription(req.user!.id);
+      let customerId = subscription?.stripeCustomerId;
+      
+      if (!customerId) {
+        const customer = await stripeService.createCustomer(user.email, user.id, user.name || undefined);
+        customerId = customer.id;
+        
+        if (subscription) {
+          await storage.updateSubscription(req.user!.id, { stripeCustomerId: customer.id });
+        } else {
+          await storage.createSubscription({
+            userId: req.user!.id,
+            tier: "free",
+            status: "active",
+            stripeCustomerId: customer.id,
+          });
+        }
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCheckoutSession(
+        customerId,
+        priceId,
+        `${baseUrl}/settings?checkout=success`,
+        `${baseUrl}/settings?checkout=cancel`
+      );
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/stripe/portal", isAuthenticated, async (req, res) => {
+    try {
+      const subscription = await storage.getUserSubscription(req.user!.id);
+      
+      if (!subscription?.stripeCustomerId) {
+        return res.status(400).json({ message: "No billing account found" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCustomerPortalSession(
+        subscription.stripeCustomerId,
+        `${baseUrl}/settings`
+      );
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/stripe/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const subscription = await storage.getUserSubscription(req.user!.id);
+      res.json(subscription || { tier: "free", status: "active" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
