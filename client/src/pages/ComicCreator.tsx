@@ -1780,6 +1780,92 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
                     <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                      {bubblePresets.slice(0, 20).map(preset => (
+                        <ContextMenuItem
+                          key={preset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addBubblePresetToPanel("left", selectedPanelId, preset);
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {preset.name}
+                        </ContextMenuItem>
+                      ))}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                          {bubblePresets.slice(20).map(preset => (
+                            <ContextMenuItem
+                              key={preset.id}
+                              onClick={() => {
+                                if (selectedPanelId) {
+                                  addBubblePresetToPanel("left", selectedPanelId, preset);
+                                } else {
+                                  toast.error("Select a panel first");
+                                }
+                              }}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {preset.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                      {effectPresets.slice(0, 20).map(preset => (
+                        <ContextMenuItem
+                          key={preset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addEffectPresetToPanel("left", selectedPanelId, preset);
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer font-bold"
+                        >
+                          {preset.name}
+                        </ContextMenuItem>
+                      ))}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                          {effectPresets.slice(20).map(preset => (
+                            <ContextMenuItem
+                              key={preset.id}
+                              onClick={() => {
+                                if (selectedPanelId) {
+                                  addEffectPresetToPanel("left", selectedPanelId, preset);
+                                } else {
+                                  toast.error("Select a panel first");
+                                }
+                              }}
+                              className="hover:bg-zinc-800 cursor-pointer font-bold"
+                            >
+                              {preset.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   {selectedPanelId && (
                     <>
                       <ContextMenuItem onClick={() => addCaptionToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
@@ -1788,68 +1874,6 @@ export default function ComicCreator() {
                       <ContextMenuItem onClick={() => addStarburstToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
                         <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
                       </ContextMenuItem>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                          <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {bubblePresets.slice(0, 20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => addBubblePresetToPanel("left", selectedPanelId, preset)}
-                              className="hover:bg-zinc-800 cursor-pointer"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                          <ContextMenuSeparator className="bg-zinc-700" />
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
-                            <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                              {bubblePresets.slice(20).map(preset => (
-                                <ContextMenuItem
-                                  key={preset.id}
-                                  onClick={() => addBubblePresetToPanel("left", selectedPanelId, preset)}
-                                  className="hover:bg-zinc-800 cursor-pointer"
-                                >
-                                  {preset.name}
-                                </ContextMenuItem>
-                              ))}
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                          <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {effectPresets.slice(0, 20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => addEffectPresetToPanel("left", selectedPanelId, preset)}
-                              className="hover:bg-zinc-800 cursor-pointer font-bold"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                          <ContextMenuSeparator className="bg-zinc-700" />
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
-                            <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                              {effectPresets.slice(20).map(preset => (
-                                <ContextMenuItem
-                                  key={preset.id}
-                                  onClick={() => addEffectPresetToPanel("left", selectedPanelId, preset)}
-                                  className="hover:bg-zinc-800 cursor-pointer font-bold"
-                                >
-                                  {preset.name}
-                                </ContextMenuItem>
-                              ))}
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
                     </>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
@@ -2060,6 +2084,92 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
                     <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                      {bubblePresets.slice(0, 20).map(preset => (
+                        <ContextMenuItem
+                          key={preset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addBubblePresetToPanel("right", selectedPanelId, preset);
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer"
+                        >
+                          {preset.name}
+                        </ContextMenuItem>
+                      ))}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                          {bubblePresets.slice(20).map(preset => (
+                            <ContextMenuItem
+                              key={preset.id}
+                              onClick={() => {
+                                if (selectedPanelId) {
+                                  addBubblePresetToPanel("right", selectedPanelId, preset);
+                                } else {
+                                  toast.error("Select a panel first");
+                                }
+                              }}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {preset.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                      <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                      {effectPresets.slice(0, 20).map(preset => (
+                        <ContextMenuItem
+                          key={preset.id}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addEffectPresetToPanel("right", selectedPanelId, preset);
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className="hover:bg-zinc-800 cursor-pointer font-bold"
+                        >
+                          {preset.name}
+                        </ContextMenuItem>
+                      ))}
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
+                          {effectPresets.slice(20).map(preset => (
+                            <ContextMenuItem
+                              key={preset.id}
+                              onClick={() => {
+                                if (selectedPanelId) {
+                                  addEffectPresetToPanel("right", selectedPanelId, preset);
+                                } else {
+                                  toast.error("Select a panel first");
+                                }
+                              }}
+                              className="hover:bg-zinc-800 cursor-pointer font-bold"
+                            >
+                              {preset.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   {selectedPanelId && (
                     <>
                       <ContextMenuItem onClick={() => addCaptionToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
@@ -2068,68 +2178,6 @@ export default function ComicCreator() {
                       <ContextMenuItem onClick={() => addStarburstToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
                         <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
                       </ContextMenuItem>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                          <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {bubblePresets.slice(0, 20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => addBubblePresetToPanel("right", selectedPanelId, preset)}
-                              className="hover:bg-zinc-800 cursor-pointer"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                          <ContextMenuSeparator className="bg-zinc-700" />
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
-                            <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                              {bubblePresets.slice(20).map(preset => (
-                                <ContextMenuItem
-                                  key={preset.id}
-                                  onClick={() => addBubblePresetToPanel("right", selectedPanelId, preset)}
-                                  className="hover:bg-zinc-800 cursor-pointer"
-                                >
-                                  {preset.name}
-                                </ContextMenuItem>
-                              ))}
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                          <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {effectPresets.slice(0, 20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => addEffectPresetToPanel("right", selectedPanelId, preset)}
-                              className="hover:bg-zinc-800 cursor-pointer font-bold"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                          <ContextMenuSeparator className="bg-zinc-700" />
-                          <ContextMenuSub>
-                            <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
-                            <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                              {effectPresets.slice(20).map(preset => (
-                                <ContextMenuItem
-                                  key={preset.id}
-                                  onClick={() => addEffectPresetToPanel("right", selectedPanelId, preset)}
-                                  className="hover:bg-zinc-800 cursor-pointer font-bold"
-                                >
-                                  {preset.name}
-                                </ContextMenuItem>
-                              ))}
-                            </ContextMenuSubContent>
-                          </ContextMenuSub>
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
                     </>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
