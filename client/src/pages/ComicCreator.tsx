@@ -310,7 +310,6 @@ const tools = [
   { id: "move", icon: Move, label: "Move", shortcut: "M" },
   { id: "panel", icon: Square, label: "Panel", shortcut: "P" },
   { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
-  { id: "erase", icon: Eraser, label: "Erase", shortcut: "E" },
   { id: "text", icon: Type, label: "Text", shortcut: "T" },
   { id: "bubble", icon: MessageSquare, label: "Bubble", shortcut: "U" },
   { id: "image", icon: ImageIcon, label: "Image", shortcut: "I" },
