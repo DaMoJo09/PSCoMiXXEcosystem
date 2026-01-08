@@ -767,6 +767,70 @@ export default function ComicCreator() {
     toast.success("Panel duplicated");
   };
 
+  const moveLayerUp = (page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      const panels = [...spread[key]];
+      const idx = panels.findIndex(p => p.id === panelId);
+      if (idx > 0) {
+        [panels[idx - 1], panels[idx]] = [panels[idx], panels[idx - 1]];
+      }
+      return { ...spread, [key]: panels };
+    }));
+  };
+
+  const moveLayerDown = (page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      const panels = [...spread[key]];
+      const idx = panels.findIndex(p => p.id === panelId);
+      if (idx < panels.length - 1) {
+        [panels[idx], panels[idx + 1]] = [panels[idx + 1], panels[idx]];
+      }
+      return { ...spread, [key]: panels };
+    }));
+  };
+
+  const moveContentUp = (page: "left" | "right", panelId: string, contentId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => {
+          if (p.id !== panelId) return p;
+          const contents = [...p.contents];
+          const idx = contents.findIndex(c => c.id === contentId);
+          if (idx > 0) {
+            [contents[idx - 1], contents[idx]] = [contents[idx], contents[idx - 1]];
+          }
+          return { ...p, contents };
+        })
+      };
+    }));
+  };
+
+  const moveContentDown = (page: "left" | "right", panelId: string, contentId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => {
+          if (p.id !== panelId) return p;
+          const contents = [...p.contents];
+          const idx = contents.findIndex(c => c.id === contentId);
+          if (idx < contents.length - 1) {
+            [contents[idx], contents[idx + 1]] = [contents[idx + 1], contents[idx]];
+          }
+          return { ...p, contents };
+        })
+      };
+    }));
+  };
+
   const togglePanelLock = (page: "left" | "right", panelId: string) => {
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
@@ -1208,9 +1272,9 @@ export default function ComicCreator() {
           backgroundColor: panel.backgroundColor || 'transparent',
           borderWidth: `${panel.borderWidth || 2}px`,
           borderStyle: 'solid',
-          borderColor: isSelected ? 'white' : (panel.borderColor || 'black'),
+          borderColor: panel.borderColor || 'black',
           boxShadow: isSelected 
-            ? '0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)' 
+            ? `0 0 0 3px white, 0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)` 
             : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
         }}
         onClick={(e) => handlePanelClick(e, panel.id, page)}
@@ -2358,7 +2422,7 @@ export default function ComicCreator() {
                 </button>
               </div>
               <div className="flex-1 overflow-auto p-2 space-y-1">
-                {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx) => (
+                {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx, arr) => (
                   <div
                     key={panel.id}
                     className={`p-2 text-sm cursor-pointer ${selectedPanelId === panel.id ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
@@ -2366,17 +2430,53 @@ export default function ComicCreator() {
                   >
                     <div className="flex items-center justify-between">
                       <span>Panel {idx + 1}</span>
-                      <span className="text-xs opacity-50">{panel.contents.length} items</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveLayerUp(selectedPage, panel.id); }}
+                          disabled={idx === 0}
+                          className={`p-0.5 rounded ${idx === 0 ? 'opacity-30' : 'hover:bg-zinc-600'}`}
+                          title="Move Up"
+                        >
+                          <MoveUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveLayerDown(selectedPage, panel.id); }}
+                          disabled={idx === arr.length - 1}
+                          className={`p-0.5 rounded ${idx === arr.length - 1 ? 'opacity-30' : 'hover:bg-zinc-600'}`}
+                          title="Move Down"
+                        >
+                          <MoveDown className="w-3 h-3" />
+                        </button>
+                        <span className="text-xs opacity-50 ml-1">{panel.contents.length}</span>
+                      </div>
                     </div>
                     {selectedPanelId === panel.id && panel.contents.length > 0 && (
                       <div className="mt-2 pl-2 border-l border-zinc-600 space-y-1">
-                        {panel.contents.map((content, cIdx) => (
+                        {panel.contents.map((content, cIdx, contentArr) => (
                           <div
                             key={content.id}
-                            className={`px-2 py-1 text-xs cursor-pointer ${selectedContentId === content.id ? 'bg-zinc-600' : 'hover:bg-zinc-700'}`}
+                            className={`px-2 py-1 text-xs cursor-pointer flex items-center justify-between ${selectedContentId === content.id ? 'bg-zinc-600' : 'hover:bg-zinc-700'}`}
                             onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
                           >
-                            {content.type} {cIdx + 1}
+                            <span>{content.type} {cIdx + 1}</span>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); moveContentUp(selectedPage, panel.id, content.id); }}
+                                disabled={cIdx === 0}
+                                className={`p-0.5 rounded ${cIdx === 0 ? 'opacity-30' : 'hover:bg-zinc-500'}`}
+                                title="Move Up"
+                              >
+                                <MoveUp className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); moveContentDown(selectedPage, panel.id, content.id); }}
+                                disabled={cIdx === contentArr.length - 1}
+                                className={`p-0.5 rounded ${cIdx === contentArr.length - 1 ? 'opacity-30' : 'hover:bg-zinc-500'}`}
+                                title="Move Down"
+                              >
+                                <MoveDown className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
