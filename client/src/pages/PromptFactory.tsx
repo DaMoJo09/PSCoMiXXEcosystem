@@ -14,10 +14,13 @@ import {
   Grid3X3,
   Play,
   Palette,
-  ArrowLeft
+  ArrowLeft,
+  Lock
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 const stylePresets = [
   { id: "anime", label: "Anime", color: "bg-pink-500" },
@@ -67,6 +70,10 @@ export default function PromptFactory() {
   const [imageProvider, setImageProvider] = useState("pollinations");
   const [copied, setCopied] = useState<number | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  
+  const { hasFeature, isAdmin } = useSubscription();
+  const hasAIAccess = hasFeature("ai") || isAdmin;
 
   const toggleStyle = (styleId: string) => {
     setSelectedStyles(prev => 
@@ -132,6 +139,10 @@ export default function PromptFactory() {
   };
 
   const generateImage = async (prompt: string) => {
+    if (!hasAIAccess) {
+      setShowUpgradeModal(true);
+      return;
+    }
     const encodedPrompt = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 10000);
     const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
@@ -397,6 +408,13 @@ export default function PromptFactory() {
           </aside>
         </div>
       </div>
+      
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+        feature="AI Image Generation"
+        requiredTier="creator"
+      />
     </Layout>
   );
 }

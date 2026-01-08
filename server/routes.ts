@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName } from "@shared/schema";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
@@ -377,6 +377,24 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/projects", isAuthenticated, async (req, res) => {
     try {
+      // Check project limits (admins bypass)
+      if (req.user!.role !== "admin") {
+        const subscription = await storage.getUserSubscription(req.user!.id);
+        const tier = (subscription?.tier || "free") as TierName;
+        const entitlements = tierEntitlements[tier] || tierEntitlements.free;
+        const maxProjects = entitlements.maxProjects;
+        
+        if (maxProjects !== -1) {
+          const userProjects = await storage.getUserProjects(req.user!.id);
+          if (userProjects.length >= maxProjects) {
+            return res.status(403).json({ 
+              message: `Project limit reached. Your ${tier} plan allows ${maxProjects} projects. Upgrade for more.`,
+              code: "PROJECT_LIMIT_REACHED"
+            });
+          }
+        }
+      }
+
       const result = insertProjectSchema.safeParse({
         ...req.body,
         userId: req.user!.id,

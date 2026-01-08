@@ -16,6 +16,8 @@ import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProje
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
+import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -325,6 +327,8 @@ export default function ComicCreator() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, assets } = useAssetLibrary();
+  const { hasFeature, isAdmin } = useSubscription();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
@@ -572,6 +576,10 @@ export default function ComicCreator() {
   };
 
   const handleExportCurrentPagePNG = async () => {
+    if (!hasFeature("export") && !isAdmin) {
+      setShowUpgradeModal(true);
+      return;
+    }
     try {
       toast.info("Exporting current page...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
@@ -589,6 +597,10 @@ export default function ComicCreator() {
   };
 
   const handleExportAllPagesPNG = async () => {
+    if (!hasFeature("export") && !isAdmin) {
+      setShowUpgradeModal(true);
+      return;
+    }
     try {
       toast.info("Exporting all pages...");
       
@@ -2937,6 +2949,13 @@ export default function ComicCreator() {
           </div>
         )}
       </div>
+      
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+        feature="Export to PNG"
+        requiredTier="creator"
+      />
     </Layout>
   );
 }
