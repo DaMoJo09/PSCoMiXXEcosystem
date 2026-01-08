@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap, Palette } from "lucide-react";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -210,6 +210,30 @@ export default function Dashboard() {
         </section>
 
         <section>
+          <button 
+            onClick={() => navigate("/studio")}
+            className="w-full mb-8 relative overflow-hidden group"
+            data-testid="button-creator-studio"
+          >
+            <div className="bg-gradient-to-r from-red-600 via-red-500 to-red-600 p-6 border-4 border-white hover:shadow-hard transition-all">
+              <div className="absolute inset-0 opacity-20" style={{
+                backgroundImage: "repeating-linear-gradient(-45deg, transparent, transparent 8px, white 8px, white 9px)"
+              }} />
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white text-black flex items-center justify-center transform -skew-x-6">
+                    <Palette className="w-8 h-8" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-2xl font-black uppercase tracking-wide text-white">CREATOR STUDIO</h3>
+                    <p className="text-white/80 text-sm">All your creative tools in one place</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-8 h-8 text-white group-hover:translate-x-2 transition-transform" />
+              </div>
+            </div>
+          </button>
+
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
             <Wrench className="w-5 h-5" /> Tools & Utilities
           </h2>

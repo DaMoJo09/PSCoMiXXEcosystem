@@ -53,6 +53,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ProfileCard from "@/pages/ProfileCard";
 import ImportCenter from "@/pages/ImportCenter";
+import CreatorStudio from "@/pages/CreatorStudio";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -93,6 +94,7 @@ function ProtectedRouter() {
     <LegalGate>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/studio" component={CreatorStudio} />
         <Route path="/comic" component={ComicCreator} />
         <Route path="/creator/comic" component={ComicCreator} />
         <Route path="/creator/motion" component={MotionStudio} />

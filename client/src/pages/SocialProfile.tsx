@@ -15,6 +15,13 @@ interface UserProfile {
   id: string;
   name: string;
   email: string;
+  avatar: string | null;
+  coverImage: string | null;
+  tagline: string | null;
+  bio: string | null;
+  creatorClass: string;
+  xp: number;
+  level: number;
   createdAt: string;
   followers: number;
   following: number;
@@ -138,30 +145,56 @@ export default function SocialProfile() {
       </div>
 
       <div className="max-w-lg mx-auto p-4">
-        <div className="flex items-start gap-6 mb-6">
-          <div className="w-20 h-20 bg-white/20 border-4 border-black flex items-center justify-center font-black text-3xl">
-            {profile.name.charAt(0).toUpperCase()}
+        <div className="flex items-start gap-4 mb-6">
+          <div className="relative">
+            <div className="w-24 h-24 border-4 border-white bg-zinc-900 overflow-hidden" style={{
+              clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%)"
+            }}>
+              {profile.avatar ? (
+                <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-black text-4xl text-white/30">
+                  {profile.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="absolute -top-2 -right-2 bg-red-600 text-white px-2 py-0.5 font-black text-xs border-2 border-white transform -skew-x-6">
+              LV.{profile.level}
+            </div>
           </div>
           <div className="flex-1">
-            <div className="flex gap-8 mb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="font-black text-xl">{profile.name}</h2>
+              <span className="bg-white/10 px-2 py-0.5 text-xs font-bold uppercase text-white/70">
+                {profile.creatorClass}
+              </span>
+            </div>
+            {profile.tagline && (
+              <p className="text-white/60 text-sm italic mb-2">"{profile.tagline}"</p>
+            )}
+            <div className="flex gap-6">
               <div className="text-center">
-                <p className="font-black text-xl">{profile.postCount}</p>
-                <p className="text-xs text-white/50">POSTS</p>
+                <p className="font-black text-lg">{profile.postCount}</p>
+                <p className="text-[10px] text-red-500 font-bold">POSTS</p>
               </div>
               <div className="text-center">
-                <p className="font-black text-xl">{profile.followers}</p>
-                <p className="text-xs text-white/50">FOLLOWERS</p>
+                <p className="font-black text-lg">{profile.followers}</p>
+                <p className="text-[10px] text-red-500 font-bold">FOLLOWERS</p>
               </div>
               <div className="text-center">
-                <p className="font-black text-xl">{profile.following}</p>
-                <p className="text-xs text-white/50">FOLLOWING</p>
+                <p className="font-black text-lg">{profile.following}</p>
+                <p className="text-[10px] text-red-500 font-bold">FOLLOWING</p>
               </div>
             </div>
           </div>
         </div>
 
-        <p className="font-bold mb-1">{profile.name}</p>
-        <p className="text-white/50 text-sm mb-4">
+        {profile.bio && (
+          <div className="mb-4 p-3 bg-white/5 border-2 border-white/20">
+            <p className="text-white/80 text-sm">{profile.bio}</p>
+          </div>
+        )}
+        <p className="text-white/50 text-xs mb-4">
           Joined {formatDistanceToNow(new Date(profile.createdAt), { addSuffix: true })}
         </p>
 
