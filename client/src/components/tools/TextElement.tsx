@@ -10,6 +10,11 @@ interface TextElementProps {
   padding?: number;
   borderRadius?: number;
   bubbleStyle?: BubbleStyleType;
+  textEffect?: TextEffectType;
+  strokeColor?: string;
+  strokeWidth?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
   onChange?: (id: string, text: string) => void;
   onStyleChange?: (id: string, styles: TextStyles) => void;
   isEditing?: boolean;
@@ -19,6 +24,8 @@ interface TextElementProps {
 
 type BubbleStyleType = "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
 
+type TextEffectType = "none" | "outline" | "shadow" | "glow" | "3d" | "emboss" | "neon" | "comic" | "retro" | "fire" | "ice" | "gold" | "chrome";
+
 interface TextStyles {
   fontSize: number;
   fontFamily: string;
@@ -27,6 +34,11 @@ interface TextStyles {
   padding: number;
   borderRadius: number;
   bubbleStyle: BubbleStyleType;
+  textEffect?: TextEffectType;
+  strokeColor?: string;
+  strokeWidth?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
 }
 
 const FONT_OPTIONS = [
@@ -126,16 +138,127 @@ const BUBBLE_STYLES = {
   graffiti: { bg: "linear-gradient(135deg, #ff6b35, #f7931e, #ffeb3b)", border: "3px solid #000", tail: false, textColor: "#000" },
 };
 
+const TEXT_EFFECTS = {
+  none: (color: string) => ({
+    textShadow: "none",
+    WebkitTextStroke: "0",
+  }),
+  outline: (color: string, strokeColor = "#000000", strokeWidth = 2) => ({
+    textShadow: `
+      -${strokeWidth}px -${strokeWidth}px 0 ${strokeColor},
+      ${strokeWidth}px -${strokeWidth}px 0 ${strokeColor},
+      -${strokeWidth}px ${strokeWidth}px 0 ${strokeColor},
+      ${strokeWidth}px ${strokeWidth}px 0 ${strokeColor},
+      0 -${strokeWidth}px 0 ${strokeColor},
+      0 ${strokeWidth}px 0 ${strokeColor},
+      -${strokeWidth}px 0 0 ${strokeColor},
+      ${strokeWidth}px 0 0 ${strokeColor}
+    `,
+  }),
+  shadow: (color: string, shadowColor = "rgba(0,0,0,0.8)", shadowBlur = 4) => ({
+    textShadow: `${shadowBlur}px ${shadowBlur}px ${shadowBlur * 2}px ${shadowColor}`,
+  }),
+  glow: (color: string, glowColor = "#ffffff") => ({
+    textShadow: `
+      0 0 10px ${glowColor},
+      0 0 20px ${glowColor},
+      0 0 30px ${glowColor},
+      0 0 40px ${glowColor}
+    `,
+  }),
+  "3d": (color: string, shadowColor = "#000000") => ({
+    textShadow: `
+      1px 1px 0 ${shadowColor},
+      2px 2px 0 ${shadowColor},
+      3px 3px 0 ${shadowColor},
+      4px 4px 0 ${shadowColor},
+      5px 5px 0 ${shadowColor},
+      6px 6px 8px rgba(0,0,0,0.5)
+    `,
+  }),
+  emboss: (color: string) => ({
+    textShadow: `
+      -1px -1px 1px rgba(255,255,255,0.5),
+      1px 1px 1px rgba(0,0,0,0.5)
+    `,
+  }),
+  neon: (color: string, glowColor = "#00ffff") => ({
+    textShadow: `
+      0 0 5px ${glowColor},
+      0 0 10px ${glowColor},
+      0 0 20px ${glowColor},
+      0 0 40px ${glowColor},
+      0 0 80px ${glowColor}
+    `,
+  }),
+  comic: (color: string) => ({
+    textShadow: `
+      3px 3px 0 #000,
+      -1px -1px 0 #000,
+      1px -1px 0 #000,
+      -1px 1px 0 #000,
+      1px 1px 0 #000,
+      4px 4px 0 rgba(0,0,0,0.3)
+    `,
+    fontWeight: "900",
+  }),
+  retro: (color: string) => ({
+    textShadow: `
+      3px 3px 0 #ff6b6b,
+      6px 6px 0 #4ecdc4,
+      9px 9px 0 rgba(0,0,0,0.2)
+    `,
+  }),
+  fire: (color: string) => ({
+    textShadow: `
+      0 0 10px #ff0,
+      0 0 20px #ff0,
+      0 0 30px #ff8c00,
+      0 0 40px #ff4500,
+      0 0 50px #ff0000,
+      0 0 60px #ff0000
+    `,
+  }),
+  ice: (color: string) => ({
+    textShadow: `
+      0 0 10px #fff,
+      0 0 20px #00bfff,
+      0 0 30px #00bfff,
+      0 0 40px #1e90ff,
+      0 0 50px #1e90ff
+    `,
+  }),
+  gold: (color: string) => ({
+    background: "linear-gradient(180deg, #f9d423 0%, #ff4e00 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+    filter: "drop-shadow(2px 2px 2px rgba(0,0,0,0.5))",
+  }),
+  chrome: (color: string) => ({
+    background: "linear-gradient(180deg, #fff 0%, #aaa 50%, #fff 51%, #ccc 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    textShadow: "2px 2px 4px rgba(0,0,0,0.4)",
+    filter: "drop-shadow(1px 1px 1px rgba(0,0,0,0.3))",
+  }),
+};
+
 export function TextElement({
   id,
   text,
   fontSize = 16,
-  fontFamily = "Inter, sans-serif",
-  color = "#000000",
+  fontFamily = "'Bangers', cursive",
+  color = "#ffffff",
   backgroundColor = "transparent",
   padding = 8,
   borderRadius = 0,
   bubbleStyle = "none",
+  textEffect = "comic",
+  strokeColor = "#000000",
+  strokeWidth = 2,
+  shadowColor = "rgba(0,0,0,0.8)",
+  shadowBlur = 4,
   onChange,
   onStyleChange,
   isEditing = false,
@@ -151,6 +274,11 @@ export function TextElement({
     padding,
     borderRadius,
     bubbleStyle,
+    textEffect,
+    strokeColor,
+    strokeWidth,
+    shadowColor,
+    shadowBlur,
   });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -167,8 +295,13 @@ export function TextElement({
       padding,
       borderRadius,
       bubbleStyle,
+      textEffect,
+      strokeColor,
+      strokeWidth,
+      shadowColor,
+      shadowBlur,
     });
-  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle]);
+  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -187,6 +320,12 @@ export function TextElement({
   };
 
   const bubbleConfig = BUBBLE_STYLES[styles.bubbleStyle];
+  
+  const getTextEffectStyles = () => {
+    const effect = styles.textEffect || "comic";
+    const effectFn = TEXT_EFFECTS[effect] || TEXT_EFFECTS.comic;
+    return effectFn(styles.color, styles.strokeColor, styles.strokeWidth);
+  };
 
   const getBubbleClasses = () => {
     switch (styles.bubbleStyle) {
@@ -219,6 +358,16 @@ export function TextElement({
     }
   };
 
+  const textStyles = {
+    fontSize: styles.fontSize,
+    fontFamily: styles.fontFamily,
+    color: styles.color,
+    lineHeight: 1.3,
+    letterSpacing: "0.02em",
+    fontWeight: 700,
+    ...getTextEffectStyles(),
+  };
+
   return (
     <div
       className={`w-full h-full flex items-center justify-center ${getBubbleClasses()}`}
@@ -245,22 +394,12 @@ export function TextElement({
             }
           }}
           className="w-full h-full bg-transparent outline-none resize-none text-center"
-          style={{
-            fontSize: styles.fontSize,
-            fontFamily: styles.fontFamily,
-            color: styles.color,
-            lineHeight: 1.4,
-          }}
+          style={textStyles as React.CSSProperties}
         />
       ) : (
         <p
           className="w-full text-center whitespace-pre-wrap break-words"
-          style={{
-            fontSize: styles.fontSize,
-            fontFamily: styles.fontFamily,
-            color: styles.color,
-            lineHeight: 1.4,
-          }}
+          style={textStyles as React.CSSProperties}
         >
           {localText || "Double-click to edit"}
         </p>
@@ -298,5 +437,5 @@ export function TextElement({
   );
 }
 
-export { FONT_OPTIONS, BUBBLE_STYLES };
-export type { TextStyles };
+export { FONT_OPTIONS, BUBBLE_STYLES, TEXT_EFFECTS };
+export type { TextStyles, TextEffectType };

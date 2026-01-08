@@ -74,6 +74,11 @@ interface PanelContent {
     autoplay?: boolean;
     loop?: boolean;
     muted?: boolean;
+    textEffect?: "none" | "outline" | "shadow" | "glow" | "3d" | "emboss" | "neon" | "comic" | "retro" | "fire" | "ice" | "gold" | "chrome";
+    strokeColor?: string;
+    strokeWidth?: number;
+    shadowColor?: string;
+    shadowBlur?: number;
   };
   zIndex: number;
   locked: boolean;
@@ -865,19 +870,34 @@ export default function ComicCreator() {
   const addTextToPanel = (page: "left" | "right", panelId: string) => {
     addContentToPanel(page, panelId, {
       type: "text",
-      transform: { x: 50, y: 50, width: 250, height: 120, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { text: "Enter text here", fontSize: 18, fontFamily: "Inter, sans-serif", color: "#000000" },
+      transform: { x: 50, y: 50, width: 300, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { 
+        text: "YOUR TEXT", 
+        fontSize: 32, 
+        fontFamily: "'Bangers', cursive", 
+        color: "#ffffff",
+        textEffect: "comic",
+        strokeColor: "#000000",
+        strokeWidth: 3,
+      },
       locked: false,
     });
     setEditingTextId(`content_${Date.now() - 1}`);
-    toast.success("Text added - click to edit");
+    toast.success("Text added - double-click to edit");
   };
 
   const addBubbleToPanel = (page: "left" | "right", panelId: string) => {
     addContentToPanel(page, panelId, {
       type: "bubble",
       transform: { x: 50, y: 50, width: 280, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { text: "Dialog here...", bubbleStyle: "speech", fontSize: 16, fontFamily: "Inter, sans-serif", color: "#000000" },
+      data: { 
+        text: "Dialog here...", 
+        bubbleStyle: "speech", 
+        fontSize: 18, 
+        fontFamily: "'Bangers', cursive", 
+        color: "#000000",
+        textEffect: "none",
+      },
       locked: false,
     });
     toast.success("Speech bubble added - double-click to edit");
@@ -1067,6 +1087,11 @@ export default function ComicCreator() {
                   padding={content.data.padding}
                   borderRadius={content.data.borderRadius}
                   bubbleStyle={content.type === "bubble" ? (content.data.bubbleStyle as any) : "none"}
+                  textEffect={content.data.textEffect as any}
+                  strokeColor={content.data.strokeColor}
+                  strokeWidth={content.data.strokeWidth}
+                  shadowColor={content.data.shadowColor}
+                  shadowBlur={content.data.shadowBlur}
                   isEditing={editingTextId === content.id}
                   onEditStart={() => setEditingTextId(content.id)}
                   onEditEnd={() => setEditingTextId(null)}
