@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `pressstart-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `pressstart-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
@@ -17,6 +17,17 @@ const FONT_ORIGINS = [
   'https://fonts.googleapis.com',
   'https://fonts.gstatic.com'
 ];
+
+const EXCLUDED_EXTENSIONS = ['.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'];
+
+function shouldExcludeFromCache(url) {
+  const pathname = url.pathname.toLowerCase();
+  return EXCLUDED_EXTENSIONS.some(ext => pathname.endsWith(ext));
+}
+
+function isValidCacheResponse(response) {
+  return response && response.status === 200 && response.type !== 'opaque';
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -51,17 +62,22 @@ self.addEventListener('fetch', (event) => {
   
   if (request.method !== 'GET') return;
 
+  if (shouldExcludeFromCache(url)) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (FONT_ORIGINS.some(origin => request.url.startsWith(origin))) {
     event.respondWith(
       caches.open(FONT_CACHE).then((cache) => {
         return cache.match(request).then((cached) => {
           if (cached) return cached;
           return fetch(request).then((response) => {
-            if (response.ok) {
+            if (isValidCacheResponse(response)) {
               cache.put(request, response.clone());
             }
             return response;
-          });
+          }).catch(() => cached);
         });
       })
     );
@@ -90,7 +106,7 @@ self.addEventListener('fetch', (event) => {
       caches.open(DYNAMIC_CACHE).then((cache) => {
         return cache.match(request).then((cached) => {
           const fetchPromise = fetch(request).then((response) => {
-            if (response.ok) {
+            if (isValidCacheResponse(response)) {
               cache.put(request, response.clone());
             }
             return response;
@@ -106,10 +122,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => {
-            cache.put(request, clone);
-          });
+          if (isValidCacheResponse(response)) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
           return response;
         })
         .catch(() => {
@@ -126,7 +144,7 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached;
       
       return fetch(request).then((response) => {
-        if (response.ok && url.origin === self.location.origin) {
+        if (isValidCacheResponse(response) && url.origin === self.location.origin) {
           const clone = response.clone();
           caches.open(DYNAMIC_CACHE).then((cache) => {
             cache.put(request, clone);
