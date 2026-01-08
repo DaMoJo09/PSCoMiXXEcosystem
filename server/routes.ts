@@ -2504,5 +2504,171 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ============================================
+  // EXHIBITIONS (PORTFOLIO EVENTS) API ROUTES
+  // ============================================
+
+  app.get("/api/exhibitions", async (req, res) => {
+    try {
+      const exhibitions = await storage.getPortfolioEvents();
+      res.json(exhibitions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/exhibitions/:id", async (req, res) => {
+    try {
+      const exhibition = await storage.getPortfolioEvent(req.params.id);
+      if (!exhibition) {
+        return res.status(404).json({ message: "Exhibition not found" });
+      }
+      res.json(exhibition);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/exhibitions", isAuthenticated, async (req, res) => {
+    try {
+      const exhibition = await storage.createPortfolioEvent({
+        ...req.body,
+        userId: req.user!.id,
+      });
+      res.json(exhibition);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/exhibitions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const exhibition = await storage.getPortfolioEvent(req.params.id);
+      if (!exhibition) {
+        return res.status(404).json({ message: "Exhibition not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (exhibition.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const updated = await storage.updatePortfolioEvent(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/exhibitions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const exhibition = await storage.getPortfolioEvent(req.params.id);
+      if (!exhibition) {
+        return res.status(404).json({ message: "Exhibition not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (exhibition.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const success = await storage.deletePortfolioEvent(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // BLOG POSTS API ROUTES
+  // ============================================
+
+  app.get("/api/blogs", async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const blogs = await storage.getBlogPosts(status);
+      res.json(blogs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/blogs/mine", isAuthenticated, async (req, res) => {
+    try {
+      const blogs = await storage.getUserBlogPosts(req.user!.id);
+      res.json(blogs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/blogs/:id", async (req, res) => {
+    try {
+      const blog = await storage.getBlogPost(req.params.id);
+      if (!blog) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      res.json(blog);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/blogs", isAuthenticated, async (req, res) => {
+    try {
+      const slug = req.body.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") + "-" + Date.now();
+      
+      const blog = await storage.createBlogPost({
+        ...req.body,
+        userId: req.user!.id,
+        slug,
+      });
+      res.json(blog);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/blogs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const blog = await storage.getBlogPost(req.params.id);
+      if (!blog) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (blog.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const updated = await storage.updateBlogPost(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/blogs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const blog = await storage.getBlogPost(req.params.id);
+      if (!blog) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (blog.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const success = await storage.deleteBlogPost(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return server;
 }

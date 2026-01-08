@@ -57,6 +57,9 @@ export default function PortfolioPage() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
+  const [showInquiryForm, setShowInquiryForm] = useState(false);
+  const [inquiryArtwork, setInquiryArtwork] = useState<Artwork | null>(null);
+  const [inquiryData, setInquiryData] = useState({ name: "", email: "", message: "" });
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -667,11 +670,93 @@ export default function PortfolioPage() {
                 <div className="flex items-center justify-between mt-4">
                   <span className="text-2xl font-bold">{selectedArtwork.price ? formatPrice(selectedArtwork.price) : "Price on request"}</span>
                   {selectedArtwork.available !== false && (
-                    <Button className="bg-white text-black hover:bg-zinc-200 font-bold">
+                    <Button 
+                      className="bg-white text-black hover:bg-zinc-200 font-bold"
+                      onClick={() => {
+                        setInquiryArtwork(selectedArtwork);
+                        setShowInquiryForm(true);
+                        closeLightbox();
+                      }}
+                      data-testid="btn-inquire"
+                    >
                       INQUIRE
                     </Button>
                   )}
                 </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {showInquiryForm && inquiryArtwork && (
+          <Dialog open={showInquiryForm} onOpenChange={() => { setShowInquiryForm(false); setInquiryArtwork(null); setInquiryData({ name: "", email: "", message: "" }); }}>
+            <DialogContent className="bg-black border-4 border-white text-white max-w-md">
+              <DialogHeader>
+                <DialogTitle className="font-black text-xl">INQUIRE ABOUT ARTWORK</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-zinc-400">
+                  Interested in <strong className="text-white">{inquiryArtwork.title}</strong>?
+                </p>
+                <div>
+                  <Label className="text-white">Your Name</Label>
+                  <Input
+                    value={inquiryData.name}
+                    onChange={(e) => setInquiryData({ ...inquiryData, name: e.target.value })}
+                    className="bg-zinc-900 border-white text-white"
+                    placeholder="Enter your name"
+                    data-testid="input-inquiry-name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Email</Label>
+                  <Input
+                    type="email"
+                    value={inquiryData.email}
+                    onChange={(e) => setInquiryData({ ...inquiryData, email: e.target.value })}
+                    className="bg-zinc-900 border-white text-white"
+                    placeholder="your@email.com"
+                    data-testid="input-inquiry-email"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white">Message</Label>
+                  <Textarea
+                    value={inquiryData.message}
+                    onChange={(e) => setInquiryData({ ...inquiryData, message: e.target.value })}
+                    className="bg-zinc-900 border-white text-white"
+                    placeholder="I'm interested in this piece..."
+                    data-testid="input-inquiry-message"
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!inquiryData.name.trim()) {
+                      toast.error("Please enter your name");
+                      return;
+                    }
+                    if (!inquiryData.email.trim()) {
+                      toast.error("Please enter your email");
+                      return;
+                    }
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inquiryData.email)) {
+                      toast.error("Please enter a valid email address");
+                      return;
+                    }
+                    if (!inquiryData.message.trim()) {
+                      toast.error("Please enter a message");
+                      return;
+                    }
+                    toast.success("Inquiry sent! The artist will contact you soon.");
+                    setShowInquiryForm(false);
+                    setInquiryArtwork(null);
+                    setInquiryData({ name: "", email: "", message: "" });
+                  }}
+                  className="w-full bg-white text-black hover:bg-zinc-200 font-bold"
+                  data-testid="btn-send-inquiry"
+                >
+                  SEND INQUIRY
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

@@ -15,6 +15,8 @@ import {
   passwordResetTokens,
   assetImports,
   portfolioArtworks,
+  portfolioEvents,
+  blogPosts,
   newsletterSubscribers,
   announcements,
   type User, type InsertUser,
@@ -53,6 +55,8 @@ import {
   type ChainLike, type InsertChainLike,
   type AssetImport, type InsertAssetImport,
   type PortfolioArtwork, type InsertPortfolioArtwork,
+  type PortfolioEvent, type InsertPortfolioEvent,
+  type BlogPost, type InsertBlogPost,
   type NewsletterSubscriber, type InsertNewsletterSubscriber,
   type Announcement, type InsertAnnouncement,
 } from "@shared/schema";
@@ -219,6 +223,23 @@ export interface IStorage {
   updateLearningPathway(id: string, updates: Partial<InsertLearningPathway>): Promise<LearningPathway | undefined>;
   deleteLearningPathway(id: string): Promise<boolean>;
   getLearningPathway(id: string): Promise<LearningPathway | undefined>;
+  
+  // Portfolio Events (Exhibitions) operations
+  getPortfolioEvents(): Promise<PortfolioEvent[]>;
+  getPortfolioEvent(id: string): Promise<PortfolioEvent | undefined>;
+  getUserPortfolioEvents(userId: string): Promise<PortfolioEvent[]>;
+  createPortfolioEvent(event: InsertPortfolioEvent): Promise<PortfolioEvent>;
+  updatePortfolioEvent(id: string, updates: Partial<InsertPortfolioEvent>): Promise<PortfolioEvent | undefined>;
+  deletePortfolioEvent(id: string): Promise<boolean>;
+  
+  // Blog Posts operations
+  getBlogPosts(status?: string): Promise<BlogPost[]>;
+  getBlogPost(id: string): Promise<BlogPost | undefined>;
+  getBlogPostBySlug(slug: string): Promise<BlogPost | undefined>;
+  getUserBlogPosts(userId: string): Promise<BlogPost[]>;
+  createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: string, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined>;
+  deleteBlogPost(id: string): Promise<boolean>;
   
   // Announcements operations
   getAnnouncements(featuredOnly?: boolean): Promise<Announcement[]>;
@@ -1689,6 +1710,91 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAnnouncement(id: string): Promise<boolean> {
     const result = await db.delete(announcements).where(eq(announcements.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Portfolio Events (Exhibitions) operations
+  async getPortfolioEvents(): Promise<PortfolioEvent[]> {
+    return db.select()
+      .from(portfolioEvents)
+      .orderBy(desc(portfolioEvents.startDate));
+  }
+
+  async getPortfolioEvent(id: string): Promise<PortfolioEvent | undefined> {
+    const [event] = await db.select().from(portfolioEvents).where(eq(portfolioEvents.id, id));
+    return event || undefined;
+  }
+
+  async getUserPortfolioEvents(userId: string): Promise<PortfolioEvent[]> {
+    return db.select()
+      .from(portfolioEvents)
+      .where(eq(portfolioEvents.userId, userId))
+      .orderBy(desc(portfolioEvents.startDate));
+  }
+
+  async createPortfolioEvent(event: InsertPortfolioEvent): Promise<PortfolioEvent> {
+    const [created] = await db.insert(portfolioEvents).values(event).returning();
+    return created;
+  }
+
+  async updatePortfolioEvent(id: string, updates: Partial<InsertPortfolioEvent>): Promise<PortfolioEvent | undefined> {
+    const [event] = await db.update(portfolioEvents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(portfolioEvents.id, id))
+      .returning();
+    return event || undefined;
+  }
+
+  async deletePortfolioEvent(id: string): Promise<boolean> {
+    const result = await db.delete(portfolioEvents).where(eq(portfolioEvents.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Blog Posts operations
+  async getBlogPosts(status?: string): Promise<BlogPost[]> {
+    if (status) {
+      return db.select()
+        .from(blogPosts)
+        .where(eq(blogPosts.status, status))
+        .orderBy(desc(blogPosts.createdAt));
+    }
+    return db.select()
+      .from(blogPosts)
+      .orderBy(desc(blogPosts.createdAt));
+  }
+
+  async getBlogPost(id: string): Promise<BlogPost | undefined> {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return post || undefined;
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
+    return post || undefined;
+  }
+
+  async getUserBlogPosts(userId: string): Promise<BlogPost[]> {
+    return db.select()
+      .from(blogPosts)
+      .where(eq(blogPosts.userId, userId))
+      .orderBy(desc(blogPosts.createdAt));
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const [created] = await db.insert(blogPosts).values(post).returning();
+    return created;
+  }
+
+  async updateBlogPost(id: string, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
+    const [post] = await db.update(blogPosts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(blogPosts.id, id))
+      .returning();
+    return post || undefined;
+  }
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    const result = await db.delete(blogPosts).where(eq(blogPosts.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 }

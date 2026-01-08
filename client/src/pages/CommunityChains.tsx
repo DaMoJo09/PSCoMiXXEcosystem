@@ -281,6 +281,23 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
   const [contributionUrl, setContributionUrl] = useState("");
   const [contributionCaption, setContributionCaption] = useState("");
   const [showContribute, setShowContribute] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<"ai" | "url" | "upload">("ai");
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Error", description: "File too large. Max 5MB.", variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const { data: chain, isLoading } = useQuery<CommunityChain>({
     queryKey: ["/api/chains", chainId],
@@ -293,11 +310,20 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
 
   const contributeMutation = useMutation({
     mutationFn: async () => {
+      let mediaUrl = "";
+      if (inputMode === "upload" && uploadedImage) {
+        mediaUrl = uploadedImage;
+      } else if (inputMode === "url" && contributionUrl) {
+        mediaUrl = contributionUrl;
+      } else {
+        mediaUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(contributionCaption || chain?.title || "continue the story")}?width=800&height=600&seed=${Date.now()}`;
+      }
+
       const res = await fetch(`/api/chains/${chainId}/contribute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mediaUrl: contributionUrl || `https://image.pollinations.ai/prompt/${encodeURIComponent(contributionCaption || chain?.title || "continue the story")}?width=800&height=600&seed=${Date.now()}`,
+          mediaUrl,
           contentType: "image",
           caption: contributionCaption,
         }),
@@ -313,6 +339,7 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
       queryClient.invalidateQueries({ queryKey: ["/api/chains", chainId] });
       setContributionUrl("");
       setContributionCaption("");
+      setUploadedImage(null);
       setShowContribute(false);
     },
     onError: (error: Error) => {
@@ -354,22 +381,86 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
         <div className="bg-neutral-900 border-b-4 border-white p-4">
           <div className="max-w-md mx-auto space-y-3">
             <p className="text-sm text-white/70 text-center">Continue the story with your art!</p>
-            <Input
-              value={contributionCaption}
-              onChange={(e) => setContributionCaption(e.target.value)}
-              placeholder="Describe your panel (AI will generate art)"
-              className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
-              data-testid="contribution-caption"
-            />
-            <Input
-              value={contributionUrl}
-              onChange={(e) => setContributionUrl(e.target.value)}
-              placeholder="Or paste image/video URL (optional)"
-              className="bg-white/10 border-2 border-black text-white placeholder:text-white/50 text-sm"
-            />
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setInputMode("ai")}
+                className={`flex-1 py-2 text-xs font-bold border-2 ${inputMode === "ai" ? "bg-white text-black border-white" : "bg-transparent text-white border-zinc-600"}`}
+              >
+                <Sparkles className="w-3 h-3 inline mr-1" /> AI Generate
+              </button>
+              <button
+                onClick={() => setInputMode("upload")}
+                className={`flex-1 py-2 text-xs font-bold border-2 ${inputMode === "upload" ? "bg-white text-black border-white" : "bg-transparent text-white border-zinc-600"}`}
+              >
+                <Image className="w-3 h-3 inline mr-1" /> Upload
+              </button>
+              <button
+                onClick={() => setInputMode("url")}
+                className={`flex-1 py-2 text-xs font-bold border-2 ${inputMode === "url" ? "bg-white text-black border-white" : "bg-transparent text-white border-zinc-600"}`}
+              >
+                <Link2 className="w-3 h-3 inline mr-1" /> URL
+              </button>
+            </div>
+
+            {inputMode === "ai" && (
+              <Input
+                value={contributionCaption}
+                onChange={(e) => setContributionCaption(e.target.value)}
+                placeholder="Describe your panel (AI will generate art)"
+                className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
+                data-testid="contribution-caption"
+              />
+            )}
+
+            {inputMode === "upload" && (
+              <div className="space-y-2">
+                <label className="block w-full py-6 border-2 border-dashed border-zinc-600 hover:border-white cursor-pointer text-center transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    data-testid="contribution-file-input"
+                  />
+                  {uploadedImage ? (
+                    <img src={uploadedImage} alt="Preview" className="max-h-32 mx-auto" />
+                  ) : (
+                    <>
+                      <Image className="w-8 h-8 mx-auto mb-2 text-zinc-500" />
+                      <span className="text-sm text-zinc-400">Click to upload image (max 5MB)</span>
+                    </>
+                  )}
+                </label>
+                <Input
+                  value={contributionCaption}
+                  onChange={(e) => setContributionCaption(e.target.value)}
+                  placeholder="Caption (optional)"
+                  className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
+                />
+              </div>
+            )}
+
+            {inputMode === "url" && (
+              <div className="space-y-2">
+                <Input
+                  value={contributionUrl}
+                  onChange={(e) => setContributionUrl(e.target.value)}
+                  placeholder="Paste image URL"
+                  className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
+                />
+                <Input
+                  value={contributionCaption}
+                  onChange={(e) => setContributionCaption(e.target.value)}
+                  placeholder="Caption (optional)"
+                  className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
+                />
+              </div>
+            )}
+
             <Button
               onClick={() => contributeMutation.mutate()}
-              disabled={contributeMutation.isPending || (!contributionUrl && !contributionCaption)}
+              disabled={contributeMutation.isPending || (inputMode === "ai" && !contributionCaption) || (inputMode === "url" && !contributionUrl) || (inputMode === "upload" && !uploadedImage)}
               className="w-full bg-white text-black font-bold"
               data-testid="submit-contribution"
             >
@@ -380,16 +471,23 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
       )}
 
       <div className="max-w-4xl mx-auto p-4">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-0">
           {chain.contributions?.map((contribution, index) => (
-            <div key={contribution.id} className="relative">
-              {index > 0 && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <ChevronRight className="w-8 h-8 rotate-90 text-white/30" />
-                </div>
-              )}
-              <div className="bg-white/5 border-4 border-black overflow-hidden">
-                <div className="aspect-video bg-neutral-800 relative">
+            <div 
+              key={contribution.id} 
+              className="relative comic-panel"
+              style={{
+                marginTop: index > 0 ? "-2px" : "0",
+              }}
+            >
+              <div 
+                className="bg-white border-4 border-black overflow-hidden relative"
+                style={{
+                  boxShadow: "4px 4px 0 0 rgba(0,0,0,1)",
+                  transform: index % 2 === 0 ? "rotate(-0.3deg)" : "rotate(0.3deg)",
+                }}
+              >
+                <div className="aspect-video bg-white relative">
                   {contribution.contentType === "video" ? (
                     <video 
                       src={contribution.mediaUrl} 
@@ -403,18 +501,28 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
                       className="w-full h-full object-contain"
                     />
                   )}
-                  <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 text-xs font-bold">
-                    #{contribution.position}
+                  <div className="absolute top-0 left-0 bg-black text-white px-3 py-1 font-black text-sm border-r-2 border-b-2 border-black">
+                    PANEL {contribution.position}
                   </div>
                 </div>
-                <div className="p-3">
-                  {contribution.caption && (
-                    <p className="text-sm mb-2">{contribution.caption}</p>
-                  )}
-                  <div className="flex items-center justify-between text-xs text-white/50">
-                    <span>by {contribution.user?.name || "Unknown"}</span>
+                {contribution.caption && (
+                  <div className="bg-white border-t-4 border-black p-3">
+                    <div 
+                      className="bg-yellow-100 border-2 border-black p-2 text-black font-bold text-sm"
+                      style={{
+                        borderRadius: "12px 12px 12px 0",
+                        boxShadow: "2px 2px 0 0 rgba(0,0,0,1)",
+                      }}
+                    >
+                      {contribution.caption}
+                    </div>
+                  </div>
+                )}
+                <div className="bg-zinc-900 border-t-4 border-black p-2">
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <span className="font-bold">by {contribution.user?.name || "Unknown"}</span>
                     <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-1 hover:text-white">
+                      <button className="flex items-center gap-1 hover:text-white transition-colors">
                         <Heart className="w-4 h-4" />
                         {contribution.likesCount}
                       </button>

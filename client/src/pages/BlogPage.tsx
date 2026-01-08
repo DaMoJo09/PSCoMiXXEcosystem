@@ -1,155 +1,358 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { 
   Calendar, Tag, ChevronRight, Search, Clock, User, 
-  ArrowRight, Image as ImageIcon
+  ArrowRight, Image as ImageIcon, Plus, X, Edit2, Trash2, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface BlogPost {
   id: string;
+  userId?: string;
   title: string;
   slug: string;
-  excerpt: string;
+  excerpt?: string;
   content: string;
-  featuredImage: string;
-  images: string[];
-  tags: string[];
-  status: "published";
-  publishedAt: Date;
-  readTime: number;
-  author: string;
+  featuredImage?: string;
+  images?: string[];
+  tags?: string[];
+  status: string;
+  publishedAt?: string | Date;
+  createdAt: string | Date;
 }
 
-const SAMPLE_POSTS: BlogPost[] = [
-  {
-    id: "1",
-    title: "The Evolution of Digital Comic Art",
-    slug: "evolution-digital-comic-art",
-    excerpt: "Exploring how digital tools have transformed the way we create and consume comics in the modern era.",
-    content: "Full article content here...",
-    featuredImage: "https://image.pollinations.ai/prompt/digital%20art%20tablet%20comic%20creation%20noir?width=1200&height=600&nologo=true&seed=8001",
-    images: [],
-    tags: ["digital-art", "comics", "technology", "process"],
-    status: "published",
-    publishedAt: new Date("2024-12-01"),
-    readTime: 8,
-    author: "Press Start Studio"
-  },
-  {
-    id: "2",
-    title: "Behind the Scenes: Creating Noir Visions",
-    slug: "behind-scenes-noir-visions",
-    excerpt: "A deep dive into the creative process behind my latest exhibition, from concept to final installation.",
-    content: "Full article content here...",
-    featuredImage: "https://image.pollinations.ai/prompt/artist%20studio%20noir%20artwork%20process?width=1200&height=600&nologo=true&seed=8002",
-    images: [],
-    tags: ["exhibition", "process", "noir", "behind-the-scenes"],
-    status: "published",
-    publishedAt: new Date("2024-11-15"),
-    readTime: 12,
-    author: "Press Start Studio"
-  },
-  {
-    id: "3",
-    title: "Tools of the Trade: My Digital Arsenal",
-    slug: "tools-digital-arsenal",
-    excerpt: "A comprehensive look at the hardware and software that power my creative workflow.",
-    content: "Full article content here...",
-    featuredImage: "https://image.pollinations.ai/prompt/creative%20workspace%20computer%20tablet%20minimal?width=1200&height=600&nologo=true&seed=8003",
-    images: [],
-    tags: ["tools", "workflow", "software", "hardware"],
-    status: "published",
-    publishedAt: new Date("2024-10-20"),
-    readTime: 6,
-    author: "Press Start Studio"
-  },
-  {
-    id: "4",
-    title: "The Power of Limitations in Art",
-    slug: "power-limitations-art",
-    excerpt: "Why working within constraints can actually boost creativity and lead to more impactful work.",
-    content: "Full article content here...",
-    featuredImage: "https://image.pollinations.ai/prompt/minimalist%20black%20white%20art%20concept?width=1200&height=600&nologo=true&seed=8004",
-    images: [],
-    tags: ["creativity", "philosophy", "process", "inspiration"],
-    status: "published",
-    publishedAt: new Date("2024-09-25"),
-    readTime: 10,
-    author: "Press Start Studio"
-  },
-  {
-    id: "5",
-    title: "From Sketch to Print: The Comic Production Pipeline",
-    slug: "sketch-print-comic-pipeline",
-    excerpt: "A step-by-step guide through my complete production process for creating print-ready comics.",
-    content: "Full article content here...",
-    featuredImage: "https://image.pollinations.ai/prompt/comic%20production%20sketches%20printing%20process?width=1200&height=600&nologo=true&seed=8005",
-    images: [],
-    tags: ["tutorial", "comics", "printing", "production"],
-    status: "published",
-    publishedAt: new Date("2024-08-30"),
-    readTime: 15,
-    author: "Press Start Studio"
-  }
-];
-
-const ALL_TAGS = Array.from(new Set(SAMPLE_POSTS.flatMap(p => p.tags)));
-
 export default function BlogPage() {
-  const [posts] = useState<BlogPost[]>(SAMPLE_POSTS);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [viewingPost, setViewingPost] = useState<BlogPost | null>(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    excerpt: "",
+    content: "",
+    featuredImage: "",
+    tags: "",
+    status: "published" as const
+  });
+
+  const { data: posts = [], isLoading } = useQuery<BlogPost[]>({
+    queryKey: ["/api/blogs"],
+    queryFn: async () => {
+      const res = await fetch("/api/blogs", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create post");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/blogs"] });
+      setIsAddDialogOpen(false);
+      resetForm();
+      toast.success("Blog post created");
+    },
+    onError: () => toast.error("Failed to create post"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/blogs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update post");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/blogs"] });
+      setEditingPost(null);
+      resetForm();
+      toast.success("Blog post updated");
+    },
+    onError: () => toast.error("Failed to update post"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/blogs/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete post");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/blogs"] });
+      toast.success("Blog post deleted");
+    },
+    onError: () => toast.error("Failed to delete post"),
+  });
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      excerpt: "",
+      content: "",
+      featuredImage: "",
+      tags: "",
+      status: "published"
+    });
+  };
+
+  const openEditDialog = (post: BlogPost) => {
+    setEditingPost(post);
+    setFormData({
+      title: post.title,
+      excerpt: post.excerpt || "",
+      content: post.content || "",
+      featuredImage: post.featuredImage || "",
+      tags: post.tags?.join(", ") || "",
+      status: post.status as "published"
+    });
+  };
+
+  const handleSubmit = () => {
+    const data = {
+      title: formData.title,
+      excerpt: formData.excerpt || null,
+      content: formData.content,
+      featuredImage: formData.featuredImage || null,
+      tags: formData.tags.split(",").map(t => t.trim()).filter(t => t),
+      status: formData.status,
+      publishedAt: formData.status === "published" ? new Date().toISOString() : null
+    };
+
+    if (editingPost) {
+      updateMutation.mutate({ id: editingPost.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const allTags = Array.from(new Set(posts.flatMap(p => p.tags || [])));
 
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag = !selectedTag || post.tags.includes(selectedTag);
+                         (post.excerpt || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTag = !selectedTag || (post.tags || []).includes(selectedTag);
     return matchesSearch && matchesTag;
   });
 
-  const featuredPost = posts[0];
-  const remainingPosts = filteredPosts.filter(p => p.id !== featuredPost.id);
+  const featuredPost = filteredPosts[0];
+  const remainingPosts = filteredPosts.slice(1);
+
+  if (viewingPost) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-black text-white">
+          <header className="h-14 border-b-4 border-white flex items-center px-6 bg-black sticky top-0 z-20">
+            <button
+              onClick={() => setViewingPost(null)}
+              className="p-2 hover:bg-white hover:text-black border-2 border-white transition-colors mr-4"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h1 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>BLOG</h1>
+          </header>
+
+          <article className="max-w-4xl mx-auto p-8">
+            {viewingPost.featuredImage && (
+              <div className="aspect-video mb-8 border-4 border-white overflow-hidden">
+                <img 
+                  src={viewingPost.featuredImage} 
+                  alt={viewingPost.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
+            <div className="flex gap-2 mb-4">
+              {viewingPost.tags?.map(tag => (
+                <span key={tag} className="px-2 py-1 text-xs font-bold bg-zinc-800 border border-zinc-700">
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            <h1 className="text-4xl font-black mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{viewingPost.title}</h1>
+            
+            <div className="flex items-center gap-4 text-zinc-400 mb-8">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {format(new Date(viewingPost.publishedAt || viewingPost.createdAt), "MMMM d, yyyy")}
+              </span>
+            </div>
+
+            {viewingPost.excerpt && (
+              <p className="text-xl text-zinc-300 mb-8 font-medium border-l-4 border-white pl-4">{viewingPost.excerpt}</p>
+            )}
+
+            <div className="prose prose-invert max-w-none">
+              {viewingPost.content.split('\n').map((paragraph, i) => (
+                <p key={i} className="mb-4 text-zinc-300 leading-relaxed">{paragraph}</p>
+              ))}
+            </div>
+          </article>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background">
-        <header className="border-b-4 border-border p-6">
-          <h1 className="text-4xl font-black font-display tracking-tight mb-2">BLOG & NEWS</h1>
-          <p className="text-muted-foreground">Insights, tutorials, and behind-the-scenes content</p>
+      <div className="min-h-screen bg-black text-white">
+        <header className="border-b-4 border-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-black tracking-tight mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>BLOG & NEWS</h1>
+              <p className="text-zinc-400">Insights, tutorials, and behind-the-scenes content</p>
+            </div>
+            {user && (
+              <Dialog open={isAddDialogOpen || !!editingPost} onOpenChange={(open) => {
+                if (!open) {
+                  setIsAddDialogOpen(false);
+                  setEditingPost(null);
+                  resetForm();
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button 
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="bg-white text-black hover:bg-zinc-200 font-bold border-2 border-white"
+                    data-testid="btn-add-blog"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    ADD POST
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-black border-4 border-white text-white max-w-lg max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black">{editingPost ? "EDIT POST" : "ADD POST"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label className="text-white">Title *</Label>
+                      <Input
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        data-testid="input-blog-title"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Excerpt</Label>
+                      <Textarea
+                        value={formData.excerpt}
+                        onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="Brief description..."
+                        data-testid="input-blog-excerpt"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Content *</Label>
+                      <Textarea
+                        value={formData.content}
+                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                        className="bg-zinc-900 border-white text-white min-h-[150px]"
+                        placeholder="Write your article..."
+                        data-testid="input-blog-content"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Featured Image URL</Label>
+                      <Input
+                        value={formData.featuredImage}
+                        onChange={(e) => setFormData({ ...formData, featuredImage: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Tags (comma-separated)</Label>
+                      <Input
+                        value={formData.tags}
+                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="tutorial, comics, art"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Status</Label>
+                      <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
+                        <SelectTrigger className="bg-zinc-900 border-white text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black border-white">
+                          <SelectItem value="published" className="text-white">Published</SelectItem>
+                          <SelectItem value="draft" className="text-white">Draft</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!formData.title || !formData.content || createMutation.isPending || updateMutation.isPending}
+                      className="w-full bg-white text-black hover:bg-zinc-200 font-bold"
+                      data-testid="btn-save-blog"
+                    >
+                      {editingPost ? "UPDATE POST" : "PUBLISH POST"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </header>
 
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-zinc-800">
           <div className="flex flex-wrap gap-4 items-center justify-between">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search articles..."
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-background border-2 border-border text-sm focus:ring-0 focus:border-foreground outline-none"
-                data-testid="blog-search"
+                placeholder="Search articles..."
+                className="pl-10 bg-zinc-900 border-white text-white"
+                data-testid="search-blogs"
               />
             </div>
-
+            
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedTag(null)}
-                className={`px-3 py-1.5 text-xs font-bold uppercase border-2 border-border ${
-                  !selectedTag ? "bg-foreground text-background" : "hover:bg-muted"
-                }`}
+                className={`px-3 py-1 text-xs font-bold border-2 ${!selectedTag ? "bg-white text-black border-white" : "border-zinc-600 hover:border-white"}`}
               >
                 All
               </button>
-              {ALL_TAGS.slice(0, 6).map(tag => (
+              {allTags.slice(0, 6).map(tag => (
                 <button
                   key={tag}
                   onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase border-2 border-border ${
-                    selectedTag === tag ? "bg-foreground text-background" : "hover:bg-muted"
-                  }`}
-                  data-testid={`tag-${tag}`}
+                  className={`px-3 py-1 text-xs font-bold border-2 ${selectedTag === tag ? "bg-white text-black border-white" : "border-zinc-600 hover:border-white"}`}
                 >
                   {tag}
                 </button>
@@ -159,102 +362,141 @@ export default function BlogPage() {
         </div>
 
         <div className="p-6">
-          {!selectedTag && !searchQuery && (
-            <div className="mb-8 border-4 border-border bg-card hover:border-foreground transition-colors cursor-pointer group" data-testid="featured-post">
-              <div className="flex flex-col lg:flex-row">
-                <div className="lg:w-2/3 h-64 lg:h-auto overflow-hidden bg-black">
-                  <img
-                    src={featuredPost.featuredImage}
-                    alt={featuredPost.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="lg:w-1/3 p-6 flex flex-col justify-center">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="px-2 py-1 bg-foreground text-background text-xs font-bold">FEATURED</span>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="w-8 h-8 border-4 border-white border-t-transparent animate-spin mx-auto" />
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-12 border-4 border-dashed border-zinc-700">
+              <p className="text-zinc-500 mb-4">No blog posts yet</p>
+              {user && (
+                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-white text-black">
+                  <Plus className="w-4 h-4 mr-2" /> Write Your First Post
+                </Button>
+              )}
+            </div>
+          ) : (
+            <>
+              {featuredPost && (
+                <div 
+                  className="mb-8 border-4 border-white overflow-hidden cursor-pointer hover:bg-zinc-900 transition-colors group"
+                  onClick={() => setViewingPost(featuredPost)}
+                  data-testid={`blog-card-${featuredPost.id}`}
+                >
+                  <div className="md:flex">
+                    <div className="md:w-2/3 h-64 md:h-auto overflow-hidden bg-zinc-900">
+                      {featuredPost.featuredImage ? (
+                        <img 
+                          src={featuredPost.featuredImage} 
+                          alt={featuredPost.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                          <ImageIcon className="w-12 h-12" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="md:w-1/3 p-6 flex flex-col justify-between">
+                      <div>
+                        <div className="flex gap-2 mb-3">
+                          <span className="px-2 py-1 text-xs font-bold bg-white text-black">FEATURED</span>
+                          {featuredPost.status === "draft" && (
+                            <span className="px-2 py-1 text-xs font-bold bg-zinc-800 border border-zinc-600">DRAFT</span>
+                          )}
+                        </div>
+                        <h2 className="text-2xl font-black mb-3">{featuredPost.title}</h2>
+                        <p className="text-zinc-400 line-clamp-3">{featuredPost.excerpt}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(featuredPost.publishedAt || featuredPost.createdAt), "MMM d, yyyy")}
+                        </div>
+                        {user && featuredPost.userId === user.id && (
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => openEditDialog(featuredPost)}
+                              className="p-2 border border-zinc-600 hover:border-white"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteMutation.mutate(featuredPost.id)}
+                              className="p-2 border border-zinc-600 hover:border-white"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <h2 className="text-2xl lg:text-3xl font-black mb-3">{featuredPost.title}</h2>
-                  <p className="text-muted-foreground mb-4">{featuredPost.excerpt}</p>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {format(featuredPost.publishedAt, "MMM d, yyyy")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {featuredPost.readTime} min read
-                    </span>
-                  </div>
-                  <button className="flex items-center gap-2 font-bold text-sm group-hover:gap-3 transition-all">
-                    READ MORE <ArrowRight className="w-4 h-4" />
-                  </button>
                 </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {remainingPosts.map(post => (
+                  <div
+                    key={post.id}
+                    className="border-4 border-white overflow-hidden cursor-pointer hover:bg-zinc-900 transition-colors group"
+                    onClick={() => setViewingPost(post)}
+                    data-testid={`blog-card-${post.id}`}
+                  >
+                    <div className="h-40 overflow-hidden bg-zinc-900">
+                      {post.featuredImage ? (
+                        <img 
+                          src={post.featuredImage} 
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                          <ImageIcon className="w-8 h-8" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex gap-2 mb-2">
+                        {(post.tags || []).slice(0, 2).map(tag => (
+                          <span key={tag} className="px-1.5 py-0.5 text-[10px] font-bold bg-zinc-800 border border-zinc-700">
+                            {tag}
+                          </span>
+                        ))}
+                        {post.status === "draft" && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold bg-zinc-700">DRAFT</span>
+                        )}
+                      </div>
+                      <h3 className="font-bold mb-2 line-clamp-2">{post.title}</h3>
+                      <p className="text-sm text-zinc-400 line-clamp-2">{post.excerpt}</p>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-xs text-zinc-500 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(post.publishedAt || post.createdAt), "MMM d")}
+                        </span>
+                        {user && post.userId === user.id && (
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => openEditDialog(post)}
+                              className="p-1 border border-zinc-600 hover:border-white"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => deleteMutation.mutate(post.id)}
+                              className="p-1 border border-zinc-600 hover:border-white"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            </>
           )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(selectedTag || searchQuery ? filteredPosts : remainingPosts).map((post) => (
-              <article
-                key={post.id}
-                className="border-4 border-border bg-card hover:border-foreground transition-colors cursor-pointer group"
-                data-testid={`post-card-${post.id}`}
-              >
-                <div className="aspect-video overflow-hidden bg-black">
-                  <img
-                    src={post.featuredImage}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-4">
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {post.tags.slice(0, 2).map(tag => (
-                      <span key={tag} className="px-2 py-0.5 bg-muted text-xs font-bold">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                  <h3 className="font-black text-lg mb-2 line-clamp-2">{post.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{post.excerpt}</p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {format(post.publishedAt, "MMM d, yyyy")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {post.readTime} min
-                    </span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {filteredPosts.length === 0 && (
-            <div className="text-center py-12 border-4 border-dashed border-border">
-              <p className="text-muted-foreground">No articles match your search</p>
-            </div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-border bg-card">
-          <div className="max-w-xl mx-auto text-center">
-            <h3 className="text-xl font-black mb-2">Subscribe to the Newsletter</h3>
-            <p className="text-muted-foreground mb-4">Get the latest articles, tutorials, and updates delivered to your inbox.</p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                className="flex-1 px-4 py-2 bg-background border-2 border-border text-sm focus:ring-0 focus:border-foreground outline-none"
-                data-testid="newsletter-email"
-              />
-              <button className="px-6 py-2 bg-foreground text-background font-bold text-sm hover:opacity-90" data-testid="newsletter-subscribe">
-                SUBSCRIBE
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </Layout>

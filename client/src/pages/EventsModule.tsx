@@ -3,14 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useRoute } from "wouter";
+import { useState } from "react";
 import { 
   Calendar, Trophy, Users, Play, ChevronRight, 
-  Star, Award, Clock, Video, Vote, Send
+  Star, Award, Clock, Video, Vote, Send, X, Check, Upload
 } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function EventsModule() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [, params] = useRoute("/ecosystem/events/:id");
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [registerData, setRegisterData] = useState({ name: "", email: "" });
+  const [submitData, setSubmitData] = useState({ title: "", description: "", category: "best_comic", projectUrl: "" });
 
   const { data: festivals, isLoading } = useQuery({
     queryKey: ["ecosystem", "festivals"],
@@ -113,6 +120,7 @@ export default function EventsModule() {
                 </ul>
                 <button 
                   className="w-full py-3 bg-white text-black font-bold"
+                  onClick={() => setShowRegisterModal(true)}
                   data-testid="button-register-summit"
                 >
                   Register for Summit
@@ -142,12 +150,140 @@ export default function EventsModule() {
                 </ul>
                 <button 
                   className="w-full py-3 bg-white text-black font-bold"
+                  onClick={() => setShowSubmitModal(true)}
                   data-testid="button-submit-work"
                 >
                   Submit Your Work
                 </button>
               </div>
             </div>
+
+            {showRegisterModal && (
+              <Dialog open={showRegisterModal} onOpenChange={() => { setShowRegisterModal(false); setRegisterData({ name: "", email: "" }); }}>
+                <DialogContent className="bg-black border-4 border-white text-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-black">REGISTER FOR SUMMIT</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-zinc-400">Register for the Creator Connect Summit workshops and networking events.</p>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Your Name</label>
+                      <input
+                        type="text"
+                        value={registerData.name}
+                        onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                        placeholder="Enter your name"
+                        data-testid="input-register-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                        placeholder="your@email.com"
+                        data-testid="input-register-email"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!registerData.name || !registerData.email) {
+                          toast.error("Please fill in all fields");
+                          return;
+                        }
+                        toast.success("Registered! Check your email for confirmation and event details.");
+                        setShowRegisterModal(false);
+                        setRegisterData({ name: "", email: "" });
+                      }}
+                      className="w-full py-3 bg-white text-black font-bold hover:bg-zinc-200"
+                      data-testid="button-confirm-register"
+                    >
+                      <Check className="w-4 h-4 inline mr-2" />
+                      CONFIRM REGISTRATION
+                    </button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {showSubmitModal && (
+              <Dialog open={showSubmitModal} onOpenChange={() => { setShowSubmitModal(false); setSubmitData({ title: "", description: "", category: "best_comic", projectUrl: "" }); }}>
+                <DialogContent className="bg-black border-4 border-white text-white max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-black">SUBMIT YOUR WORK</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-zinc-400">Submit your best work for the Screening Festival competition.</p>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Title</label>
+                      <input
+                        type="text"
+                        value={submitData.title}
+                        onChange={(e) => setSubmitData({ ...submitData, title: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                        placeholder="Enter your project title"
+                        data-testid="input-submit-title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Category</label>
+                      <select
+                        value={submitData.category}
+                        onChange={(e) => setSubmitData({ ...submitData, category: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                        data-testid="select-submit-category"
+                      >
+                        <option value="best_comic">Best Comic</option>
+                        <option value="best_animation">Best Animation</option>
+                        <option value="best_vn">Best Visual Novel</option>
+                        <option value="best_cyoa">Best CYOA</option>
+                        <option value="peoples_choice">People's Choice</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Description</label>
+                      <textarea
+                        value={submitData.description}
+                        onChange={(e) => setSubmitData({ ...submitData, description: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none h-20 resize-none"
+                        placeholder="Describe your work..."
+                        data-testid="input-submit-description"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Project URL (optional)</label>
+                      <input
+                        type="url"
+                        value={submitData.projectUrl}
+                        onChange={(e) => setSubmitData({ ...submitData, projectUrl: e.target.value })}
+                        className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                        placeholder="https://..."
+                        data-testid="input-submit-url"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!submitData.title) {
+                          toast.error("Please enter a title");
+                          return;
+                        }
+                        toast.success("Submission received! You'll be notified when voting begins.");
+                        setShowSubmitModal(false);
+                        setSubmitData({ title: "", description: "", category: "best_comic", projectUrl: "" });
+                      }}
+                      className="w-full py-3 bg-white text-black font-bold hover:bg-zinc-200"
+                      data-testid="button-confirm-submit"
+                    >
+                      <Upload className="w-4 h-4 inline mr-2" />
+                      SUBMIT ENTRY
+                    </button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
 
             <section>
               <h2 className="text-2xl font-black mb-6" data-testid="text-section-submissions">SUBMISSIONS</h2>

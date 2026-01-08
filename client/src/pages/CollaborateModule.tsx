@@ -6,9 +6,10 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { 
   Users, Plus, ChevronRight, Search, UserPlus, Crown,
-  MessageSquare, Folder, Settings, Globe, Lock
+  MessageSquare, Folder, Settings, Globe, Lock, X, Send
 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function CollaborateModule() {
   const { isAuthenticated, user } = useAuth();
@@ -17,6 +18,11 @@ export default function CollaborateModule() {
   const [teamName, setTeamName] = useState("");
   const [teamDescription, setTeamDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [showTeamChat, setShowTeamChat] = useState<{ id: string; name: string } | null>(null);
+  const [showTeamProjects, setShowTeamProjects] = useState<{ id: string; name: string } | null>(null);
+  const [showJoinRequest, setShowJoinRequest] = useState<{ id: string; name: string } | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [requestMessage, setRequestMessage] = useState("");
 
   const { data: publicTeams, isLoading } = useQuery({
     queryKey: ["ecosystem", "teams"],
@@ -189,12 +195,14 @@ export default function CollaborateModule() {
                     <div className="flex gap-2">
                       <button 
                         className="flex-1 py-2 bg-zinc-800 text-sm font-bold hover:bg-zinc-700 flex items-center justify-center gap-1"
+                        onClick={() => setShowTeamProjects({ id: team.id, name: team.name })}
                         data-testid={`button-projects-${team.id}`}
                       >
                         <Folder className="w-3 h-3" /> Projects
                       </button>
                       <button 
                         className="flex-1 py-2 bg-zinc-800 text-sm font-bold hover:bg-zinc-700 flex items-center justify-center gap-1"
+                        onClick={() => setShowTeamChat({ id: team.id, name: team.name })}
                         data-testid={`button-chat-${team.id}`}
                       >
                         <MessageSquare className="w-3 h-3" /> Chat
@@ -204,6 +212,73 @@ export default function CollaborateModule() {
                 ))}
               </div>
             </section>
+          )}
+
+          {showTeamChat && (
+            <Dialog open={!!showTeamChat} onOpenChange={() => setShowTeamChat(null)}>
+              <DialogContent className="bg-black border-4 border-white text-white max-w-lg max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="font-black">{showTeamChat.name} - TEAM CHAT</DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 bg-zinc-900 border-2 border-zinc-700 p-4 min-h-[300px] space-y-3 overflow-y-auto">
+                  <div className="text-center text-zinc-500 text-sm">
+                    Start chatting with your team!
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <input
+                    type="text"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none"
+                    data-testid="input-chat-message"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!chatMessage.trim()) {
+                        toast.error("Please enter a message");
+                        return;
+                      }
+                      toast.success("Message sent!");
+                      setChatMessage("");
+                    }}
+                    className="px-4 py-2 bg-white text-black font-bold hover:bg-zinc-200"
+                    data-testid="button-send-chat"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {showTeamProjects && (
+            <Dialog open={!!showTeamProjects} onOpenChange={() => setShowTeamProjects(null)}>
+              <DialogContent className="bg-black border-4 border-white text-white max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="font-black">{showTeamProjects.name} - PROJECTS</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="text-center py-8 bg-zinc-900 border-2 border-zinc-700">
+                    <Folder className="w-12 h-12 mx-auto mb-4 text-zinc-600" />
+                    <p className="text-zinc-400 mb-2">No projects yet</p>
+                    <p className="text-zinc-500 text-sm">Create a project in the Creator Studio and share it with your team</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowTeamProjects(null);
+                      window.location.href = "/studio";
+                    }}
+                    className="w-full py-3 bg-white text-black font-bold hover:bg-zinc-200"
+                    data-testid="button-create-project"
+                  >
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    CREATE PROJECT
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
 
           <section>
@@ -246,6 +321,7 @@ export default function CollaborateModule() {
                     <p className="text-sm text-zinc-400 mb-4">{team.description || "No description"}</p>
                     <button 
                       className="w-full py-2 border-2 border-zinc-700 hover:border-white font-bold text-sm flex items-center justify-center gap-2"
+                      onClick={() => setShowJoinRequest({ id: team.id, name: team.name })}
                       data-testid={`button-join-${team.id}`}
                     >
                       <UserPlus className="w-4 h-4" /> Request to Join
@@ -270,6 +346,42 @@ export default function CollaborateModule() {
               </div>
             )}
           </section>
+
+          {showJoinRequest && (
+            <Dialog open={!!showJoinRequest} onOpenChange={() => { setShowJoinRequest(null); setRequestMessage(""); }}>
+              <DialogContent className="bg-black border-4 border-white text-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="font-black">REQUEST TO JOIN</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-zinc-400">
+                    Send a request to join <strong className="text-white">{showJoinRequest.name}</strong>
+                  </p>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Message (optional)</label>
+                    <textarea
+                      value={requestMessage}
+                      onChange={(e) => setRequestMessage(e.target.value)}
+                      placeholder="Tell them why you'd like to join..."
+                      className="w-full bg-zinc-900 border-2 border-zinc-700 px-4 py-2 focus:border-white outline-none h-24 resize-none"
+                      data-testid="input-join-message"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      toast.success(`Request sent to ${showJoinRequest.name}! You'll be notified when they respond.`);
+                      setShowJoinRequest(null);
+                      setRequestMessage("");
+                    }}
+                    className="w-full py-3 bg-white text-black font-bold hover:bg-zinc-200"
+                    data-testid="button-send-request"
+                  >
+                    SEND REQUEST
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
     </Layout>
