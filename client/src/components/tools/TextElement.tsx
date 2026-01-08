@@ -22,7 +22,7 @@ interface TextElementProps {
   onEditEnd?: () => void;
 }
 
-type BubbleStyleType = "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
+type BubbleStyleType = "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti" | "caption" | "starburst";
 
 type TextEffectType = "none" | "outline" | "shadow" | "glow" | "3d" | "emboss" | "neon" | "comic" | "retro" | "fire" | "ice" | "gold" | "chrome";
 
@@ -136,6 +136,8 @@ const BUBBLE_STYLES = {
   retro: { bg: "#f5e6d3", border: "3px solid #8d6e63", tail: true, tailType: "triangle", textColor: "#5d4037", boxShadow: "4px 4px 0 #5d4037" },
   neon: { bg: "#0a0a1a", border: "2px solid #00ffff", tail: true, tailType: "triangle", textColor: "white", boxShadow: "0 0 10px #00ffff, inset 0 0 10px rgba(0,255,255,0.1)", textShadow: "0 0 10px #00ffff" },
   graffiti: { bg: "linear-gradient(135deg, #ff6b35, #f7931e, #ffeb3b)", border: "3px solid #000", tail: false, textColor: "#000" },
+  caption: { bg: "#fef3c7", border: "2px solid #000", tail: false, textColor: "#000", fontFamily: "'Special Elite', cursive", boxShadow: "2px 2px 0 #000" },
+  starburst: { bg: "#ff9800", border: "none", tail: false, textColor: "#000", clipPath: "polygon(50% 0%, 61% 25%, 98% 15%, 75% 40%, 100% 50%, 75% 60%, 98% 85%, 61% 75%, 50% 100%, 39% 75%, 2% 85%, 25% 60%, 0% 50%, 25% 40%, 2% 15%, 39% 25%)" },
 };
 
 const TEXT_EFFECTS = {

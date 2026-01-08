@@ -59,7 +59,7 @@ interface PanelContent {
   data: {
     url?: string;
     text?: string;
-    bubbleStyle?: "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti";
+    bubbleStyle?: "none" | "speech" | "thought" | "shout" | "whisper" | "burst" | "scream" | "robot" | "drip" | "glitch" | "retro" | "neon" | "graffiti" | "caption" | "starburst";
     color?: string;
     fontSize?: number;
     fontFamily?: string;
@@ -95,6 +95,9 @@ interface Panel {
   contents: PanelContent[];
   zIndex: number;
   locked: boolean;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
 }
 
 interface Spread {
@@ -903,6 +906,82 @@ export default function ComicCreator() {
     toast.success("Speech bubble added - double-click to edit");
   };
 
+  const addCaptionToPanel = (page: "left" | "right", panelId: string) => {
+    addContentToPanel(page, panelId, {
+      type: "bubble",
+      transform: { x: 10, y: 10, width: 320, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { 
+        text: "NARRATOR TEXT...", 
+        bubbleStyle: "caption", 
+        fontSize: 14, 
+        fontFamily: "'Special Elite', cursive", 
+        color: "#000000",
+        textEffect: "none",
+      },
+      locked: false,
+    });
+    toast.success("Caption box added - double-click to edit");
+  };
+
+  const addStarburstToPanel = (page: "left" | "right", panelId: string) => {
+    addContentToPanel(page, panelId, {
+      type: "bubble",
+      transform: { x: 50, y: 50, width: 180, height: 180, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: { 
+        text: "POW!", 
+        bubbleStyle: "starburst", 
+        fontSize: 36, 
+        fontFamily: "'Bangers', cursive", 
+        color: "#000000",
+        textEffect: "comic",
+        strokeColor: "#ff0000",
+        strokeWidth: 3,
+      },
+      locked: false,
+    });
+    toast.success("Starburst effect added");
+  };
+
+  const addSoundEffectToPanel = (page: "left" | "right", panelId: string, effect: string) => {
+    const effects: Record<string, { text: string; color: string; strokeColor: string }> = {
+      pow: { text: "POW!", color: "#ffff00", strokeColor: "#ff0000" },
+      bam: { text: "BAM!", color: "#ff6600", strokeColor: "#000000" },
+      crash: { text: "CRASH!", color: "#ff0000", strokeColor: "#ffff00" },
+      boom: { text: "BOOM!", color: "#ff3300", strokeColor: "#000000" },
+      zap: { text: "ZAP!", color: "#00ffff", strokeColor: "#0066ff" },
+      wham: { text: "WHAM!", color: "#ff00ff", strokeColor: "#000000" },
+      kapow: { text: "KAPOW!", color: "#ffcc00", strokeColor: "#ff0000" },
+      splash: { text: "SPLASH!", color: "#00ccff", strokeColor: "#0044aa" },
+    };
+    const sfx = effects[effect] || effects.pow;
+    addContentToPanel(page, panelId, {
+      type: "text",
+      transform: { x: 80, y: 80, width: 200, height: 80, rotation: -15, scaleX: 1, scaleY: 1 },
+      data: { 
+        text: sfx.text, 
+        fontSize: 48, 
+        fontFamily: "'Bangers', cursive", 
+        color: sfx.color,
+        textEffect: "comic",
+        strokeColor: sfx.strokeColor,
+        strokeWidth: 4,
+      },
+      locked: false,
+    });
+    toast.success(`${sfx.text} added`);
+  };
+
+  const updatePanelStyle = (page: "left" | "right", panelId: string, style: Partial<Panel>) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => p.id === panelId ? { ...p, ...style } : p)
+      };
+    }));
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedPanelId) return;
@@ -993,8 +1072,8 @@ export default function ComicCreator() {
     return (
       <div
         key={panel.id}
-        className={`absolute border-2 transition-all cursor-pointer overflow-visible ${
-          isSelected ? 'border-white ring-2 ring-white/50 z-20' : 'border-black hover:border-gray-600'
+        className={`absolute transition-all cursor-pointer overflow-visible ${
+          isSelected ? 'ring-2 ring-white/50 z-20' : 'hover:border-gray-600'
         } ${panel.type === "circle" ? "rounded-full" : ""}`}
         style={{
           left: `${panel.x}%`,
@@ -1004,6 +1083,10 @@ export default function ComicCreator() {
           zIndex: panel.zIndex,
           transform: `rotate(${panel.rotation || 0}deg)`,
           transformOrigin: 'center center',
+          backgroundColor: panel.backgroundColor || 'transparent',
+          borderWidth: `${panel.borderWidth || 2}px`,
+          borderStyle: 'solid',
+          borderColor: isSelected ? 'white' : (panel.borderColor || 'black'),
           boxShadow: isSelected 
             ? '0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)' 
             : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
@@ -1575,6 +1658,32 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
                     <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
                   </ContextMenuItem>
+                  {selectedPanelId && (
+                    <>
+                      <ContextMenuItem onClick={() => addCaptionToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                        <Square className="w-4 h-4 mr-2" /> Add Caption Box
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => addStarburstToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                        <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
+                      </ContextMenuItem>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Type className="w-4 h-4 mr-2" /> Sound Effects
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-36 bg-zinc-900 border-zinc-700 text-white">
+                          {["pow", "bam", "crash", "boom", "zap", "wham", "kapow", "splash"].map(sfx => (
+                            <ContextMenuItem
+                              key={sfx}
+                              onClick={() => addSoundEffectToPanel("left", selectedPanelId, sfx)}
+                              className="hover:bg-zinc-800 cursor-pointer font-bold"
+                            >
+                              {sfx.toUpperCase()}!
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </>
+                  )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
                     <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -1671,6 +1780,74 @@ export default function ComicCreator() {
                         <Pen className="w-4 h-4 mr-2" /> Draw on Panel
                       </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Palette className="w-4 h-4 mr-2" /> Panel Background
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-40 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "Transparent", value: "transparent" },
+                            { name: "White", value: "#ffffff" },
+                            { name: "Black", value: "#000000" },
+                            { name: "Cream", value: "#f5e6d3" },
+                            { name: "Yellow", value: "#fef08a" },
+                            { name: "Orange", value: "#fed7aa" },
+                            { name: "Red", value: "#fecaca" },
+                            { name: "Blue", value: "#bfdbfe" },
+                            { name: "Green", value: "#bbf7d0" },
+                            { name: "Purple", value: "#e9d5ff" },
+                            { name: "Gray", value: "#d4d4d8" },
+                          ].map(c => (
+                            <ContextMenuItem
+                              key={c.value}
+                              onClick={() => updatePanelStyle("left", selectedPanelId, { backgroundColor: c.value })}
+                              className="hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 rounded border border-zinc-600" style={{ backgroundColor: c.value }} />
+                              {c.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Square className="w-4 h-4 mr-2" /> Panel Border
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-40 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "Black", value: "#000000" },
+                            { name: "White", value: "#ffffff" },
+                            { name: "Red", value: "#ef4444" },
+                            { name: "Blue", value: "#3b82f6" },
+                            { name: "Gold", value: "#eab308" },
+                          ].map(c => (
+                            <ContextMenuItem
+                              key={c.value}
+                              onClick={() => updatePanelStyle("left", selectedPanelId, { borderColor: c.value })}
+                              className="hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 rounded border-2" style={{ borderColor: c.value }} />
+                              {c.name}
+                            </ContextMenuItem>
+                          ))}
+                          <ContextMenuSeparator className="bg-zinc-700" />
+                          {[
+                            { name: "Thin (2px)", value: 2 },
+                            { name: "Medium (4px)", value: 4 },
+                            { name: "Thick (6px)", value: 6 },
+                            { name: "Heavy (8px)", value: 8 },
+                          ].map(w => (
+                            <ContextMenuItem
+                              key={w.value}
+                              onClick={() => updatePanelStyle("left", selectedPanelId, { borderWidth: w.value })}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {w.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                      <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem onClick={() => deletePanel("left", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
                       </ContextMenuItem>
@@ -1715,6 +1892,32 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
                     <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
                   </ContextMenuItem>
+                  {selectedPanelId && (
+                    <>
+                      <ContextMenuItem onClick={() => addCaptionToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                        <Square className="w-4 h-4 mr-2" /> Add Caption Box
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => addStarburstToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                        <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
+                      </ContextMenuItem>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Type className="w-4 h-4 mr-2" /> Sound Effects
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-36 bg-zinc-900 border-zinc-700 text-white">
+                          {["pow", "bam", "crash", "boom", "zap", "wham", "kapow", "splash"].map(sfx => (
+                            <ContextMenuItem
+                              key={sfx}
+                              onClick={() => addSoundEffectToPanel("right", selectedPanelId, sfx)}
+                              className="hover:bg-zinc-800 cursor-pointer font-bold"
+                            >
+                              {sfx.toUpperCase()}!
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </>
+                  )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
                     <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -1810,6 +2013,74 @@ export default function ComicCreator() {
                       >
                         <Pen className="w-4 h-4 mr-2" /> Draw on Panel
                       </ContextMenuItem>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Palette className="w-4 h-4 mr-2" /> Panel Background
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-40 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "Transparent", value: "transparent" },
+                            { name: "White", value: "#ffffff" },
+                            { name: "Black", value: "#000000" },
+                            { name: "Cream", value: "#f5e6d3" },
+                            { name: "Yellow", value: "#fef08a" },
+                            { name: "Orange", value: "#fed7aa" },
+                            { name: "Red", value: "#fecaca" },
+                            { name: "Blue", value: "#bfdbfe" },
+                            { name: "Green", value: "#bbf7d0" },
+                            { name: "Purple", value: "#e9d5ff" },
+                            { name: "Gray", value: "#d4d4d8" },
+                          ].map(c => (
+                            <ContextMenuItem
+                              key={c.value}
+                              onClick={() => updatePanelStyle("right", selectedPanelId, { backgroundColor: c.value })}
+                              className="hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 rounded border border-zinc-600" style={{ backgroundColor: c.value }} />
+                              {c.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Square className="w-4 h-4 mr-2" /> Panel Border
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-40 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "Black", value: "#000000" },
+                            { name: "White", value: "#ffffff" },
+                            { name: "Red", value: "#ef4444" },
+                            { name: "Blue", value: "#3b82f6" },
+                            { name: "Gold", value: "#eab308" },
+                          ].map(c => (
+                            <ContextMenuItem
+                              key={c.value}
+                              onClick={() => updatePanelStyle("right", selectedPanelId, { borderColor: c.value })}
+                              className="hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 rounded border-2" style={{ borderColor: c.value }} />
+                              {c.name}
+                            </ContextMenuItem>
+                          ))}
+                          <ContextMenuSeparator className="bg-zinc-700" />
+                          {[
+                            { name: "Thin (2px)", value: 2 },
+                            { name: "Medium (4px)", value: 4 },
+                            { name: "Thick (6px)", value: 6 },
+                            { name: "Heavy (8px)", value: 8 },
+                          ].map(w => (
+                            <ContextMenuItem
+                              key={w.value}
+                              onClick={() => updatePanelStyle("right", selectedPanelId, { borderWidth: w.value })}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {w.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem onClick={() => deletePanel("right", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
