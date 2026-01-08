@@ -1867,14 +1867,9 @@ export default function ComicCreator() {
                     </ContextMenuSubContent>
                   </ContextMenuSub>
                   {selectedPanelId && (
-                    <>
-                      <ContextMenuItem onClick={() => addCaptionToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
-                        <Square className="w-4 h-4 mr-2" /> Add Caption Box
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => addStarburstToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
-                        <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
-                      </ContextMenuItem>
-                    </>
+                    <ContextMenuItem onClick={() => addCaptionToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                      <Square className="w-4 h-4 mr-2" /> Add Caption Box
+                    </ContextMenuItem>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
@@ -2171,14 +2166,9 @@ export default function ComicCreator() {
                     </ContextMenuSubContent>
                   </ContextMenuSub>
                   {selectedPanelId && (
-                    <>
-                      <ContextMenuItem onClick={() => addCaptionToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
-                        <Square className="w-4 h-4 mr-2" /> Add Caption Box
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => addStarburstToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
-                        <Wand2 className="w-4 h-4 mr-2" /> Add Starburst
-                      </ContextMenuItem>
-                    </>
+                    <ContextMenuItem onClick={() => addCaptionToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
+                      <Square className="w-4 h-4 mr-2" /> Add Caption Box
+                    </ContextMenuItem>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
