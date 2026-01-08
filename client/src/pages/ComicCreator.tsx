@@ -328,6 +328,7 @@ export default function ComicCreator() {
 
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
+  const [showBubblePicker, setShowBubblePicker] = useState(false);
   const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -419,7 +420,7 @@ export default function ComicCreator() {
         case 'b': setActiveTool('draw'); break;
         case 'e': setActiveTool('erase'); break;
         case 't': setActiveTool('text'); break;
-        case 'u': setActiveTool('bubble'); break;
+        case 'u': setShowBubblePicker(true); break;
         case 'i': setActiveTool('image'); break;
         case 'g': setShowAIGen(true); break;
         case 'delete': case 'backspace': handleDeleteSelected(); e.preventDefault(); break;
@@ -1675,6 +1676,8 @@ export default function ComicCreator() {
                     onClick={() => {
                       if (tool.id === "ai") {
                         setShowAIGen(true);
+                      } else if (tool.id === "bubble") {
+                        setShowBubblePicker(true);
                       } else {
                         setActiveTool(tool.id);
                       }
@@ -1692,26 +1695,6 @@ export default function ComicCreator() {
                 </TooltipContent>
               </Tooltip>
             ))}
-            <div className="w-10 h-px bg-zinc-700 my-2" />
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div 
-                  className="w-8 h-8 border-2 border-zinc-600 cursor-pointer"
-                  style={{ backgroundColor: brushColor }}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'color';
-                    input.value = brushColor;
-                    input.onchange = (e) => setBrushColor((e.target as HTMLInputElement).value);
-                    input.click();
-                  }}
-                  data-testid="tool-color-picker"
-                />
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs">
-                <p>Brush Color</p>
-              </TooltipContent>
-            </Tooltip>
           </aside>
 
           <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
@@ -2587,6 +2570,39 @@ export default function ComicCreator() {
               </div>
               {selectedPanelId ? (
                 <AIGenerator type="comic" onImageGenerated={handleAIGenerated} />
+              ) : (
+                <p className="text-zinc-400 text-center py-8">Please select a panel first</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showBubblePicker && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-zinc-900 border border-zinc-700 p-6 w-[700px] max-h-[80vh] overflow-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" /> Speech Bubbles
+                </h3>
+                <button onClick={() => setShowBubblePicker(false)} className="p-2 hover:bg-zinc-800">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {selectedPanelId ? (
+                <div className="grid grid-cols-5 gap-3">
+                  {bubblePresets.map(preset => (
+                    <div
+                      key={preset.id}
+                      onClick={() => {
+                        addBubblePresetToPanel(selectedPage, selectedPanelId, preset);
+                        setShowBubblePicker(false);
+                      }}
+                      className="border border-zinc-700 p-2 hover:border-white cursor-pointer bg-white aspect-square flex items-center justify-center"
+                    >
+                      <img src={preset.file} alt={preset.name} className="w-full h-full object-contain" />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <p className="text-zinc-400 text-center py-8">Please select a panel first</p>
               )}
