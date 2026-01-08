@@ -159,10 +159,67 @@
   </head>
   <body>
     <div id="root">
-      <div style="min-height: 100vh; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
-        <h1 style="font-size: 4rem; font-weight: 900; margin: 0; text-shadow: 0 0 40px rgba(255,255,255,0.5);">PRESS START</h1>
-        <h2 style="font-size: 3rem; font-weight: 900; letter-spacing: 0.2em; background: linear-gradient(to bottom, #fff, #666); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">COMIXX</h2>
-        <p style="color: #888; margin-top: 2rem;">Loading...</p>
+      <div style="min-height: 100vh; background: #000; color: #fff; font-family: 'Space Grotesk', sans-serif;">
+        <header style="text-align: center; padding: 4rem 2rem;">
+          <h1 style="font-size: 4rem; font-weight: 900; margin: 0; text-shadow: 0 0 40px rgba(255,255,255,0.5);">PRESS START</h1>
+          <h2 style="font-size: 3rem; font-weight: 900; letter-spacing: 0.2em; background: linear-gradient(to bottom, #fff, #666); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">COMIXX</h2>
+          <p style="color: #aaa; margin-top: 1rem; font-size: 1.25rem; max-width: 600px; margin-left: auto; margin-right: auto;">The Ultimate Creative Studio for Comics, Cards, Motion Graphics & More</p>
+        </header>
+        
+        <main style="max-width: 1200px; margin: 0 auto; padding: 2rem;">
+          <section style="margin-bottom: 3rem;">
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem;">Create Amazing Content</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">Comic Builder</h4>
+                <p style="color: #888; font-size: 0.875rem;">Create stunning comics with AI-powered panel layouts, speech bubbles, and visual effects.</p>
+              </article>
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">Trading Card Creator</h4>
+                <p style="color: #888; font-size: 0.875rem;">Design professional trading cards with custom templates and AI art generation.</p>
+              </article>
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">Visual Novel Studio</h4>
+                <p style="color: #888; font-size: 0.875rem;">Build interactive visual novels with branching storylines and character sprites.</p>
+              </article>
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">Motion Comics</h4>
+                <p style="color: #888; font-size: 0.875rem;">Bring your comics to life with animation, sound effects, and music.</p>
+              </article>
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">CYOA Builder</h4>
+                <p style="color: #888; font-size: 0.875rem;">Create choose-your-own-adventure stories with branching paths and outcomes.</p>
+              </article>
+              <article style="background: #111; border: 1px solid #333; padding: 1.5rem;">
+                <h4 style="font-weight: 700; margin-bottom: 0.5rem;">AI Art Tools</h4>
+                <p style="color: #888; font-size: 0.875rem;">Generate characters, backgrounds, and assets using AI-powered image creation.</p>
+              </article>
+            </div>
+          </section>
+          
+          <section style="margin-bottom: 3rem;">
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem;">Why Press Start CoMixx?</h3>
+            <ul style="color: #ccc; line-height: 2; list-style: none; padding: 0;">
+              <li>Free to start - no credit card required</li>
+              <li>AI-powered creative assistance</li>
+              <li>Professional templates and assets</li>
+              <li>Real-time collaboration with other creators</li>
+              <li>Built-in social community</li>
+              <li>Export to multiple formats</li>
+            </ul>
+          </section>
+          
+          <section style="text-align: center; padding: 2rem; background: #111; border: 1px solid #333;">
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;">Ready to Create?</h3>
+            <p style="color: #888; margin-bottom: 1.5rem;">Join thousands of creators making amazing content with Press Start CoMixx.</p>
+            <a href="/auth" style="display: inline-block; background: #fff; color: #000; padding: 1rem 2rem; font-weight: 700; text-decoration: none; text-transform: uppercase;">Get Started Free</a>
+          </section>
+        </main>
+        
+        <footer style="text-align: center; padding: 2rem; color: #666; font-size: 0.875rem; border-top: 1px solid #222; margin-top: 3rem;">
+          <p>Press Start CoMixx - The Ultimate Creative Studio</p>
+          <p style="margin-top: 0.5rem;">Create Comics | Trading Cards | Visual Novels | Motion Graphics | CYOA Stories</p>
+        </footer>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
