@@ -90,8 +90,8 @@ export default function AdminDashboard() {
     try {
       const data = {
         ...eventForm,
-        startDate: eventForm.startDate ? new Date(eventForm.startDate) : null,
-        endDate: eventForm.endDate ? new Date(eventForm.endDate) : null,
+        startDate: eventForm.startDate ? new Date(eventForm.startDate).toISOString() : null,
+        endDate: eventForm.endDate ? new Date(eventForm.endDate).toISOString() : null,
       };
 
       if (editingEvent) {
