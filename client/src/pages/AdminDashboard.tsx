@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings } from "lucide-react";
+import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings, Flag } from "lucide-react";
 import { Link } from "wouter";
 import { useAdminStats, useAdminUsers, useAdminProjects } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
@@ -176,11 +176,18 @@ export default function AdminDashboard() {
               </div>
               <h1 className="text-4xl font-display font-bold" data-testid="text-admin-title">Analytics Console</h1>
             </div>
-            <Link href="/admin/control">
-              <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-control-room">
-                <Settings className="w-4 h-4 mr-2" /> Control Room
-              </Button>
-            </Link>
+            <div className="flex gap-3">
+              <Link href="/admin/moderation">
+                <Button className="bg-white text-black hover:bg-zinc-100 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-moderation">
+                  <Flag className="w-4 h-4 mr-2" /> Moderation
+                </Button>
+              </Link>
+              <Link href="/admin/control">
+                <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-control-room">
+                  <Settings className="w-4 h-4 mr-2" /> Control Room
+                </Button>
+              </Link>
+            </div>
           </div>
         </header>
 

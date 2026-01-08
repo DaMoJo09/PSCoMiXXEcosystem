@@ -11,8 +11,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { 
   Heart, MessageCircle, Share2, Send, Plus, Home, Compass, Bell, 
-  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2, Search
+  User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2, Search, MoreHorizontal
 } from "lucide-react";
+import { ReportButton } from "@/components/ReportButton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
 interface Post {
@@ -113,6 +115,20 @@ function PostCard({ post, onLike, onUnlike, onComment }: {
             {post.type.toUpperCase()}
           </span>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 text-white/50 hover:text-white" data-testid={`post-menu-${post.id}`}>
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-zinc-900 border-2 border-black">
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <div>
+                <ReportButton contentType="post" contentId={post.id} variant="text" />
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {post.project && (

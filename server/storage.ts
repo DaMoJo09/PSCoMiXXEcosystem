@@ -28,6 +28,7 @@ import {
   jobs,
   platformSettings,
   adminLogs,
+  contentReports,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -77,6 +78,7 @@ import {
   type Job, type InsertJob,
   type PlatformSetting, type InsertPlatformSetting,
   type AdminLog, type InsertAdminLog,
+  type ContentReport, type InsertContentReport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -313,6 +315,12 @@ export interface IStorage {
   // Admin log operations
   createAdminLog(log: InsertAdminLog): Promise<AdminLog>;
   getAdminLogs(limit?: number): Promise<AdminLog[]>;
+  
+  // Content moderation operations
+  createContentReport(report: InsertContentReport): Promise<ContentReport>;
+  getContentReports(status?: string): Promise<ContentReport[]>;
+  getContentReport(id: string): Promise<ContentReport | undefined>;
+  resolveContentReport(id: string, resolvedBy: string, resolution: string, status?: string): Promise<ContentReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2101,6 +2109,39 @@ export class DatabaseStorage implements IStorage {
 
   async getAdminLogs(limit: number = 100): Promise<AdminLog[]> {
     return db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(limit);
+  }
+
+  // Content moderation operations
+  async createContentReport(report: InsertContentReport): Promise<ContentReport> {
+    const [created] = await db.insert(contentReports).values(report).returning();
+    return created;
+  }
+
+  async getContentReports(status?: string): Promise<ContentReport[]> {
+    if (status) {
+      return db.select().from(contentReports)
+        .where(eq(contentReports.status, status))
+        .orderBy(desc(contentReports.createdAt));
+    }
+    return db.select().from(contentReports).orderBy(desc(contentReports.createdAt));
+  }
+
+  async getContentReport(id: string): Promise<ContentReport | undefined> {
+    const [report] = await db.select().from(contentReports).where(eq(contentReports.id, id));
+    return report || undefined;
+  }
+
+  async resolveContentReport(id: string, resolvedBy: string, resolution: string, status: string = "resolved"): Promise<ContentReport | undefined> {
+    const [updated] = await db.update(contentReports)
+      .set({ 
+        status, 
+        resolvedBy, 
+        resolution, 
+        resolvedAt: new Date() 
+      })
+      .where(eq(contentReports.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 

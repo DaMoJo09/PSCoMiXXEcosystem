@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
@@ -2929,6 +2929,87 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(400).json({ message: "Invalid or already used AppSumo code" });
       }
       res.json({ success: true, tier: result.tier });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Content Moderation - Reports
+  app.post("/api/reports", isAuthenticated, async (req, res) => {
+    try {
+      const result = insertContentReportSchema.safeParse({
+        ...req.body,
+        reporterId: req.user!.id,
+      });
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
+      }
+      const report = await storage.createContentReport(result.data);
+      res.status(201).json(report);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/reports", isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const reports = await storage.getContentReports(status);
+      res.json(reports);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/reports/:id", isAdmin, async (req, res) => {
+    try {
+      const report = await storage.getContentReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      res.json(report);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/reports/:id/resolve", isAdmin, async (req, res) => {
+    try {
+      const { resolution } = req.body;
+      if (!resolution) {
+        return res.status(400).json({ message: "Resolution is required" });
+      }
+      const report = await storage.resolveContentReport(req.params.id, req.user!.id, resolution);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "resolve_report",
+        targetType: "content_report",
+        targetId: req.params.id,
+        details: { resolution },
+      });
+      res.json(report);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/reports/:id/dismiss", isAdmin, async (req, res) => {
+    try {
+      const report = await storage.resolveContentReport(req.params.id, req.user!.id, "no_action", "dismissed");
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "dismiss_report",
+        targetType: "content_report",
+        targetId: req.params.id,
+        details: {},
+      });
+      res.json(report);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

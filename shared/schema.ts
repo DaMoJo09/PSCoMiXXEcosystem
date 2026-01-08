@@ -1709,6 +1709,33 @@ export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
 export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
 export type AdminLog = typeof adminLogs.$inferSelect;
 
+// Content Reports - For moderation of inappropriate content
+export const contentReports = pgTable("content_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: varchar("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  contentType: text("content_type").notNull(), // post | comment | project | user
+  contentId: varchar("content_id").notNull(),
+  reason: text("reason").notNull(), // spam | harassment | inappropriate | copyright | other
+  description: text("description"),
+  status: text("status").notNull().default("pending"), // pending | reviewed | resolved | dismissed
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolution: text("resolution"), // removed | warned | banned | no_action
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  status: true,
+  resolvedBy: true,
+  resolution: true,
+  resolvedAt: true,
+  createdAt: true,
+});
+
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+export type ContentReport = typeof contentReports.$inferSelect;
+
 // Tier Entitlements Definition
 export const tierEntitlements = {
   free: {
