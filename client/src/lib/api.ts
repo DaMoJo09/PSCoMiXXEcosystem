@@ -186,3 +186,79 @@ export const adminApi = {
     }>(response);
   },
 };
+
+export interface Announcement {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  linkText?: string | null;
+  eventType: string;
+  isFeatured: boolean;
+  isActive: boolean;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const announcementsApi = {
+  getActive: async (featuredOnly?: boolean) => {
+    const url = featuredOnly 
+      ? `${API_BASE}/announcements/active?featured=true` 
+      : `${API_BASE}/announcements/active`;
+    const response = await fetch(url);
+    return handleResponse<Announcement[]>(response);
+  },
+
+  getAll: async (featuredOnly?: boolean) => {
+    const url = featuredOnly 
+      ? `${API_BASE}/announcements?featured=true` 
+      : `${API_BASE}/announcements`;
+    const response = await fetch(url, { credentials: "include" });
+    return handleResponse<Announcement[]>(response);
+  },
+
+  getMine: async () => {
+    const response = await fetch(`${API_BASE}/announcements/mine`, {
+      credentials: "include",
+    });
+    return handleResponse<Announcement[]>(response);
+  },
+
+  getOne: async (id: string) => {
+    const response = await fetch(`${API_BASE}/announcements/${id}`);
+    return handleResponse<Announcement>(response);
+  },
+
+  create: async (data: Partial<Announcement>) => {
+    const response = await fetch(`${API_BASE}/announcements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    return handleResponse<Announcement>(response);
+  },
+
+  update: async (id: string, data: Partial<Announcement>) => {
+    const response = await fetch(`${API_BASE}/announcements/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    return handleResponse<Announcement>(response);
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_BASE}/announcements/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+};

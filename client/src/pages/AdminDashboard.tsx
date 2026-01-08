@@ -1,10 +1,23 @@
 import { Layout } from "@/components/layout/Layout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, FileText, Download, TrendingUp, ShieldCheck } from "lucide-react";
+import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar } from "lucide-react";
 import { useAdminStats, useAdminUsers, useAdminProjects } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
+import { useAllAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from "@/hooks/useAnnouncements";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const COLORS = ['#000000', '#333333', '#666666', '#999999', '#CCCCCC'];
 
@@ -30,8 +43,96 @@ export default function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useAdminStats();
   const { data: users, isLoading: usersLoading } = useAdminUsers();
   const { data: projects, isLoading: projectsLoading } = useAdminProjects();
+  const { data: announcements, isLoading: announcementsLoading } = useAllAnnouncements();
+  const createAnnouncement = useCreateAnnouncement();
+  const updateAnnouncement = useUpdateAnnouncement();
+  const deleteAnnouncement = useDeleteAnnouncement();
+
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    description: "",
+    imageUrl: "",
+    linkUrl: "",
+    linkText: "",
+    eventType: "event",
+    isFeatured: true,
+    isActive: true,
+    startDate: "",
+    endDate: "",
+  });
 
   const isLoading = statsLoading || usersLoading || projectsLoading;
+
+  const resetEventForm = () => {
+    setEventForm({
+      title: "",
+      description: "",
+      imageUrl: "",
+      linkUrl: "",
+      linkText: "",
+      eventType: "event",
+      isFeatured: true,
+      isActive: true,
+      startDate: "",
+      endDate: "",
+    });
+    setEditingEvent(null);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!eventForm.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    try {
+      const data = {
+        ...eventForm,
+        startDate: eventForm.startDate ? new Date(eventForm.startDate) : null,
+        endDate: eventForm.endDate ? new Date(eventForm.endDate) : null,
+      };
+
+      if (editingEvent) {
+        await updateAnnouncement.mutateAsync({ id: editingEvent.id, data });
+        toast.success("Event updated");
+      } else {
+        await createAnnouncement.mutateAsync(data);
+        toast.success("Event created");
+      }
+      setEventDialogOpen(false);
+      resetEventForm();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleEditEvent = (event: any) => {
+    setEditingEvent(event);
+    setEventForm({
+      title: event.title || "",
+      description: event.description || "",
+      imageUrl: event.imageUrl || "",
+      linkUrl: event.linkUrl || "",
+      linkText: event.linkText || "",
+      eventType: event.eventType || "event",
+      isFeatured: event.isFeatured ?? true,
+      isActive: event.isActive ?? true,
+      startDate: event.startDate ? new Date(event.startDate).toISOString().slice(0, 16) : "",
+      endDate: event.endDate ? new Date(event.endDate).toISOString().slice(0, 16) : "",
+    });
+    setEventDialogOpen(true);
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await deleteAnnouncement.mutateAsync(id);
+      toast.success("Event deleted");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
   if (user?.role !== "admin") {
     return (
@@ -187,6 +288,221 @@ export default function AdminDashboard() {
             </table>
             {(!users || users.length === 0) && (
               <p className="text-center py-8 text-muted-foreground">No users yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="border border-border p-6 bg-card">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display font-bold text-lg flex items-center gap-2">
+              <Megaphone className="w-5 h-5" />
+              Press Start Events
+            </h3>
+            <Dialog open={eventDialogOpen} onOpenChange={(open) => {
+              setEventDialogOpen(open);
+              if (!open) resetEventForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="bg-black text-white hover:bg-zinc-800" data-testid="button-add-event">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Event
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-zinc-950 border-white/20 max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-white">
+                    {editingEvent ? "Edit Event" : "Create Press Start Event"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4 max-h-[70vh] overflow-y-auto">
+                  <div className="space-y-2">
+                    <Label className="text-white">Title *</Label>
+                    <Input
+                      value={eventForm.title}
+                      onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                      placeholder="Spring Creator Festival 2026"
+                      className="bg-zinc-900 border-white/20 text-white"
+                      data-testid="input-event-title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white">Description</Label>
+                    <textarea
+                      value={eventForm.description}
+                      onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                      placeholder="Join us for our biggest event of the year..."
+                      className="w-full bg-zinc-900 border border-white/20 text-white p-2 rounded min-h-[80px]"
+                      data-testid="input-event-description"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Event Type</Label>
+                      <select
+                        value={eventForm.eventType}
+                        onChange={(e) => setEventForm({ ...eventForm, eventType: e.target.value })}
+                        className="w-full bg-zinc-900 border border-white/20 text-white p-2 rounded"
+                        data-testid="select-event-type"
+                      >
+                        <option value="event">Event</option>
+                        <option value="announcement">Announcement</option>
+                        <option value="contest">Contest</option>
+                        <option value="release">New Release</option>
+                        <option value="featured">Featured</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Image URL</Label>
+                      <Input
+                        value={eventForm.imageUrl}
+                        onChange={(e) => setEventForm({ ...eventForm, imageUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="bg-zinc-900 border-white/20 text-white"
+                        data-testid="input-event-image"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Link URL</Label>
+                      <Input
+                        value={eventForm.linkUrl}
+                        onChange={(e) => setEventForm({ ...eventForm, linkUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="bg-zinc-900 border-white/20 text-white"
+                        data-testid="input-event-link"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Link Text</Label>
+                      <Input
+                        value={eventForm.linkText}
+                        onChange={(e) => setEventForm({ ...eventForm, linkText: e.target.value })}
+                        placeholder="Learn More"
+                        className="bg-zinc-900 border-white/20 text-white"
+                        data-testid="input-event-link-text"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Start Date</Label>
+                      <Input
+                        type="datetime-local"
+                        value={eventForm.startDate}
+                        onChange={(e) => setEventForm({ ...eventForm, startDate: e.target.value })}
+                        className="bg-zinc-900 border-white/20 text-white"
+                        data-testid="input-event-start"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">End Date</Label>
+                      <Input
+                        type="datetime-local"
+                        value={eventForm.endDate}
+                        onChange={(e) => setEventForm({ ...eventForm, endDate: e.target.value })}
+                        className="bg-zinc-900 border-white/20 text-white"
+                        data-testid="input-event-end"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2 text-white">
+                      <input
+                        type="checkbox"
+                        checked={eventForm.isFeatured}
+                        onChange={(e) => setEventForm({ ...eventForm, isFeatured: e.target.checked })}
+                        className="w-4 h-4"
+                        data-testid="checkbox-featured"
+                      />
+                      <Star className="w-4 h-4" />
+                      Featured (Press Start)
+                    </label>
+                    <label className="flex items-center gap-2 text-white">
+                      <input
+                        type="checkbox"
+                        checked={eventForm.isActive}
+                        onChange={(e) => setEventForm({ ...eventForm, isActive: e.target.checked })}
+                        className="w-4 h-4"
+                        data-testid="checkbox-active"
+                      />
+                      Active
+                    </label>
+                  </div>
+                  <Button 
+                    onClick={handleSaveEvent} 
+                    className="w-full bg-white text-black hover:bg-zinc-200"
+                    disabled={createAnnouncement.isPending || updateAnnouncement.isPending}
+                    data-testid="button-save-event"
+                  >
+                    {createAnnouncement.isPending || updateAnnouncement.isPending ? "Saving..." : (editingEvent ? "Update Event" : "Create Event")}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="space-y-3">
+            {announcementsLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner className="size-6" />
+              </div>
+            ) : announcements && announcements.length > 0 ? (
+              announcements.map((event) => (
+                <div 
+                  key={event.id} 
+                  className="flex items-center justify-between p-4 border border-border hover:bg-secondary/10"
+                  data-testid={`event-item-${event.id}`}
+                >
+                  <div className="flex items-center gap-4">
+                    {event.imageUrl && (
+                      <img src={event.imageUrl} alt="" className="w-16 h-12 object-cover border border-border" />
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {event.isFeatured && (
+                          <span className="bg-black text-white text-xs px-1.5 py-0.5 font-mono flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            PS
+                          </span>
+                        )}
+                        <span className="text-xs font-mono uppercase text-muted-foreground">{event.eventType}</span>
+                        {!event.isActive && (
+                          <span className="text-xs px-1.5 py-0.5 bg-zinc-200 text-zinc-600">INACTIVE</span>
+                        )}
+                      </div>
+                      <h4 className="font-bold">{event.title}</h4>
+                      {event.startDate && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(event.startDate).toLocaleDateString()}
+                          {event.endDate && ` - ${new Date(event.endDate).toLocaleDateString()}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleEditEvent(event)}
+                      className="p-2 hover:bg-secondary transition-colors"
+                      data-testid={`button-edit-event-${event.id}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteEvent(event.id)}
+                      className="p-2 hover:bg-red-100 hover:text-red-600 transition-colors"
+                      data-testid={`button-delete-event-${event.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center py-8 text-muted-foreground">
+                No events yet. Create your first Press Start event!
+              </p>
             )}
           </div>
         </div>

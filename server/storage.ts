@@ -14,6 +14,9 @@ import {
   communityChains, chainContributions, chainLikes,
   passwordResetTokens,
   assetImports,
+  portfolioArtworks,
+  newsletterSubscribers,
+  announcements,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -49,6 +52,9 @@ import {
   type ChainContribution, type InsertChainContribution,
   type ChainLike, type InsertChainLike,
   type AssetImport, type InsertAssetImport,
+  type PortfolioArtwork, type InsertPortfolioArtwork,
+  type NewsletterSubscriber, type InsertNewsletterSubscriber,
+  type Announcement, type InsertAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -188,6 +194,40 @@ export interface IStorage {
   getAssetImport(id: string): Promise<AssetImport | undefined>;
   updateAssetImport(id: string, updates: Partial<InsertAssetImport>): Promise<AssetImport | undefined>;
   deleteAssetImport(id: string): Promise<boolean>;
+  
+  // Portfolio operations
+  getPortfolioArtworks(userId?: string): Promise<PortfolioArtwork[]>;
+  getPortfolioArtwork(id: string): Promise<PortfolioArtwork | undefined>;
+  createPortfolioArtwork(artwork: InsertPortfolioArtwork): Promise<PortfolioArtwork>;
+  updatePortfolioArtwork(id: string, updates: Partial<InsertPortfolioArtwork>): Promise<PortfolioArtwork | undefined>;
+  deletePortfolioArtwork(id: string): Promise<boolean>;
+  
+  // Newsletter operations
+  subscribeNewsletter(email: string, name?: string): Promise<NewsletterSubscriber>;
+  unsubscribeNewsletter(email: string): Promise<boolean>;
+  getNewsletterSubscribers(): Promise<NewsletterSubscriber[]>;
+  
+  // Lessons CRUD operations
+  createLesson(lesson: InsertLesson): Promise<Lesson>;
+  updateLesson(id: string, updates: Partial<InsertLesson>): Promise<Lesson | undefined>;
+  deleteLesson(id: string): Promise<boolean>;
+  getLesson(id: string): Promise<Lesson | undefined>;
+  getAllLessons(): Promise<Lesson[]>;
+  
+  // Learning Pathway CRUD operations
+  createLearningPathway(pathway: InsertLearningPathway): Promise<LearningPathway>;
+  updateLearningPathway(id: string, updates: Partial<InsertLearningPathway>): Promise<LearningPathway | undefined>;
+  deleteLearningPathway(id: string): Promise<boolean>;
+  getLearningPathway(id: string): Promise<LearningPathway | undefined>;
+  
+  // Announcements operations
+  getAnnouncements(featuredOnly?: boolean): Promise<Announcement[]>;
+  getActiveAnnouncements(featuredOnly?: boolean): Promise<Announcement[]>;
+  getAnnouncement(id: string): Promise<Announcement | undefined>;
+  getUserAnnouncements(userId: string): Promise<Announcement[]>;
+  createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
+  updateAnnouncement(id: string, updates: Partial<InsertAnnouncement>): Promise<Announcement | undefined>;
+  deleteAnnouncement(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1481,6 +1521,174 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssetImport(id: string): Promise<boolean> {
     const result = await db.delete(assetImports).where(eq(assetImports.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Portfolio operations
+  async getPortfolioArtworks(userId?: string): Promise<PortfolioArtwork[]> {
+    if (userId) {
+      return db.select().from(portfolioArtworks)
+        .where(eq(portfolioArtworks.userId, userId))
+        .orderBy(desc(portfolioArtworks.createdAt));
+    }
+    return db.select().from(portfolioArtworks).orderBy(desc(portfolioArtworks.createdAt));
+  }
+
+  async getPortfolioArtwork(id: string): Promise<PortfolioArtwork | undefined> {
+    const [artwork] = await db.select().from(portfolioArtworks).where(eq(portfolioArtworks.id, id));
+    return artwork || undefined;
+  }
+
+  async createPortfolioArtwork(artwork: InsertPortfolioArtwork): Promise<PortfolioArtwork> {
+    const [created] = await db.insert(portfolioArtworks).values(artwork).returning();
+    return created;
+  }
+
+  async updatePortfolioArtwork(id: string, updates: Partial<InsertPortfolioArtwork>): Promise<PortfolioArtwork | undefined> {
+    const [artwork] = await db.update(portfolioArtworks)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(portfolioArtworks.id, id))
+      .returning();
+    return artwork || undefined;
+  }
+
+  async deletePortfolioArtwork(id: string): Promise<boolean> {
+    const result = await db.delete(portfolioArtworks).where(eq(portfolioArtworks.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Newsletter operations
+  async subscribeNewsletter(email: string, name?: string): Promise<NewsletterSubscriber> {
+    const existing = await db.select().from(newsletterSubscribers).where(eq(newsletterSubscribers.email, email));
+    if (existing.length > 0) {
+      const [updated] = await db.update(newsletterSubscribers)
+        .set({ status: "active", name, unsubscribedAt: null })
+        .where(eq(newsletterSubscribers.email, email))
+        .returning();
+      return updated;
+    }
+    const [subscriber] = await db.insert(newsletterSubscribers).values({ email, name, status: "active" }).returning();
+    return subscriber;
+  }
+
+  async unsubscribeNewsletter(email: string): Promise<boolean> {
+    const result = await db.update(newsletterSubscribers)
+      .set({ status: "unsubscribed", unsubscribedAt: new Date() })
+      .where(eq(newsletterSubscribers.email, email));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+    return db.select().from(newsletterSubscribers).where(eq(newsletterSubscribers.status, "active"));
+  }
+
+  // Lessons CRUD operations
+  async createLesson(lesson: InsertLesson): Promise<Lesson> {
+    const [created] = await db.insert(lessons).values(lesson).returning();
+    return created;
+  }
+
+  async updateLesson(id: string, updates: Partial<InsertLesson>): Promise<Lesson | undefined> {
+    const [lesson] = await db.update(lessons)
+      .set(updates as any)
+      .where(eq(lessons.id, id))
+      .returning();
+    return lesson || undefined;
+  }
+
+  async deleteLesson(id: string): Promise<boolean> {
+    const result = await db.delete(lessons).where(eq(lessons.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getLesson(id: string): Promise<Lesson | undefined> {
+    const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
+    return lesson || undefined;
+  }
+
+  async getAllLessons(): Promise<Lesson[]> {
+    return db.select().from(lessons).orderBy(lessons.sortOrder);
+  }
+
+  // Learning Pathway CRUD operations
+  async createLearningPathway(pathway: InsertLearningPathway): Promise<LearningPathway> {
+    const [created] = await db.insert(learningPathways).values(pathway).returning();
+    return created;
+  }
+
+  async updateLearningPathway(id: string, updates: Partial<InsertLearningPathway>): Promise<LearningPathway | undefined> {
+    const [pathway] = await db.update(learningPathways)
+      .set(updates as any)
+      .where(eq(learningPathways.id, id))
+      .returning();
+    return pathway || undefined;
+  }
+
+  async deleteLearningPathway(id: string): Promise<boolean> {
+    const result = await db.delete(learningPathways).where(eq(learningPathways.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getLearningPathway(id: string): Promise<LearningPathway | undefined> {
+    const [pathway] = await db.select().from(learningPathways).where(eq(learningPathways.id, id));
+    return pathway || undefined;
+  }
+
+  // Announcements operations
+  async getAnnouncements(featuredOnly?: boolean): Promise<Announcement[]> {
+    if (featuredOnly) {
+      return db.select()
+        .from(announcements)
+        .where(eq(announcements.isFeatured, true))
+        .orderBy(desc(announcements.sortOrder), desc(announcements.createdAt));
+    }
+    return db.select()
+      .from(announcements)
+      .orderBy(desc(announcements.sortOrder), desc(announcements.createdAt));
+  }
+
+  async getActiveAnnouncements(featuredOnly?: boolean): Promise<Announcement[]> {
+    const now = new Date();
+    const results = await db.select()
+      .from(announcements)
+      .where(eq(announcements.isActive, true))
+      .orderBy(desc(announcements.sortOrder), desc(announcements.createdAt));
+    
+    return results.filter(a => {
+      if (featuredOnly && !a.isFeatured) return false;
+      if (a.startDate && new Date(a.startDate) > now) return false;
+      if (a.endDate && new Date(a.endDate) < now) return false;
+      return true;
+    });
+  }
+
+  async getAnnouncement(id: string): Promise<Announcement | undefined> {
+    const [announcement] = await db.select().from(announcements).where(eq(announcements.id, id));
+    return announcement || undefined;
+  }
+
+  async getUserAnnouncements(userId: string): Promise<Announcement[]> {
+    return db.select()
+      .from(announcements)
+      .where(eq(announcements.userId, userId))
+      .orderBy(desc(announcements.createdAt));
+  }
+
+  async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
+    const [created] = await db.insert(announcements).values(announcement).returning();
+    return created;
+  }
+
+  async updateAnnouncement(id: string, updates: Partial<InsertAnnouncement>): Promise<Announcement | undefined> {
+    const [announcement] = await db.update(announcements)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(announcements.id, id))
+      .returning();
+    return announcement || undefined;
+  }
+
+  async deleteAnnouncement(id: string): Promise<boolean> {
+    const result = await db.delete(announcements).where(eq(announcements.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 }

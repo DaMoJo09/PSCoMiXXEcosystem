@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { 
   Send, Mail, Calendar, MessageSquare, Briefcase, Eye, 
-  MapPin, Phone, Clock, CheckCircle, Loader2
+  MapPin, Clock, CheckCircle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,11 +42,22 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast.success("Message sent successfully!");
+    try {
+      if (form.newsletter && form.email) {
+        await fetch("/api/newsletter/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, name: form.name }),
+        });
+      }
+      
+      setIsSubmitted(true);
+      toast.success("Message sent successfully!");
+    } catch (error) {
+      toast.error("Failed to send message");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const updateForm = (updates: Partial<ContactForm>) => {
@@ -56,11 +67,11 @@ export default function ContactPage() {
   if (isSubmitted) {
     return (
       <Layout>
-        <div className="min-h-screen bg-background flex items-center justify-center p-6">
-          <div className="max-w-md text-center border-4 border-border p-8 bg-card">
-            <CheckCircle className="w-16 h-16 mx-auto mb-6 text-green-500" />
+        <div className="min-h-screen bg-black flex items-center justify-center p-6">
+          <div className="max-w-md text-center border-4 border-white p-8 bg-black text-white">
+            <CheckCircle className="w-16 h-16 mx-auto mb-6 text-white" />
             <h2 className="text-2xl font-black mb-4">MESSAGE SENT</h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-zinc-400 mb-6">
               Thank you for reaching out. I'll get back to you within 24-48 hours.
             </p>
             <button
@@ -76,7 +87,7 @@ export default function ContactPage() {
                   newsletter: false,
                 });
               }}
-              className="px-6 py-3 bg-foreground text-background font-bold hover:opacity-90"
+              className="px-6 py-3 bg-white text-black font-bold hover:bg-zinc-200"
             >
               SEND ANOTHER MESSAGE
             </button>
@@ -88,10 +99,10 @@ export default function ContactPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background">
-        <header className="border-b-4 border-border p-6">
-          <h1 className="text-4xl font-black font-display tracking-tight mb-2">CONTACT</h1>
-          <p className="text-muted-foreground">Get in touch for inquiries, commissions, or studio visits</p>
+      <div className="min-h-screen bg-black text-white">
+        <header className="border-b-4 border-white p-6">
+          <h1 className="text-4xl font-black tracking-tight mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>CONTACT</h1>
+          <p className="text-zinc-400">Get in touch for inquiries, commissions, or studio visits</p>
         </header>
 
         <div className="p-6">

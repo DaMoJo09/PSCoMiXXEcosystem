@@ -1,126 +1,37 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { 
   Search, Filter, Grid, List, X, ZoomIn, ChevronLeft, ChevronRight,
-  Calendar, MapPin, Tag, DollarSign, Maximize2, ExternalLink, Heart, ShoppingCart
+  Calendar, MapPin, Tag, DollarSign, Maximize2, ExternalLink, Heart, 
+  Plus, Edit2, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Artwork {
   id: string;
+  userId: string;
   title: string;
-  description: string;
+  description: string | null;
   category: string;
-  medium: string;
-  dimensions: { width: number; height: number; depth?: number; unit: string };
-  year: number;
-  price: number;
-  available: boolean;
-  featured: boolean;
+  medium: string | null;
+  dimensions: { width: number; height: number; depth?: number; unit: string } | null;
+  year: number | null;
+  price: number | null;
+  available: boolean | null;
+  featured: boolean | null;
   images: string[];
-  tags: string[];
+  tags: string[] | null;
+  createdAt: string;
+  updatedAt: string;
 }
-
-const SAMPLE_ARTWORKS: Artwork[] = [
-  {
-    id: "1",
-    title: "Neon Dreams",
-    description: "A cyberpunk cityscape rendered in mixed media, combining digital illustration with traditional ink work.",
-    category: "digital",
-    medium: "Digital + Ink on Paper",
-    dimensions: { width: 24, height: 36, unit: "in" },
-    year: 2024,
-    price: 45000,
-    available: true,
-    featured: true,
-    images: [
-      "https://image.pollinations.ai/prompt/cyberpunk%20cityscape%20neon%20lights%20rain%20noir%20style?width=800&height=1200&nologo=true&seed=1001",
-      "https://image.pollinations.ai/prompt/cyberpunk%20cityscape%20detail%20view%20noir?width=800&height=800&nologo=true&seed=1002"
-    ],
-    tags: ["cyberpunk", "neon", "cityscape", "noir"]
-  },
-  {
-    id: "2",
-    title: "The Watcher",
-    description: "An enigmatic figure observing the chaos of the urban landscape below.",
-    category: "mixed-media",
-    medium: "Acrylic + Digital",
-    dimensions: { width: 18, height: 24, unit: "in" },
-    year: 2024,
-    price: 32000,
-    available: true,
-    featured: false,
-    images: [
-      "https://image.pollinations.ai/prompt/mysterious%20figure%20watching%20city%20noir%20comic%20style?width=800&height=1200&nologo=true&seed=2001"
-    ],
-    tags: ["figure", "urban", "mystery", "noir"]
-  },
-  {
-    id: "3",
-    title: "Digital Decay",
-    description: "Exploring the intersection of organic forms and digital glitches.",
-    category: "digital",
-    medium: "Pure Digital",
-    dimensions: { width: 30, height: 40, unit: "in" },
-    year: 2023,
-    price: 28000,
-    available: false,
-    featured: true,
-    images: [
-      "https://image.pollinations.ai/prompt/abstract%20glitch%20art%20organic%20forms%20black%20white?width=800&height=1200&nologo=true&seed=3001"
-    ],
-    tags: ["abstract", "glitch", "digital", "organic"]
-  },
-  {
-    id: "4",
-    title: "Shadow Protocol",
-    description: "A narrative piece exploring themes of surveillance and identity.",
-    category: "paintings",
-    medium: "Oil on Canvas",
-    dimensions: { width: 48, height: 60, unit: "in" },
-    year: 2024,
-    price: 85000,
-    available: true,
-    featured: true,
-    images: [
-      "https://image.pollinations.ai/prompt/surveillance%20eye%20noir%20dramatic%20shadows%20oil%20painting?width=800&height=1000&nologo=true&seed=4001"
-    ],
-    tags: ["surveillance", "identity", "noir", "narrative"]
-  },
-  {
-    id: "5",
-    title: "Circuit Dreams",
-    description: "Where technology meets the subconscious mind.",
-    category: "prints",
-    medium: "Giclee Print",
-    dimensions: { width: 16, height: 20, unit: "in" },
-    year: 2023,
-    price: 15000,
-    available: true,
-    featured: false,
-    images: [
-      "https://image.pollinations.ai/prompt/circuit%20board%20abstract%20art%20dreamy%20black%20white?width=800&height=1000&nologo=true&seed=5001"
-    ],
-    tags: ["technology", "abstract", "dreams", "circuit"]
-  },
-  {
-    id: "6",
-    title: "Urban Fragments",
-    description: "Collage exploring urban decay and renewal.",
-    category: "mixed-media",
-    medium: "Mixed Media Collage",
-    dimensions: { width: 24, height: 24, unit: "in" },
-    year: 2024,
-    price: 22000,
-    available: true,
-    featured: false,
-    images: [
-      "https://image.pollinations.ai/prompt/urban%20collage%20fragments%20noir%20mixed%20media?width=800&height=800&nologo=true&seed=6001"
-    ],
-    tags: ["urban", "collage", "decay", "mixed-media"]
-  }
-];
 
 const CATEGORIES = [
   { id: "all", name: "All Works" },
@@ -132,7 +43,8 @@ const CATEGORIES = [
 ];
 
 export default function PortfolioPage() {
-  const [artworks] = useState<Artwork[]>(SAMPLE_ARTWORKS);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -143,6 +55,138 @@ export default function PortfolioPage() {
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    category: "digital",
+    medium: "",
+    year: new Date().getFullYear(),
+    price: 0,
+    available: true,
+    featured: false,
+    images: [""],
+    tags: ""
+  });
+
+  const { data: artworks = [], isLoading } = useQuery({
+    queryKey: ["/api/portfolio"],
+    queryFn: async () => {
+      const res = await fetch("/api/portfolio", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/portfolio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create artwork");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      setIsAddDialogOpen(false);
+      resetForm();
+      toast.success("Artwork added to portfolio");
+    },
+    onError: () => toast.error("Failed to add artwork"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/portfolio/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update artwork");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      setEditingArtwork(null);
+      resetForm();
+      toast.success("Artwork updated");
+    },
+    onError: () => toast.error("Failed to update artwork"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/portfolio/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete artwork");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
+      toast.success("Artwork deleted");
+    },
+    onError: () => toast.error("Failed to delete artwork"),
+  });
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      category: "digital",
+      medium: "",
+      year: new Date().getFullYear(),
+      price: 0,
+      available: true,
+      featured: false,
+      images: [""],
+      tags: ""
+    });
+  };
+
+  const openEditDialog = (artwork: Artwork) => {
+    setEditingArtwork(artwork);
+    setFormData({
+      title: artwork.title,
+      description: artwork.description || "",
+      category: artwork.category,
+      medium: artwork.medium || "",
+      year: artwork.year || new Date().getFullYear(),
+      price: artwork.price || 0,
+      available: artwork.available ?? true,
+      featured: artwork.featured ?? false,
+      images: artwork.images?.length ? artwork.images : [""],
+      tags: artwork.tags?.join(", ") || ""
+    });
+  };
+
+  const handleSubmit = () => {
+    const data = {
+      title: formData.title,
+      description: formData.description || null,
+      category: formData.category,
+      medium: formData.medium || null,
+      dimensions: null,
+      year: formData.year,
+      price: formData.price,
+      available: formData.available,
+      featured: formData.featured,
+      images: formData.images.filter(img => img.trim()),
+      tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean)
+    };
+
+    if (editingArtwork) {
+      updateMutation.mutate({ id: editingArtwork.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
 
   const toggleFavorite = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -155,12 +199,12 @@ export default function PortfolioPage() {
     }
   };
 
-  const filteredArtworks = artworks.filter(artwork => {
+  const filteredArtworks = artworks.filter((artwork: Artwork) => {
     const matchesCategory = selectedCategory === "all" || artwork.category === selectedCategory;
     const matchesSearch = artwork.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         artwork.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         artwork.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesPrice = artwork.price >= priceRange[0] && artwork.price <= priceRange[1];
+                         (artwork.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (artwork.tags || []).some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesPrice = (artwork.price || 0) >= priceRange[0] && (artwork.price || 0) <= priceRange[1];
     const matchesAvailability = !showAvailableOnly || artwork.available;
     const matchesFavorites = !showFavoritesOnly || favorites.includes(artwork.id);
     return matchesCategory && matchesSearch && matchesPrice && matchesAvailability && matchesFavorites;
@@ -198,29 +242,169 @@ export default function PortfolioPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background">
-        <header className="border-b-4 border-border p-6">
-          <h1 className="text-4xl font-black font-display tracking-tight mb-2">PORTFOLIO</h1>
-          <p className="text-muted-foreground">Explore the complete collection of works</p>
+      <div className="min-h-screen bg-black text-white">
+        <header className="border-b-4 border-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-black tracking-tight mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>PORTFOLIO</h1>
+              <p className="text-zinc-400">Explore the complete collection of works</p>
+            </div>
+            {user && (
+              <Dialog open={isAddDialogOpen || !!editingArtwork} onOpenChange={(open) => {
+                if (!open) {
+                  setIsAddDialogOpen(false);
+                  setEditingArtwork(null);
+                  resetForm();
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button 
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="bg-white text-black hover:bg-zinc-200 font-bold border-2 border-white"
+                    data-testid="btn-add-artwork"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    ADD ARTWORK
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-black border-2 border-white text-white max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black">{editingArtwork ? "EDIT ARTWORK" : "ADD ARTWORK"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div>
+                      <Label className="text-white">Title *</Label>
+                      <Input
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        data-testid="input-artwork-title"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Description</Label>
+                      <Textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        data-testid="input-artwork-description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-white">Category</Label>
+                        <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                          <SelectTrigger className="bg-zinc-900 border-white text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black border-white">
+                            {CATEGORIES.filter(c => c.id !== "all").map(cat => (
+                              <SelectItem key={cat.id} value={cat.id} className="text-white">{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-white">Medium</Label>
+                        <Input
+                          value={formData.medium}
+                          onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
+                          className="bg-zinc-900 border-white text-white"
+                          placeholder="e.g., Oil on Canvas"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-white">Year</Label>
+                        <Input
+                          type="number"
+                          value={formData.year}
+                          onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                          className="bg-zinc-900 border-white text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white">Price (cents)</Label>
+                        <Input
+                          type="number"
+                          value={formData.price}
+                          onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
+                          className="bg-zinc-900 border-white text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-white">Image URL</Label>
+                      <Input
+                        value={formData.images[0]}
+                        onChange={(e) => setFormData({ ...formData, images: [e.target.value] })}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="https://..."
+                        data-testid="input-artwork-image"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white">Tags (comma-separated)</Label>
+                      <Input
+                        value={formData.tags}
+                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="digital, portrait, noir"
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.available}
+                          onChange={(e) => setFormData({ ...formData, available: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        <span>Available for Sale</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.featured}
+                          onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                          className="w-4 h-4"
+                        />
+                        <span>Featured</span>
+                      </label>
+                    </div>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!formData.title || createMutation.isPending || updateMutation.isPending}
+                      className="w-full bg-white text-black hover:bg-zinc-200 font-bold"
+                      data-testid="btn-save-artwork"
+                    >
+                      {editingArtwork ? "UPDATE ARTWORK" : "ADD TO PORTFOLIO"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </header>
 
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-zinc-800">
           <div className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex items-center gap-2 flex-1 max-w-md">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
                   type="text"
                   placeholder="Search artworks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-background border-2 border-border text-sm focus:ring-0 focus:border-foreground outline-none"
+                  className="w-full pl-10 pr-4 py-2 bg-black border-2 border-white text-sm focus:ring-0 focus:border-zinc-400 outline-none text-white"
                   data-testid="portfolio-search"
                 />
               </div>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 border-2 border-border ${showFilters ? "bg-foreground text-background" : ""}`}
+                className={`p-2 border-2 border-white ${showFilters ? "bg-white text-black" : ""}`}
                 data-testid="toggle-filters"
               >
                 <Filter className="w-4 h-4" />
@@ -228,13 +412,15 @@ export default function PortfolioPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex border-2 border-border">
-                {CATEGORIES.map((cat) => (
+              <div className="flex border-2 border-white">
+                {CATEGORIES.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-3 py-1.5 text-xs font-bold uppercase ${
-                      selectedCategory === cat.id ? "bg-foreground text-background" : "hover:bg-muted"
+                    className={`px-3 py-1 text-sm font-bold transition-colors ${
+                      selectedCategory === cat.id
+                        ? "bg-white text-black"
+                        : "hover:bg-zinc-900"
                     }`}
                     data-testid={`category-${cat.id}`}
                   >
@@ -243,17 +429,17 @@ export default function PortfolioPage() {
                 ))}
               </div>
 
-              <div className="flex border-2 border-border">
+              <div className="flex border-2 border-white">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`p-2 ${viewMode === "grid" ? "bg-foreground text-background" : ""}`}
+                  className={`p-2 ${viewMode === "grid" ? "bg-white text-black" : ""}`}
                   data-testid="view-grid"
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-2 ${viewMode === "list" ? "bg-foreground text-background" : ""}`}
+                  className={`p-2 ${viewMode === "list" ? "bg-white text-black" : ""}`}
                   data-testid="view-list"
                 >
                   <List className="w-4 h-4" />
@@ -263,109 +449,124 @@ export default function PortfolioPage() {
           </div>
 
           {showFilters && (
-            <div className="mt-4 p-4 border-2 border-border bg-card">
-              <div className="flex flex-wrap gap-6">
-                <div>
-                  <label className="text-xs font-bold uppercase mb-2 block">Price Range</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={priceRange[0] / 100}
-                      onChange={(e) => setPriceRange([Number(e.target.value) * 100, priceRange[1]])}
-                      className="w-24 px-2 py-1 border-2 border-border text-sm"
-                      placeholder="Min"
-                    />
-                    <span>-</span>
-                    <input
-                      type="number"
-                      value={priceRange[1] / 100}
-                      onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value) * 100])}
-                      className="w-24 px-2 py-1 border-2 border-border text-sm"
-                      placeholder="Max"
-                    />
-                  </div>
+            <div className="mt-4 p-4 border-2 border-white bg-zinc-900 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-bold mb-2 block">Price Range</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange[0]}
+                    onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
+                    className="w-full p-2 bg-black border border-white text-sm"
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange[1]}
+                    onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 100000])}
+                    className="w-full p-2 bg-black border border-white text-sm"
+                  />
                 </div>
-                <div>
-                  <label className="text-xs font-bold uppercase mb-2 block">Availability</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showAvailableOnly}
-                      onChange={(e) => setShowAvailableOnly(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">Available only</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase mb-2 block">Favorites</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showFavoritesOnly}
-                      onChange={(e) => setShowFavoritesOnly(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">Show favorites only ({favorites.length})</span>
-                  </label>
-                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showAvailableOnly}
+                    onChange={(e) => setShowAvailableOnly(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Available Only</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showFavoritesOnly}
+                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Favorites Only</span>
+                </label>
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-6">
-          <p className="text-sm text-muted-foreground mb-4">
-            Showing {filteredArtworks.length} of {artworks.length} works
-          </p>
-
-          {viewMode === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredArtworks.map((artwork) => (
+        <main className="p-6">
+          {isLoading ? (
+            <div className="text-center py-12 text-zinc-500">Loading...</div>
+          ) : filteredArtworks.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-500 mb-4">No artworks found</p>
+              {user && (
+                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-white text-black">
+                  <Plus className="w-4 h-4 mr-2" /> Add Your First Artwork
+                </Button>
+              )}
+            </div>
+          ) : viewMode === "grid" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredArtworks.map((artwork: Artwork) => (
                 <div
                   key={artwork.id}
-                  className="group border-4 border-border bg-card hover:border-foreground transition-colors cursor-pointer"
+                  className="group border-2 border-white bg-black cursor-pointer hover:border-zinc-400 transition-all"
                   onClick={() => openLightbox(artwork)}
                   data-testid={`artwork-card-${artwork.id}`}
                 >
-                  <div className="aspect-[3/4] relative overflow-hidden bg-black">
-                    <img
-                      src={artwork.images[0]}
-                      alt={artwork.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    {artwork.featured && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-foreground text-background text-[10px] font-bold uppercase">
-                        Featured
+                  <div className="aspect-[3/4] relative overflow-hidden">
+                    {artwork.images?.[0] ? (
+                      <img
+                        src={artwork.images[0]}
+                        alt={artwork.title}
+                        className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600">
+                        No Image
                       </div>
                     )}
-                    {!artwork.available && (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 text-white text-[10px] font-bold uppercase">
-                        Sold
-                      </div>
-                    )}
-                    <button
-                      onClick={(e) => toggleFavorite(e, artwork.id)}
-                      className={`absolute top-2 right-2 p-2 transition-colors z-10 ${
-                        favorites.includes(artwork.id) 
-                          ? "bg-red-500 text-white" 
-                          : "bg-background/80 hover:bg-background text-foreground"
-                      } ${!artwork.available ? "top-10" : ""}`}
-                      data-testid={`favorite-${artwork.id}`}
-                    >
-                      <Heart className={`w-4 h-4 ${favorites.includes(artwork.id) ? "fill-current" : ""}`} />
-                    </button>
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                      <ZoomIn className="w-8 h-8 text-white" />
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <button
+                        onClick={(e) => toggleFavorite(e, artwork.id)}
+                        className={`p-2 bg-black/80 border border-white ${favorites.includes(artwork.id) ? "text-white" : "text-zinc-500"}`}
+                      >
+                        <Heart className={`w-4 h-4 ${favorites.includes(artwork.id) ? "fill-current" : ""}`} />
+                      </button>
                     </div>
+                    {artwork.featured && (
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-white text-black text-xs font-bold">
+                        FEATURED
+                      </div>
+                    )}
+                    {user && artwork.userId === user.id && (
+                      <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditDialog(artwork); }}
+                          className="p-2 bg-black/80 border border-white text-white hover:bg-white hover:text-black"
+                          data-testid={`btn-edit-${artwork.id}`}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(artwork.id); }}
+                          className="p-2 bg-black/80 border border-white text-white hover:bg-white hover:text-black"
+                          data-testid={`btn-delete-${artwork.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-1">{artwork.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">{artwork.medium}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{artwork.year}</span>
-                      <span className="font-bold">{formatPrice(artwork.price)}</span>
+                  <div className="p-4 border-t-2 border-white">
+                    <h3 className="font-black text-lg mb-1">{artwork.title}</h3>
+                    <p className="text-zinc-400 text-sm">{artwork.medium || artwork.category}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="font-bold">{artwork.price ? formatPrice(artwork.price) : "—"}</span>
+                      {artwork.available === false && (
+                        <span className="text-xs text-zinc-500">SOLD</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -373,147 +574,108 @@ export default function PortfolioPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredArtworks.map((artwork) => (
+              {filteredArtworks.map((artwork: Artwork) => (
                 <div
                   key={artwork.id}
-                  className="flex gap-6 border-4 border-border bg-card hover:border-foreground transition-colors cursor-pointer p-4"
+                  className="flex gap-6 border-2 border-white p-4 cursor-pointer hover:border-zinc-400 transition-all"
                   onClick={() => openLightbox(artwork)}
-                  data-testid={`artwork-list-${artwork.id}`}
+                  data-testid={`artwork-row-${artwork.id}`}
                 >
-                  <div className="w-48 h-48 shrink-0 overflow-hidden bg-black">
-                    <img
-                      src={artwork.images[0]}
-                      alt={artwork.title}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-32 h-32 flex-shrink-0">
+                    {artwork.images?.[0] ? (
+                      <img src={artwork.images[0]} alt={artwork.title} className="w-full h-full object-cover grayscale" />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 text-xs">No Image</div>
+                    )}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-bold text-xl">{artwork.title}</h3>
-                        <p className="text-sm text-muted-foreground">{artwork.medium}</p>
+                        <h3 className="font-black text-xl">{artwork.title}</h3>
+                        <p className="text-zinc-400">{artwork.medium || artwork.category} • {artwork.year}</p>
                       </div>
-                      <span className="font-bold text-xl">{formatPrice(artwork.price)}</span>
+                      <div className="text-right">
+                        <span className="font-bold text-xl">{artwork.price ? formatPrice(artwork.price) : "—"}</span>
+                        {artwork.available === false && <p className="text-xs text-zinc-500">SOLD</p>}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{artwork.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" /> {artwork.year}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Maximize2 className="w-3 h-3" /> {artwork.dimensions.width} x {artwork.dimensions.height} {artwork.dimensions.unit}
-                      </span>
-                      {artwork.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="flex items-center gap-1 text-xs bg-muted px-2 py-0.5">
-                          <Tag className="w-3 h-3" /> {tag}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-zinc-400 text-sm mt-2 line-clamp-2">{artwork.description}</p>
+                    {artwork.tags && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {artwork.tags.map(tag => (
+                          <span key={tag} className="px-2 py-1 bg-zinc-900 text-xs border border-zinc-700">{tag}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                  {user && artwork.userId === user.id && (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditDialog(artwork); }}
+                        className="p-2 border border-white hover:bg-white hover:text-black"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(artwork.id); }}
+                        className="p-2 border border-white hover:bg-white hover:text-black"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </main>
 
-        <Dialog open={!!selectedArtwork} onOpenChange={closeLightbox}>
-          <DialogContent className="max-w-6xl h-[90vh] p-0 bg-black border-4 border-white">
-            {selectedArtwork && (
-              <div className="flex h-full">
-                <div className="flex-1 relative bg-black flex items-center justify-center">
+        {selectedArtwork && (
+          <Dialog open={!!selectedArtwork} onOpenChange={() => closeLightbox()}>
+            <DialogContent className="max-w-4xl bg-black border-2 border-white p-0">
+              <div className="relative">
+                {selectedArtwork.images?.length > 0 && (
                   <img
                     src={selectedArtwork.images[currentImageIndex]}
                     alt={selectedArtwork.title}
-                    className="max-w-full max-h-full object-contain"
+                    className="w-full max-h-[70vh] object-contain"
                   />
-                  
-                  {selectedArtwork.images.length > 1 && (
-                    <>
-                      <button
-                        onClick={prevImage}
-                        disabled={currentImageIndex === 0}
-                        className="absolute left-4 p-2 bg-white/20 hover:bg-white/40 disabled:opacity-30"
-                      >
-                        <ChevronLeft className="w-6 h-6 text-white" />
-                      </button>
-                      <button
-                        onClick={nextImage}
-                        disabled={currentImageIndex === selectedArtwork.images.length - 1}
-                        className="absolute right-4 p-2 bg-white/20 hover:bg-white/40 disabled:opacity-30"
-                      >
-                        <ChevronRight className="w-6 h-6 text-white" />
-                      </button>
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                        {selectedArtwork.images.map((_, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setCurrentImageIndex(idx)}
-                            className={`w-2 h-2 rounded-full ${idx === currentImageIndex ? "bg-white" : "bg-white/40"}`}
-                          />
-                        ))}
-                      </div>
-                    </>
+                )}
+                {selectedArtwork.images?.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      disabled={currentImageIndex === 0}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/80 border border-white disabled:opacity-30"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      disabled={currentImageIndex === selectedArtwork.images.length - 1}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/80 border border-white disabled:opacity-30"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="p-6 border-t-2 border-white">
+                <h2 className="text-2xl font-black">{selectedArtwork.title}</h2>
+                <p className="text-zinc-400">{selectedArtwork.medium} • {selectedArtwork.year}</p>
+                <p className="mt-4 text-zinc-300">{selectedArtwork.description}</p>
+                <div className="flex items-center justify-between mt-4">
+                  <span className="text-2xl font-bold">{selectedArtwork.price ? formatPrice(selectedArtwork.price) : "Price on request"}</span>
+                  {selectedArtwork.available !== false && (
+                    <Button className="bg-white text-black hover:bg-zinc-200 font-bold">
+                      INQUIRE
+                    </Button>
                   )}
                 </div>
-
-                <div className="w-96 bg-zinc-950 p-6 overflow-y-auto text-white">
-                  <button
-                    onClick={closeLightbox}
-                    className="absolute top-4 right-4 p-2 hover:bg-white/20"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-
-                  <h2 className="text-2xl font-black mb-2">{selectedArtwork.title}</h2>
-                  <p className="text-gray-400 mb-6">{selectedArtwork.year}</p>
-
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Medium</h4>
-                      <p>{selectedArtwork.medium}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Dimensions</h4>
-                      <p>
-                        {selectedArtwork.dimensions.width} x {selectedArtwork.dimensions.height}
-                        {selectedArtwork.dimensions.depth && ` x ${selectedArtwork.dimensions.depth}`}
-                        {" "}{selectedArtwork.dimensions.unit}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Description</h4>
-                      <p className="text-sm text-gray-300">{selectedArtwork.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1 mb-6">
-                    {selectedArtwork.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-1 bg-zinc-800 text-xs">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="border-t border-zinc-800 pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-2xl font-black">{formatPrice(selectedArtwork.price)}</span>
-                      {selectedArtwork.available ? (
-                        <span className="px-2 py-1 bg-green-900 text-green-400 text-xs font-bold">AVAILABLE</span>
-                      ) : (
-                        <span className="px-2 py-1 bg-red-900 text-red-400 text-xs font-bold">SOLD</span>
-                      )}
-                    </div>
-                    {selectedArtwork.available && (
-                      <button className="w-full py-3 bg-white text-black font-bold hover:bg-gray-200" data-testid="inquire-button">
-                        INQUIRE
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </Layout>
   );

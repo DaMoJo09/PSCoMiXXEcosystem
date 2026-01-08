@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ChevronRight, Gamepad2, Sparkles, Zap, Film, Book, Wand2 } from "lucide-react";
+import { EventCarousel } from "@/components/EventCarousel";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -211,6 +212,10 @@ export default function LandingPage() {
           <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" style={{ width: '1.5rem', height: '1.5rem' }} />
           <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
         </button>
+        
+        <div className="w-full max-w-4xl mt-12">
+          <EventCarousel featuredOnly={true} variant="dark" />
+        </div>
       </div>
 
       <div className="absolute top-6 left-6 z-20 flex items-center gap-3">

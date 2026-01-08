@@ -1474,3 +1474,34 @@ export const importManifestSchema = z.object({
 });
 
 export type ImportManifest = z.infer<typeof importManifestSchema>;
+
+// ============================================
+// ANNOUNCEMENTS / EVENTS (Carousel Banners)
+// ============================================
+
+export const announcements = pgTable("announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  linkUrl: text("link_url"),
+  linkText: text("link_text"),
+  eventType: text("event_type").notNull().default("announcement"), // announcement | event | contest | release | featured
+  isFeatured: boolean("is_featured").default(false), // Admin-created Press Start events
+  isActive: boolean("is_active").default(true),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type Announcement = typeof announcements.$inferSelect;

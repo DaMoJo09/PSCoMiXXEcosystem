@@ -2170,5 +2170,339 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ============================================
+  // PORTFOLIO ROUTES
+  // ============================================
+
+  app.get("/api/portfolio", async (req, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const artworks = await storage.getPortfolioArtworks(userId);
+      res.json(artworks);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/portfolio/:id", async (req, res) => {
+    try {
+      const artwork = await storage.getPortfolioArtwork(req.params.id);
+      if (!artwork) {
+        return res.status(404).json({ message: "Artwork not found" });
+      }
+      res.json(artwork);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portfolio", isAuthenticated, async (req, res) => {
+    try {
+      const artwork = await storage.createPortfolioArtwork({
+        ...req.body,
+        userId: req.user!.id,
+      });
+      res.json(artwork);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/portfolio/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getPortfolioArtwork(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Artwork not found" });
+      }
+      if (existing.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const artwork = await storage.updatePortfolioArtwork(req.params.id, req.body);
+      res.json(artwork);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/portfolio/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getPortfolioArtwork(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Artwork not found" });
+      }
+      if (existing.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const success = await storage.deletePortfolioArtwork(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // NEWSLETTER ROUTES
+  // ============================================
+
+  app.post("/api/newsletter/subscribe", async (req, res) => {
+    try {
+      const { email, name } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const subscriber = await storage.subscribeNewsletter(email, name);
+      res.json({ success: true, subscriber });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/newsletter/unsubscribe", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const success = await storage.unsubscribeNewsletter(email);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/newsletter/subscribers", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const subscribers = await storage.getNewsletterSubscribers();
+      res.json(subscribers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // LESSONS & PATHWAYS ROUTES
+  // ============================================
+
+  app.get("/api/pathways", async (req, res) => {
+    try {
+      const pathways = await storage.getLearningPathways();
+      res.json(pathways);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/pathways/:id", async (req, res) => {
+    try {
+      const pathway = await storage.getLearningPathway(req.params.id);
+      if (!pathway) {
+        return res.status(404).json({ message: "Pathway not found" });
+      }
+      res.json(pathway);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/pathways", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const pathway = await storage.createLearningPathway(req.body);
+      res.json(pathway);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/pathways/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const pathway = await storage.updateLearningPathway(req.params.id, req.body);
+      if (!pathway) {
+        return res.status(404).json({ message: "Pathway not found" });
+      }
+      res.json(pathway);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/pathways/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteLearningPathway(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/pathways/:id/lessons", async (req, res) => {
+    try {
+      const lessons = await storage.getLessonsForPathway(req.params.id);
+      res.json(lessons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/lessons", async (req, res) => {
+    try {
+      const lessons = await storage.getAllLessons();
+      res.json(lessons);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/lessons/:id", async (req, res) => {
+    try {
+      const lesson = await storage.getLesson(req.params.id);
+      if (!lesson) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      res.json(lesson);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/lessons", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const lesson = await storage.createLesson(req.body);
+      res.json(lesson);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/lessons/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const lesson = await storage.updateLesson(req.params.id, req.body);
+      if (!lesson) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      res.json(lesson);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/lessons/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteLesson(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // ANNOUNCEMENTS / EVENTS API ROUTES
+  // ============================================
+
+  // Get active announcements (public - for carousel banners)
+  app.get("/api/announcements/active", async (req, res) => {
+    try {
+      const featuredOnly = req.query.featured === "true";
+      const announcements = await storage.getActiveAnnouncements(featuredOnly);
+      res.json(announcements);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get all announcements (admin only)
+  app.get("/api/announcements", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const featuredOnly = req.query.featured === "true";
+      const announcements = await storage.getAnnouncements(featuredOnly);
+      res.json(announcements);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's own announcements
+  app.get("/api/announcements/mine", isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getUserAnnouncements(req.user!.id);
+      res.json(announcements);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get single announcement
+  app.get("/api/announcements/:id", async (req, res) => {
+    try {
+      const announcement = await storage.getAnnouncement(req.params.id);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      res.json(announcement);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create announcement (authenticated users can create their own, admin can create featured)
+  app.post("/api/announcements", isAuthenticated, async (req, res) => {
+    try {
+      const isAdmin = req.user!.role === "admin";
+      const announcement = await storage.createAnnouncement({
+        ...req.body,
+        userId: req.user!.id,
+        isFeatured: isAdmin ? req.body.isFeatured : false, // Only admin can create featured
+      });
+      res.json(announcement);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update announcement (owner or admin only)
+  app.patch("/api/announcements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const announcement = await storage.getAnnouncement(req.params.id);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (announcement.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Only admin can set featured status
+      const updates = { ...req.body };
+      if (!isAdmin) {
+        delete updates.isFeatured;
+      }
+      
+      const updated = await storage.updateAnnouncement(req.params.id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete announcement (owner or admin only)
+  app.delete("/api/announcements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const announcement = await storage.getAnnouncement(req.params.id);
+      if (!announcement) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      
+      const isAdmin = req.user!.role === "admin";
+      if (announcement.userId !== req.user!.id && !isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const success = await storage.deleteAnnouncement(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return server;
 }

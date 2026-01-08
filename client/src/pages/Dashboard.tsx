@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap, Megaphone } from "lucide-react";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useState } from "react";
+import { EventCarousel } from "@/components/EventCarousel";
 import {
   Dialog,
   DialogContent,
@@ -108,6 +109,8 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="p-8 max-w-7xl mx-auto space-y-12">
+        <EventCarousel className="mb-4" variant="dark" />
+        
         <div className="flex items-end justify-between border-b border-border pb-6">
           <div>
             <h1 className="text-4xl font-display font-bold uppercase tracking-tighter" data-testid="text-dashboard-title">
