@@ -1673,7 +1673,13 @@ export default function ComicCreator() {
               <Tooltip key={tool.id} delayDuration={100}>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => setActiveTool(tool.id)}
+                    onClick={() => {
+                      if (tool.id === "ai") {
+                        setShowAIGen(true);
+                      } else {
+                        setActiveTool(tool.id);
+                      }
+                    }}
                     className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
                       activeTool === tool.id ? 'bg-white text-black' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
                     }`}
