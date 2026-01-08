@@ -19,6 +19,15 @@ import {
   blogPosts,
   newsletterSubscribers,
   announcements,
+  featureFlags,
+  subscriptions,
+  waitlist,
+  inviteCodes,
+  inviteRedemptions,
+  appSumoCodes,
+  jobs,
+  platformSettings,
+  adminLogs,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -59,6 +68,15 @@ import {
   type BlogPost, type InsertBlogPost,
   type NewsletterSubscriber, type InsertNewsletterSubscriber,
   type Announcement, type InsertAnnouncement,
+  type FeatureFlag, type InsertFeatureFlag,
+  type Subscription, type InsertSubscription,
+  type Waitlist, type InsertWaitlist,
+  type InviteCode, type InsertInviteCode,
+  type InviteRedemption, type InsertInviteRedemption,
+  type AppSumoCode, type InsertAppSumoCode,
+  type Job, type InsertJob,
+  type PlatformSetting, type InsertPlatformSetting,
+  type AdminLog, type InsertAdminLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -249,6 +267,52 @@ export interface IStorage {
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
   updateAnnouncement(id: string, updates: Partial<InsertAnnouncement>): Promise<Announcement | undefined>;
   deleteAnnouncement(id: string): Promise<boolean>;
+  
+  // Platform monetization operations
+  getFeatureFlags(): Promise<FeatureFlag[]>;
+  getFeatureFlag(key: string): Promise<FeatureFlag | undefined>;
+  setFeatureFlag(key: string, enabled: boolean, updatedBy?: string): Promise<FeatureFlag>;
+  
+  // Subscription operations
+  getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(userId: string, updates: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  
+  // Waitlist operations
+  getWaitlist(status?: string): Promise<Waitlist[]>;
+  getWaitlistEntry(email: string): Promise<Waitlist | undefined>;
+  addToWaitlist(entry: InsertWaitlist): Promise<Waitlist>;
+  approveWaitlistEntry(id: string, approvedBy: string): Promise<Waitlist | undefined>;
+  updateWaitlistStatus(id: string, status: string): Promise<Waitlist | undefined>;
+  
+  // Invite code operations
+  getInviteCodes(createdBy?: string): Promise<InviteCode[]>;
+  getInviteCode(code: string): Promise<InviteCode | undefined>;
+  createInviteCode(inviteCode: InsertInviteCode): Promise<InviteCode>;
+  redeemInviteCode(code: string, userId: string): Promise<boolean>;
+  deactivateInviteCode(id: string): Promise<boolean>;
+  
+  // AppSumo operations
+  getAppSumoCodes(status?: string): Promise<AppSumoCode[]>;
+  getAppSumoCode(code: string): Promise<AppSumoCode | undefined>;
+  createAppSumoCode(appSumoCode: InsertAppSumoCode): Promise<AppSumoCode>;
+  redeemAppSumoCode(code: string, userId: string): Promise<AppSumoCode | undefined>;
+  
+  // Job queue operations
+  createJob(job: InsertJob): Promise<Job>;
+  getJob(id: string): Promise<Job | undefined>;
+  getUserJobs(userId: string, status?: string): Promise<Job[]>;
+  updateJobStatus(id: string, status: string, result?: any, errorMessage?: string): Promise<Job | undefined>;
+  getNextPendingJob(): Promise<Job | undefined>;
+  
+  // Platform settings operations
+  getPlatformSetting(key: string): Promise<PlatformSetting | undefined>;
+  setPlatformSetting(key: string, value: any, updatedBy?: string): Promise<PlatformSetting>;
+  getAllPlatformSettings(): Promise<PlatformSetting[]>;
+  
+  // Admin log operations
+  createAdminLog(log: InsertAdminLog): Promise<AdminLog>;
+  getAdminLogs(limit?: number): Promise<AdminLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1796,6 +1860,247 @@ export class DatabaseStorage implements IStorage {
   async deleteBlogPost(id: string): Promise<boolean> {
     const result = await db.delete(blogPosts).where(eq(blogPosts.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Platform monetization operations
+  async getFeatureFlags(): Promise<FeatureFlag[]> {
+    return db.select().from(featureFlags).orderBy(featureFlags.key);
+  }
+
+  async getFeatureFlag(key: string): Promise<FeatureFlag | undefined> {
+    const [flag] = await db.select().from(featureFlags).where(eq(featureFlags.key, key));
+    return flag || undefined;
+  }
+
+  async setFeatureFlag(key: string, enabled: boolean, updatedBy?: string): Promise<FeatureFlag> {
+    const existing = await this.getFeatureFlag(key);
+    if (existing) {
+      const [updated] = await db.update(featureFlags)
+        .set({ enabled, updatedBy: updatedBy || null, updatedAt: new Date() })
+        .where(eq(featureFlags.key, key))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(featureFlags)
+      .values({ key, enabled, updatedBy })
+      .returning();
+    return created;
+  }
+
+  // Subscription operations
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId));
+    return sub || undefined;
+  }
+
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [created] = await db.insert(subscriptions).values(subscription).returning();
+    return created;
+  }
+
+  async updateSubscription(userId: string, updates: Partial<InsertSubscription>): Promise<Subscription | undefined> {
+    const [sub] = await db.update(subscriptions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptions.userId, userId))
+      .returning();
+    return sub || undefined;
+  }
+
+  // Waitlist operations
+  async getWaitlist(status?: string): Promise<Waitlist[]> {
+    if (status) {
+      return db.select().from(waitlist).where(eq(waitlist.status, status)).orderBy(desc(waitlist.createdAt));
+    }
+    return db.select().from(waitlist).orderBy(desc(waitlist.createdAt));
+  }
+
+  async getWaitlistEntry(email: string): Promise<Waitlist | undefined> {
+    const [entry] = await db.select().from(waitlist).where(eq(waitlist.email, email));
+    return entry || undefined;
+  }
+
+  async addToWaitlist(entry: InsertWaitlist): Promise<Waitlist> {
+    const [created] = await db.insert(waitlist).values(entry).returning();
+    return created;
+  }
+
+  async approveWaitlistEntry(id: string, approvedBy: string): Promise<Waitlist | undefined> {
+    const [entry] = await db.update(waitlist)
+      .set({ status: "approved", approvedBy, approvedAt: new Date() })
+      .where(eq(waitlist.id, id))
+      .returning();
+    return entry || undefined;
+  }
+
+  async updateWaitlistStatus(id: string, status: string): Promise<Waitlist | undefined> {
+    const [entry] = await db.update(waitlist)
+      .set({ status })
+      .where(eq(waitlist.id, id))
+      .returning();
+    return entry || undefined;
+  }
+
+  // Invite code operations
+  async getInviteCodes(createdBy?: string): Promise<InviteCode[]> {
+    if (createdBy) {
+      return db.select().from(inviteCodes).where(eq(inviteCodes.createdBy, createdBy)).orderBy(desc(inviteCodes.createdAt));
+    }
+    return db.select().from(inviteCodes).orderBy(desc(inviteCodes.createdAt));
+  }
+
+  async getInviteCode(code: string): Promise<InviteCode | undefined> {
+    const [inviteCode] = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code));
+    return inviteCode || undefined;
+  }
+
+  async createInviteCode(inviteCode: InsertInviteCode): Promise<InviteCode> {
+    const [created] = await db.insert(inviteCodes).values(inviteCode).returning();
+    return created;
+  }
+
+  async redeemInviteCode(code: string, userId: string): Promise<boolean> {
+    const inviteCode = await this.getInviteCode(code);
+    if (!inviteCode || !inviteCode.isActive) return false;
+    if (inviteCode.maxUses && inviteCode.usedCount >= inviteCode.maxUses) return false;
+    if (inviteCode.expiresAt && new Date(inviteCode.expiresAt) < new Date()) return false;
+
+    await db.insert(inviteRedemptions).values({ codeId: inviteCode.id, userId });
+    await db.update(inviteCodes)
+      .set({ usedCount: inviteCode.usedCount + 1 })
+      .where(eq(inviteCodes.id, inviteCode.id));
+    return true;
+  }
+
+  async deactivateInviteCode(id: string): Promise<boolean> {
+    const result = await db.update(inviteCodes)
+      .set({ isActive: false })
+      .where(eq(inviteCodes.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // AppSumo operations
+  async getAppSumoCodes(status?: string): Promise<AppSumoCode[]> {
+    if (status) {
+      return db.select().from(appSumoCodes).where(eq(appSumoCodes.status, status)).orderBy(desc(appSumoCodes.createdAt));
+    }
+    return db.select().from(appSumoCodes).orderBy(desc(appSumoCodes.createdAt));
+  }
+
+  async getAppSumoCode(code: string): Promise<AppSumoCode | undefined> {
+    const [appSumoCode] = await db.select().from(appSumoCodes).where(eq(appSumoCodes.code, code));
+    return appSumoCode || undefined;
+  }
+
+  async createAppSumoCode(appSumoCode: InsertAppSumoCode): Promise<AppSumoCode> {
+    const [created] = await db.insert(appSumoCodes).values(appSumoCode).returning();
+    return created;
+  }
+
+  async redeemAppSumoCode(code: string, userId: string): Promise<AppSumoCode | undefined> {
+    const appSumoCode = await this.getAppSumoCode(code);
+    if (!appSumoCode || appSumoCode.status !== "unused") return undefined;
+
+    const [updated] = await db.update(appSumoCodes)
+      .set({ status: "redeemed", redeemedBy: userId, redeemedAt: new Date() })
+      .where(eq(appSumoCodes.code, code))
+      .returning();
+
+    // Create lifetime subscription for user
+    const existingSub = await this.getUserSubscription(userId);
+    if (existingSub) {
+      await this.updateSubscription(userId, {
+        tier: "lifetime",
+        appSumoCodeId: appSumoCode.id,
+        entitlements: { export: true, commercial: true, ai: true, batch: true },
+      });
+    } else {
+      await this.createSubscription({
+        userId,
+        tier: "lifetime",
+        status: "active",
+        appSumoCodeId: appSumoCode.id,
+        entitlements: { export: true, commercial: true, ai: true, batch: true },
+      });
+    }
+
+    return updated;
+  }
+
+  // Job queue operations
+  async createJob(job: InsertJob): Promise<Job> {
+    const [created] = await db.insert(jobs).values(job).returning();
+    return created;
+  }
+
+  async getJob(id: string): Promise<Job | undefined> {
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
+    return job || undefined;
+  }
+
+  async getUserJobs(userId: string, status?: string): Promise<Job[]> {
+    if (status) {
+      return db.select().from(jobs)
+        .where(and(eq(jobs.userId, userId), eq(jobs.status, status)))
+        .orderBy(desc(jobs.createdAt));
+    }
+    return db.select().from(jobs).where(eq(jobs.userId, userId)).orderBy(desc(jobs.createdAt));
+  }
+
+  async updateJobStatus(id: string, status: string, result?: any, errorMessage?: string): Promise<Job | undefined> {
+    const updates: any = { status };
+    if (status === "processing") updates.startedAt = new Date();
+    if (status === "completed" || status === "failed") updates.completedAt = new Date();
+    if (result) updates.result = result;
+    if (errorMessage) updates.errorMessage = errorMessage;
+
+    const [job] = await db.update(jobs)
+      .set(updates)
+      .where(eq(jobs.id, id))
+      .returning();
+    return job || undefined;
+  }
+
+  async getNextPendingJob(): Promise<Job | undefined> {
+    const [job] = await db.select().from(jobs)
+      .where(eq(jobs.status, "pending"))
+      .orderBy(desc(jobs.priority), jobs.createdAt)
+      .limit(1);
+    return job || undefined;
+  }
+
+  // Platform settings operations
+  async getPlatformSetting(key: string): Promise<PlatformSetting | undefined> {
+    const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, key));
+    return setting || undefined;
+  }
+
+  async setPlatformSetting(key: string, value: any, updatedBy?: string): Promise<PlatformSetting> {
+    const existing = await this.getPlatformSetting(key);
+    if (existing) {
+      const [updated] = await db.update(platformSettings)
+        .set({ value, updatedBy: updatedBy || null, updatedAt: new Date() })
+        .where(eq(platformSettings.key, key))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(platformSettings)
+      .values({ key, value, updatedBy })
+      .returning();
+    return created;
+  }
+
+  async getAllPlatformSettings(): Promise<PlatformSetting[]> {
+    return db.select().from(platformSettings).orderBy(platformSettings.key);
+  }
+
+  // Admin log operations
+  async createAdminLog(log: InsertAdminLog): Promise<AdminLog> {
+    const [created] = await db.insert(adminLogs).values(log).returning();
+    return created;
+  }
+
+  async getAdminLogs(limit: number = 100): Promise<AdminLog[]> {
+    return db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(limit);
   }
 }
 

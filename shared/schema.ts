@@ -1505,3 +1505,252 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
+
+// ============================================
+// PLATFORM MONETIZATION & GATING SYSTEM
+// ============================================
+
+// Feature Flags - Kill switches and feature toggles
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(), // e.g., "early_adopter_gate", "payments_enabled"
+  enabled: boolean("enabled").notNull().default(true),
+  description: text("description"),
+  metadata: jsonb("metadata"), // Additional config data
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+
+// User Subscriptions & Tiers
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  tier: text("tier").notNull().default("free"), // free | creator | pro | studio | lifetime
+  status: text("status").notNull().default("active"), // active | canceled | past_due | trialing
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  appSumoCodeId: varchar("appsumo_code_id"), // If redeemed via AppSumo
+  entitlements: jsonb("entitlements"), // { export: true, commercial: true, ai: true, batch: true }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+// Early Adopter Waitlist
+export const waitlist = pgTable("waitlist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // Linked if registered
+  status: text("status").notNull().default("pending"), // pending | approved | active | blocked
+  source: text("source"), // organic | referral | appsumo | partner
+  referredBy: varchar("referred_by").references(() => users.id),
+  inviteCode: text("invite_code"), // Code used to join
+  notes: text("notes"), // Admin notes
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWaitlistSchema = createInsertSchema(waitlist).omit({
+  id: true,
+  createdAt: true,
+  approvedAt: true,
+});
+
+export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
+export type Waitlist = typeof waitlist.$inferSelect;
+
+// Invite Codes
+export const inviteCodes = pgTable("invite_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("standard"), // standard | vip | partner | appsumo
+  maxUses: integer("max_uses").default(1),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  metadata: jsonb("metadata"), // Additional code config
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInviteCodeSchema = createInsertSchema(inviteCodes).omit({
+  id: true,
+  usedCount: true,
+  createdAt: true,
+});
+
+export type InsertInviteCode = z.infer<typeof insertInviteCodeSchema>;
+export type InviteCode = typeof inviteCodes.$inferSelect;
+
+// Invite Code Redemptions
+export const inviteRedemptions = pgTable("invite_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codeId: varchar("code_id").notNull().references(() => inviteCodes.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  redeemedAt: timestamp("redeemed_at").defaultNow().notNull(),
+});
+
+export const insertInviteRedemptionSchema = createInsertSchema(inviteRedemptions).omit({
+  id: true,
+  redeemedAt: true,
+});
+
+export type InsertInviteRedemption = z.infer<typeof insertInviteRedemptionSchema>;
+export type InviteRedemption = typeof inviteRedemptions.$inferSelect;
+
+// AppSumo Codes
+export const appSumoCodes = pgTable("appsumo_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  tier: text("tier").notNull().default("lifetime"), // lifetime | pro_lifetime | studio_lifetime
+  status: text("status").notNull().default("unused"), // unused | redeemed | expired | revoked
+  redeemedBy: varchar("redeemed_by").references(() => users.id),
+  redeemedAt: timestamp("redeemed_at"),
+  purchaseEmail: text("purchase_email"), // AppSumo buyer email
+  orderId: text("order_id"), // AppSumo order reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAppSumoCodeSchema = createInsertSchema(appSumoCodes).omit({
+  id: true,
+  createdAt: true,
+  redeemedAt: true,
+});
+
+export type InsertAppSumoCode = z.infer<typeof insertAppSumoCodeSchema>;
+export type AppSumoCode = typeof appSumoCodes.$inferSelect;
+
+// Job Queue - Async operations
+export const jobs = pgTable("jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // export | render | ai_generate | batch_process
+  status: text("status").notNull().default("pending"), // pending | processing | completed | failed
+  priority: integer("priority").notNull().default(0), // Higher = more urgent
+  payload: jsonb("payload").notNull(), // Job-specific data
+  result: jsonb("result"), // Output data / download URL
+  errorMessage: text("error_message"),
+  progress: integer("progress").default(0), // 0-100
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertJobSchema = createInsertSchema(jobs).omit({
+  id: true,
+  status: true,
+  progress: true,
+  startedAt: true,
+  completedAt: true,
+  createdAt: true,
+});
+
+export type InsertJob = z.infer<typeof insertJobSchema>;
+export type Job = typeof jobs.$inferSelect;
+
+// Platform Settings - Global config
+export const platformSettings = pgTable("platform_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: jsonb("value").notNull(),
+  description: text("description"),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlatformSettingSchema = createInsertSchema(platformSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+
+// Admin Activity Log
+export const adminLogs = pgTable("admin_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(), // approve_user | toggle_flag | generate_code | etc
+  targetType: text("target_type"), // user | feature_flag | invite_code | etc
+  targetId: varchar("target_id"),
+  details: jsonb("details"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
+export type AdminLog = typeof adminLogs.$inferSelect;
+
+// Tier Entitlements Definition
+export const tierEntitlements = {
+  free: {
+    export: false,
+    commercial: false,
+    ai: false,
+    batch: false,
+    maxProjects: 3,
+    maxStorage: 100, // MB
+  },
+  creator: {
+    export: true,
+    commercial: false,
+    ai: true,
+    batch: false,
+    maxProjects: 20,
+    maxStorage: 1000,
+  },
+  pro: {
+    export: true,
+    commercial: true,
+    ai: true,
+    batch: true,
+    maxProjects: 100,
+    maxStorage: 5000,
+  },
+  studio: {
+    export: true,
+    commercial: true,
+    ai: true,
+    batch: true,
+    maxProjects: -1, // Unlimited
+    maxStorage: 20000,
+  },
+  lifetime: {
+    export: true,
+    commercial: true,
+    ai: true,
+    batch: true,
+    maxProjects: -1,
+    maxStorage: 50000,
+  },
+} as const;
+
+export type TierName = keyof typeof tierEntitlements;
