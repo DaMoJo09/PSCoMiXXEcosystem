@@ -1,0 +1,23 @@
+# Press Start CoMixx - Robots.txt
+# https://pressstart.space
+
+User-agent: *
+Allow: /
+
+# Disallow private/auth pages
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /studio
+Disallow: /messages
+Disallow: /settings
+
+# Allow search engines to crawl public content
+Allow: /social/
+Allow: /feed
+
+# Sitemap location
+Sitemap: https://pressstart.space/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
