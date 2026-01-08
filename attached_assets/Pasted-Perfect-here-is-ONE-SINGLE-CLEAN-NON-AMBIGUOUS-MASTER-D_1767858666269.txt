@@ -1,0 +1,388 @@
+Perfect — here is ONE SINGLE, CLEAN, NON-AMBIGUOUS MASTER DOCUMENT that:
+
+✅ Does NOT change or remove anything from the existing https://pressstart.space/
+ app
+
+✅ Adds early-adopter gating, pricing, desktop licensing, AppSumo, admin controls
+
+✅ Includes a rollback + kill-switch strategy (explained clearly)
+
+✅ Is already structured like GitHub Issues & milestones
+
+✅ Can double as a formal SOW / dev contract
+
+✅ Is written to minimize back-and-forth with Replit / Manus / any dev team
+
+You can copy-paste this whole thing and be done.
+
+PRESS START – COMIXX
+ADDITIVE PLATFORM EXPANSION
+MASTER BUILD SPEC + SOW + MILESTONES + SAFETY PLAN
+0. ABSOLUTE NON-NEGOTIABLE RULE (READ FIRST)
+
+This build is ADDITIVE ONLY.
+
+The application currently live at:
+
+https://pressstart.space/
+
+is considered:
+
+Production
+
+Stable
+
+Source of truth
+
+Off-limits for redesign or refactor
+
+This project:
+
+❌ Does NOT replace the current app
+
+❌ Does NOT redesign the UI
+
+❌ Does NOT remove features
+
+❌ Does NOT rename routes or tools
+
+This project:
+
+✅ Adds gates, wrappers, flags, and parallel systems
+
+✅ Preserves all existing functionality
+
+✅ Must not introduce regressions
+
+If an existing user experiences any loss of functionality, that is a blocking bug.
+
+1. PROJECT PURPOSE (WHY THIS EXISTS)
+
+We are extending PRESS START – COMIXX to support:
+
+Early-adopter controlled rollout (to avoid overload)
+
+Free mobile / PWA access
+
+Paid desktop access
+
+Tiered monetization
+
+AppSumo lifetime licenses
+
+Admin control over scale
+
+Future App Store readiness
+
+All while keeping the current app intact.
+
+2. PLATFORM STRATEGY (HIGH LEVEL)
+
+Web / PWA → Primary (pressstart.space)
+
+Mobile → Free, gated early access (PWA first, native later)
+
+Desktop → Paid (same login, same backend)
+
+AppSumo → Lifetime unlock via redemption codes
+
+One backend.
+One user system.
+Multiple shells.
+
+3. ACCESS & MONETIZATION MODEL
+Mobile / PWA
+
+Free
+
+Early-adopter gated
+
+Reading, light creation, sharing
+
+No heavy export or commercial rights
+
+Desktop
+
+Paid tiers (login-based entitlements):
+
+Creator
+
+Pro
+
+Studio
+
+Lifetime (AppSumo)
+
+Monetization moment:
+
+Export, commercial use, batch tools, AI features.
+
+4. EARLY-ADOPTER SYSTEM (ADDITIVE)
+Purpose
+
+Prevent overload, control rollout, prioritize partners.
+
+Components
+
+Waitlist
+
+Invite codes
+
+Admin approval
+
+Daily caps
+
+Rate limits
+
+User States
+
+pending
+
+approved
+
+active
+
+blocked
+
+Rules
+
+Existing users = auto-approved
+
+New users = gated
+
+Admin controls approval velocity
+
+5. ADMIN CONTROL ROOM (REQUIRED)
+
+Admin must be able to:
+
+View & approve waitlist
+
+Generate invite codes
+
+Set daily signup caps
+
+Toggle features
+
+Enable/disable monetization
+
+View usage
+
+Export CSVs
+
+Send announcements
+
+Admin panel must be role-based and isolated.
+
+6. FEATURE GATING (NO UI REMOVAL)
+
+Features are gated via entitlements, not UI deletion.
+
+Example:
+
+Export button stays visible
+
+Clicking export checks entitlement
+
+If locked → upgrade modal
+
+No broken buttons.
+No disappearing tools.
+
+7. JOB QUEUE & LOAD PROTECTION
+
+Heavy operations must be async:
+
+Export
+
+Rendering
+
+AI tools
+
+Flow:
+
+User requests action
+
+Job created
+
+Status shown
+
+Download link when complete
+
+This prevents crashes and scaling issues.
+
+8. SERVICE WORKER & PWA SAFETY
+Known Issue
+
+Partial responses (206) cannot be cached.
+
+Requirement
+
+Only cache responses with status === 200
+
+Exclude fonts, media, streaming assets
+
+This ensures:
+
+No infinite loading
+
+App Store compatibility
+
+Clean installs
+
+9. ROLLBACK + KILL-SWITCH STRATEGY (EXPLAINED)
+What this means
+
+A kill-switch allows us to instantly disable a new system without redeploying.
+
+Why it matters
+
+If:
+
+Monetization breaks
+
+Gating misfires
+
+Admin settings cause lockouts
+
+AppSumo codes malfunction
+
+We must be able to revert instantly.
+
+How it works (required)
+
+Feature flags stored in DB or config
+
+Middleware checks flags
+
+Admin can toggle:
+
+Early adopter gate ON/OFF
+
+Payments ON/OFF
+
+Export restrictions ON/OFF
+
+Invite system ON/OFF
+
+Rollback rule
+
+Default state = existing app behavior
+
+New systems fail open, not closed
+
+If a flag breaks → turn it off → app behaves exactly as before.
+
+10. GITHUB ISSUES / MILESTONES BREAKDOWN
+MILESTONE 1 — SAFETY & FOUNDATION
+
+Audit existing app
+
+Add service worker fix
+
+Add feature flag framework
+
+Add admin role
+
+MILESTONE 2 — EARLY ADOPTER SYSTEM
+
+Waitlist table
+
+Invite codes
+
+Approval flow
+
+Middleware gate
+
+Admin UI
+
+MILESTONE 3 — PRICING & ENTITLEMENTS
+
+Tier definitions
+
+Feature checks
+
+Upgrade modals
+
+Desktop entitlement readiness
+
+MILESTONE 4 — JOB QUEUE
+
+Async exports
+
+Status tracking
+
+Download delivery
+
+MILESTONE 5 — APPSUMO
+
+Code redemption
+
+Lifetime tier
+
+Admin visibility
+
+MILESTONE 6 — ADMIN CONTROL ROOM
+
+Dashboards
+
+Caps
+
+Toggles
+
+CSV export
+
+MILESTONE 7 — QA & ROLLBACK TESTING
+
+Existing user regression test
+
+Kill-switch test
+
+Load simulation
+
+Mobile PWA test
+
+11. FORMAL SOW / DEV CONTRACT LANGUAGE
+Scope
+
+This project covers additive platform expansion only.
+
+Out of Scope
+
+UI redesign
+
+Feature removal
+
+App rewrite
+
+Data migration that alters existing behavior
+
+Acceptance Criteria
+
+Existing users experience zero regressions
+
+New users are gated correctly
+
+Admin can control rollout
+
+Rollback switches function
+
+App remains stable under load
+
+Ownership
+
+PRESS START / MADMIXEDMEDIA retains 100% IP
+
+No proprietary lock-in
+
+Code must be portable
+
+Termination Clause
+
+If new systems cause instability and rollback fails, work must halt until resolved.
+
+12. FINAL SUMMARY (FOR DEV TEAMS)
+
+“Treat the existing PRESS START – COMIXX app as sacred.
+Add systems around it, not inside it.
+Every new feature must be optional, gated, reversible, and safe.”
