@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { 
-  ArrowLeft, Play, Pause, SkipBack, SkipForward, 
+  ArrowLeft, Play, Pause, SkipBack, SkipForward, Repeat,
   Plus, Trash2, Copy, Save, Download, Upload,
   Wand2, ChevronLeft, ChevronRight,
   ZoomIn, ZoomOut, Maximize2,
@@ -191,6 +191,7 @@ export default function MotionStudio() {
   const [title, setTitle] = useState("Untitled Project");
   const [isSaving, setIsSaving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loopEnabled, setLoopEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration] = useState(10000);
   const [zoom, setZoom] = useState(100);
@@ -958,8 +959,12 @@ export default function MotionStudio() {
         setCurrentFrameIndex(prev => {
           const next = prev + 1;
           if (next >= frames.length) {
-            setIsPlaying(false);
-            return 0;
+            if (loopEnabled) {
+              return 0; // Loop back to start
+            } else {
+              setIsPlaying(false);
+              return prev; // Stay on last frame
+            }
           }
           return next;
         });
@@ -967,7 +972,7 @@ export default function MotionStudio() {
       
       return () => clearTimeout(timeout);
     }
-  }, [isPlaying, showComicPreview, currentFrameIndex, frames.length]);
+  }, [isPlaying, showComicPreview, currentFrameIndex, frames.length, loopEnabled]);
 
   // Apply drawing to comic panel
   const applyToPanel = async () => {
@@ -1165,6 +1170,13 @@ export default function MotionStudio() {
           <button onClick={() => setCurrentFrameIndex(Math.min(frames.length - 1, currentFrameIndex + 1))}
             className="p-2 hover:bg-[#252525] rounded-lg transition-colors">
             <SkipForward className="w-4 h-4 text-zinc-400" />
+          </button>
+          <button 
+            onClick={() => setLoopEnabled(!loopEnabled)}
+            className={`p-2 rounded-lg transition-colors ${loopEnabled ? 'bg-white text-black' : 'hover:bg-[#252525]'}`}
+            title={loopEnabled ? "Loop enabled" : "Loop disabled"}
+            data-testid="button-loop">
+            <Repeat className={`w-4 h-4 ${loopEnabled ? '' : 'text-zinc-400'}`} />
           </button>
           <div className="ml-2 px-3 py-1 bg-[#1a1a1a] rounded text-xs font-mono text-zinc-400">
             {formatTime(currentTime)} / {formatTime(duration)}
@@ -1736,6 +1748,12 @@ export default function MotionStudio() {
               <button onClick={() => setPreviewFrameIndex(Math.min(frames.length - 1, previewFrameIndex + 1))}
                 className="p-2 hover:bg-[#252525] rounded-lg">
                 <SkipForward className="w-4 h-4 text-zinc-400" />
+              </button>
+              <button 
+                onClick={() => setLoopEnabled(!loopEnabled)}
+                className={`p-2 rounded-lg transition-colors ${loopEnabled ? 'bg-white text-black' : 'hover:bg-[#252525]'}`}
+                title={loopEnabled ? "Loop enabled" : "Loop disabled"}>
+                <Repeat className={`w-4 h-4 ${loopEnabled ? '' : 'text-zinc-400'}`} />
               </button>
               <span className="text-xs text-zinc-400 ml-2">
                 Frame {previewFrameIndex + 1} of {frames.length}
