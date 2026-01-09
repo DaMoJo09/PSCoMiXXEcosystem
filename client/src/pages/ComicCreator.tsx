@@ -710,7 +710,7 @@ export default function ComicCreator() {
 
   const addPanel = (page: "left" | "right", panelData: { x: number; y: number; width: number; height: number; type: "rectangle" | "circle" }) => {
     const newPanel: Panel = {
-      id: `panel_${Date.now()}`,
+      id: `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...panelData,
       rotation: 0,
       contents: [],

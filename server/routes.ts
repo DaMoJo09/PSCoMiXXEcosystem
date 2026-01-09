@@ -3292,7 +3292,41 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/stripe/subscription", isAuthenticated, async (req, res) => {
     try {
-      const subscription = await storage.getUserSubscription(req.user!.id);
+      let subscription = await storage.getUserSubscription(req.user!.id);
+      
+      // If user has a Stripe customer, check for active subscription and sync tier
+      if (subscription?.stripeCustomerId) {
+        try {
+          const stripeSubscription = await stripeService.getCustomerActiveSubscription(
+            subscription.stripeCustomerId
+          );
+          
+          if (stripeSubscription) {
+            // Sync tier from Stripe if different
+            if (subscription.tier !== stripeSubscription.tier || 
+                subscription.stripeSubscriptionId !== stripeSubscription.subscriptionId) {
+              subscription = await storage.updateSubscription(req.user!.id, {
+                tier: stripeSubscription.tier as any,
+                status: stripeSubscription.status,
+                stripeSubscriptionId: stripeSubscription.subscriptionId,
+                currentPeriodEnd: stripeSubscription.currentPeriodEnd,
+                cancelAtPeriodEnd: stripeSubscription.cancelAtPeriodEnd,
+              }) || subscription;
+            }
+          } else if (subscription.tier !== 'free' && subscription.tier !== 'lifetime' && !subscription.appSumoCodeId) {
+            // No active Stripe subscription and not lifetime/appsumo - downgrade to free
+            subscription = await storage.updateSubscription(req.user!.id, {
+              tier: 'free',
+              status: 'canceled',
+              stripeSubscriptionId: null,
+            }) || subscription;
+          }
+        } catch (syncError) {
+          // If Stripe sync fails, just return current subscription
+          console.error('Stripe sync error:', syncError);
+        }
+      }
+      
       res.json(subscription || { tier: "free", status: "active" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

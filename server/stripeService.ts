@@ -103,6 +103,80 @@ export class StripeService {
     );
     return result.rows[0] || null;
   }
+
+  async getCustomerActiveSubscription(customerId: string): Promise<{
+    subscriptionId: string;
+    status: string;
+    tier: string;
+    currentPeriodEnd: Date | null;
+    cancelAtPeriodEnd: boolean;
+  } | null> {
+    const result = await db.execute(
+      sql`
+        SELECT 
+          s.id as subscription_id,
+          s.status,
+          s.current_period_end,
+          s.cancel_at_period_end,
+          s.items as subscription_items
+        FROM stripe.subscriptions s
+        WHERE s.customer = ${customerId}
+        AND s.status IN ('active', 'trialing', 'past_due')
+        ORDER BY s.created DESC
+        LIMIT 1
+      `
+    );
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0] as any;
+    const items = row.subscription_items || [];
+    
+    let tier = 'free';
+    let priceId: string | null = null;
+    
+    if (Array.isArray(items) && items.length > 0) {
+      const firstItem = items[0];
+      priceId = firstItem?.price?.id || firstItem?.price;
+      
+      if (priceId) {
+        const priceResult = await db.execute(
+          sql`
+            SELECT p.metadata, p.name 
+            FROM stripe.prices pr
+            JOIN stripe.products p ON pr.product = p.id
+            WHERE pr.id = ${priceId}
+          `
+        );
+        
+        if (priceResult.rows.length > 0) {
+          const priceRow = priceResult.rows[0] as any;
+          const metadata = priceRow.metadata || {};
+          const productName = (priceRow.name || '').toLowerCase();
+          
+          if (metadata.tier) {
+            tier = metadata.tier;
+          } else if (productName.includes('lifetime')) {
+            tier = 'lifetime';
+          } else if (productName.includes('studio')) {
+            tier = 'studio';
+          } else if (productName.includes('creator')) {
+            tier = 'creator';
+          } else if (productName.includes('pro')) {
+            tier = 'pro';
+          }
+        }
+      }
+    }
+
+    return {
+      subscriptionId: row.subscription_id,
+      status: row.status,
+      tier,
+      currentPeriodEnd: row.current_period_end ? new Date(row.current_period_end * 1000) : null,
+      cancelAtPeriodEnd: row.cancel_at_period_end || false,
+    };
+  }
 }
 
 export const stripeService = new StripeService();
