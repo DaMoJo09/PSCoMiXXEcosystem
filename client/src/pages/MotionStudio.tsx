@@ -935,7 +935,12 @@ export default function MotionStudio() {
         setPreviewFrameIndex(prev => {
           const next = prev + 1;
           if (next >= frames.length) {
-            return 0; // Loop back to start
+            if (loopEnabled) {
+              return 0; // Loop back to start
+            } else {
+              setIsPlaying(false);
+              return prev; // Stay on last frame
+            }
           }
           return next;
         });
@@ -947,7 +952,7 @@ export default function MotionStudio() {
         }
       };
     }
-  }, [showComicPreview, isPlaying, frames.length, previewFrameIndex]);
+  }, [showComicPreview, isPlaying, frames.length, previewFrameIndex, loopEnabled]);
   
   // Also handle main timeline playback
   useEffect(() => {
