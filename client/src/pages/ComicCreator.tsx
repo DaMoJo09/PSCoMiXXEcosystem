@@ -1865,7 +1865,7 @@ export default function ComicCreator() {
                     onMouseUp={() => handlePageMouseUp("left")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
                     onDoubleClick={(e) => handlePageDoubleClick(e, "left")}
-                    onClick={() => setShowBubbleSidebar(false)}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowBubbleSidebar(false); }}
                   >
                     {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                     {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
@@ -2160,7 +2160,7 @@ export default function ComicCreator() {
                     onMouseUp={() => handlePageMouseUp("right")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
                     onDoubleClick={(e) => handlePageDoubleClick(e, "right")}
-                    onClick={() => setShowBubbleSidebar(false)}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowBubbleSidebar(false); }}
                   >
                     {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                     {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
