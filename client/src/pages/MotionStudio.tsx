@@ -293,6 +293,32 @@ export default function MotionStudio() {
   // Keyframes (per-frame animation properties)
   const [keyframes, setKeyframes] = useState<Record<string, { x: number; y: number; scale: number; rotation: number; opacity: number }>>({});
 
+  // Global mouse/keyboard handlers for drag operations
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDraggingScrubber(false);
+      setIsDraggingLayer(false);
+      setDragStart(null);
+    };
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDraggingScrubber(false);
+        setIsDraggingLayer(false);
+        setIsResizingLayer(null);
+        setDragStart(null);
+      }
+    };
+    
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Initialize project
   useEffect(() => {
     if (!projectId && !createProject.isPending) {
@@ -1759,12 +1785,98 @@ export default function MotionStudio() {
                           />
                           <div 
                             className="absolute -left-1 -top-1 w-3 h-3 bg-white border border-black cursor-nw-resize"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setIsResizingLayer('nw');
+                              const origX = layer.x;
+                              const origY = layer.y;
+                              const origWidth = layer.width;
+                              const origHeight = layer.height;
+                              const handleMove = (moveE: MouseEvent) => {
+                                const container = document.querySelector('[data-layer-container]') as HTMLElement;
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                const scaleX = 1920 / rect.width;
+                                const scaleY = 1080 / rect.height;
+                                const currentX = (moveE.clientX - rect.left) * scaleX;
+                                const currentY = (moveE.clientY - rect.top) * scaleY;
+                                const dx = currentX - origX;
+                                const dy = currentY - origY;
+                                const newWidth = Math.max(50, origWidth - dx);
+                                const newHeight = Math.max(50, origHeight - dy);
+                                const newX = origX + (origWidth - newWidth);
+                                const newY = origY + (origHeight - newHeight);
+                                updateImageLayer(layer.id, { x: newX, y: newY, width: newWidth, height: newHeight });
+                              };
+                              const handleUp = () => {
+                                setIsResizingLayer(null);
+                                document.removeEventListener('mousemove', handleMove);
+                                document.removeEventListener('mouseup', handleUp);
+                              };
+                              document.addEventListener('mousemove', handleMove);
+                              document.addEventListener('mouseup', handleUp);
+                            }}
                           />
                           <div 
                             className="absolute -right-1 -top-1 w-3 h-3 bg-white border border-black cursor-ne-resize"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setIsResizingLayer('ne');
+                              const origY = layer.y;
+                              const origWidth = layer.width;
+                              const origHeight = layer.height;
+                              const handleMove = (moveE: MouseEvent) => {
+                                const container = document.querySelector('[data-layer-container]') as HTMLElement;
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                const scaleX = 1920 / rect.width;
+                                const scaleY = 1080 / rect.height;
+                                const currentX = (moveE.clientX - rect.left) * scaleX;
+                                const currentY = (moveE.clientY - rect.top) * scaleY;
+                                const newWidth = Math.max(50, currentX - layer.x);
+                                const dy = currentY - origY;
+                                const newHeight = Math.max(50, origHeight - dy);
+                                const newY = origY + (origHeight - newHeight);
+                                updateImageLayer(layer.id, { y: newY, width: newWidth, height: newHeight });
+                              };
+                              const handleUp = () => {
+                                setIsResizingLayer(null);
+                                document.removeEventListener('mousemove', handleMove);
+                                document.removeEventListener('mouseup', handleUp);
+                              };
+                              document.addEventListener('mousemove', handleMove);
+                              document.addEventListener('mouseup', handleUp);
+                            }}
                           />
                           <div 
                             className="absolute -left-1 -bottom-1 w-3 h-3 bg-white border border-black cursor-sw-resize"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setIsResizingLayer('sw');
+                              const origX = layer.x;
+                              const origWidth = layer.width;
+                              const handleMove = (moveE: MouseEvent) => {
+                                const container = document.querySelector('[data-layer-container]') as HTMLElement;
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                const scaleX = 1920 / rect.width;
+                                const scaleY = 1080 / rect.height;
+                                const currentX = (moveE.clientX - rect.left) * scaleX;
+                                const currentY = (moveE.clientY - rect.top) * scaleY;
+                                const dx = currentX - origX;
+                                const newWidth = Math.max(50, origWidth - dx);
+                                const newX = origX + (origWidth - newWidth);
+                                const newHeight = Math.max(50, currentY - layer.y);
+                                updateImageLayer(layer.id, { x: newX, width: newWidth, height: newHeight });
+                              };
+                              const handleUp = () => {
+                                setIsResizingLayer(null);
+                                document.removeEventListener('mousemove', handleMove);
+                                document.removeEventListener('mouseup', handleUp);
+                              };
+                              document.addEventListener('mousemove', handleMove);
+                              document.addEventListener('mouseup', handleUp);
+                            }}
                           />
                         </>
                       )}
