@@ -64,10 +64,25 @@ interface VectorPath {
   closed: boolean;
 }
 
+interface ImageLayer {
+  id: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  locked: boolean;
+  visible: boolean;
+  name: string;
+}
+
 interface Frame {
   id: string;
   imageData: string;
   vectorPaths: VectorPath[];
+  imageLayers: ImageLayer[];
   duration: number;
   effects?: string[];
   opacity?: number;
@@ -130,8 +145,8 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
       return;
     }
     
-    // Fill with black background
-    ctx.fillStyle = '#0a0a0a';
+    // Fill with white background
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
     
     // Load the frame image
@@ -198,8 +213,15 @@ export default function MotionStudio() {
   
   // Frame state
   const [frames, setFrames] = useState<Frame[]>([
-    { id: "frame_1", imageData: "", vectorPaths: [], duration: 1000 }
+    { id: "frame_1", imageData: "", vectorPaths: [], imageLayers: [], duration: 1000 }
   ]);
+  
+  // Image Layer state
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [isDraggingLayer, setIsDraggingLayer] = useState(false);
+  const [isResizingLayer, setIsResizingLayer] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number; layerX: number; layerY: number } | null>(null);
+  const imageLayerInputRef = useRef<HTMLInputElement>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   
   // Track state
@@ -217,7 +239,7 @@ export default function MotionStudio() {
   const [drawingMode, setDrawingMode] = useState<DrawingMode>("raster");
   const [rasterTool, setRasterTool] = useState<RasterTool>("pen");
   const [vectorTool, setVectorTool] = useState<VectorTool>("pencil");
-  const [brushColor, setBrushColor] = useState("#ffffff");
+  const [brushColor, setBrushColor] = useState("#000000");
   const [fillColor, setFillColor] = useState("transparent");
   const [brushSize, setBrushSize] = useState(4);
   
@@ -311,7 +333,7 @@ export default function MotionStudio() {
     
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    context.fillStyle = '#0a0a0a';
+    context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     ctxRef.current = context;
     
@@ -333,7 +355,7 @@ export default function MotionStudio() {
       };
       img.src = currentFrame.imageData;
     } else {
-      context.fillStyle = '#0a0a0a';
+      context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
     }
     
@@ -433,7 +455,7 @@ export default function MotionStudio() {
     const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
     
-    ctx.fillStyle = "#0a0a0a";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setVectorPaths([]);
     saveToHistory();
@@ -505,6 +527,7 @@ export default function MotionStudio() {
       id: `frame_${Date.now()}`,
       imageData: "",
       vectorPaths: [],
+      imageLayers: [],
       duration: 1000
     };
     setFrames(prev => [...prev, newFrame]);
@@ -525,10 +548,12 @@ export default function MotionStudio() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
+    const currentFrame = frames[currentFrameIndex];
     const newFrame: Frame = {
       id: `frame_${Date.now()}`,
       imageData: canvas.toDataURL('image/png'),
       vectorPaths: [...vectorPaths],
+      imageLayers: currentFrame?.imageLayers?.map(l => ({ ...l, id: `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })) || [],
       duration: 1000
     };
     const newFrames = [...frames];
@@ -537,6 +562,90 @@ export default function MotionStudio() {
     setCurrentFrameIndex(currentFrameIndex + 1);
     toast.success("Frame duplicated");
   };
+  
+  // Image Layer Functions
+  const addImageLayer = (imageSrc: string, name: string = "Image Layer") => {
+    const img = new Image();
+    img.onload = () => {
+      const aspectRatio = img.width / img.height;
+      const maxWidth = 400;
+      const width = Math.min(img.width, maxWidth);
+      const height = width / aspectRatio;
+      
+      const newLayer: ImageLayer = {
+        id: `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        src: imageSrc,
+        x: (1920 - width) / 2,
+        y: (1080 - height) / 2,
+        width,
+        height,
+        rotation: 0,
+        opacity: 100,
+        locked: false,
+        visible: true,
+        name
+      };
+      
+      setFrames(prev => prev.map((f, i) => 
+        i === currentFrameIndex 
+          ? { ...f, imageLayers: [...(f.imageLayers || []), newLayer] }
+          : f
+      ));
+      setSelectedLayerId(newLayer.id);
+      toast.success("Image layer added");
+    };
+    img.src = imageSrc;
+  };
+  
+  const handleImageLayerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be under 10MB");
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      addImageLayer(result, file.name.replace(/\.[^/.]+$/, ""));
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  const updateImageLayer = (layerId: string, updates: Partial<ImageLayer>) => {
+    setFrames(prev => prev.map((f, i) => 
+      i === currentFrameIndex 
+        ? { 
+            ...f, 
+            imageLayers: (f.imageLayers || []).map(l => 
+              l.id === layerId ? { ...l, ...updates } : l
+            )
+          }
+        : f
+    ));
+  };
+  
+  const deleteImageLayer = (layerId: string) => {
+    setFrames(prev => prev.map((f, i) => 
+      i === currentFrameIndex 
+        ? { ...f, imageLayers: (f.imageLayers || []).filter(l => l.id !== layerId) }
+        : f
+    ));
+    if (selectedLayerId === layerId) {
+      setSelectedLayerId(null);
+    }
+    toast.success("Layer deleted");
+  };
+  
+  const currentImageLayers = frames[currentFrameIndex]?.imageLayers || [];
+  const selectedLayer = currentImageLayers.find(l => l.id === selectedLayerId);
 
   const handleExport = async () => {
     toast.info("Compositing frames with effects...");
@@ -1532,6 +1641,137 @@ export default function MotionStudio() {
                 {vectorPaths.map(path => renderVectorPath(path))}
                 {currentPath && renderVectorPath(currentPath, true)}
               </svg>
+              
+              {/* Image Layers Overlay */}
+              <div 
+                className="absolute inset-0 z-5"
+                data-layer-container="true"
+                style={{ pointerEvents: rasterTool === 'select' || vectorTool === 'select' ? 'auto' : 'none' }}
+                onMouseMove={(e) => {
+                  if (!isDraggingLayer || !dragStart || !selectedLayerId) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const scaleX = 1920 / rect.width;
+                  const scaleY = 1080 / rect.height;
+                  const x = (e.clientX - rect.left) * scaleX;
+                  const y = (e.clientY - rect.top) * scaleY;
+                  const dx = x - dragStart.x;
+                  const dy = y - dragStart.y;
+                  updateImageLayer(selectedLayerId, {
+                    x: dragStart.layerX + dx,
+                    y: dragStart.layerY + dy
+                  });
+                }}
+                onMouseUp={() => {
+                  setIsDraggingLayer(false);
+                  setIsResizingLayer(null);
+                  setDragStart(null);
+                }}
+                onMouseLeave={() => {
+                  setIsDraggingLayer(false);
+                  setIsResizingLayer(null);
+                  setDragStart(null);
+                }}
+              >
+                {currentImageLayers.filter(l => l.visible).map(layer => {
+                  const isSelected = selectedLayerId === layer.id;
+                  const scaleX = 100 / zoom;
+                  return (
+                    <div
+                      key={layer.id}
+                      className={`absolute cursor-move ${isSelected ? 'ring-2 ring-white' : ''}`}
+                      style={{
+                        left: `${(layer.x / 1920) * 100}%`,
+                        top: `${(layer.y / 1080) * 100}%`,
+                        width: `${(layer.width / 1920) * 100}%`,
+                        height: `${(layer.height / 1080) * 100}%`,
+                        opacity: layer.opacity / 100,
+                        transform: `rotate(${layer.rotation}deg)`,
+                        transformOrigin: 'center center'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedLayerId(layer.id);
+                      }}
+                      onMouseDown={(e) => {
+                        if (layer.locked) return;
+                        e.stopPropagation();
+                        setSelectedLayerId(layer.id);
+                        setIsDraggingLayer(true);
+                        const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                        if (rect) {
+                          const scaleX = 1920 / rect.width;
+                          const scaleY = 1080 / rect.height;
+                          setDragStart({
+                            x: (e.clientX - rect.left) * scaleX,
+                            y: (e.clientY - rect.top) * scaleY,
+                            layerX: layer.x,
+                            layerY: layer.y
+                          });
+                        }
+                      }}
+                    >
+                      <img 
+                        src={layer.src} 
+                        alt={layer.name}
+                        className="w-full h-full object-contain pointer-events-none"
+                        draggable={false}
+                      />
+                      {/* Resize Handles (when selected) */}
+                      {isSelected && !layer.locked && (
+                        <>
+                          {/* Corner handles */}
+                          <div 
+                            className="absolute -right-1 -bottom-1 w-3 h-3 bg-white border border-black cursor-se-resize"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setIsResizingLayer('se');
+                              const rect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+                              if (rect) {
+                                const scaleX = 1920 / rect.width;
+                                const scaleY = 1080 / rect.height;
+                                setDragStart({
+                                  x: (e.clientX - rect.left) * scaleX,
+                                  y: (e.clientY - rect.top) * scaleY,
+                                  layerX: layer.width,
+                                  layerY: layer.height
+                                });
+                              }
+                              const handleMove = (moveE: MouseEvent) => {
+                                const container = document.querySelector('[data-layer-container]') as HTMLElement;
+                                if (!container) return;
+                                const rect = container.getBoundingClientRect();
+                                const scaleX = 1920 / rect.width;
+                                const scaleY = 1080 / rect.height;
+                                const currentX = (moveE.clientX - rect.left) * scaleX;
+                                const currentY = (moveE.clientY - rect.top) * scaleY;
+                                const newWidth = Math.max(50, currentX - layer.x);
+                                const newHeight = Math.max(50, currentY - layer.y);
+                                updateImageLayer(layer.id, { width: newWidth, height: newHeight });
+                              };
+                              const handleUp = () => {
+                                setIsResizingLayer(null);
+                                document.removeEventListener('mousemove', handleMove);
+                                document.removeEventListener('mouseup', handleUp);
+                              };
+                              document.addEventListener('mousemove', handleMove);
+                              document.addEventListener('mouseup', handleUp);
+                            }}
+                          />
+                          <div 
+                            className="absolute -left-1 -top-1 w-3 h-3 bg-white border border-black cursor-nw-resize"
+                          />
+                          <div 
+                            className="absolute -right-1 -top-1 w-3 h-3 bg-white border border-black cursor-ne-resize"
+                          />
+                          <div 
+                            className="absolute -left-1 -bottom-1 w-3 h-3 bg-white border border-black cursor-sw-resize"
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             
             {!showInspector && (
@@ -1601,7 +1841,33 @@ export default function MotionStudio() {
                     {track.type === "effects" && <Sparkles className="w-3.5 h-3.5 text-white" />}
                     {track.type === "audio" && <Music className="w-3.5 h-3.5 text-white" />}
                   </div>
-                  <div className="flex-1 bg-[#0d0d0d] relative" ref={timelineRef}>
+                  <div 
+                    className="flex-1 bg-[#0d0d0d] relative cursor-pointer" 
+                    ref={timelineRef}
+                    onMouseDown={(e) => {
+                      if (track.type !== "video") return;
+                      setIsDraggingScrubber(true);
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = x / rect.width;
+                      const newIndex = Math.min(Math.max(0, Math.floor(percentage * frames.length)), frames.length - 1);
+                      saveCurrentFrame();
+                      setCurrentFrameIndex(newIndex);
+                    }}
+                    onMouseMove={(e) => {
+                      if (!isDraggingScrubber || track.type !== "video") return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = x / rect.width;
+                      const newIndex = Math.min(Math.max(0, Math.floor(percentage * frames.length)), frames.length - 1);
+                      if (newIndex !== currentFrameIndex) {
+                        saveCurrentFrame();
+                        setCurrentFrameIndex(newIndex);
+                      }
+                    }}
+                    onMouseUp={() => setIsDraggingScrubber(false)}
+                    onMouseLeave={() => setIsDraggingScrubber(false)}
+                  >
                     {track.type === "video" && frames.map((frame, idx) => (
                       <div key={frame.id}
                         className={`absolute top-1 bottom-1 rounded-lg cursor-pointer transition-all group ${
@@ -1610,7 +1876,7 @@ export default function MotionStudio() {
                             : 'bg-zinc-800 hover:bg-zinc-700'
                         }`}
                         style={{ left: `${(idx * 10)}%`, width: `${Math.max(8, 100 / Math.max(frames.length, 1) - 1)}%` }}
-                        onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(idx); }}>
+                        onClick={(e) => { e.stopPropagation(); saveCurrentFrame(); setCurrentFrameIndex(idx); }}>
                         <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/80 font-medium truncate px-1">
                           {idx + 1}
                         </span>
@@ -1624,8 +1890,9 @@ export default function MotionStudio() {
                         </div>
                       </div>
                     ))}
-                    {/* Enhanced Playhead */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-white z-10"
+                    {/* Enhanced Playhead - draggable */}
+                    <div 
+                      className="absolute top-0 bottom-0 w-0.5 bg-white z-10 cursor-ew-resize"
                       style={{ left: `${(currentFrameIndex / Math.max(frames.length, 1)) * 100}%` }}>
                       <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
                       <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
@@ -1653,11 +1920,16 @@ export default function MotionStudio() {
                 <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-3">Frame {currentFrameIndex + 1}</div>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">Duration (ms)</label>
-                    <input type="number" value={frames[currentFrameIndex]?.duration || 1000}
+                    <label className="text-xs text-zinc-400 block mb-1">Duration (seconds)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      min="0.1"
+                      value={((frames[currentFrameIndex]?.duration || 1000) / 1000).toFixed(1)}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value) || 1000;
-                        setFrames(prev => prev.map((f, i) => i === currentFrameIndex ? { ...f, duration: val } : f));
+                        const seconds = parseFloat(e.target.value) || 1;
+                        const ms = Math.max(100, Math.round(seconds * 1000));
+                        setFrames(prev => prev.map((f, i) => i === currentFrameIndex ? { ...f, duration: ms } : f));
                       }}
                       className="w-full bg-zinc-900 border border-white/20 rounded-lg px-3 py-2 text-xs outline-none focus:border-white" />
                   </div>
@@ -1696,28 +1968,129 @@ export default function MotionStudio() {
                 </div>
               )}
               
-              {/* Transform */}
+              {/* Image Layers */}
               <div>
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-3">Transform</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-zinc-500 block mb-1">X</label>
-                    <input type="number" defaultValue={0} className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 block mb-1">Y</label>
-                    <input type="number" defaultValue={0} className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 block mb-1">Scale</label>
-                    <input type="number" defaultValue={100} className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 block mb-1">Rotation</label>
-                    <input type="number" defaultValue={0} className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" />
-                  </div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Layers ({currentImageLayers.length})</span>
+                  <button 
+                    onClick={() => imageLayerInputRef.current?.click()}
+                    className="p-1 hover:bg-[#252525] rounded" 
+                    title="Add Image Layer"
+                    data-testid="btn-add-image-layer">
+                    <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+                </div>
+                <input 
+                  ref={imageLayerInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageLayerUpload}
+                  className="hidden" 
+                />
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {currentImageLayers.map((layer, idx) => (
+                    <div 
+                      key={layer.id}
+                      onClick={() => setSelectedLayerId(layer.id)}
+                      className={`p-2 rounded text-xs cursor-pointer flex items-center gap-2 ${
+                        selectedLayerId === layer.id ? 'bg-white/20 border border-white/50' : 'bg-zinc-900 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <img src={layer.src} alt="" className="w-8 h-6 object-cover rounded" />
+                      <span className="text-zinc-300 flex-1 truncate">{layer.name}</span>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); updateImageLayer(layer.id, { visible: !layer.visible }); }}
+                        className="p-1 hover:bg-zinc-700 rounded">
+                        {layer.visible ? <Eye className="w-3 h-3 text-zinc-400" /> : <EyeOff className="w-3 h-3 text-zinc-600" />}
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteImageLayer(layer.id); }}
+                        className="p-1 hover:bg-red-900/50 rounded">
+                        <Trash2 className="w-3 h-3 text-zinc-500" />
+                      </button>
+                    </div>
+                  ))}
+                  {currentImageLayers.length === 0 && (
+                    <div className="text-xs text-zinc-600 text-center py-2">
+                      Click + to add image layers
+                    </div>
+                  )}
                 </div>
               </div>
+              
+              {/* Transform - for selected image layer */}
+              {selectedLayer && (
+                <div>
+                  <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-3">Transform: {selectedLayer.name}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">X</label>
+                      <input 
+                        type="number" 
+                        value={Math.round(selectedLayer.x)}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { x: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Y</label>
+                      <input 
+                        type="number" 
+                        value={Math.round(selectedLayer.y)}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { y: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Width</label>
+                      <input 
+                        type="number" 
+                        value={Math.round(selectedLayer.width)}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { width: parseInt(e.target.value) || 50 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Height</label>
+                      <input 
+                        type="number" 
+                        value={Math.round(selectedLayer.height)}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { height: parseInt(e.target.value) || 50 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Rotation</label>
+                      <input 
+                        type="number" 
+                        value={selectedLayer.rotation}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { rotation: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Opacity</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        max="100"
+                        value={selectedLayer.opacity}
+                        onChange={(e) => updateImageLayer(selectedLayer.id, { opacity: parseInt(e.target.value) || 100 })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1.5 text-xs outline-none focus:border-white" 
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 mt-2 text-xs text-zinc-400 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedLayer.locked}
+                      onChange={(e) => updateImageLayer(selectedLayer.id, { locked: e.target.checked })}
+                      className="w-3 h-3"
+                    />
+                    Lock Layer
+                  </label>
+                </div>
+              )}
               
               {/* AI Generate */}
               <div>

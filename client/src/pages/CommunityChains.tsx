@@ -395,12 +395,6 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
               >
                 <Image className="w-3 h-3 inline mr-1" /> Upload
               </button>
-              <button
-                onClick={() => setInputMode("url")}
-                className={`flex-1 py-2 text-xs font-bold border-2 ${inputMode === "url" ? "bg-white text-black border-white" : "bg-transparent text-white border-zinc-600"}`}
-              >
-                <Link2 className="w-3 h-3 inline mr-1" /> URL
-              </button>
             </div>
 
             {inputMode === "ai" && (
@@ -441,26 +435,9 @@ function ChainViewer({ chainId, onClose }: { chainId: string; onClose: () => voi
               </div>
             )}
 
-            {inputMode === "url" && (
-              <div className="space-y-2">
-                <Input
-                  value={contributionUrl}
-                  onChange={(e) => setContributionUrl(e.target.value)}
-                  placeholder="Paste image URL"
-                  className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
-                />
-                <Input
-                  value={contributionCaption}
-                  onChange={(e) => setContributionCaption(e.target.value)}
-                  placeholder="Caption (optional)"
-                  className="bg-white/10 border-2 border-black text-white placeholder:text-white/50"
-                />
-              </div>
-            )}
-
             <Button
               onClick={() => contributeMutation.mutate()}
-              disabled={contributeMutation.isPending || (inputMode === "ai" && !contributionCaption) || (inputMode === "url" && !contributionUrl) || (inputMode === "upload" && !uploadedImage)}
+              disabled={contributeMutation.isPending || (inputMode === "ai" && !contributionCaption) || (inputMode === "upload" && !uploadedImage)}
               className="w-full bg-white text-black font-bold"
               data-testid="submit-contribution"
             >

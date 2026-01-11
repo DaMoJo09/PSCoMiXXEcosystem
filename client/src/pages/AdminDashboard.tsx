@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImageUpload } from "@/components/ImageUpload";
 import {
   Dialog,
   DialogContent,
@@ -96,10 +97,10 @@ export default function AdminDashboard() {
       };
 
       if (editingEvent) {
-        await updateAnnouncement.mutateAsync({ id: editingEvent.id, data });
+        await updateAnnouncement.mutateAsync({ id: editingEvent.id, data: data as any });
         toast.success("Event updated");
       } else {
-        await createAnnouncement.mutateAsync(data);
+        await createAnnouncement.mutateAsync(data as any);
         toast.success("Event created");
       }
       setEventDialogOpen(false);
@@ -369,13 +370,10 @@ export default function AdminDashboard() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white">Image URL</Label>
-                      <Input
+                      <ImageUpload
+                        label="Event Image"
                         value={eventForm.imageUrl}
-                        onChange={(e) => setEventForm({ ...eventForm, imageUrl: e.target.value })}
-                        placeholder="https://..."
-                        className="bg-zinc-900 border-white/20 text-white"
-                        data-testid="input-event-image"
+                        onChange={(value) => setEventForm({ ...eventForm, imageUrl: value })}
                       />
                     </div>
                   </div>

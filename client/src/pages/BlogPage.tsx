@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImageUpload } from "@/components/ImageUpload";
 
 interface BlogPost {
   id: string;
@@ -283,15 +284,11 @@ export default function BlogPage() {
                         data-testid="input-blog-content"
                       />
                     </div>
-                    <div>
-                      <Label className="text-white">Featured Image URL</Label>
-                      <Input
-                        value={formData.featuredImage}
-                        onChange={(e) => setFormData({ ...formData, featuredImage: e.target.value })}
-                        className="bg-zinc-900 border-white text-white"
-                        placeholder="https://..."
-                      />
-                    </div>
+                    <ImageUpload
+                      label="Featured Image"
+                      value={formData.featuredImage}
+                      onChange={(value) => setFormData({ ...formData, featuredImage: value })}
+                    />
                     <div>
                       <Label className="text-white">Tags (comma-separated)</Label>
                       <Input

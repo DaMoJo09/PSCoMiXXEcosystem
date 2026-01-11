@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImageUpload } from "@/components/ImageUpload";
 
 interface Exhibition {
   id: string;
@@ -58,7 +59,21 @@ export default function ExhibitionsPage() {
   const [showRsvpModal, setShowRsvpModal] = useState(false);
   const [rsvpName, setRsvpName] = useState("");
   const [rsvpEmail, setRsvpEmail] = useState("");
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    venue: string;
+    address: string;
+    city: string;
+    country: string;
+    startDate: string;
+    endDate: string;
+    eventType: "exhibition" | "workshop" | "talk" | "opening";
+    status: "upcoming" | "ongoing" | "past";
+    images: string[];
+    externalLink: string;
+    rsvpEnabled: boolean;
+  }>({
     title: "",
     description: "",
     venue: "",
@@ -67,8 +82,8 @@ export default function ExhibitionsPage() {
     country: "",
     startDate: "",
     endDate: "",
-    eventType: "exhibition" as const,
-    status: "upcoming" as const,
+    eventType: "exhibition",
+    status: "upcoming",
     images: [""],
     externalLink: "",
     rsvpEnabled: true
@@ -358,15 +373,11 @@ export default function ExhibitionsPage() {
                         </Select>
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-white">Image URL</Label>
-                      <Input
-                        value={formData.images[0]}
-                        onChange={(e) => setFormData({ ...formData, images: [e.target.value] })}
-                        className="bg-zinc-900 border-white text-white"
-                        placeholder="https://..."
-                      />
-                    </div>
+                    <ImageUpload
+                      label="Event Image"
+                      value={formData.images[0]}
+                      onChange={(value) => setFormData({ ...formData, images: [value] })}
+                    />
                     <div>
                       <Label className="text-white">External Link</Label>
                       <Input
