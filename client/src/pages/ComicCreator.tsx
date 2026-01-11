@@ -1355,14 +1355,14 @@ export default function ComicCreator() {
                 <img 
                   src={content.data.url} 
                   alt="Panel content" 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   draggable={false}
                 />
               )}
               {content.type === "video" && content.data.videoUrl && (
                 <video
                   src={content.data.videoUrl}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   autoPlay={content.data.autoplay ?? true}
                   loop={content.data.loop ?? true}
                   muted={content.data.muted ?? true}
