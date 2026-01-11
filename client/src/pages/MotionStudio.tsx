@@ -1598,7 +1598,7 @@ export default function MotionStudio() {
               </button>
             )}
             
-            <div className="relative bg-black rounded-lg overflow-hidden shadow-2xl"
+            <div className="relative bg-white rounded-lg overflow-hidden shadow-2xl border-2 border-black"
               style={{ 
                 width: `${(960 * zoom) / 100}px`, 
                 height: `${(540 * zoom) / 100}px`,
