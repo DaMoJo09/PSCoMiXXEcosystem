@@ -1,5 +1,5 @@
 import { 
-  users, projects, assets,
+  users, projects, assets, apiKeys, assetPacks,
   creatorXp, xpTransactions, badges, userBadges,
   learningPathways, lessons, lessonProgress,
   schools, schoolMemberships, schoolChallenges,
@@ -79,6 +79,8 @@ import {
   type PlatformSetting, type InsertPlatformSetting,
   type AdminLog, type InsertAdminLog,
   type ContentReport, type InsertContentReport,
+  type ApiKey, type InsertApiKey,
+  type AssetPack, type InsertAssetPack,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -321,6 +323,24 @@ export interface IStorage {
   getContentReports(status?: string): Promise<ContentReport[]>;
   getContentReport(id: string): Promise<ContentReport | undefined>;
   resolveContentReport(id: string, resolvedBy: string, resolution: string, status?: string): Promise<ContentReport | undefined>;
+  
+  // API Key operations
+  createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+  getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined>;
+  getApiKeysByPrefix(prefix: string): Promise<ApiKey[]>;
+  getUserApiKeys(userId: string): Promise<ApiKey[]>;
+  updateApiKeyLastUsed(id: string): Promise<void>;
+  deactivateApiKey(id: string): Promise<boolean>;
+  deleteApiKey(id: string): Promise<boolean>;
+  
+  // Asset Pack operations
+  createAssetPack(pack: InsertAssetPack): Promise<AssetPack>;
+  getAssetPack(id: string): Promise<AssetPack | undefined>;
+  getUserAssetPacks(userId: string): Promise<AssetPack[]>;
+  getPublicAssetPacks(category?: string, limit?: number, offset?: number): Promise<AssetPack[]>;
+  updateAssetPack(id: string, updates: Partial<InsertAssetPack>): Promise<AssetPack | undefined>;
+  deleteAssetPack(id: string): Promise<boolean>;
+  incrementPackDownloads(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2142,6 +2162,99 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contentReports.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // API Key operations
+  async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
+    const [created] = await db.insert(apiKeys).values(apiKey).returning();
+    return created;
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined> {
+    const [key] = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.keyHash, keyHash), eq(apiKeys.isActive, true)));
+    return key || undefined;
+  }
+
+  async getApiKeysByPrefix(prefix: string): Promise<ApiKey[]> {
+    return db.select().from(apiKeys)
+      .where(and(eq(apiKeys.keyPrefix, prefix), eq(apiKeys.isActive, true)));
+  }
+
+  async getUserApiKeys(userId: string): Promise<ApiKey[]> {
+    return db.select().from(apiKeys)
+      .where(eq(apiKeys.userId, userId))
+      .orderBy(desc(apiKeys.createdAt));
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {
+    await db.update(apiKeys)
+      .set({ lastUsed: new Date() })
+      .where(eq(apiKeys.id, id));
+  }
+
+  async deactivateApiKey(id: string): Promise<boolean> {
+    const [updated] = await db.update(apiKeys)
+      .set({ isActive: false })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return !!updated;
+  }
+
+  async deleteApiKey(id: string): Promise<boolean> {
+    const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
+    return true;
+  }
+
+  // Asset Pack operations
+  async createAssetPack(pack: InsertAssetPack): Promise<AssetPack> {
+    const [created] = await db.insert(assetPacks).values(pack).returning();
+    return created;
+  }
+
+  async getAssetPack(id: string): Promise<AssetPack | undefined> {
+    const [pack] = await db.select().from(assetPacks).where(eq(assetPacks.id, id));
+    return pack || undefined;
+  }
+
+  async getUserAssetPacks(userId: string): Promise<AssetPack[]> {
+    return db.select().from(assetPacks)
+      .where(eq(assetPacks.userId, userId))
+      .orderBy(desc(assetPacks.createdAt));
+  }
+
+  async getPublicAssetPacks(category?: string, limit: number = 50, offset: number = 0): Promise<AssetPack[]> {
+    if (category) {
+      return db.select().from(assetPacks)
+        .where(and(eq(assetPacks.isPublic, true), eq(assetPacks.category, category)))
+        .orderBy(desc(assetPacks.downloadCount))
+        .limit(limit)
+        .offset(offset);
+    }
+    return db.select().from(assetPacks)
+      .where(eq(assetPacks.isPublic, true))
+      .orderBy(desc(assetPacks.downloadCount))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async updateAssetPack(id: string, updates: Partial<InsertAssetPack>): Promise<AssetPack | undefined> {
+    const [updated] = await db.update(assetPacks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(assetPacks.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteAssetPack(id: string): Promise<boolean> {
+    await db.delete(assetPacks).where(eq(assetPacks.id, id));
+    return true;
+  }
+
+  async incrementPackDownloads(id: string): Promise<void> {
+    await db.update(assetPacks)
+      .set({ downloadCount: sql`${assetPacks.downloadCount} + 1` })
+      .where(eq(assetPacks.id, id));
   }
 }
 
