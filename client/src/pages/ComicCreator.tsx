@@ -333,7 +333,7 @@ export default function ComicCreator() {
 
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
-  const [showBubbleSidebar, setShowBubbleSidebar] = useState(true);
+  const [showBubbleSidebar, setShowBubbleSidebar] = useState(false);
   const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -879,25 +879,31 @@ export default function ComicCreator() {
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
-      setDrawingInPanel(panelId);
-      setTimeout(() => {
-        const canvas = panelCanvasRef.current;
-        if (canvas) {
-          canvas.width = 800;
-          canvas.height = 800;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            panelCtxRef.current = ctx;
-          }
-        }
-      }, 50);
+      // Navigate to Motion Studio for drawing
+      const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+      const panel = panels.find(p => p.id === panelId);
+      if (panel) {
+        sessionStorage.setItem('panel_edit_data', JSON.stringify({
+          panelId: panel.id,
+          contents: panel.contents,
+          page,
+          spreadIndex: currentSpreadIndex,
+          projectId: projectId
+        }));
+        navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
+      }
     } else {
       fileInputRef.current?.click();
     }
+  };
+  
+  const handlePageDoubleClick = (e: React.MouseEvent, page: "left" | "right") => {
+    // Only trigger if not clicking on a panel (clicking on empty page area)
+    if ((e.target as HTMLElement).closest('[data-testid^="panel-"]')) return;
+    // Switch to panel tool on double-click on empty page
+    setActiveTool("panel");
+    setSelectedPage(page);
+    toast.success("Panel tool selected - draw to create panels");
   };
   
   const handlePanelCanvasPointerDown = (e: React.PointerEvent) => {
@@ -1259,11 +1265,27 @@ export default function ComicCreator() {
   };
 
   const applyTemplate = (template: typeof panelTemplates[0], page: "left" | "right") => {
-    template.panels.forEach(p => {
-      addPanel(page, { x: p.x, y: p.y, width: p.width, height: p.height, type: "rectangle" });
-    });
+    // Clear existing panels on the page first, then apply template
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      const newPanels = template.panels.map((p, idx) => ({
+        id: `panel_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+        x: p.x,
+        y: p.y,
+        width: p.width,
+        height: p.height,
+        type: "rectangle" as const,
+        rotation: 0,
+        contents: [],
+        zIndex: idx,
+        locked: false,
+      }));
+      return { ...spread, [key]: newPanels };
+    }));
+    setSelectedPanelId(null);
     setShowTemplates(false);
-    toast.success(`Template "${template.name}" applied`);
+    toast.success(`Template "${template.name}" applied (replaced existing panels)`);
   };
 
   const renderPanel = (panel: Panel, page: "left" | "right") => {
@@ -1842,6 +1864,8 @@ export default function ComicCreator() {
                     onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
                     onMouseUp={() => handlePageMouseUp("left")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
+                    onDoubleClick={(e) => handlePageDoubleClick(e, "left")}
+                    onClick={() => setShowBubbleSidebar(false)}
                   >
                     {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                     {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
@@ -2046,12 +2070,6 @@ export default function ComicCreator() {
                       >
                         <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
                       </ContextMenuItem>
-                      <ContextMenuItem 
-                        onClick={() => setActiveTool("draw")} 
-                        className="hover:bg-zinc-800 cursor-pointer"
-                      >
-                        <Pen className="w-4 h-4 mr-2" /> Draw on Panel
-                      </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>
                         <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -2141,6 +2159,8 @@ export default function ComicCreator() {
                     onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
                     onMouseUp={() => handlePageMouseUp("right")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
+                    onDoubleClick={(e) => handlePageDoubleClick(e, "right")}
+                    onClick={() => setShowBubbleSidebar(false)}
                   >
                     {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                     {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
@@ -2344,12 +2364,6 @@ export default function ComicCreator() {
                         className="hover:bg-zinc-800 cursor-pointer"
                       >
                         <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
-                      </ContextMenuItem>
-                      <ContextMenuItem 
-                        onClick={() => setActiveTool("draw")} 
-                        className="hover:bg-zinc-800 cursor-pointer"
-                      >
-                        <Pen className="w-4 h-4 mr-2" /> Draw on Panel
                       </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>

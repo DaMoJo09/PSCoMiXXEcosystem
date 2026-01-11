@@ -50,10 +50,10 @@ const BUILTIN_BUBBLES: AssetItem[] = [
   { id: "bubble_14", name: "Speech Bubble 14", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_14_1765504897123.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
   { id: "bubble_15", name: "Speech Bubble 15", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_15_1765504897123.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
   { id: "bubble_16", name: "Speech Bubble 16", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_16_1765504897123.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
-  { id: "bubble_17", name: "Speech Bubble 17", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_17_1765505335119.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
-  { id: "bubble_18", name: "Speech Bubble 18", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_18_1765505335119.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
-  { id: "bubble_19", name: "Speech Bubble 19", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_19_1765505335120.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
-  { id: "bubble_20", name: "Speech Bubble 20", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_20_1765505335120.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
+  { id: "bubble_17", name: "Speech Bubble 17", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_17_1765505314052.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
+  { id: "bubble_18", name: "Speech Bubble 18", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_18_1765505314052.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
+  { id: "bubble_19", name: "Speech Bubble 19", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_19_1765505314053.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
+  { id: "bubble_20", name: "Speech Bubble 20", url: "/assets/bubbles/Comic_Speech_Bubbles_No_Middle_20_1765505314053.png", category: "bubble", tags: ["speech", "dialogue", "talk"] },
 ];
 
 const SVG_DIALOG_BUBBLES: AssetItem[] = Array.from({ length: 20 }, (_, i) => {
