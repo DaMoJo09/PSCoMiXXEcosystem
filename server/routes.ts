@@ -1,14 +1,27 @@
 import type { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes, createHash } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema } from "@shared/schema";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
+
+// API Key utilities
+function generateApiKey(): string {
+  return `psc_${randomBytes(32).toString('hex')}`;
+}
+
+function hashApiKey(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
+}
+
+function getKeyPrefix(key: string): string {
+  return key.substring(0, 12);
+}
 
 interface CollabClient {
   ws: WebSocket;
@@ -48,6 +61,56 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       return next();
     }
     res.status(403).json({ message: "Forbidden" });
+  }
+
+  // API Key authentication middleware for external apps
+  async function isApiAuthenticated(req: Request, res: Response, next: Function) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header', code: 'UNAUTHORIZED' });
+    }
+
+    const apiKey = authHeader.substring(7);
+    if (!apiKey.startsWith('psc_')) {
+      return res.status(401).json({ error: 'Invalid API key format', code: 'INVALID_KEY' });
+    }
+
+    const keyHash = hashApiKey(apiKey);
+    const storedKey = await storage.getApiKeyByHash(keyHash);
+
+    if (!storedKey) {
+      return res.status(401).json({ error: 'Invalid API key', code: 'INVALID_KEY' });
+    }
+
+    if (!storedKey.isActive) {
+      return res.status(401).json({ error: 'API key is deactivated', code: 'KEY_DEACTIVATED' });
+    }
+
+    if (storedKey.expiresAt && new Date(storedKey.expiresAt) < new Date()) {
+      return res.status(401).json({ error: 'API key has expired', code: 'KEY_EXPIRED' });
+    }
+
+    // Update last used timestamp
+    await storage.updateApiKeyLastUsed(storedKey.id);
+
+    // Get the user associated with this key
+    const user = await storage.getUser(storedKey.userId);
+    if (!user) {
+      return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+    }
+
+    // Attach user and permissions to request
+    (req as any).apiUser = user;
+    (req as any).apiKey = storedKey;
+    (req as any).apiPermissions = storedKey.permissions || ['read'];
+
+    next();
+  }
+
+  // Check permission helper
+  function hasPermission(req: Request, permission: string): boolean {
+    const permissions = (req as any).apiPermissions || [];
+    return permissions.includes(permission) || permissions.includes('*');
   }
 
   // Auth routes
@@ -1688,6 +1751,337 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // ============================================
+  // EXTERNAL API ROUTES (for third-party integrations)
+  // ============================================
+
+  // API Key Management (requires session auth)
+  app.get("/api/v1/keys", isAuthenticated, async (req, res) => {
+    try {
+      const keys = await storage.getUserApiKeys(req.user!.id);
+      res.json(keys.map(k => ({
+        id: k.id,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        permissions: k.permissions,
+        lastUsed: k.lastUsed,
+        expiresAt: k.expiresAt,
+        isActive: k.isActive,
+        createdAt: k.createdAt,
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/v1/keys", isAuthenticated, async (req, res) => {
+    try {
+      const { name, permissions, expiresIn } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Key name is required" });
+      }
+
+      // Generate secure key
+      const rawKey = generateApiKey();
+      const keyHash = hashApiKey(rawKey);
+      const keyPrefix = getKeyPrefix(rawKey);
+
+      // Calculate expiration
+      let expiresAt = null;
+      if (expiresIn) {
+        expiresAt = new Date(Date.now() + expiresIn * 1000);
+      }
+
+      const apiKey = await storage.createApiKey({
+        userId: req.user!.id,
+        name,
+        keyHash,
+        keyPrefix,
+        permissions: permissions || ['upload', 'read'],
+        expiresAt,
+        isActive: true,
+      });
+
+      // Return the raw key ONLY ONCE - it cannot be retrieved again
+      res.status(201).json({
+        id: apiKey.id,
+        name: apiKey.name,
+        key: rawKey, // Only returned on creation!
+        keyPrefix: apiKey.keyPrefix,
+        permissions: apiKey.permissions,
+        expiresAt: apiKey.expiresAt,
+        createdAt: apiKey.createdAt,
+        warning: "Save this key now. It cannot be retrieved again.",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/v1/keys/:id", isAuthenticated, async (req, res) => {
+    try {
+      const keys = await storage.getUserApiKeys(req.user!.id);
+      const key = keys.find(k => k.id === req.params.id);
+      
+      if (!key) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+
+      await storage.deleteApiKey(req.params.id);
+      res.json({ message: "API key deleted" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/v1/keys/:id/deactivate", isAuthenticated, async (req, res) => {
+    try {
+      const keys = await storage.getUserApiKeys(req.user!.id);
+      const key = keys.find(k => k.id === req.params.id);
+      
+      if (!key) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+
+      await storage.deactivateApiKey(req.params.id);
+      res.json({ message: "API key deactivated" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ASSET PACK API ROUTES (external API auth)
+  // ============================================
+
+  // Create asset pack (external API)
+  app.post("/api/v1/asset-packs", isApiAuthenticated, async (req, res) => {
+    try {
+      if (!hasPermission(req, 'upload')) {
+        return res.status(403).json({ error: "Permission denied: upload required", code: "FORBIDDEN" });
+      }
+
+      const user = (req as any).apiUser;
+      const { name, description, category, tags, thumbnail, assets, isPublic, version, metadata } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: "Pack name is required", code: "INVALID_INPUT" });
+      }
+
+      const pack = await storage.createAssetPack({
+        userId: user.id,
+        name,
+        description,
+        category: category || 'general',
+        tags: tags || [],
+        thumbnail,
+        assets: assets || [],
+        isPublic: isPublic || false,
+        version: version || '1.0.0',
+        metadata,
+      });
+
+      res.status(201).json({
+        success: true,
+        pack: {
+          id: pack.id,
+          name: pack.name,
+          category: pack.category,
+          version: pack.version,
+          createdAt: pack.createdAt,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // List user's asset packs (external API)
+  app.get("/api/v1/asset-packs", isApiAuthenticated, async (req, res) => {
+    try {
+      if (!hasPermission(req, 'read')) {
+        return res.status(403).json({ error: "Permission denied: read required", code: "FORBIDDEN" });
+      }
+
+      const user = (req as any).apiUser;
+      const packs = await storage.getUserAssetPacks(user.id);
+      
+      res.json({
+        success: true,
+        packs: packs.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          tags: p.tags,
+          thumbnail: p.thumbnail,
+          assetCount: Array.isArray(p.assets) ? p.assets.length : 0,
+          isPublic: p.isPublic,
+          downloadCount: p.downloadCount,
+          version: p.version,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // Get specific asset pack (external API)
+  app.get("/api/v1/asset-packs/:id", isApiAuthenticated, async (req, res) => {
+    try {
+      if (!hasPermission(req, 'read')) {
+        return res.status(403).json({ error: "Permission denied: read required", code: "FORBIDDEN" });
+      }
+
+      const user = (req as any).apiUser;
+      const pack = await storage.getAssetPack(req.params.id);
+
+      if (!pack) {
+        return res.status(404).json({ error: "Asset pack not found", code: "NOT_FOUND" });
+      }
+
+      // Only allow access to own packs or public packs
+      if (pack.userId !== user.id && !pack.isPublic) {
+        return res.status(403).json({ error: "Access denied", code: "FORBIDDEN" });
+      }
+
+      res.json({
+        success: true,
+        pack,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // Update asset pack (external API)
+  app.patch("/api/v1/asset-packs/:id", isApiAuthenticated, async (req, res) => {
+    try {
+      if (!hasPermission(req, 'upload')) {
+        return res.status(403).json({ error: "Permission denied: upload required", code: "FORBIDDEN" });
+      }
+
+      const user = (req as any).apiUser;
+      const pack = await storage.getAssetPack(req.params.id);
+
+      if (!pack) {
+        return res.status(404).json({ error: "Asset pack not found", code: "NOT_FOUND" });
+      }
+
+      if (pack.userId !== user.id) {
+        return res.status(403).json({ error: "Access denied", code: "FORBIDDEN" });
+      }
+
+      const { name, description, category, tags, thumbnail, assets, isPublic, version, metadata } = req.body;
+      
+      const updated = await storage.updateAssetPack(req.params.id, {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+        ...(category && { category }),
+        ...(tags && { tags }),
+        ...(thumbnail !== undefined && { thumbnail }),
+        ...(assets && { assets }),
+        ...(isPublic !== undefined && { isPublic }),
+        ...(version && { version }),
+        ...(metadata !== undefined && { metadata }),
+      });
+
+      res.json({
+        success: true,
+        pack: updated,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // Delete asset pack (external API)
+  app.delete("/api/v1/asset-packs/:id", isApiAuthenticated, async (req, res) => {
+    try {
+      if (!hasPermission(req, 'upload')) {
+        return res.status(403).json({ error: "Permission denied: upload required", code: "FORBIDDEN" });
+      }
+
+      const user = (req as any).apiUser;
+      const pack = await storage.getAssetPack(req.params.id);
+
+      if (!pack) {
+        return res.status(404).json({ error: "Asset pack not found", code: "NOT_FOUND" });
+      }
+
+      if (pack.userId !== user.id) {
+        return res.status(403).json({ error: "Access denied", code: "FORBIDDEN" });
+      }
+
+      await storage.deleteAssetPack(req.params.id);
+      res.json({ success: true, message: "Asset pack deleted" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // Public asset packs discovery (no auth required)
+  app.get("/api/v1/public/asset-packs", async (req, res) => {
+    try {
+      const { category, limit, offset } = req.query;
+      const packs = await storage.getPublicAssetPacks(
+        category as string | undefined,
+        parseInt(limit as string) || 50,
+        parseInt(offset as string) || 0
+      );
+
+      res.json({
+        success: true,
+        packs: packs.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          category: p.category,
+          tags: p.tags,
+          thumbnail: p.thumbnail,
+          assetCount: Array.isArray(p.assets) ? p.assets.length : 0,
+          downloadCount: p.downloadCount,
+          version: p.version,
+          createdAt: p.createdAt,
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // Download asset pack (increment counter)
+  app.post("/api/v1/asset-packs/:id/download", async (req, res) => {
+    try {
+      const pack = await storage.getAssetPack(req.params.id);
+
+      if (!pack || !pack.isPublic) {
+        return res.status(404).json({ error: "Asset pack not found", code: "NOT_FOUND" });
+      }
+
+      await storage.incrementPackDownloads(req.params.id);
+
+      res.json({
+        success: true,
+        pack,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message, code: "SERVER_ERROR" });
+    }
+  });
+
+  // API Health check
+  app.get("/api/v1/health", (req, res) => {
+    res.json({
+      status: "ok",
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // WebSocket server for real-time collaboration
