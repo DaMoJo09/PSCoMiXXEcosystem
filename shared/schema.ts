@@ -98,6 +98,55 @@ export const insertAssetSchema = createInsertSchema(assets).omit({
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
 export type Asset = typeof assets.$inferSelect;
 
+// API Keys table - for external app integrations
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // Friendly name for the key
+  keyHash: text("key_hash").notNull(), // Hashed API key (never store raw)
+  keyPrefix: text("key_prefix").notNull(), // First 8 chars for identification
+  permissions: jsonb("permissions").default(['upload', 'read']), // Array of permissions
+  lastUsed: timestamp("last_used"),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+
+// Asset Packs table - bundles of assets uploaded together
+export const assetPacks = pgTable("asset_packs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("general"), // characters, backgrounds, effects, ui, audio
+  tags: text("tags").array(),
+  thumbnail: text("thumbnail"),
+  assets: jsonb("assets").notNull().default([]), // Array of asset references
+  isPublic: boolean("is_public").default(false),
+  downloadCount: integer("download_count").default(0),
+  version: text("version").default("1.0.0"),
+  metadata: jsonb("metadata"), // Additional pack info
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAssetPackSchema = createInsertSchema(assetPacks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAssetPack = z.infer<typeof insertAssetPackSchema>;
+export type AssetPack = typeof assetPacks.$inferSelect;
+
 // Project type-specific data schemas
 export const comicDataSchema = z.object({
   pages: z.array(z.object({
