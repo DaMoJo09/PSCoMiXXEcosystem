@@ -872,14 +872,33 @@ export default function ComicCreator() {
     setSelectedPage(page);
     setSelectedPanelId(panelId);
     
+    // Check if user double-clicked directly on an image element
+    const target = e.target as HTMLElement;
+    const clickedOnImage = target.tagName === 'IMG';
+    
+    if (clickedOnImage && activeTool !== "text" && activeTool !== "bubble" && activeTool !== "draw" && activeTool !== "erase") {
+      // Find the content ID from the parent transformable element (data-testid="transformable-{id}")
+      const transformableWrapper = target.closest('[data-testid^="transformable-"]');
+      if (transformableWrapper) {
+        const testId = transformableWrapper.getAttribute('data-testid');
+        const contentId = testId?.replace('transformable-', '');
+        if (contentId) {
+          setSelectedContentId(contentId);
+          setActiveTool("select");
+          return;
+        }
+      }
+    }
+    
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    
     if (activeTool === "text") {
       addTextToPanel(page, panelId);
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
       // Navigate to Motion Studio for drawing
-      const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-      const panel = panels.find(p => p.id === panelId);
       if (panel) {
         sessionStorage.setItem('panel_edit_data', JSON.stringify({
           panelId: panel.id,
@@ -1305,7 +1324,7 @@ export default function ComicCreator() {
     return (
       <div
         key={panel.id}
-        className={`absolute transition-all cursor-pointer overflow-visible ${
+        className={`absolute cursor-pointer overflow-visible ${
           isSelected ? 'ring-2 ring-white/50 z-20' : 'hover:border-gray-600'
         } ${panel.type === "circle" ? "rounded-full" : ""}`}
         style={{
