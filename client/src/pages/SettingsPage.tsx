@@ -10,11 +10,27 @@ import {
   Check,
   ExternalLink,
   ArrowLeft,
-  Trash2
+  Trash2,
+  Code,
+  Plus,
+  Copy,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  permissions: string[];
+  expiresAt: string | null;
+  createdAt: string;
+  lastUsed: string | null;
+  isActive: boolean;
+}
 
 interface AppSettings {
   textProvider: "gemini" | "claude";
@@ -39,6 +55,14 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  
+  // Developer API Key state
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [isLoadingKeys, setIsLoadingKeys] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [showNewKey, setShowNewKey] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("pressstart_settings");
@@ -46,6 +70,81 @@ export default function SettingsPage() {
       setSettings({ ...defaultSettings, ...JSON.parse(saved) });
     }
   }, []);
+
+  // Load API keys on mount
+  useEffect(() => {
+    if (user) {
+      loadApiKeys();
+    }
+  }, [user]);
+
+  const loadApiKeys = async () => {
+    setIsLoadingKeys(true);
+    try {
+      const res = await fetch("/api/v1/keys", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        // API returns array directly
+        setApiKeys(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Failed to load API keys:", error);
+    } finally {
+      setIsLoadingKeys(false);
+    }
+  };
+
+  const createApiKey = async () => {
+    if (!newKeyName.trim()) {
+      toast.error("Please enter a name for the API key");
+      return;
+    }
+    setIsCreatingKey(true);
+    try {
+      const res = await fetch("/api/v1/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewlyCreatedKey(data.key);
+        setNewKeyName("");
+        await loadApiKeys();
+        toast.success("API key created! Copy it now - it won't be shown again.");
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to create API key");
+      }
+    } catch (error) {
+      toast.error("Failed to create API key");
+    } finally {
+      setIsCreatingKey(false);
+    }
+  };
+
+  const deleteApiKey = async (keyId: string) => {
+    try {
+      const res = await fetch(`/api/v1/keys/${keyId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        await loadApiKeys();
+        toast.success("API key deleted");
+      } else {
+        toast.error("Failed to delete API key");
+      }
+    } catch (error) {
+      toast.error("Failed to delete API key");
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -340,6 +439,125 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+
+          {/* Developer Settings - API Keys */}
+          {user && (
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 border-b-2 border-white pb-2">
+                <Code className="w-5 h-5" />
+                <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Developer Settings</h2>
+              </div>
+
+              <div className="p-6 border-4 border-white bg-zinc-900 space-y-4">
+                <div>
+                  <h3 className="font-bold mb-2">External API Keys</h3>
+                  <p className="text-sm text-zinc-400 mb-4">
+                    Create API keys to integrate external applications with Press Start CoMixx. 
+                    Use these keys to publish asset packs from third-party tools.
+                  </p>
+                </div>
+
+                {/* Create new key */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    placeholder="Key name (e.g., My App)"
+                    className="flex-1 p-3 border-2 border-white bg-black text-sm font-mono focus:outline-none"
+                    data-testid="input-new-key-name"
+                  />
+                  <button
+                    onClick={createApiKey}
+                    disabled={isCreatingKey}
+                    className="px-4 py-2 bg-white text-black font-black text-sm border-2 border-white hover:bg-zinc-200 disabled:opacity-50 flex items-center gap-2"
+                    data-testid="button-create-api-key"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Key
+                  </button>
+                </div>
+
+                {/* Newly created key display */}
+                {newlyCreatedKey && (
+                  <div className="p-4 bg-white/10 border-2 border-white space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-bold">
+                      <Key className="w-4 h-4" />
+                      New API Key Created
+                    </div>
+                    <p className="text-xs text-zinc-400">Copy this key now. It won't be shown again!</p>
+                    <div className="flex gap-2">
+                      <input
+                        type={showNewKey ? "text" : "password"}
+                        value={newlyCreatedKey}
+                        readOnly
+                        className="flex-1 p-2 border-2 border-white bg-black text-sm font-mono"
+                      />
+                      <button
+                        onClick={() => setShowNewKey(!showNewKey)}
+                        className="px-3 py-2 bg-zinc-800 border-2 border-zinc-600 hover:border-white"
+                      >
+                        {showNewKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(newlyCreatedKey)}
+                        className="px-3 py-2 bg-zinc-800 border-2 border-zinc-600 hover:border-white"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setNewlyCreatedKey(null)}
+                      className="text-xs text-zinc-400 hover:text-white"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {/* Existing keys list */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold uppercase">Your API Keys</h4>
+                  {isLoadingKeys ? (
+                    <div className="text-sm text-zinc-400">Loading...</div>
+                  ) : apiKeys.length === 0 ? (
+                    <div className="text-sm text-zinc-400">No API keys yet. Create one above.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {apiKeys.map((key) => (
+                        <div key={key.id} className="flex items-center justify-between p-3 bg-black border-2 border-zinc-600">
+                          <div className="flex-1">
+                            <div className="font-bold text-sm">{key.name}</div>
+                            <div className="text-xs text-zinc-400 font-mono">{key.keyPrefix}...</div>
+                            <div className="text-xs text-zinc-500">
+                              Created: {new Date(key.createdAt).toLocaleDateString()}
+                              {key.lastUsed && ` • Last used: ${new Date(key.lastUsed).toLocaleDateString()}`}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 text-xs font-bold ${key.isActive ? 'bg-white text-black' : 'bg-zinc-700 text-zinc-400'}`}>
+                              {key.isActive ? 'ACTIVE' : 'INACTIVE'}
+                            </span>
+                            <button
+                              onClick={() => deleteApiKey(key.id)}
+                              className="p-2 bg-zinc-800 border-2 border-zinc-600 hover:border-white"
+                              data-testid={`delete-key-${key.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-white/10 border-2 border-white/30 text-sm">
+                  <strong>API Base URL:</strong> <code className="font-mono text-xs bg-black px-2 py-1">{window.location.origin}/api/v1</code>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="p-4 bg-zinc-900 border-4 border-zinc-700 text-sm text-zinc-400">
             <p><strong className="text-white">Note:</strong> Settings are stored locally in your browser. To sync settings across devices, sign in with your Press Start CoMixx account.</p>
