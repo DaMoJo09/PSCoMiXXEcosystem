@@ -315,7 +315,6 @@ const tools = [
   { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
   { id: "text", icon: Type, label: "Text", shortcut: "T" },
   { id: "bubble", icon: MessageSquare, label: "Bubble", shortcut: "U" },
-  { id: "image", icon: ImageIcon, label: "Image", shortcut: "I" },
   { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
 
@@ -426,9 +425,8 @@ export default function ComicCreator() {
         case 'e': setActiveTool('erase'); break;
         case 't': setActiveTool('text'); break;
         case 'u': setShowBubbleSidebar(prev => !prev); break;
-        case 'i': setActiveTool('image'); break;
         case 'g': setShowAIGen(true); break;
-        case 'delete': case 'backspace': handleDeleteSelected(); e.preventDefault(); break;
+        case 'delete': case 'backspace': if (!editingTextId) { handleDeleteSelected(); e.preventDefault(); } break;
         case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
         case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
         case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
@@ -441,7 +439,7 @@ export default function ComicCreator() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPanelId, selectedContentId]);
+  }, [selectedPanelId, selectedContentId, editingTextId]);
 
   const handleDeleteSelected = () => {
     if (selectedContentId && selectedPanelId) {
@@ -1821,7 +1819,7 @@ export default function ComicCreator() {
             <div className="absolute inset-0 pointer-events-none opacity-5"
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
-            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4">
+            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-50">
               <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
               <button 
                 onClick={() => currentSpreadIndex > 0 && setCurrentSpreadIndex(currentSpreadIndex - 1)}
@@ -1850,7 +1848,7 @@ export default function ComicCreator() {
 
             <div 
               className={`flex ${isFullscreen ? "gap-1" : "gap-6"}`}
-              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
             >
               <ContextMenu>
                 <ContextMenuTrigger asChild>
