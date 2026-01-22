@@ -45,11 +45,10 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true,
-      sameSite: "lax" as const,
+      secure: isProduction,
+      sameSite: isProduction ? "none" as const : "lax" as const,
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: isProduction && process.env.CUSTOM_DOMAIN ? `.${process.env.CUSTOM_DOMAIN}` : undefined,
     },
     store: new PgStore({
       pool: pool,
