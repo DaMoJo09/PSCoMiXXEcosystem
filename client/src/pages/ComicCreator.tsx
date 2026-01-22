@@ -309,11 +309,10 @@ const effectPresets = [
 ];
 
 const tools = [
-  { id: "select", icon: MousePointer, label: "Select", shortcut: "V" },
-  { id: "move", icon: Move, label: "Move", shortcut: "M" },
+  { id: "select", icon: MousePointer, label: "Select/Move", shortcut: "V" },
   { id: "panel", icon: Square, label: "Panel", shortcut: "P" },
   { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
-  { id: "text", icon: Type, label: "Text", shortcut: "T" },
+  { id: "text", icon: Type, label: "Caption", shortcut: "T" },
   { id: "bubble", icon: MessageSquare, label: "Bubble", shortcut: "U" },
   { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
@@ -359,6 +358,7 @@ export default function ComicCreator() {
   
   const [showPreview, setShowPreview] = useState(false);
   const [previewPage, setPreviewPage] = useState(0);
+  const [autoLockPanels, setAutoLockPanels] = useState(true);
   const [comicMeta, setComicMeta] = useState({
     frontCover: "",
     backCover: "",
@@ -419,7 +419,6 @@ export default function ComicCreator() {
       
       switch(e.key.toLowerCase()) {
         case 'v': setActiveTool('select'); break;
-        case 'm': setActiveTool('move'); break;
         case 'p': setActiveTool('panel'); break;
         case 'b': setActiveTool('draw'); break;
         case 'e': setActiveTool('erase'); break;
@@ -713,7 +712,7 @@ export default function ComicCreator() {
       rotation: 0,
       contents: [],
       zIndex: page === "left" ? currentSpread.leftPage.length : currentSpread.rightPage.length,
-      locked: false,
+      locked: autoLockPanels,
     };
 
     setSpreads(prev => prev.map((spread, i) => {
@@ -725,7 +724,8 @@ export default function ComicCreator() {
     }));
 
     setSelectedPanelId(newPanel.id);
-    toast.success("Panel created");
+    toast.success(autoLockPanels ? "Panel created (locked)" : "Panel created");
+    setActiveTool("select");
   };
 
   const deletePanel = (page: "left" | "right", panelId: string) => {
@@ -1223,10 +1223,33 @@ export default function ComicCreator() {
     if (!file || !selectedPanelId) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const url = event.target?.result as string;
       const fileType = file.type.toLowerCase();
       const fileName = file.name.toLowerCase();
+      
+      // Determine the appropriate folder for the asset
+      let folderId = "sprites"; // default folder
+      if (fileType.startsWith('audio/') || fileName.match(/\.(mp3|wav|ogg|m4a)$/)) {
+        folderId = "effects"; // audio goes to effects
+      } else if (fileType.startsWith('video/') || fileName.match(/\.(mp4|webm|mov)$/)) {
+        folderId = "effects"; // video goes to effects
+      } else if (fileName.includes('background') || fileName.includes('bg')) {
+        folderId = "backgrounds";
+      } else if (fileName.includes('character') || fileName.includes('char')) {
+        folderId = "characters";
+      }
+      
+      // Save to asset library with error handling
+      try {
+        const savedAsset = await importFromFile(file, folderId);
+        if (!savedAsset) {
+          console.warn("Asset library save returned null");
+        }
+      } catch (err) {
+        console.warn("Could not save to asset library:", err);
+        toast.info("Asset added to panel (library save skipped)");
+      }
       
       if (fileType.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a')) {
         addContentToPanel(selectedPage, selectedPanelId, {
@@ -1235,7 +1258,7 @@ export default function ComicCreator() {
           data: { audioUrl: url, audioName: file.name, autoplay: false, loop: false },
           locked: false,
         });
-        toast.success("Audio added to panel - drag to position");
+        toast.success("Audio added to panel and saved to library");
       } else if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "video",
@@ -1243,7 +1266,7 @@ export default function ComicCreator() {
           data: { videoUrl: url, autoplay: true, loop: true, muted: true },
           locked: false,
         });
-        toast.success("Video added to panel - drag to position");
+        toast.success("Video added to panel and saved to library");
       } else if (fileType === 'image/gif' || fileName.endsWith('.gif')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "gif",
@@ -1251,7 +1274,7 @@ export default function ComicCreator() {
           data: { url },
           locked: false,
         });
-        toast.success("Animated GIF added - drag to position");
+        toast.success("GIF added to panel and saved to library");
       } else {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "image",
@@ -1259,7 +1282,7 @@ export default function ComicCreator() {
           data: { url },
           locked: false,
         });
-        toast.success("Image added - drag to position");
+        toast.success("Image added to panel and saved to library");
       }
     };
     reader.readAsDataURL(file);
@@ -1820,7 +1843,7 @@ export default function ComicCreator() {
                     <tool.icon className="w-5 h-5" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs">
+                <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs z-[200]">
                   <p>{tool.label} <span className="text-zinc-400 ml-1">({tool.shortcut})</span></p>
                 </TooltipContent>
               </Tooltip>
@@ -1838,17 +1861,27 @@ export default function ComicCreator() {
             <div className="absolute inset-0 pointer-events-none opacity-5"
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
-            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-50">
+            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-[100] bg-zinc-900/80 px-4 py-2 rounded">
               <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
               <button 
-                onClick={() => currentSpreadIndex > 0 && setCurrentSpreadIndex(currentSpreadIndex - 1)}
+                onClick={async () => { 
+                  if (currentSpreadIndex > 0) {
+                    if (projectId) await handleSave();
+                    setCurrentSpreadIndex(currentSpreadIndex - 1);
+                  }
+                }}
                 className="px-2 py-1 hover:bg-white/10"
                 disabled={currentSpreadIndex === 0}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => currentSpreadIndex < spreads.length - 1 && setCurrentSpreadIndex(currentSpreadIndex + 1)}
+                onClick={async () => {
+                  if (currentSpreadIndex < spreads.length - 1) {
+                    if (projectId) await handleSave();
+                    setCurrentSpreadIndex(currentSpreadIndex + 1);
+                  }
+                }}
                 className="px-2 py-1 hover:bg-white/10"
                 disabled={currentSpreadIndex === spreads.length - 1}
               >
@@ -2486,6 +2519,18 @@ export default function ComicCreator() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
+              <div className="p-2 border-b border-zinc-800">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={autoLockPanels} 
+                    onChange={(e) => setAutoLockPanels(e.target.checked)}
+                    className="w-4 h-4 accent-white"
+                  />
+                  <Lock className="w-3 h-3" />
+                  Auto-lock new panels
+                </label>
+              </div>
               <div className="flex-1 overflow-auto p-2 space-y-1">
                 {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx, arr) => (
                   <div
@@ -2553,9 +2598,19 @@ export default function ComicCreator() {
               {selectedContent && (selectedContent.type === 'text' || selectedContent.type === 'bubble') && selectedPanelId && (
                 <div className="border-t border-zinc-800 p-3">
                   <h4 className="font-bold text-xs mb-3 flex items-center gap-2">
-                    <Type className="w-3 h-3" /> Text Properties
+                    <Type className="w-3 h-3" /> Caption Properties
                   </h4>
                   <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Text Content</label>
+                      <textarea
+                        value={selectedContent.data.text || ""}
+                        onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { text: e.target.value })}
+                        className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-2 min-h-[60px] resize-none"
+                        placeholder="Enter your text..."
+                        data-testid="textarea-caption-text"
+                      />
+                    </div>
                     <div>
                       <label className="text-xs text-zinc-400 block mb-1">Font</label>
                       <select
@@ -2652,10 +2707,7 @@ export default function ComicCreator() {
                         </select>
                       </div>
                     )}
-                    <div className="text-xs text-zinc-500 mt-2">
-                      Double-click text to edit content
-                    </div>
-                  </div>
+                                      </div>
                 </div>
               )}
             </aside>

@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import html2canvas from "html2canvas";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
   RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen
@@ -298,6 +299,34 @@ export default function CoverCreator() {
     }
   };
 
+  const handleExport = async () => {
+    if (!canvasRef.current) return;
+    
+    try {
+      toast.info("Exporting cover...");
+      
+      // Use html2canvas for accurate rendering of all layers, filters, and elements
+      const canvas = await html2canvas(canvasRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+      
+      // Download
+      const link = document.createElement("a");
+      link.download = `${coverData.title.replace(/\s+/g, "_")}_cover.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      
+      toast.success("Cover exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export cover");
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: "front" | "back" | "spine") => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -575,7 +604,10 @@ export default function CoverCreator() {
             >
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
+            <button 
+              onClick={handleExport}
+              className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200"
+            >
               <Download className="w-4 h-4" /> Export
             </button>
           </div>
