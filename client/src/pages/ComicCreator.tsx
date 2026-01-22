@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -325,7 +325,7 @@ export default function ComicCreator() {
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
-  const { importFromFile, assets } = useAssetLibrary();
+  const { importFromFile, assets, folders, getAssetsInFolder } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -352,6 +352,8 @@ export default function ComicCreator() {
   
   const [showTemplates, setShowTemplates] = useState(false);
   const [showLayers, setShowLayers] = useState(true);
+  const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+  const [selectedLibraryFolder, setSelectedLibraryFolder] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
@@ -2088,10 +2090,10 @@ export default function ComicCreator() {
                       )}
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem
-                        onClick={() => window.location.href = "/tools/assets"}
+                        onClick={() => setShowAssetLibrary(true)}
                         className="hover:bg-zinc-800 cursor-pointer"
                       >
-                        Open Asset Builder
+                        Browse All Assets...
                       </ContextMenuItem>
                     </ContextMenuSubContent>
                   </ContextMenuSub>
@@ -2383,10 +2385,10 @@ export default function ComicCreator() {
                       )}
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem
-                        onClick={() => window.location.href = "/tools/assets"}
+                        onClick={() => setShowAssetLibrary(true)}
                         className="hover:bg-zinc-800 cursor-pointer"
                       >
-                        Open Asset Builder
+                        Browse All Assets...
                       </ContextMenuItem>
                     </ContextMenuSubContent>
                   </ContextMenuSub>
@@ -3022,6 +3024,113 @@ export default function ComicCreator() {
         )}
       </div>
       
+      {showAssetLibrary && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border-2 border-white w-[700px] h-[500px] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-zinc-700">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Layers className="w-5 h-5" /> Asset Library
+              </h3>
+              <button 
+                onClick={() => setShowAssetLibrary(false)}
+                className="p-1 hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex flex-1 overflow-hidden">
+              <div className="w-48 border-r border-zinc-700 p-2 overflow-y-auto">
+                <button
+                  onClick={() => setSelectedLibraryFolder(null)}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 ${selectedLibraryFolder === null ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
+                >
+                  All Assets
+                </button>
+                {folders.map(folder => (
+                  <button
+                    key={folder.id}
+                    onClick={() => setSelectedLibraryFolder(folder.id)}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2 ${selectedLibraryFolder === folder.id ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
+                  >
+                    <FolderOpen className="w-4 h-4 text-zinc-400" />
+                    {folder.name}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex-1 p-4 overflow-y-auto">
+                <div className="grid grid-cols-4 gap-3">
+                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).map(asset => (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        if (selectedPanelId) {
+                          addContentToPanel(selectedPage, selectedPanelId, {
+                            type: "image",
+                            transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                            data: { url: asset.url },
+                            locked: false,
+                          });
+                          toast.success("Asset added to panel");
+                          setShowAssetLibrary(false);
+                        } else {
+                          toast.error("Select a panel first");
+                        }
+                      }}
+                      className="group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden"
+                    >
+                      {asset.type === "image" || asset.type === "sprite" || asset.type === "background" ? (
+                        <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-8 h-8 text-zinc-600" />
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 bg-black/80 px-2 py-1 text-xs truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        {asset.name}
+                      </div>
+                    </button>
+                  ))}
+                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length === 0 && (
+                    <div className="col-span-4 text-center py-12 text-zinc-500">
+                      <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No assets in this folder</p>
+                      <p className="text-xs mt-1">Import images to add them here</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-3 border-t border-zinc-700 flex justify-between items-center">
+              <span className="text-xs text-zinc-500">
+                {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length} assets
+              </span>
+              <label className="px-4 py-2 bg-white text-black text-sm font-bold hover:bg-zinc-200 cursor-pointer">
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        await importFromFile(file, selectedLibraryFolder || "sprites");
+                        toast.success("Asset imported!");
+                      } catch (err) {
+                        toast.error("Failed to import asset");
+                      }
+                    }
+                  }}
+                />
+                Import Asset
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
       <UpgradeModal 
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 
