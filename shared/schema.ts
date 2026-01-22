@@ -83,6 +83,8 @@ export const assets = pgTable("assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  folderId: varchar("folder_id"), // sprites, backgrounds, characters, effects, bubbles
+  sortOrder: integer("sort_order").default(0),
   url: text("url").notNull(),
   type: text("type").notNull(), // image | video | audio
   filename: text("filename").notNull(),
