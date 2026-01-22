@@ -525,9 +525,20 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.get("/api/assets", isAuthenticated, async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
-      const assets = projectId
-        ? await storage.getProjectAssets(projectId)
-        : await storage.getUserAssets(req.user!.id);
+      
+      if (projectId) {
+        const project = await storage.getProject(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        const assets = await storage.getProjectAssets(projectId);
+        return res.json(assets);
+      }
+      
+      const assets = await storage.getUserAssets(req.user!.id);
       res.json(assets);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -626,6 +637,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       for (let i = 0; i < assetIds.length; i++) {
+        const asset = await storage.getAsset(assetIds[i]);
+        if (!asset) continue;
+        if (asset.userId !== req.user!.id && req.user!.role !== "admin") {
+          return res.status(403).json({ message: "Forbidden: Cannot reorder assets you don't own" });
+        }
         await storage.updateAsset(assetIds[i], { sortOrder: i });
       }
 

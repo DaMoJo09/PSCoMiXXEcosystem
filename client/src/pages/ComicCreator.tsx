@@ -325,7 +325,7 @@ export default function ComicCreator() {
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
-  const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading } = useAssetLibrary();
+  const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -354,6 +354,7 @@ export default function ComicCreator() {
   const [showLayers, setShowLayers] = useState(true);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const [selectedLibraryFolder, setSelectedLibraryFolder] = useState<string | null>(null);
+  const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
@@ -3061,9 +3062,35 @@ export default function ComicCreator() {
               
               <div className="flex-1 p-4 overflow-y-auto">
                 <div className="grid grid-cols-4 gap-3">
-                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).map(asset => (
+                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).map((asset, index) => (
                     <button
                       key={asset.id}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggedAssetId(asset.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => setDraggedAssetId(null)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        if (draggedAssetId && draggedAssetId !== asset.id) {
+                          const currentAssets = selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets;
+                          const draggedIndex = currentAssets.findIndex(a => a.id === draggedAssetId);
+                          const dropIndex = index;
+                          if (draggedIndex !== -1) {
+                            const newOrder = [...currentAssets];
+                            const [removed] = newOrder.splice(draggedIndex, 1);
+                            newOrder.splice(dropIndex, 0, removed);
+                            await reorderAssets(newOrder.map(a => a.id));
+                            toast.success("Assets reordered");
+                          }
+                        }
+                        setDraggedAssetId(null);
+                      }}
                       onClick={() => {
                         if (selectedPanelId) {
                           addContentToPanel(selectedPage, selectedPanelId, {
@@ -3078,10 +3105,10 @@ export default function ComicCreator() {
                           toast.error("Select a panel first");
                         }
                       }}
-                      className="group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden"
+                      className={`group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden cursor-grab active:cursor-grabbing ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
                     >
                       {asset.type === "image" || asset.type === "sprite" || asset.type === "background" ? (
-                        <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover" />
+                        <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover pointer-events-none" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <ImageIcon className="w-8 h-8 text-zinc-600" />
