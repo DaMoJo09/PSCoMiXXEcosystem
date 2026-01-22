@@ -1632,24 +1632,41 @@ export default function ComicCreator() {
           </>
         )}
         
-        {isSelected && panel.locked && (
-          <div 
-            className="absolute -top-8 right-0 flex gap-1 z-50"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="p-1 bg-white border border-black hover:bg-gray-100"
-              onClick={(e) => { e.stopPropagation(); togglePanelLock(page, panel.id); }}
-              title="Unlock"
+        {panel.locked && (
+          <>
+            <div 
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
             >
-              <Lock className="w-3 h-3" />
-            </button>
-          </div>
+              <div className="bg-black/50 rounded-full p-2">
+                <Lock className="w-6 h-6 text-white/70" />
+              </div>
+            </div>
+            {isSelected && (
+              <div 
+                className="absolute -top-8 right-0 flex gap-1 z-50"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  className="p-1 bg-white border border-black hover:bg-gray-100"
+                  onClick={(e) => { e.stopPropagation(); togglePanelLock(page, panel.id); }}
+                  title="Unlock Panel"
+                >
+                  <Unlock className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         <div
-          className="absolute inset-0 cursor-move z-10"
-          style={{ pointerEvents: panel.locked ? 'none' : 'auto' }}
+          className={`absolute inset-0 z-10 ${panel.locked ? 'cursor-pointer' : 'cursor-move'}`}
+          style={{ pointerEvents: 'auto' }}
+          onClick={(e) => {
+            if (panel.locked) {
+              e.stopPropagation();
+              handlePanelClick(e as any, panel.id, page);
+            }
+          }}
           onMouseDown={(e) => {
             if (panel.locked || !isSelected) return;
             if ((e.target as HTMLElement).closest('[data-transform-handle]')) return;
