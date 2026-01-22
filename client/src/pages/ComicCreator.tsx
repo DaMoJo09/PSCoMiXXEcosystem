@@ -325,7 +325,7 @@ export default function ComicCreator() {
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
-  const { importFromFile, assets, folders, getAssetsInFolder } = useAssetLibrary();
+  const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -3105,26 +3105,33 @@ export default function ComicCreator() {
             
             <div className="p-3 border-t border-zinc-700 flex justify-between items-center">
               <span className="text-xs text-zinc-500">
-                {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length} assets
+                {isAssetLibraryLoading ? "Loading..." : `${(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length} assets`}
               </span>
               <label className="px-4 py-2 bg-white text-black text-sm font-bold hover:bg-zinc-200 cursor-pointer">
                 <input 
                   type="file" 
                   className="hidden" 
                   accept="image/*"
+                  multiple
                   onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
                       try {
-                        await importFromFile(file, selectedLibraryFolder || "sprites");
-                        toast.success("Asset imported!");
+                        const filesArray = Array.from(files);
+                        if (filesArray.length === 1) {
+                          await importFromFile(filesArray[0], selectedLibraryFolder || "sprites");
+                          toast.success("Asset imported!");
+                        } else {
+                          await importFromFiles(filesArray, selectedLibraryFolder || "sprites");
+                          toast.success(`${filesArray.length} assets imported!`);
+                        }
                       } catch (err) {
-                        toast.error("Failed to import asset");
+                        toast.error("Failed to import assets");
                       }
                     }
                   }}
                 />
-                Import Asset
+                Import Assets
               </label>
             </div>
           </div>
