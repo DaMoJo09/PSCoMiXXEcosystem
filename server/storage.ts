@@ -106,6 +106,7 @@ export interface IStorage {
   getUserAssets(userId: string): Promise<Asset[]>;
   getProjectAssets(projectId: string): Promise<Asset[]>;
   createAsset(asset: InsertAsset): Promise<Asset>;
+  updateAsset(id: string, updates: Partial<InsertAsset>): Promise<Asset | undefined>;
   deleteAsset(id: string): Promise<boolean>;
   
   // Admin operations
@@ -438,6 +439,14 @@ export class DatabaseStorage implements IStorage {
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {
     const [asset] = await db.insert(assets).values(insertAsset).returning();
     return asset;
+  }
+
+  async updateAsset(id: string, updates: Partial<InsertAsset>): Promise<Asset | undefined> {
+    const [asset] = await db.update(assets)
+      .set(updates as any)
+      .where(eq(assets.id, id))
+      .returning();
+    return asset || undefined;
   }
   
   async deleteAsset(id: string): Promise<boolean> {

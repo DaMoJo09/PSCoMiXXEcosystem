@@ -568,6 +568,73 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Update asset (folder, sort order)
+  app.patch("/api/assets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset not found" });
+      }
+      if (asset.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const { folderId, sortOrder, filename } = req.body;
+      const updatedAsset = await storage.updateAsset(req.params.id, { 
+        folderId, 
+        sortOrder,
+        filename 
+      });
+      res.json(updatedAsset);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Bulk create assets
+  app.post("/api/assets/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const { assets: assetList } = req.body;
+      if (!Array.isArray(assetList) || assetList.length === 0) {
+        return res.status(400).json({ message: "Assets array is required" });
+      }
+
+      const createdAssets = [];
+      for (const assetData of assetList) {
+        const result = insertAssetSchema.safeParse({
+          ...assetData,
+          userId: req.user!.id,
+        });
+        if (result.success) {
+          const asset = await storage.createAsset(result.data);
+          createdAssets.push(asset);
+        }
+      }
+
+      res.status(201).json(createdAssets);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Reorder assets in folder
+  app.post("/api/assets/reorder", isAuthenticated, async (req, res) => {
+    try {
+      const { assetIds } = req.body;
+      if (!Array.isArray(assetIds)) {
+        return res.status(400).json({ message: "Asset IDs array is required" });
+      }
+
+      for (let i = 0; i < assetIds.length; i++) {
+        await storage.updateAsset(assetIds[i], { sortOrder: i });
+      }
+
+      res.json({ message: "Assets reordered" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Admin routes
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {
