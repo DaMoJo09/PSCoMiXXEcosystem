@@ -147,14 +147,28 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   });
 
   app.post("/api/auth/login", (req, res, next) => {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+    
     passport.authenticate("local", (err: any, user: Express.User, info: any) => {
-      if (err) return next(err);
+      if (err) {
+        console.error("[auth] Login error:", err);
+        return next(err);
+      }
       if (!user) {
-        return res.status(400).json({ message: info?.message || "Login failed" });
+        console.log("[auth] Login failed for:", email, "Reason:", info?.message);
+        return res.status(400).json({ message: info?.message || "Invalid email or password" });
       }
 
       req.login(user, (err) => {
-        if (err) return next(err);
+        if (err) {
+          console.error("[auth] Session error:", err);
+          return next(err);
+        }
+        console.log("[auth] Login success for:", email);
         return res.json({
           id: user.id,
           email: user.email,
