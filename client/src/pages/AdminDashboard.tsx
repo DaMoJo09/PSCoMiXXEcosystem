@@ -178,6 +178,11 @@ export default function AdminDashboard() {
               <h1 className="text-4xl font-display font-bold" data-testid="text-admin-title">Analytics Console</h1>
             </div>
             <div className="flex gap-3">
+              <Link href="/admin/review-queue">
+                <Button className="bg-cyan-600 text-white hover:bg-cyan-700 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-review-queue">
+                  <FileText className="w-4 h-4 mr-2" /> Review Queue
+                </Button>
+              </Link>
               <Link href="/admin/moderation">
                 <Button className="bg-white text-black hover:bg-zinc-100 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-moderation">
                   <Flag className="w-4 h-4 mr-2" /> Moderation

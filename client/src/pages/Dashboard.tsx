@@ -307,7 +307,11 @@ export default function Dashboard() {
                       {typeLabels[project.type] || project.type}
                     </div>
                     <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] font-mono font-bold uppercase ${
-                      project.status === "published" ? "bg-green-500 text-white" : "bg-yellow-500 text-black"
+                      project.status === "published" ? "bg-green-500 text-white" :
+                      project.status === "review" ? "bg-cyan-500 text-black" :
+                      project.status === "approved" ? "bg-blue-500 text-white" :
+                      project.status === "rejected" ? "bg-red-500 text-white" :
+                      "bg-yellow-500 text-black"
                     }`}>
                       {project.status}
                     </div>

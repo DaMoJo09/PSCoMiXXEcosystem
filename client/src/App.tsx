@@ -55,6 +55,7 @@ import ProfileCard from "@/pages/ProfileCard";
 import ImportCenter from "@/pages/ImportCenter";
 import AdminModeration from "@/pages/AdminModeration";
 import AdminControlRoom from "@/pages/AdminControlRoom";
+import AdminReviewQueue from "@/pages/AdminReviewQueue";
 import PricingPage from "@/pages/PricingPage";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -117,6 +118,7 @@ function ProtectedRouter() {
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/control" component={AdminControlRoom} />
         <Route path="/admin/moderation" component={AdminModeration} />
+        <Route path="/admin/review-queue" component={AdminReviewQueue} />
         <Route path="/pricing" component={PricingPage} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />

@@ -13,6 +13,9 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { SendHorizonal, Rocket } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
@@ -452,6 +455,31 @@ export default function ComicCreator() {
       setSelectedPanelId(null);
     }
   };
+
+  const qc = useQueryClient();
+  const submitForReview = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/submit-review`);
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      toast.success("Submitted for review!");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to submit for review"),
+  });
+
+  const publishProject = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/publish`, { visibility: "public" });
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      toast.success("Publishing started!");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to publish"),
+  });
 
   const handleSave = async () => {
     if (!projectId) return;
@@ -1825,6 +1853,26 @@ export default function ComicCreator() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {projectId && project && (project.status === "draft" || project.status === "rejected") && (
+              <button
+                onClick={() => submitForReview.mutate()}
+                disabled={submitForReview.isPending}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                data-testid="button-submit-review"
+              >
+                <SendHorizonal className="w-4 h-4" /> Submit for Review
+              </button>
+            )}
+            {projectId && project && project.status === "approved" && (
+              <button
+                onClick={() => publishProject.mutate()}
+                disabled={publishProject.isPending}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 border border-green-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                data-testid="button-publish"
+              >
+                <Rocket className="w-4 h-4" /> Publish
+              </button>
+            )}
             {projectId && (
               <PostComposer
                 projectId={projectId}

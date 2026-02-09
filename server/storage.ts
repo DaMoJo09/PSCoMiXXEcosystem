@@ -81,6 +81,10 @@ import {
   type ContentReport, type InsertContentReport,
   type ApiKey, type InsertApiKey,
   type AssetPack, type InsertAssetPack,
+  projectVersions, publishJobs, engagementEvents,
+  type ProjectVersion, type InsertProjectVersion,
+  type PublishJob, type InsertPublishJob,
+  type EngagementEvent, type InsertEngagementEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
@@ -342,6 +346,22 @@ export interface IStorage {
   updateAssetPack(id: string, updates: Partial<InsertAssetPack>): Promise<AssetPack | undefined>;
   deleteAssetPack(id: string): Promise<boolean>;
   incrementPackDownloads(id: string): Promise<void>;
+  
+  // Publishing Pipeline operations
+  createProjectVersion(version: InsertProjectVersion): Promise<ProjectVersion>;
+  getProjectVersions(projectId: string): Promise<ProjectVersion[]>;
+  getProjectVersion(id: string): Promise<ProjectVersion | undefined>;
+  getLatestProjectVersion(projectId: string): Promise<ProjectVersion | undefined>;
+  
+  createPublishJob(job: InsertPublishJob): Promise<PublishJob>;
+  getPublishJob(id: string): Promise<PublishJob | undefined>;
+  getProjectPublishJobs(projectId: string): Promise<PublishJob[]>;
+  updatePublishJob(id: string, updates: Partial<PublishJob>): Promise<PublishJob | undefined>;
+  getReviewQueue(): Promise<Project[]>;
+  
+  createEngagementEvent(event: InsertEngagementEvent): Promise<EngagementEvent>;
+  getContentEngagement(contentId: string): Promise<EngagementEvent[]>;
+  getEngagementSummary(contentId: string): Promise<Record<string, number>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2264,6 +2284,87 @@ export class DatabaseStorage implements IStorage {
     await db.update(assetPacks)
       .set({ downloadCount: sql`${assetPacks.downloadCount} + 1` })
       .where(eq(assetPacks.id, id));
+  }
+
+  // Publishing Pipeline operations
+  async createProjectVersion(version: InsertProjectVersion): Promise<ProjectVersion> {
+    const [created] = await db.insert(projectVersions).values(version).returning();
+    return created;
+  }
+
+  async getProjectVersions(projectId: string): Promise<ProjectVersion[]> {
+    return db.select().from(projectVersions)
+      .where(eq(projectVersions.projectId, projectId))
+      .orderBy(desc(projectVersions.versionNumber));
+  }
+
+  async getProjectVersion(id: string): Promise<ProjectVersion | undefined> {
+    const [version] = await db.select().from(projectVersions).where(eq(projectVersions.id, id));
+    return version || undefined;
+  }
+
+  async getLatestProjectVersion(projectId: string): Promise<ProjectVersion | undefined> {
+    const [version] = await db.select().from(projectVersions)
+      .where(eq(projectVersions.projectId, projectId))
+      .orderBy(desc(projectVersions.versionNumber))
+      .limit(1);
+    return version || undefined;
+  }
+
+  async createPublishJob(job: InsertPublishJob): Promise<PublishJob> {
+    const [created] = await db.insert(publishJobs).values(job).returning();
+    return created;
+  }
+
+  async getPublishJob(id: string): Promise<PublishJob | undefined> {
+    const [job] = await db.select().from(publishJobs).where(eq(publishJobs.id, id));
+    return job || undefined;
+  }
+
+  async getProjectPublishJobs(projectId: string): Promise<PublishJob[]> {
+    return db.select().from(publishJobs)
+      .where(eq(publishJobs.projectId, projectId))
+      .orderBy(desc(publishJobs.createdAt));
+  }
+
+  async updatePublishJob(id: string, updates: Partial<PublishJob>): Promise<PublishJob | undefined> {
+    const [updated] = await db.update(publishJobs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(publishJobs.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getReviewQueue(): Promise<Project[]> {
+    return db.select().from(projects)
+      .where(eq(projects.status, "review"))
+      .orderBy(desc(projects.updatedAt));
+  }
+
+  async createEngagementEvent(event: InsertEngagementEvent): Promise<EngagementEvent> {
+    const [created] = await db.insert(engagementEvents).values(event).returning();
+    return created;
+  }
+
+  async getContentEngagement(contentId: string): Promise<EngagementEvent[]> {
+    return db.select().from(engagementEvents)
+      .where(eq(engagementEvents.contentId, contentId))
+      .orderBy(desc(engagementEvents.createdAt));
+  }
+
+  async getEngagementSummary(contentId: string): Promise<Record<string, number>> {
+    const results = await db.select({
+      eventType: engagementEvents.eventType,
+      total: count(),
+    }).from(engagementEvents)
+      .where(eq(engagementEvents.contentId, contentId))
+      .groupBy(engagementEvents.eventType);
+    
+    const summary: Record<string, number> = {};
+    for (const row of results) {
+      summary[row.eventType] = row.total;
+    }
+    return summary;
   }
 }
 

@@ -5,7 +5,8 @@ import { randomUUID, randomBytes, createHash } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema } from "@shared/schema";
+import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
@@ -3819,6 +3820,196 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       
       res.json(subscription || { tier: "free", status: "active" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // PUBLISHING PIPELINE ROUTES
+  // ============================================
+
+  // Submit project for review
+  app.post("/api/projects/:id/submit-review", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id) return res.status(403).json({ message: "Not authorized" });
+      if (project.status !== "draft" && project.status !== "rejected") {
+        return res.status(400).json({ message: `Cannot submit for review from "${project.status}" status` });
+      }
+      const updated = await storage.updateProject(project.id, { status: "review" } as any);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Get review queue
+  app.get("/api/admin/review-queue", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    if (req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const queue = await storage.getReviewQueue();
+      res.json(queue);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Approve project
+  app.post("/api/admin/projects/:id/approve", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    if (req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.status !== "review") {
+        return res.status(400).json({ message: "Project is not in review status" });
+      }
+      const updated = await storage.updateProject(project.id, { status: "approved" } as any);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin: Reject project
+  app.post("/api/admin/projects/:id/reject", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    if (req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.status !== "review") {
+        return res.status(400).json({ message: "Project is not in review status" });
+      }
+      const { reason } = req.body;
+      const updated = await storage.updateProject(project.id, { status: "rejected" } as any);
+      res.json({ ...updated, rejectionReason: reason });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Publish a project (runs the pipeline)
+  app.post("/api/projects/:id/publish", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const { visibility, tags, ageRating } = req.body;
+      const result = await runPublishPipeline(project.id, req.user!.id, { visibility, tags, ageRating });
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      res.json({ jobId: result.jobId, message: "Publishing pipeline started" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get publish job status
+  app.get("/api/publish-jobs/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const job = await storage.getPublishJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Job not found" });
+      res.json(job);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get project publish history
+  app.get("/api/projects/:id/publish-jobs", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const jobs = await storage.getProjectPublishJobs(req.params.id);
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get project versions
+  app.get("/api/projects/:id/versions", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const versions = await storage.getProjectVersions(req.params.id);
+      res.json(versions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Preview bundle (build without publishing)
+  app.get("/api/projects/:id/bundle-preview", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const projectAssets = await storage.getProjectAssets(project.id);
+      const bundle = buildPSContentBundle(project, user, projectAssets);
+      const validation = validateBundle(bundle);
+      res.json({ bundle, validation });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Emergent engagement webhook (inbound events) - requires shared secret
+  app.post("/api/webhooks/engagement", async (req: Request, res: Response) => {
+    try {
+      const webhookSecret = process.env.EMERGENT_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const provided = req.headers["x-webhook-secret"] || req.headers["authorization"]?.replace("Bearer ", "");
+        if (provided !== webhookSecret) {
+          return res.status(401).json({ message: "Invalid webhook secret" });
+        }
+      }
+      const parsed = insertEngagementEventSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid engagement event", errors: parsed.error.issues });
+      }
+      const event = await storage.createEngagementEvent(parsed.data);
+      res.json({ received: true, id: event.id });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get engagement summary for content
+  app.get("/api/content/:contentId/engagement", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const summary = await storage.getEngagementSummary(req.params.contentId);
+      res.json(summary);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
