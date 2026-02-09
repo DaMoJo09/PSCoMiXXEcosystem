@@ -62,7 +62,7 @@ export const projects = pgTable("projects", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   type: text("type").notNull(), // comic | card | vn | cyoa | cover | motion
-  status: text("status").notNull().default("draft"), // draft | published
+  status: text("status").notNull().default("draft"), // draft | review | approved | rejected | published
   data: jsonb("data").notNull(), // Flexible JSON for each project type's specific data
   thumbnail: text("thumbnail"), // URL to preview image
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -980,6 +980,103 @@ export const insertPublishedContentSchema = createInsertSchema(publishedContent)
 
 export type InsertPublishedContent = z.infer<typeof insertPublishedContentSchema>;
 export type PublishedContent = typeof publishedContent.$inferSelect;
+
+// ============================================
+// PS CONTENT BUNDLE + PUBLISHING PIPELINE
+// ============================================
+
+// Project Versions - tracks snapshots of project data for versioning
+export const projectVersions = pgTable("project_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull().default(1),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  dataSnapshot: jsonb("data_snapshot").notNull(),
+  bundleJson: jsonb("bundle_json"),
+  changelog: text("changelog"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProjectVersionSchema = createInsertSchema(projectVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectVersion = z.infer<typeof insertProjectVersionSchema>;
+export type ProjectVersion = typeof projectVersions.$inferSelect;
+
+// Publish Jobs - tracks the publish pipeline status
+export const publishJobs = pgTable("publish_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  versionId: varchar("version_id").references(() => projectVersions.id),
+  status: text("status").notNull().default("queued"), // queued | building | syncing | complete | failed
+  step: text("step"), // validate | bundle | save | sync
+  error: text("error"),
+  bundleJson: jsonb("bundle_json"),
+  emergentSyncId: text("emergent_sync_id"),
+  retryCount: integer("retry_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertPublishJobSchema = createInsertSchema(publishJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPublishJob = z.infer<typeof insertPublishJobSchema>;
+export type PublishJob = typeof publishJobs.$inferSelect;
+
+// Engagement Events - inbound from Emergent streaming platform
+export const engagementEvents = pgTable("engagement_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id").notNull(),
+  eventType: text("event_type").notNull(), // view | like | vote | share | comment | watch_time
+  userId: varchar("user_id"),
+  payload: jsonb("payload"),
+  source: text("source").default("emergent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertEngagementEventSchema = createInsertSchema(engagementEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertEngagementEvent = z.infer<typeof insertEngagementEventSchema>;
+export type EngagementEvent = typeof engagementEvents.$inferSelect;
+
+// PS Content Bundle v1 Schema - the standard format for all published content
+export const psContentBundleSchema = z.object({
+  contract_version: z.literal("v1"),
+  content_id: z.string().uuid(),
+  content_type: z.enum(["comic", "comic_issue", "visual_novel", "cyoa", "trading_card", "cover", "motion"]),
+  title: z.string(),
+  description: z.string().optional(),
+  cover_asset_url: z.string().optional(),
+  creator: z.object({
+    ps_user_id: z.string().uuid(),
+    display_name: z.string(),
+    avatar_url: z.string().optional(),
+  }),
+  visibility: z.enum(["private", "unlisted", "public"]).default("private"),
+  age_rating: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  payload: z.any(),
+  assets: z.array(z.object({
+    asset_id: z.string(),
+    url: z.string(),
+    type: z.string(),
+    thumbnail_url: z.string().optional(),
+  })).default([]),
+  published_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type PSContentBundle = z.infer<typeof psContentBundleSchema>;
 
 // ============================================
 // EARN MODULE

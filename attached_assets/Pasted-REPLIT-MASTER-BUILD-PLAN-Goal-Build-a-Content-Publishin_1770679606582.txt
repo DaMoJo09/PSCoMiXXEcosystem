@@ -1,0 +1,637 @@
+REPLIT MASTER BUILD PLAN
+Goal
+
+Build a Content Publishing + Sync System that:
+
+lets creators/students build content (CoMiXX / VN / CYOA / Cards)
+
+stores assets + metadata safely
+
+packages content into a standard “PS Content Bundle”
+
+pushes published content to the Streaming Platform (Emergent) automatically
+
+supports browsing/playback on Emergent with minimal custom logic
+
+Key rule: Replit = System of Record, Emergent = “Stage/Reader/Player”.
+
+1) What You Will Build (3 services + 2 apps)
+Services (backend)
+
+PS API (services/api)
+
+Auth, users, roles
+
+Content CRUD (comics/VN/CYOA/cards)
+
+Publish pipeline
+
+Sync outbound to Emergent
+
+Inbound engagement events (votes, watch, likes)
+
+PS Worker (services/worker)
+
+background jobs: generate previews, package bundles, retry webhooks
+
+leaderboard snapshot generation (later)
+
+PS Media (optional, but recommended as a module inside API)
+
+signed upload URLs
+
+image/video/pdf upload tracking
+
+thumbnail jobs
+
+Apps (frontends)
+
+PSCoMiXX Studio (apps/pscomixx)
+
+create comics + complete issues
+
+trading cards creator + exports
+
+VN/CYOA editor (scene graph)
+
+PS Admin/LMS (apps/pslmx)
+
+approvals + publishing moderation
+
+cohorts/classes (optional)
+
+content moderation queue
+
+analytics dashboards
+
+If you want zero complexity, you can skip PSLMX at first and just build PS Admin as part of PSCoMiXX Studio. But this plan supports both.
+
+2) Replit Repo Structure (monorepo)
+
+Create one Replit repo:
+
+/apps
+  /pscomixx        # Studio (Next.js)
+  /pslmx           # Admin/LMS (Next.js)
+/services
+  /api             # Express/Nest/Fastify API (recommended: Fastify + TS)
+  /worker          # background jobs (BullMQ)
+/packages
+  /types           # shared TS types + content bundle contracts
+  /ui              # shared UI components (optional)
+  /core            # validation, scoring, publishing helpers
+/prisma            # schema (Prisma ORM)
+/docs              # contract + integration notes
+
+3) Tech Choices (pick these to avoid rewrites)
+
+Node 20 + TypeScript
+
+Fastify API (fast + clean) or Express if you prefer
+
+Postgres (Supabase or Neon)
+
+Prisma ORM
+
+BullMQ + Redis for jobs (Upstash Redis is easiest)
+
+Storage: Supabase Storage OR S3-compatible (Cloudflare R2 ideal)
+
+4) The PS Content Bundle Standard (THIS IS THE SECRET SAUCE)
+
+Everything you publish becomes a single JSON “bundle” that Emergent can render.
+
+PSContentBundle v1
+
+All content types share:
+
+content_id
+
+content_type = comic | comic_issue | visual_novel | cyoa | trading_card
+
+title, description, cover_asset_id
+
+creator_ps_user_id
+
+visibility = private | unlisted | public
+
+age_rating (optional)
+
+tags[]
+
+payload (type-specific)
+
+assets[] (resolved asset URLs + thumbnails)
+
+published_at, updated_at
+
+contract_version: "v1"
+
+Emergent only needs to understand:
+
+content type
+
+cover + pages/scenes/choices
+
+asset URLs
+
+This prevents “custom one-off formats” later.
+
+5) Database (Prisma Schema Plan)
+5.1 Identity + Access
+User
+
+ps_user_id UUID (PK)
+
+email unique
+
+display_name
+
+role (student|creator|mentor|admin)
+
+public_profile bool
+
+avatar_asset_id nullable
+
+Session (or JWT-only)
+
+Optional if you want server sessions.
+
+5.2 Assets (shared by all content)
+Asset
+
+asset_id UUID
+
+owner_ps_user_id
+
+type (image|video|audio|json|pdf)
+
+mime_type
+
+storage_key
+
+public_url (or generated)
+
+thumbnail_url
+
+meta_json (w,h,duration,license,source)
+
+created_at
+
+5.3 Content Core (shared)
+Content
+
+content_id UUID
+
+content_type
+
+title, description
+
+creator_ps_user_id
+
+cover_asset_id
+
+visibility (private|unlisted|public)
+
+status (draft|review|approved|published|rejected)
+
+tags[]
+
+bundle_json (final PSContentBundle)
+
+published_at
+
+timestamps
+
+ContentVersion
+
+version_id
+
+content_id
+
+version_number
+
+editor_ps_user_id
+
+draft_json (work-in-progress format)
+
+timestamps
+
+PublishJob
+
+job_id
+
+content_id
+
+status (queued|processing|success|failed)
+
+error
+
+timestamps
+
+5.4 Comic Maker
+ComicProject
+
+comic_id (content_id reference)
+
+optional extra fields: series, issue_count
+
+ComicPage
+
+page_id
+
+content_id
+
+page_number
+
+page_asset_id (final rendered image) OR panel_json
+
+layout_json
+
+ComicPanel + SpeechBubble (optional if you want true editor)
+
+If you want faster MVP: store page image only + metadata.
+
+5.5 Complete Comics (Issue Collections)
+ComicIssue
+
+issue_content_id (content_id)
+
+series_content_id (content_id)
+
+issue_number
+
+page_ids[] or relation table
+
+Emergent can show:
+
+Series page -> list of issues
+
+Issue reader -> pages
+
+5.6 Visual Novel
+VNScene
+
+scene_id
+
+content_id
+
+scene_key
+
+background_asset_id
+
+characters_json (sprites + positions)
+
+dialogue_json (lines, speaker, voice optional)
+
+next_scene_key (default)
+
+5.7 CYOA
+CYOANode
+
+node_id
+
+content_id
+
+node_key
+
+title
+
+body_richtext
+
+media_asset_ids[]
+
+choices_json [{ text, to_node_key, requirements? }]
+
+5.8 Trading Cards
+TradingCard
+
+card_id (content_id reference OR separate table)
+
+card_asset_id (final render image)
+
+rarity (common|rare|epic|legendary)
+
+stats_json
+
+series
+
+print_pdf_asset_id optional
+
+6) API Design (The endpoints you need)
+6.1 Auth
+
+POST /auth/login
+
+POST /auth/logout
+
+GET /me
+
+6.2 Asset Upload
+
+POST /assets/upload-url → returns signed URL
+
+POST /assets/complete → records Asset in DB
+
+GET /assets/:asset_id
+
+6.3 Content CRUD (universal)
+
+POST /content (create content shell)
+
+GET /content/:id
+
+PATCH /content/:id
+
+POST /content/:id/submit-review
+
+POST /content/:id/approve
+
+POST /content/:id/reject
+
+POST /content/:id/publish
+
+GET /content?type=&status=&creator=
+
+6.4 Type-specific (optional helpers)
+
+POST /comics/:id/pages
+
+POST /vn/:id/scenes
+
+POST /cyoa/:id/nodes
+
+POST /cards/:id/render
+
+6.5 Emergent Sync
+
+Outbound from Replit:
+
+POST {EMERGENT_BASE}/sync/content (push bundle)
+
+POST {EMERGENT_BASE}/sync/creator (public profile updates)
+
+POST {EMERGENT_BASE}/sync/collection (series list / featured)
+
+Inbound to Replit:
+
+POST /engagement-events (watch, like, vote, share)
+
+7) Publishing Pipeline (the “one button” magic)
+
+When user clicks Publish:
+
+Step A — Validate
+
+content status approved
+
+required fields present (title, cover, payload)
+
+Step B — Bundle
+
+Generate PSContentBundle v1 JSON:
+
+resolve asset URLs
+
+generate thumbnail references
+
+normalize payload shape
+
+Step C — Save bundle
+
+write bundle_json in DB
+
+set published_at
+
+Step D — Push to Emergent
+
+Call:
+
+POST EMERGENT/sync/content
+Payload = bundle JSON + signature header
+
+Step E — Confirm + Retry
+
+If Emergent fails:
+
+queue retry in Worker
+
+mark PublishJob failed/queued with backoff
+
+8) Emergent Streaming Platform Requirements (what it must implement)
+
+Emergent only needs:
+
+Incoming endpoints
+
+POST /sync/content (stores content bundle)
+
+POST /sync/creator (stores public creator mirror)
+
+Display logic
+
+Content hub page filters by type
+
+Comic reader: show page images
+
+VN player: scene-to-scene
+
+CYOA player: node/choice navigation
+
+Trading cards gallery + detail page
+
+Important: Emergent doesn’t edit; it only renders bundles.
+
+9) Replit Build Steps (Commands + Sequencing)
+9.1 Initialize monorepo
+
+Setup pnpm workspace
+
+Create Next apps
+
+Create API service
+
+Create Worker service
+
+9.2 Install packages
+
+Core:
+
+fastify (or express)
+
+prisma, @prisma/client
+
+zod (validation)
+
+jsonwebtoken + cookie helpers
+
+bullmq + redis client
+
+9.3 Prisma
+
+prisma init
+
+create schema tables above
+
+prisma migrate dev
+
+9.4 Build API
+
+auth middleware
+
+asset upload handlers
+
+content CRUD handlers
+
+publish pipeline endpoints
+
+9.5 Build Worker
+
+job queues:
+
+publishRetry
+
+thumbgen (optional)
+
+bundleRebuild (optional)
+
+9.6 Build PSCoMiXX Studio
+
+MVP screens:
+
+Dashboard (My Content)
+
+Create Content Wizard (choose type)
+
+Editor per type:
+
+Comic: upload pages (MVP) OR panel editor later
+
+VN: scenes list + editor
+
+CYOA: node graph list + editor
+
+Cards: upload art + overlay fields + render/export
+
+Submit for Review
+
+Publish (only if approved or if you allow self-publish)
+
+9.7 Build PSLMX Admin
+
+Review queue (approve/reject)
+
+Creator/user management
+
+Content moderation flags
+
+Publishing monitor (jobs, retries)
+
+10) Secrets / Env Vars (Replit “Secrets”)
+
+Database
+
+DATABASE_URL
+
+Auth
+
+JWT_SECRET
+
+COOKIE_SECRET
+
+APP_BASE_URL
+
+Storage
+
+STORAGE_PROVIDER = supabase|s3
+
+SUPABASE_URL
+
+SUPABASE_SERVICE_KEY
+
+or S3_ENDPOINT, S3_BUCKET, S3_KEY, S3_SECRET
+
+Redis (jobs)
+
+REDIS_URL
+
+Emergent
+
+EMERGENT_BASE_URL
+
+EMERGENT_SYNC_SECRET (shared secret for signing)
+
+11) Security + Permissions (do this now, not later)
+
+Only approved content can be published
+
+Only admin/mentor can approve (school mode)
+
+Signed sync calls to Emergent using EMERGENT_SYNC_SECRET
+
+Asset uploads:
+
+use signed URLs
+
+store ownership in DB
+
+Public URLs only for published content (or pre-signed)
+
+12) Acceptance Tests (so you know it’s DONE)
+Comics
+
+✅ upload 10 pages → create comic → approve → publish → appears on Emergent reader
+✅ series page shows issues (complete comics)
+
+Visual Novel
+
+✅ create 5 scenes with backgrounds → publish → Emergent VN player works
+
+CYOA
+
+✅ create nodes + choices → publish → Emergent navigation works
+
+Trading Cards
+
+✅ create card render → publish → shows in Emergent gallery + detail view
+
+Sync reliability
+
+✅ disconnect Emergent → publish queues retry → later sync succeeds
+✅ content updates push new bundle version
+
+13) Shipping Strategy (Best practice on Replit)
+
+Option A (recommended, clean): 3 Replits
+
+ps-api (public)
+
+ps-studio (public)
+
+ps-admin (private-ish)
+
+Option B (single Replit):
+
+API + one app exposed
+
+second app hosted as path or separate deployment (more annoying)
+
+If you want no headaches, do Option A.
+
+14) “No Back-and-Forth” Deliverables (what we lock in upfront)
+
+To avoid redesign loops, we define these once:
+
+PSContentBundle v1 JSON contract
+
+Content types + payload schemas
+
+Publishing rules
+
+Emergent required endpoints
+
+Signed webhook scheme
+
+Asset storage strategy
+
+That’s it. Everything else is implementation.
