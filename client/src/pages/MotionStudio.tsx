@@ -1672,31 +1672,7 @@ export default function MotionStudio() {
               <div 
                 className="absolute inset-0 z-5"
                 data-layer-container="true"
-                style={{ pointerEvents: rasterTool === 'select' || vectorTool === 'select' ? 'auto' : 'none' }}
-                onMouseMove={(e) => {
-                  if (!isDraggingLayer || !dragStart || !selectedLayerId) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const scaleX = 1920 / rect.width;
-                  const scaleY = 1080 / rect.height;
-                  const x = (e.clientX - rect.left) * scaleX;
-                  const y = (e.clientY - rect.top) * scaleY;
-                  const dx = x - dragStart.x;
-                  const dy = y - dragStart.y;
-                  updateImageLayer(selectedLayerId, {
-                    x: dragStart.layerX + dx,
-                    y: dragStart.layerY + dy
-                  });
-                }}
-                onMouseUp={() => {
-                  setIsDraggingLayer(false);
-                  setIsResizingLayer(null);
-                  setDragStart(null);
-                }}
-                onMouseLeave={() => {
-                  setIsDraggingLayer(false);
-                  setIsResizingLayer(null);
-                  setDragStart(null);
-                }}
+                style={{ pointerEvents: 'none' }}
               >
                 {currentImageLayers.filter(l => l.visible).map(layer => {
                   const isSelected = selectedLayerId === layer.id;
@@ -1712,28 +1688,48 @@ export default function MotionStudio() {
                         height: `${(layer.height / 1080) * 100}%`,
                         opacity: layer.opacity / 100,
                         transform: `rotate(${layer.rotation}deg)`,
-                        transformOrigin: 'center center'
+                        transformOrigin: 'center center',
+                        pointerEvents: 'auto'
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedLayerId(layer.id);
+                        if (drawingMode === 'raster') setRasterTool('select');
+                        if (drawingMode === 'vector') setVectorTool('select');
                       }}
                       onMouseDown={(e) => {
                         if (layer.locked) return;
                         e.stopPropagation();
+                        e.preventDefault();
                         setSelectedLayerId(layer.id);
-                        setIsDraggingLayer(true);
-                        const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                        if (rect) {
-                          const scaleX = 1920 / rect.width;
-                          const scaleY = 1080 / rect.height;
-                          setDragStart({
-                            x: (e.clientX - rect.left) * scaleX,
-                            y: (e.clientY - rect.top) * scaleY,
-                            layerX: layer.x,
-                            layerY: layer.y
+                        if (drawingMode === 'raster') setRasterTool('select');
+                        if (drawingMode === 'vector') setVectorTool('select');
+                        const container = document.querySelector('[data-layer-container]') as HTMLElement;
+                        if (!container) return;
+                        const containerRect = container.getBoundingClientRect();
+                        const scaleX = 1920 / containerRect.width;
+                        const scaleY = 1080 / containerRect.height;
+                        const startX = (e.clientX - containerRect.left) * scaleX;
+                        const startY = (e.clientY - containerRect.top) * scaleY;
+                        const startLayerX = layer.x;
+                        const startLayerY = layer.y;
+                        const handleMove = (moveE: MouseEvent) => {
+                          const rect = container.getBoundingClientRect();
+                          const sx = 1920 / rect.width;
+                          const sy = 1080 / rect.height;
+                          const cx = (moveE.clientX - rect.left) * sx;
+                          const cy = (moveE.clientY - rect.top) * sy;
+                          updateImageLayer(layer.id, {
+                            x: startLayerX + (cx - startX),
+                            y: startLayerY + (cy - startY)
                           });
-                        }
+                        };
+                        const handleUp = () => {
+                          document.removeEventListener('mousemove', handleMove);
+                          document.removeEventListener('mouseup', handleUp);
+                        };
+                        document.addEventListener('mousemove', handleMove);
+                        document.addEventListener('mouseup', handleUp);
                       }}
                     >
                       <img 
@@ -2352,7 +2348,7 @@ export default function MotionStudio() {
                     ))}
                     {getComicPanels().length === 0 && (
                       <div className="p-4 text-center text-zinc-500 text-xs">
-                        No panels found. Add panels to your comic first.
+                        No panels found. Make sure you've added panels and saved your comic project.
                       </div>
                     )}
                   </div>

@@ -375,13 +375,14 @@ export default function ComicCreator() {
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const creationAttempted = useRef(false);
 
   const currentSpread = spreads[currentSpreadIndex];
 
   useEffect(() => {
-    const creatingFlag = sessionStorage.getItem('comic_creating');
-    if (!projectId && !creatingFlag && !createProject.isPending) {
-      sessionStorage.setItem('comic_creating', 'true');
+    sessionStorage.removeItem('comic_creating');
+    if (!projectId && !creationAttempted.current && !createProject.isPending) {
+      creationAttempted.current = true;
       setIsCreating(true);
       createProject.mutateAsync({
         title: "Untitled Comic",
@@ -389,16 +390,14 @@ export default function ComicCreator() {
         status: "draft",
         data: { spreads: [] },
       }).then((newProject) => {
-        sessionStorage.removeItem('comic_creating');
         setIsCreating(false);
         navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
       }).catch(() => {
-        toast.error("Failed to create project");
-        sessionStorage.removeItem('comic_creating');
+        toast.error("Failed to create project - please try again");
         setIsCreating(false);
+        creationAttempted.current = false;
       });
     } else if (projectId) {
-      sessionStorage.removeItem('comic_creating');
       setIsCreating(false);
     }
   }, [projectId]);
@@ -2871,15 +2870,22 @@ export default function ComicCreator() {
                             height: `${panel.height}%`,
                           }}
                         >
-                          {panel.contents.map(content => (
+                          {panel.contents.map(content => {
+                          const panelW = (panel.width / 100) * 500;
+                          const panelH = (panel.height / 100) * 750;
+                          const leftPct = panelW > 0 ? (content.transform.x / panelW) * 100 : 0;
+                          const topPct = panelH > 0 ? (content.transform.y / panelH) * 100 : 0;
+                          const widthPct = panelW > 0 ? (content.transform.width / panelW) * 100 : 100;
+                          const heightPct = panelH > 0 ? (content.transform.height / panelH) * 100 : 100;
+                          return (
                             <div
                               key={content.id}
                               className="absolute"
                               style={{
-                                left: content.transform.x,
-                                top: content.transform.y,
-                                width: content.transform.width,
-                                height: content.transform.height,
+                                left: `${leftPct}%`,
+                                top: `${topPct}%`,
+                                width: `${widthPct}%`,
+                                height: `${heightPct}%`,
                                 transform: `rotate(${content.transform.rotation}deg)`,
                                 zIndex: content.zIndex,
                               }}
@@ -2931,7 +2937,8 @@ export default function ComicCreator() {
                                 </div>
                               )}
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       ))}
                       {(!panels || panels.length === 0) && (
