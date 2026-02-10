@@ -142,22 +142,6 @@ app.use((req, res, next) => {
 (async () => {
   await initStripe();
   
-  // One-time admin password fix for production
-  try {
-    const { hashPassword } = await import("./auth");
-    const { pool: dbPool } = await import("./db");
-    const adminEmail = "mojocreative1@gmail.com";
-    const adminPassword = "MoJoAdmin2026!";
-    const hashedPwd = await hashPassword(adminPassword);
-    await dbPool.query(
-      `UPDATE users SET password = $1, role = 'admin' WHERE email = $2`,
-      [hashedPwd, adminEmail]
-    );
-    console.log("[admin] Password reset complete for", adminEmail);
-  } catch (e) {
-    console.error("[admin] Password reset failed:", e);
-  }
-  
   await registerRoutes(httpServer, app);
 
   app.use(errorHandler);
