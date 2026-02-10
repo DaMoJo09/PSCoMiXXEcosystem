@@ -417,6 +417,34 @@ export default function ComicCreator() {
     }
   }, [project]);
 
+  // Auto-save when spreads or title change (debounced)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasLoadedRef = useRef(false);
+  const updateProjectRef = useRef(updateProject);
+  updateProjectRef.current = updateProject;
+
+  useEffect(() => {
+    if (project) {
+      hasLoadedRef.current = true;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    if (!effectiveProjectId || !hasLoadedRef.current) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await updateProjectRef.current.mutateAsync({
+          id: effectiveProjectId,
+          data: { title, data: { spreads } },
+        });
+      } catch {}
+    }, 3000);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [spreads, title, effectiveProjectId]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;

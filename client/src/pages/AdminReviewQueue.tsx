@@ -14,6 +14,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Eye, Clock, FileText,
   Image, Film, BookOpen, Layers, Palette
 } from "lucide-react";
+import { ComicPreviewRenderer } from "@/components/ComicPreviewRenderer";
 
 interface ReviewProject {
   id: string;
@@ -220,13 +221,6 @@ export default function AdminReviewQueue() {
           </DialogHeader>
           {selectedProject && (
             <div className="space-y-4">
-              {selectedProject.thumbnail && (
-                <img
-                  src={selectedProject.thumbnail}
-                  alt={selectedProject.title}
-                  className="w-full max-h-64 object-contain border-2 border-black rounded"
-                />
-              )}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-zinc-400">Type:</span>
@@ -239,10 +233,18 @@ export default function AdminReviewQueue() {
                   </span>
                 </div>
               </div>
-              <div className="bg-zinc-800 p-3 rounded border-2 border-black max-h-48 overflow-auto">
-                <pre className="text-xs text-zinc-300 whitespace-pre-wrap">
-                  {JSON.stringify(selectedProject.data, null, 2).slice(0, 2000)}
-                </pre>
+              <div className="bg-zinc-800 p-3 rounded border-2 border-black max-h-[500px] overflow-auto">
+                {selectedProject.type === "comic" || selectedProject.type === "motion" ? (
+                  <ComicPreviewRenderer data={selectedProject.data} maxWidth={550} maxHeight={500} />
+                ) : selectedProject.thumbnail ? (
+                  <img
+                    src={selectedProject.thumbnail}
+                    alt={selectedProject.title}
+                    className="w-full max-h-96 object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-zinc-500 py-8">No visual preview available</div>
+                )}
               </div>
               <div className="flex gap-2 justify-end">
                 <Button
