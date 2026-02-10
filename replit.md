@@ -29,7 +29,8 @@ Preferred communication style: Simple, everyday language.
 ### Content Publishing Pipeline
 - **Project Lifecycle:** draft → review → approved/rejected → published
 - **PS Content Bundle v1:** Standard Zod-validated format for all published content types (comic, trading_card, visual_novel, cyoa, cover, motion). Includes creator metadata, payload, assets, visibility, tags, age rating.
-- **Pipeline Steps:** validate → bundle → save → sync (Emergent platform integration stubbed)
+- **Pipeline Steps:** validate → bundle → save → sync (Emergent platform integration LIVE)
+- **Emergent Streaming Integration:** Real API sync to `gamexclub.preview.emergentagent.com` (will become `madmixedmedia.com`). Uses `EMERGENT_API_URL` and `EMERGENT_WEBHOOK_SECRET` env vars. Supports content sync, creator profile sync, and health checks. Content types mapped: comic→pages[], visual_novel→scenes, cyoa→nodes, trading_card→card data.
 - **Bundle Builder:** `server/publishPipeline.ts` - converts project data into PSContentBundle, validates via Zod, runs async pipeline with job tracking.
 - **Version Tracking:** `project_versions` table snapshots project data at each publish.
 - **Job Tracking:** `publish_jobs` table tracks pipeline status (queued → building → syncing → complete/failed).
@@ -46,6 +47,7 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/projects/:id/bundle-preview` - preview bundle without publishing
   - `POST /api/webhooks/engagement` - inbound engagement events
   - `GET /api/content/:contentId/engagement` - engagement summary
+  - `GET /api/streaming/health` - check Emergent platform connection (admin only)
 
 ### System Design Choices
 - **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers with thick borders, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.

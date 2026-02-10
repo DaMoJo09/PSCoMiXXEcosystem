@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema } from "@shared/schema";
-import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent } from "./publishPipeline";
+import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
@@ -4010,6 +4010,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const summary = await storage.getEngagementSummary(req.params.contentId);
       res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/streaming/health", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    const user = req.user as any;
+    if (user.role !== "admin") return res.status(403).json({ message: "Admin only" });
+    try {
+      const health = await checkEmergentHealth();
+      res.json(health);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

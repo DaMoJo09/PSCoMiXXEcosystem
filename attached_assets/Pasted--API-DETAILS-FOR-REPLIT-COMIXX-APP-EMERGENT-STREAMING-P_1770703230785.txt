@@ -1,0 +1,113 @@
+
+📋 API DETAILS FOR REPLIT COMIXX APP → EMERGENT STREAMING PLATFORM
+Copy and send this to your Replit developer:
+
+Streaming Platform API Connection Info
+Base URL: https://gamexclub.preview.emergentagent.com (This will become madmixedmedia.com in production)
+
+Authentication Header:
+
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+ENDPOINT: Sync Published Content
+POST https://gamexclub.preview.emergentagent.com/api/replit/sync/content
+Headers:
+
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Body (PSContentBundle v1):
+
+{
+  "contract_version": "v1",
+  "content_id": "<project-uuid-from-replit>",
+  "content_type": "comic",
+  "title": "<project-title>",
+  "description": "<project-description>",
+  "cover_url": "<cover-image-url>",
+  "creator_ps_user_id": "<user-uuid-from-replit>",
+  "creator_display_name": "<user-display-name>",
+  "visibility": "public",
+  "tags": ["tag1", "tag2"],
+  "pages": [
+    { "page_number": 1, "image_url": "<page-1-url>" },
+    { "page_number": 2, "image_url": "<page-2-url>" }
+  ]
+}
+Response:
+
+{ "success": true, "content_id": "...", "action": "created" }
+Supported Content Types:
+content_type	Description	Required Fields
+comic	Comic pages	pages[] array
+comic_issue	Single issue	pages[] array
+visual_novel	VN scenes	scenes{}, start_scene
+cyoa	Choose Your Own Adventure	nodes{}, start_node
+trading_card	Trading cards	card_image_url, stats, rarity
+Example Code for Publish Pipeline (Step 5):
+// In your Replit publish pipeline - call this after admin approves
+async function syncToStreamingPlatform(project, user) {
+  const STREAMING_API = 'https://gamexclub.preview.emergentagent.com';
+  const WEBHOOK_SECRET = 'whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6';
+  
+  const bundle = {
+    contract_version: 'v1',
+    content_id: project.id,
+    content_type: project.type || 'comic',
+    title: project.name,
+    description: project.description || '',
+    cover_url: project.coverImage || project.cover_url,
+    creator_ps_user_id: user.id,
+    creator_display_name: user.displayName || user.name,
+    visibility: 'public',
+    tags: project.tags || [],
+    
+    // For comics:
+    pages: project.pages?.map((page, index) => ({
+      page_number: index + 1,
+      image_url: page.imageUrl || page.url
+    })) || []
+  };
+  
+  try {
+    const response = await fetch(`${STREAMING_API}/api/replit/sync/content`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(bundle)
+    });
+    
+    const result = await response.json();
+    console.log('✅ Synced to streaming platform:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Sync failed:', error);
+    throw error;
+  }
+}
+Additional Endpoints:
+Endpoint	Purpose
+POST /api/replit/sync/creator	Sync creator profiles
+POST /api/replit/sync/collection	Sync comic series
+GET /api/replit/sync/status	Health check
+Test the Connection:
+curl -X POST "https://gamexclub.preview.emergentagent.com/api/replit/sync/content" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6" \
+  -d '{
+    "contract_version": "v1",
+    "content_id": "test-123",
+    "content_type": "comic",
+    "title": "Test Comic",
+    "creator_ps_user_id": "user-123",
+    "creator_display_name": "Test Creator",
+    "pages": [{"page_number": 1, "image_url": "https://example.com/page1.jpg"}]
+  }'
+Expected Response: {"success": true, "content_id": "test-123", "action": "created"}
+
+Where Synced Content Appears:
+Once synced, content is viewable at:
+
+Web: https://gamexclub.preview.emergentagent.com/read/<content_id>
+API: GET /api/public/content/<content_id>
+Questions? The API is ready and tested. Just plug in the endpoint URL and webhook secret!
