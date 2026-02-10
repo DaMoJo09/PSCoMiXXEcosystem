@@ -61,15 +61,11 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   
   const { hasFeature, isAdmin } = useSubscription();
-  const hasAIAccess = hasFeature("ai") || isAdmin;
+  const hasAIAccess = true;
 
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[1];
 
   const generateImage = async () => {
-    if (!hasAIAccess) {
-      setShowUpgrade(true);
-      return;
-    }
     if (!prompt) return;
     setIsGenerating(true);
     

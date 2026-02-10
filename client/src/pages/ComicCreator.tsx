@@ -11,7 +11,6 @@ import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
-import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { SendHorizonal, Rocket } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -372,11 +371,6 @@ export default function ComicCreator() {
     credits: "Created with Press Start CoMixx"
   });
   
-  const [drawingInPanel, setDrawingInPanel] = useState<string | null>(null);
-  const [isDrawingInCanvas, setIsDrawingInCanvas] = useState(false);
-  const panelCanvasRef = useRef<HTMLCanvasElement>(null);
-  const panelCtxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const [lastDrawPoint, setLastDrawPoint] = useState<{x: number, y: number} | null>(null);
 
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
@@ -933,8 +927,20 @@ export default function ComicCreator() {
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
-      if (panel) {
-        setDrawingInPanel(panel.id);
+      if (projectId) {
+        (async () => {
+          try {
+            await updateProject.mutateAsync({
+              id: projectId,
+              data: { title, data: { spreads } },
+            });
+            navigate(`/creator/motion`);
+          } catch {
+            toast.error("Save before opening Motion Studio failed");
+          }
+        })();
+      } else {
+        toast.error("Please wait for project to be created first");
       }
     } else {
       fileInputRef.current?.click();
@@ -950,75 +956,6 @@ export default function ComicCreator() {
     toast.success("Panel tool selected - draw to create panels");
   };
   
-  const handlePanelCanvasPointerDown = (e: React.PointerEvent) => {
-    if (!panelCanvasRef.current || !panelCtxRef.current) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setIsDrawingInCanvas(true);
-    const rect = panelCanvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
-    const y = ((e.clientY - rect.top) / rect.height) * panelCanvasRef.current.height;
-    setLastDrawPoint({ x, y });
-  };
-  
-  const handlePanelCanvasPointerMove = (e: React.PointerEvent) => {
-    if (!isDrawingInCanvas || !panelCanvasRef.current || !panelCtxRef.current || !lastDrawPoint) return;
-    const ctx = panelCtxRef.current;
-    const rect = panelCanvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * panelCanvasRef.current.width;
-    const y = ((e.clientY - rect.top) / rect.height) * panelCanvasRef.current.height;
-    
-    const pressure = e.pressure > 0 ? e.pressure : 0.5;
-    const pressureBrushSize = activeTool === 'erase' 
-      ? brushSize * 3 * pressure 
-      : brushSize * (0.5 + pressure * 0.8);
-    
-    ctx.globalCompositeOperation = activeTool === 'erase' ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = brushColor;
-    ctx.lineWidth = Math.max(1, pressureBrushSize);
-    ctx.beginPath();
-    ctx.moveTo(lastDrawPoint.x, lastDrawPoint.y);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
-    
-    setLastDrawPoint({ x, y });
-  };
-  
-  const handlePanelCanvasPointerUp = (e: React.PointerEvent) => {
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch (_) {}
-    setIsDrawingInCanvas(false);
-    setLastDrawPoint(null);
-  };
-  
-  const saveDrawingToPanel = () => {
-    if (!panelCanvasRef.current || !drawingInPanel) return;
-    const drawingData = panelCanvasRef.current.toDataURL('image/png');
-    addContentToPanel(selectedPage, drawingInPanel, {
-      type: "drawing",
-      transform: { x: 0, y: 0, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { drawingData },
-      locked: false,
-    });
-    setDrawingInPanel(null);
-    toast.success("Drawing saved to panel");
-  };
-  
-  const cancelPanelDrawing = () => {
-    setDrawingInPanel(null);
-  };
-  
-  const getExistingDrawingData = (panelId: string): string | undefined => {
-    const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-    const panel = panels.find(p => p.id === panelId);
-    if (!panel) return undefined;
-    const drawingContent = panel.contents.find(c => c.type === "drawing");
-    return drawingContent?.data.drawingData;
-  };
-
   const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">) => {
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
@@ -2811,27 +2748,6 @@ export default function ComicCreator() {
           onChange={handleFileUpload}
         />
 
-        {drawingInPanel && (
-          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-8">
-            <DrawingWorkspace
-              width={800}
-              height={800}
-              initialData={getExistingDrawingData(drawingInPanel)}
-              onSave={(rasterData, vectorData) => {
-                addContentToPanel(selectedPage, drawingInPanel, {
-                  type: "drawing",
-                  transform: { x: 0, y: 0, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 },
-                  data: { drawingData: rasterData, vectorData },
-                  locked: false,
-                });
-                setDrawingInPanel(null);
-                toast.success("Drawing saved to panel");
-              }}
-              onCancel={() => setDrawingInPanel(null)}
-              className="w-full max-w-5xl h-[85vh]"
-            />
-          </div>
-        )}
 
         {showTemplates && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
