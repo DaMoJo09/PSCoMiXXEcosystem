@@ -391,6 +391,7 @@ export function TextElement({
           onChange={(e) => handleTextChange(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={(e) => {
+            e.stopPropagation();
             if (e.key === "Escape") {
               onEditEnd?.();
             }

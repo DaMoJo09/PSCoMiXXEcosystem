@@ -431,7 +431,11 @@ export default function ComicCreator() {
         case 't': setActiveTool('text'); break;
         case 'u': setShowBubbleSidebar(prev => !prev); break;
         case 'g': setShowAIGen(true); break;
-        case 'delete': case 'backspace': if (!editingTextId) { handleDeleteSelected(); e.preventDefault(); } break;
+        case 'delete': case 'backspace': {
+          const isInInput = document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLInputElement || (document.activeElement as HTMLElement)?.isContentEditable;
+          if (!editingTextId && !isInInput) { handleDeleteSelected(); e.preventDefault(); }
+          break;
+        }
         case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
         case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
         case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
@@ -929,16 +933,8 @@ export default function ComicCreator() {
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
-      // Navigate to Motion Studio for drawing
       if (panel) {
-        sessionStorage.setItem('panel_edit_data', JSON.stringify({
-          panelId: panel.id,
-          contents: panel.contents,
-          page,
-          spreadIndex: currentSpreadIndex,
-          projectId: projectId
-        }));
-        navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
+        setDrawingInPanel(panel.id);
       }
     } else {
       fileInputRef.current?.click();
@@ -1821,11 +1817,12 @@ export default function ComicCreator() {
             </button>
             <button
               onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              disabled={isSaving || !projectId}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="button-save"
+              title={!projectId ? "Creating project..." : "Save (Ctrl+S)"}
             >
-              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !projectId ? "Creating..." : "Save"}
             </button>
             <button 
               onClick={() => { setPreviewPage(0); setShowPreview(true); }}
@@ -2600,67 +2597,90 @@ export default function ComicCreator() {
                 </label>
               </div>
               <div className="flex-1 overflow-auto p-2 space-y-1">
-                {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx, arr) => (
-                  <div
-                    key={panel.id}
-                    className={`p-2 text-sm cursor-pointer ${selectedPanelId === panel.id ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
-                    onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Panel {idx + 1}</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); moveLayerUp(selectedPage, panel.id); }}
-                          disabled={idx === 0}
-                          className={`p-0.5 rounded ${idx === 0 ? 'opacity-30' : 'hover:bg-zinc-600'}`}
-                          title="Move Up"
-                        >
-                          <MoveUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); moveLayerDown(selectedPage, panel.id); }}
-                          disabled={idx === arr.length - 1}
-                          className={`p-0.5 rounded ${idx === arr.length - 1 ? 'opacity-30' : 'hover:bg-zinc-600'}`}
-                          title="Move Down"
-                        >
-                          <MoveDown className="w-3 h-3" />
-                        </button>
-                        <span className="text-xs opacity-50 ml-1">{panel.contents.length}</span>
-                      </div>
+                {(selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage).map((panel, idx, arr) => {
+                  const isActive = selectedPanelId === panel.id;
+                  return (
+                  <div key={panel.id}>
+                    <div
+                      className={`px-2 py-1.5 text-sm cursor-pointer flex items-center gap-1 group ${isActive ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                      onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
+                    >
+                      <span className="flex-1 truncate text-xs font-medium">Panel {idx + 1}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); togglePanelLock(selectedPage, panel.id); }}
+                        className={`p-0.5 rounded ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'}`}
+                        title={panel.locked ? "Unlock" : "Lock"}
+                      >
+                        {panel.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-40 group-hover:opacity-100" />}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); moveLayerUp(selectedPage, panel.id); }}
+                        disabled={idx === 0}
+                        className={`p-0.5 rounded ${idx === 0 ? 'opacity-20' : isActive ? 'hover:bg-zinc-200' : 'opacity-40 group-hover:opacity-100 hover:bg-zinc-600'}`}
+                        title="Move Up"
+                      >
+                        <MoveUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); moveLayerDown(selectedPage, panel.id); }}
+                        disabled={idx === arr.length - 1}
+                        className={`p-0.5 rounded ${idx === arr.length - 1 ? 'opacity-20' : isActive ? 'hover:bg-zinc-200' : 'opacity-40 group-hover:opacity-100 hover:bg-zinc-600'}`}
+                        title="Move Down"
+                      >
+                        <MoveDown className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deletePanel(selectedPage, panel.id); if (isActive) setSelectedPanelId(null); }}
+                        className={`p-0.5 rounded ${isActive ? 'hover:bg-red-200 text-red-600' : 'opacity-0 group-hover:opacity-100 hover:bg-red-900 text-red-400'}`}
+                        title="Delete Panel"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                      <span className="text-[10px] opacity-40 ml-0.5 tabular-nums">{panel.contents.length}</span>
                     </div>
-                    {selectedPanelId === panel.id && panel.contents.length > 0 && (
-                      <div className="mt-2 pl-2 border-l border-zinc-600 space-y-1">
-                        {panel.contents.map((content, cIdx, contentArr) => (
+                    {isActive && panel.contents.length > 0 && (
+                      <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
+                        {panel.contents.map((content, cIdx, contentArr) => {
+                          const isContentActive = selectedContentId === content.id;
+                          const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? "Text" : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
+                          return (
                           <div
                             key={content.id}
-                            className={`px-2 py-1 text-xs cursor-pointer flex items-center justify-between ${selectedContentId === content.id ? 'bg-zinc-600' : 'hover:bg-zinc-700'}`}
+                            className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${isContentActive ? 'bg-zinc-600 text-white' : 'hover:bg-zinc-750'}`}
                             onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
                           >
-                            <span>{content.type} {cIdx + 1}</span>
-                            <div className="flex items-center gap-0.5">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); moveContentUp(selectedPage, panel.id, content.id); }}
-                                disabled={cIdx === 0}
-                                className={`p-0.5 rounded ${cIdx === 0 ? 'opacity-30' : 'hover:bg-zinc-500'}`}
-                                title="Move Up"
-                              >
-                                <MoveUp className="w-2.5 h-2.5" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); moveContentDown(selectedPage, panel.id, content.id); }}
-                                disabled={cIdx === contentArr.length - 1}
-                                className={`p-0.5 rounded ${cIdx === contentArr.length - 1 ? 'opacity-30' : 'hover:bg-zinc-500'}`}
-                                title="Move Down"
-                              >
-                                <MoveDown className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
+                            <span className="flex-1 truncate">{typeLabel} {cIdx + 1}</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); moveContentUp(selectedPage, panel.id, content.id); }}
+                              disabled={cIdx === 0}
+                              className={`p-0.5 rounded ${cIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
+                              title="Move Up"
+                            >
+                              <MoveUp className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); moveContentDown(selectedPage, panel.id, content.id); }}
+                              disabled={cIdx === contentArr.length - 1}
+                              className={`p-0.5 rounded ${cIdx === contentArr.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
+                              title="Move Down"
+                            >
+                              <MoveDown className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteContentFromPanel(selectedPage, panel.id, content.id); if (isContentActive) setSelectedContentId(null); }}
+                              className="p-0.5 rounded opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </button>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
               
               {selectedContent && (selectedContent.type === 'text' || selectedContent.type === 'bubble') && selectedPanelId && (
@@ -2674,6 +2694,7 @@ export default function ComicCreator() {
                       <textarea
                         value={selectedContent.data.text || ""}
                         onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { text: e.target.value })}
+                        onKeyDown={(e) => e.stopPropagation()}
                         className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-2 min-h-[60px] resize-none"
                         placeholder="Enter your text..."
                         data-testid="textarea-caption-text"
