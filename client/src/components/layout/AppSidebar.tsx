@@ -31,7 +31,9 @@ import {
   Search,
   Handshake,
   Link2,
-  Download
+  Download,
+  Zap,
+  Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,12 +63,13 @@ const galleryTools = [
   { icon: Mail, label: "Contact", href: "/contact" },
 ];
 
-const ecosystemTools = [
-  { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem" },
-  { icon: Rocket, label: "Publish", href: "/ecosystem/publish" },
-  { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate" },
-  { icon: Trophy, label: "Events", href: "/ecosystem/events" },
-  { icon: DollarSign, label: "Pricing", href: "/pricing" },
+const ecosystemToolsBase = [
+  { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem", studentOk: true },
+  { icon: Rocket, label: "Publish", href: "/ecosystem/publish", studentOk: true },
+  { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate", studentOk: true },
+  { icon: Trophy, label: "Events", href: "/ecosystem/events", studentOk: true },
+  { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false },
+  { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true },
 ];
 
 const socialTools = [
@@ -79,10 +82,16 @@ const socialTools = [
   { icon: Search, label: "Find Creators", href: "/social/search" },
 ];
 
+const XP_PER_LEVEL = 1000;
+
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isStudent, isCreator } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const xp = user?.xp || 0;
+  const level = user?.level || 1;
+  const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
+  const xpProgress = Math.min((xpInLevel / XP_PER_LEVEL) * 100, 100);
 
   return (
     <aside className="w-64 h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50" aria-label="Main navigation">
@@ -151,7 +160,7 @@ export function AppSidebar() {
         ))}
 
         <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4" id="community-nav-label">Community</div>
-        {ecosystemTools.map((item) => (
+        {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => (
           <Link 
             key={item.href} 
             href={item.href}
@@ -225,7 +234,35 @@ export function AppSidebar() {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-border bg-background z-10">
+      <div className="p-4 border-t border-border bg-background z-10 space-y-2">
+        {user && (
+          <div className="px-4 py-2 space-y-2" data-testid="xp-bar-section">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Star className="w-3.5 h-3.5 text-yellow-400" />
+                <span className="text-xs font-bold">LVL {level}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground font-mono">{xpInLevel}/{XP_PER_LEVEL} XP</span>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 to-yellow-400 transition-all duration-500"
+                style={{ width: `${xpProgress}%` }}
+                data-testid="xp-progress-bar"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                isStudent 
+                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" 
+                  : "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+              }`} data-testid="text-account-type">
+                {isStudent ? "STUDENT" : "CREATOR"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">{user.totalMinutes || 0} min</span>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold font-mono text-xs">
             {user?.name?.substring(0, 2).toUpperCase() || "ME"}

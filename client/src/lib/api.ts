@@ -10,15 +10,26 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+interface AuthResponse {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  accountType: string;
+  xp: number;
+  level: number;
+  totalMinutes: number;
+}
+
 export const authApi = {
-  signup: async (data: InsertUser) => {
+  signup: async (data: { email: string; password: string; name: string; dateOfBirth: string }) => {
     const response = await fetch(`${API_BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
       credentials: "include",
     });
-    return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
+    return handleResponse<AuthResponse>(response);
   },
 
   login: async (email: string, password: string) => {
@@ -28,7 +39,7 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
       credentials: "include",
     });
-    return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
+    return handleResponse<AuthResponse>(response);
   },
 
   logout: async () => {
@@ -43,7 +54,7 @@ export const authApi = {
     const response = await fetch(`${API_BASE}/auth/me`, {
       credentials: "include",
     });
-    return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
+    return handleResponse<AuthResponse>(response);
   },
   
   adminLogin: async (email: string, password: string) => {
@@ -53,7 +64,7 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
       credentials: "include",
     });
-    return handleResponse<{ id: string; email: string; name: string; role: string }>(response);
+    return handleResponse<AuthResponse>(response);
   },
   
   getLegalStatus: async () => {

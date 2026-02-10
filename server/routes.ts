@@ -117,7 +117,31 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Auth routes
   app.post("/api/auth/signup", async (req, res, next) => {
     try {
-      const result = insertUserSchema.safeParse(req.body);
+      const { dateOfBirth, ...rest } = req.body;
+
+      if (!dateOfBirth) {
+        return res.status(400).json({ message: "Date of birth is required" });
+      }
+
+      const dob = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+
+      if (age < 6) {
+        return res.status(400).json({ message: "You must be at least 6 years old to sign up" });
+      }
+
+      const accountType = age >= 18 ? "creator" : "student";
+
+      const result = insertUserSchema.safeParse({
+        ...rest,
+        dateOfBirth,
+        accountType,
+      });
       if (!result.success) {
         return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
       }
@@ -140,6 +164,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           email: user.email,
           name: user.name,
           role: user.role,
+          accountType: user.accountType,
+          xp: user.xp,
+          level: user.level,
+          totalMinutes: user.totalMinutes,
         });
       });
     } catch (error: any) {
@@ -175,6 +203,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           email: user.email,
           name: user.name,
           role: user.role,
+          accountType: user.accountType,
+          xp: user.xp,
+          level: user.level,
+          totalMinutes: user.totalMinutes,
         });
       });
     })(req, res, next);
@@ -194,6 +226,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         email: req.user.email,
         name: req.user.name,
         role: req.user.role,
+        accountType: req.user.accountType,
+        xp: req.user.xp,
+        level: req.user.level,
+        totalMinutes: req.user.totalMinutes,
       });
     }
     res.status(401).json({ message: "Not authenticated" });
@@ -240,6 +276,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           email: adminUser!.email,
           name: adminUser!.name,
           role: adminUser!.role,
+          accountType: adminUser!.accountType || "creator",
+          xp: adminUser!.xp || 0,
+          level: adminUser!.level || 1,
+          totalMinutes: adminUser!.totalMinutes || 0,
         });
       });
     } catch (error: any) {
@@ -287,6 +327,63 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       res.json({ 
         ipDisclosureAccepted: user.ipDisclosureAccepted,
         userAgreementAccepted: user.userAgreementAccepted 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // XP Heartbeat - tracks time spent in app and awards XP
+  // Each heartbeat = 1 minute of activity = 10 XP
+  const XP_PER_MINUTE = 10;
+  const XP_PER_LEVEL = 1000;
+  
+  app.post("/api/xp/heartbeat", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const now = new Date();
+      const lastBeat = user.lastXpHeartbeat ? new Date(user.lastXpHeartbeat) : null;
+      const minSinceLastBeat = lastBeat ? (now.getTime() - lastBeat.getTime()) / 60000 : 2;
+
+      if (minSinceLastBeat < 0.5) {
+        return res.json({ xp: user.xp, level: user.level, totalMinutes: user.totalMinutes });
+      }
+
+      const minutesToCredit = Math.min(Math.floor(minSinceLastBeat), 5);
+      const xpGained = minutesToCredit * XP_PER_MINUTE;
+      const newXp = (user.xp || 0) + xpGained;
+      const newTotalMinutes = (user.totalMinutes || 0) + minutesToCredit;
+      const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
+
+      await storage.updateUserProfile(userId, {
+        xp: newXp,
+        level: newLevel,
+        totalMinutes: newTotalMinutes,
+        lastXpHeartbeat: now,
+      } as any);
+
+      res.json({ xp: newXp, level: newLevel, totalMinutes: newTotalMinutes, xpGained });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/xp/status", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const xpForNextLevel = ((user.level || 1)) * XP_PER_LEVEL;
+      const xpInCurrentLevel = (user.xp || 0) - ((user.level || 1) - 1) * XP_PER_LEVEL;
+      res.json({
+        xp: user.xp || 0,
+        level: user.level || 1,
+        totalMinutes: user.totalMinutes || 0,
+        accountType: user.accountType,
+        xpForNextLevel: XP_PER_LEVEL,
+        xpInCurrentLevel,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3726,6 +3823,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.accountType === "student") {
+        return res.status(403).json({ message: "Student accounts cannot access monetization features" });
       }
 
       // Get or create subscription record with Stripe customer

@@ -49,6 +49,16 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/content/:contentId/engagement` - engagement summary
   - `GET /api/streaming/health` - check Emergent platform connection (admin only)
 
+### XP & Account System
+- **Account Types:** Student (ages 6-17) and Creator (18+), determined by date of birth at signup.
+- **Student Restrictions:** No access to monetization features (Pricing page hidden from sidebar). Publishing still allowed for portfolio building.
+- **XP System:** Time-based progression - 10 XP per minute of active use, tracked via heartbeat (POST /api/xp/heartbeat every 60 seconds). 1000 XP per level. Max 5 minutes credited per heartbeat to prevent manipulation.
+- **XP Display:** Level badge and XP progress bar shown in sidebar, account type badge (Student/Creator) displayed alongside.
+- **Schema Fields:** `dateOfBirth` (date), `accountType` (student/creator), `xp` (integer), `level` (integer), `totalMinutes` (integer) on users table.
+- **API Endpoints:**
+  - `POST /api/xp/heartbeat` - records activity time, awards XP
+  - `GET /api/xp/stats` - returns current XP, level, totalMinutes
+
 ### System Design Choices
 - **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers with thick borders, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.
 - **Mobile Design:** Bottom tab bar navigation, consistent page headers, shared modal/dialog styling, and iconography.

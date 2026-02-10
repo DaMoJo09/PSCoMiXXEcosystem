@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull().default("creator"), // creator | admin
+  accountType: text("account_type").notNull().default("creator"), // student (6-17) | creator (18+)
+  dateOfBirth: text("date_of_birth"), // YYYY-MM-DD format
   // Profile fields
   avatar: text("avatar"), // URL to profile image
   coverImage: text("cover_image"), // URL to cover/banner image
@@ -18,6 +20,8 @@ export const users = pgTable("users", {
   creatorClass: text("creator_class").default("Rookie"), // Rookie, Artist, Writer, etc.
   xp: integer("xp").default(0), // Experience points
   level: integer("level").default(1), // User level
+  totalMinutes: integer("total_minutes").default(0), // Total time spent in app (minutes)
+  lastXpHeartbeat: timestamp("last_xp_heartbeat"), // Last XP heartbeat timestamp
   // Stats (persona card style)
   statCreativity: integer("stat_creativity").default(10),
   statStorytelling: integer("stat_storytelling").default(10),

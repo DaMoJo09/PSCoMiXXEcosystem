@@ -18,6 +18,7 @@ export default function AuthPage() {
     email: "",
     password: "",
     name: "",
+    dateOfBirth: "",
   });
 
   useEffect(() => {
@@ -25,6 +26,18 @@ export default function AuthPage() {
       navigate("/");
     }
   }, [isAuthenticated, navigate]);
+
+  function getAge(dob: string): number {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
+  }
+
+  const age = signupData.dateOfBirth ? getAge(signupData.dateOfBirth) : null;
+  const accountTypePreview = age !== null ? (age >= 18 ? "Creator" : age >= 6 ? "Student" : null) : null;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -42,10 +55,19 @@ export default function AuthPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (!signupData.dateOfBirth) {
+      toast.error("Please enter your date of birth");
+      return;
+    }
+    if (age !== null && age < 6) {
+      toast.error("You must be at least 6 years old to sign up");
+      return;
+    }
     setIsLoading(true);
     try {
-      await signup(signupData.email, signupData.password, signupData.name);
-      toast.success("Account created successfully");
+      await signup(signupData.email, signupData.password, signupData.name, signupData.dateOfBirth);
+      const type = age !== null && age >= 18 ? "Creator" : "Student";
+      toast.success(`Welcome to Press Start CoMixx! You're signed up as a ${type}.`);
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Signup failed");
@@ -178,6 +200,39 @@ export default function AuthPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="signup-dob" className="text-white">
+                    Date of Birth
+                  </Label>
+                  <Input
+                    id="signup-dob"
+                    type="date"
+                    value={signupData.dateOfBirth}
+                    onChange={(e) =>
+                      setSignupData({ ...signupData, dateOfBirth: e.target.value })
+                    }
+                    required
+                    data-testid="input-signup-dob"
+                    className="bg-zinc-900 border-white/20 text-white placeholder:text-zinc-500"
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                  {accountTypePreview && (
+                    <div className={`text-xs mt-1 px-2 py-1 rounded inline-block ${
+                      accountTypePreview === "Creator" 
+                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" 
+                        : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                    }`}
+                    data-testid="text-account-type-preview"
+                    >
+                      {accountTypePreview === "Creator" 
+                        ? "Creator Account (18+) - Full access with monetization" 
+                        : "Student Account (6-17) - Create and learn"}
+                    </div>
+                  )}
+                  {age !== null && age < 6 && (
+                    <p className="text-xs text-red-400 mt-1">Must be at least 6 years old to sign up</p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="signup-password" className="text-white">
                     Password
                   </Label>
@@ -197,11 +252,11 @@ export default function AuthPage() {
                 <Button
                   type="submit"
                   className="w-full bg-white text-black hover:bg-zinc-200"
-                  disabled={isLoading}
+                  disabled={isLoading || (age !== null && age < 6)}
                   data-testid="button-signup"
                   aria-busy={isLoading}
                 >
-                  {isLoading ? "Creating account..." : "Sign Up"}
+                  {isLoading ? "Creating account..." : accountTypePreview ? `Sign Up as ${accountTypePreview}` : "Sign Up"}
                 </Button>
               </form>
 
