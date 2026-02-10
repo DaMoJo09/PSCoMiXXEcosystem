@@ -346,6 +346,66 @@ export default function MotionStudio() {
     }
   }, [project]);
 
+  // Load panel data from comic builder (when launched via "Edit in Motion Studio")
+  useEffect(() => {
+    const panelParam = searchParams.get('panel');
+    const panelEditStr = sessionStorage.getItem('panel_edit_data');
+    if (panelParam && panelEditStr) {
+      try {
+        const panelData = JSON.parse(panelEditStr);
+        if (panelData.projectId) {
+          setSelectedComicId(panelData.projectId);
+          setSelectedPanelId(panelData.panelId);
+        }
+        if (panelData.contents && panelData.contents.length > 0) {
+          const imageLayers: ImageLayer[] = [];
+          panelData.contents.forEach((content: any, idx: number) => {
+            if ((content.type === "image" || content.type === "gif") && content.data?.url) {
+              imageLayers.push({
+                id: `imported_${Date.now()}_${idx}`,
+                src: content.data.url,
+                x: content.transform?.x || 0,
+                y: content.transform?.y || 0,
+                width: content.transform?.width || 400,
+                height: content.transform?.height || 400,
+                rotation: content.transform?.rotation || 0,
+                opacity: 100,
+                locked: false,
+                visible: true,
+                name: `Imported ${idx + 1}`,
+              });
+            } else if (content.type === "drawing" && content.data?.drawingData) {
+              imageLayers.push({
+                id: `imported_${Date.now()}_${idx}`,
+                src: content.data.drawingData,
+                x: content.transform?.x || 0,
+                y: content.transform?.y || 0,
+                width: content.transform?.width || 400,
+                height: content.transform?.height || 400,
+                rotation: content.transform?.rotation || 0,
+                opacity: 100,
+                locked: false,
+                visible: true,
+                name: `Drawing ${idx + 1}`,
+              });
+            }
+          });
+          if (imageLayers.length > 0) {
+            setFrames(prev => {
+              const updated = [...prev];
+              updated[0] = { ...updated[0], imageLayers };
+              return updated;
+            });
+            toast.success(`Loaded ${imageLayers.length} layer(s) from comic panel`);
+          }
+        }
+        sessionStorage.removeItem('panel_edit_data');
+      } catch (e) {
+        console.error('Failed to load panel data:', e);
+      }
+    }
+  }, []);
+
   // Canvas setup
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1670,9 +1730,9 @@ export default function MotionStudio() {
               
               {/* Image Layers Overlay */}
               <div 
-                className="absolute inset-0 z-5"
+                className="absolute inset-0"
                 data-layer-container="true"
-                style={{ pointerEvents: 'none' }}
+                style={{ pointerEvents: 'none', zIndex: (rasterTool === 'select' && drawingMode === 'raster') || (vectorTool === 'select' && drawingMode === 'vector') ? 20 : 2 }}
               >
                 {currentImageLayers.filter(l => l.visible).map(layer => {
                   const isSelected = selectedLayerId === layer.id;

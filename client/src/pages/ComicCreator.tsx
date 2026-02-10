@@ -324,7 +324,8 @@ export default function ComicCreator() {
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const projectId = searchParams.get('id');
   
-  const { data: project } = useProject(projectId || '');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const { data: project } = useProject(projectId || createdProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
@@ -377,11 +378,12 @@ export default function ComicCreator() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const creationAttempted = useRef(false);
 
+  const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
 
   useEffect(() => {
     sessionStorage.removeItem('comic_creating');
-    if (!projectId && !creationAttempted.current && !createProject.isPending) {
+    if (!projectId && !createdProjectId && !creationAttempted.current && !createProject.isPending) {
       creationAttempted.current = true;
       setIsCreating(true);
       createProject.mutateAsync({
@@ -390,6 +392,7 @@ export default function ComicCreator() {
         status: "draft",
         data: { spreads: [] },
       }).then((newProject) => {
+        setCreatedProjectId(newProject.id);
         setIsCreating(false);
         navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
       }).catch(() => {
@@ -456,11 +459,11 @@ export default function ComicCreator() {
   const qc = useQueryClient();
   const submitForReview = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/submit-review`);
+      const res = await apiRequest("POST", `/api/projects/${effectiveProjectId}/submit-review`);
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
       toast.success("Submitted for review!");
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit for review"),
@@ -468,22 +471,22 @@ export default function ComicCreator() {
 
   const publishProject = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/publish`, { visibility: "public" });
+      const res = await apiRequest("POST", `/api/projects/${effectiveProjectId}/publish`, { visibility: "public" });
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+      qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
       toast.success("Publishing started!");
     },
     onError: (err: any) => toast.error(err.message || "Failed to publish"),
   });
 
   const handleSave = async () => {
-    if (!projectId) return;
+    if (!effectiveProjectId) return;
     setIsSaving(true);
     try {
       await updateProject.mutateAsync({
-        id: projectId,
+        id: effectiveProjectId,
         data: { title, data: { spreads } },
       });
       toast.success("Comic saved");
@@ -926,11 +929,11 @@ export default function ComicCreator() {
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
-      if (projectId) {
+      if (effectiveProjectId) {
         (async () => {
           try {
             await updateProject.mutateAsync({
-              id: projectId,
+              id: effectiveProjectId,
               data: { title, data: { spreads } },
             });
             navigate(`/creator/motion`);
@@ -1753,12 +1756,12 @@ export default function ComicCreator() {
             </button>
             <button
               onClick={handleSave}
-              disabled={isSaving || !projectId}
+              disabled={isSaving || !effectiveProjectId}
               className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="button-save"
-              title={!projectId ? "Creating project..." : "Save (Ctrl+S)"}
+              title={!effectiveProjectId ? "Creating project..." : "Save (Ctrl+S)"}
             >
-              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !projectId ? "Creating..." : "Save"}
+              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
             </button>
             <button 
               onClick={() => { setPreviewPage(0); setShowPreview(true); }}
@@ -1786,7 +1789,7 @@ export default function ComicCreator() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {projectId && project && (project.status === "draft" || project.status === "rejected") && (
+            {effectiveProjectId && project && (project.status === "draft" || project.status === "rejected") && (
               <button
                 onClick={() => submitForReview.mutate()}
                 disabled={submitForReview.isPending}
@@ -1796,7 +1799,7 @@ export default function ComicCreator() {
                 <SendHorizonal className="w-4 h-4" /> Submit for Review
               </button>
             )}
-            {projectId && project && project.status === "approved" && (
+            {effectiveProjectId && project && project.status === "approved" && (
               <button
                 onClick={() => publishProject.mutate()}
                 disabled={publishProject.isPending}
@@ -1806,9 +1809,9 @@ export default function ComicCreator() {
                 <Rocket className="w-4 h-4" /> Publish
               </button>
             )}
-            {projectId && (
+            {effectiveProjectId && (
               <PostComposer
-                projectId={projectId}
+                projectId={effectiveProjectId}
                 projectType="comic"
                 projectTitle={title}
                 trigger={
@@ -1867,7 +1870,7 @@ export default function ComicCreator() {
               <button 
                 onClick={async () => { 
                   if (currentSpreadIndex > 0) {
-                    if (projectId) await handleSave();
+                    if (effectiveProjectId) await handleSave();
                     setCurrentSpreadIndex(currentSpreadIndex - 1);
                   }
                 }}
@@ -1879,7 +1882,7 @@ export default function ComicCreator() {
               <button 
                 onClick={async () => {
                   if (currentSpreadIndex < spreads.length - 1) {
-                    if (projectId) await handleSave();
+                    if (effectiveProjectId) await handleSave();
                     setCurrentSpreadIndex(currentSpreadIndex + 1);
                   }
                 }}
@@ -2112,7 +2115,7 @@ export default function ComicCreator() {
                               contents: panel.contents,
                               page: "left",
                               spreadIndex: currentSpreadIndex,
-                              projectId: projectId
+                              projectId: effectiveProjectId
                             }));
                             navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
                           }
@@ -2407,7 +2410,7 @@ export default function ComicCreator() {
                               contents: panel.contents,
                               page: "right",
                               spreadIndex: currentSpreadIndex,
-                              projectId: projectId
+                              projectId: effectiveProjectId
                             }));
                             navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
                           }
@@ -2868,11 +2871,19 @@ export default function ComicCreator() {
                             top: `${panel.y}%`,
                             width: `${panel.width}%`,
                             height: `${panel.height}%`,
+                            backgroundColor: panel.backgroundColor || 'white',
+                            borderWidth: `${panel.borderWidth || 2}px`,
+                            borderColor: panel.borderColor || 'black',
+                            borderStyle: 'solid',
+                            borderRadius: panel.type === 'circle' ? '50%' : undefined,
+                            transform: `rotate(${panel.rotation || 0}deg)`,
                           }}
                         >
                           {panel.contents.map(content => {
-                          const panelW = (panel.width / 100) * 500;
-                          const panelH = (panel.height / 100) * 750;
+                          const EDITOR_W = 650;
+                          const EDITOR_H = 920;
+                          const panelW = (panel.width / 100) * EDITOR_W;
+                          const panelH = (panel.height / 100) * EDITOR_H;
                           const leftPct = panelW > 0 ? (content.transform.x / panelW) * 100 : 0;
                           const topPct = panelH > 0 ? (content.transform.y / panelH) * 100 : 0;
                           const widthPct = panelW > 0 ? (content.transform.width / panelW) * 100 : 100;
