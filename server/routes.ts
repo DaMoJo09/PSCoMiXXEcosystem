@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { randomUUID, randomBytes, createHash } from "crypto";
+import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
@@ -4126,6 +4126,178 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // ============================================================
+  // PSLMS Integration Endpoints
+  // ============================================================
+
+  // PSLMS auth middleware - uses shared secret from env var
+  function isPslmsAuthenticated(req: Request, res: Response, next: Function) {
+    const authHeader = req.headers.authorization;
+    const pslmsKey = process.env.PSLMS_API_KEY;
+    if (!pslmsKey) {
+      return res.status(503).json({ error: "PSLMS integration not configured", code: "NOT_CONFIGURED" });
+    }
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Missing or invalid Authorization header", code: "UNAUTHORIZED" });
+    }
+    const token = authHeader.substring(7);
+    if (token !== pslmsKey) {
+      return res.status(401).json({ error: "Invalid API key", code: "INVALID_KEY" });
+    }
+    return next();
+  }
+
+  // GET /api/pslms/comics?email=student@example.com
+  // Lists a student's published/approved comics and cards
+  app.get("/api/pslms/comics", isPslmsAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ error: "email query parameter is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "User not found with that email" });
+      }
+
+      const projects = await storage.getUserProjects(user.id);
+      const comics = projects
+        .filter(p => ["comic", "card", "cover", "motion", "vn", "cyoa"].includes(p.type))
+        .map(p => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          status: p.status,
+          thumbnail: p.thumbnail,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        }));
+
+      res.json({
+        user_id: user.id,
+        user_email: user.email,
+        user_name: user.name,
+        account_type: user.accountType,
+        comics,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/pslms/comics/:id
+  // Returns full comic data including project JSON and thumbnail
+  app.get("/api/pslms/comics/:id", isPslmsAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Comic not found" });
+      }
+
+      const user = await storage.getUser(project.userId);
+
+      res.json({
+        id: project.id,
+        title: project.title,
+        type: project.type,
+        status: project.status,
+        thumbnail: project.thumbnail,
+        data: project.data,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        creator: user ? {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          account_type: user.accountType,
+        } : null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/pslms/send-to-portfolio
+  // Called by CoMiXX frontend to send a comic to PSLMS (student accounts only)
+  app.post("/api/pslms/send-to-portfolio", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+
+      if (user.accountType !== "student") {
+        return res.status(403).json({ error: "Only student accounts can send to PSLMS portfolio" });
+      }
+
+      const { projectId, title, imageUrl } = req.body;
+
+      if (!projectId || !title) {
+        return res.status(400).json({ error: "projectId and title are required" });
+      }
+
+      const pslmsUrl = process.env.PSLMS_API_URL;
+      if (!pslmsUrl) {
+        return res.status(503).json({ error: "PSLMS integration not configured" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.userId !== user.id) {
+        return res.status(403).json({ error: "You can only send your own projects" });
+      }
+
+      const payload = {
+        event: "comic.submitted",
+        user_id: user.id,
+        user_email: user.email,
+        user_name: user.name,
+        title: title,
+        project_type: project.type,
+        image_url: imageUrl || project.thumbnail || "",
+        xp: 50,
+        project_id: project.id,
+        submitted_at: new Date().toISOString(),
+      };
+
+      const bodyStr = JSON.stringify(payload);
+      const webhookSecret = process.env.PSLMS_WEBHOOK_SECRET || "";
+      const signature = createHmac("sha256", webhookSecret).update(bodyStr).digest("hex");
+
+      const webhookUrl = `${pslmsUrl.replace(/\/$/, "")}/api/webhooks/comixx`;
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CoMiXX-Signature": signature,
+        },
+        body: bodyStr,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(502).json({ error: `PSLMS responded with ${response.status}`, details: errorText });
+      }
+
+      const result = await response.json();
+      res.json({ success: true, message: "Comic sent to PSLMS portfolio", pslms_response: result });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/pslms/health
+  // Health check for PSLMS integration
+  app.get("/api/pslms/health", async (_req: Request, res: Response) => {
+    const pslmsUrl = process.env.PSLMS_API_URL;
+    const pslmsKey = process.env.PSLMS_API_KEY;
+    res.json({
+      configured: !!(pslmsUrl && pslmsKey),
+      pslms_url: pslmsUrl ? pslmsUrl.replace(/\/api.*$/, "") : null,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   return server;

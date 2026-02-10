@@ -12,12 +12,13 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-import { SendHorizonal, Rocket } from "lucide-react";
+import { SendHorizonal, Rocket, Briefcase } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
@@ -330,6 +331,7 @@ export default function ComicCreator() {
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
+  const { user, isStudent } = useAuth();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [activeTool, setActiveTool] = useState("select");
@@ -467,6 +469,21 @@ export default function ComicCreator() {
       toast.success("Submitted for review!");
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit for review"),
+  });
+
+  const sendToPortfolio = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/pslms/send-to-portfolio", {
+        projectId: effectiveProjectId,
+        title: title,
+        imageUrl: project?.thumbnail || "",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Sent to PSLMS portfolio!");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to send to portfolio"),
   });
 
   const publishProject = useMutation({
@@ -1820,6 +1837,16 @@ export default function ComicCreator() {
                   </button>
                 }
               />
+            )}
+            {effectiveProjectId && isStudent && (
+              <button
+                onClick={() => sendToPortfolio.mutate()}
+                disabled={sendToPortfolio.isPending}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                data-testid="button-send-portfolio"
+              >
+                <Briefcase className="w-4 h-4" /> {sendToPortfolio.isPending ? "Sending..." : "Send to Portfolio"}
+              </button>
             )}
           </div>
         </header>

@@ -59,6 +59,20 @@ Preferred communication style: Simple, everyday language.
   - `POST /api/xp/heartbeat` - records activity time, awards XP
   - `GET /api/xp/stats` - returns current XP, level, totalMinutes
 
+### PSLMS Integration (Press Start LMS)
+- **Purpose:** Allows students to send their CoMiXX creations to their PSLMS portfolio, and lets PSLMS fetch student comics via API.
+- **PSLMS Domain:** `https://pressstart.tech` (configurable via `PSLMS_API_URL` env var)
+- **Authentication:** Shared secret via `PSLMS_API_KEY` env var. PSLMS sends `Authorization: Bearer <key>` to fetch comics. CoMiXX signs outbound webhooks with `PSLMS_WEBHOOK_SECRET`.
+- **User Matching:** Email-based matching across both apps (same email = same student).
+- **"Send to Portfolio" Button:** Visible only to Student accounts in Comic Creator. Sends project data to PSLMS webhook at `POST {PSLMS_API_URL}/api/webhooks/comixx`.
+- **Webhook Payload:** `{event: "comic.submitted", user_id, user_email, user_name, title, project_type, image_url, xp: 50, project_id, submitted_at}`
+- **API Endpoints (for PSLMS to call):**
+  - `GET /api/pslms/comics?email=student@example.com` - list student's comics (requires API key)
+  - `GET /api/pslms/comics/:id` - get full comic data with creator info (requires API key)
+  - `POST /api/pslms/send-to-portfolio` - send comic to PSLMS (session auth, student-facing)
+  - `GET /api/pslms/health` - integration health check (public)
+- **Env Vars:** `PSLMS_API_URL` (set), `PSLMS_API_KEY` (shared secret), `PSLMS_WEBHOOK_SECRET` (optional signing)
+
 ### System Design Choices
 - **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers with thick borders, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.
 - **Mobile Design:** Bottom tab bar navigation, consistent page headers, shared modal/dialog styling, and iconography.
