@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -104,6 +104,7 @@ interface Panel {
   backgroundColor?: string;
   borderColor?: string;
   borderWidth?: number;
+  filter?: string;
 }
 
 interface Spread {
@@ -419,18 +420,22 @@ export default function ComicCreator() {
 
   // Auto-save when spreads or title change (debounced)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasLoadedRef = useRef(false);
+  const userEditCountRef = useRef(0);
   const updateProjectRef = useRef(updateProject);
   updateProjectRef.current = updateProject;
+  const initialLoadDoneRef = useRef(false);
 
   useEffect(() => {
-    if (project) {
-      hasLoadedRef.current = true;
+    if (project && !initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+      userEditCountRef.current = 0;
     }
   }, [project]);
 
   useEffect(() => {
-    if (!effectiveProjectId || !hasLoadedRef.current) return;
+    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
+    userEditCountRef.current += 1;
+    if (userEditCountRef.current <= 1) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
@@ -1381,7 +1386,7 @@ export default function ComicCreator() {
         onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
         data-testid={`panel-${panel.id}`}
       >
-        <div className="absolute inset-0 overflow-hidden bg-white">
+        <div className="absolute inset-0 overflow-hidden bg-white" style={{ filter: panel.filter || 'none' }}>
           {panel.contents.map(content => (
             <TransformableElement
               key={content.id}
@@ -2247,6 +2252,39 @@ export default function ComicCreator() {
                           ))}
                         </ContextMenuSubContent>
                       </ContextMenuSub>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Sparkles className="w-4 h-4 mr-2" /> Panel Filters
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "None", value: "none" },
+                            { name: "Grayscale", value: "grayscale(100%)" },
+                            { name: "Sepia", value: "sepia(100%)" },
+                            { name: "Vintage", value: "sepia(40%) contrast(110%) brightness(90%)" },
+                            { name: "High Contrast", value: "contrast(150%)" },
+                            { name: "Low Contrast", value: "contrast(75%)" },
+                            { name: "Bright", value: "brightness(130%)" },
+                            { name: "Dark", value: "brightness(70%)" },
+                            { name: "Saturated", value: "saturate(200%)" },
+                            { name: "Desaturated", value: "saturate(50%)" },
+                            { name: "Blur", value: "blur(2px)" },
+                            { name: "Invert", value: "invert(100%)" },
+                            { name: "Warm", value: "sepia(20%) saturate(120%) brightness(105%)" },
+                            { name: "Cool", value: "hue-rotate(180deg) saturate(80%)" },
+                            { name: "Noir", value: "grayscale(100%) contrast(140%) brightness(90%)" },
+                            { name: "Dreamy", value: "blur(1px) brightness(110%) saturate(130%)" },
+                          ].map(f => (
+                            <ContextMenuItem
+                              key={f.value}
+                              onClick={() => updatePanelStyle("left", selectedPanelId, { filter: f.value })}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {f.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuItem onClick={() => deletePanel("left", selectedPanelId)} className="hover:bg-red-900 cursor-pointer text-red-400">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete Panel
@@ -2538,6 +2576,39 @@ export default function ComicCreator() {
                               className="hover:bg-zinc-800 cursor-pointer"
                             >
                               {w.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
+                          <Sparkles className="w-4 h-4 mr-2" /> Panel Filters
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
+                          {[
+                            { name: "None", value: "none" },
+                            { name: "Grayscale", value: "grayscale(100%)" },
+                            { name: "Sepia", value: "sepia(100%)" },
+                            { name: "Vintage", value: "sepia(40%) contrast(110%) brightness(90%)" },
+                            { name: "High Contrast", value: "contrast(150%)" },
+                            { name: "Low Contrast", value: "contrast(75%)" },
+                            { name: "Bright", value: "brightness(130%)" },
+                            { name: "Dark", value: "brightness(70%)" },
+                            { name: "Saturated", value: "saturate(200%)" },
+                            { name: "Desaturated", value: "saturate(50%)" },
+                            { name: "Blur", value: "blur(2px)" },
+                            { name: "Invert", value: "invert(100%)" },
+                            { name: "Warm", value: "sepia(20%) saturate(120%) brightness(105%)" },
+                            { name: "Cool", value: "hue-rotate(180deg) saturate(80%)" },
+                            { name: "Noir", value: "grayscale(100%) contrast(140%) brightness(90%)" },
+                            { name: "Dreamy", value: "blur(1px) brightness(110%) saturate(130%)" },
+                          ].map(f => (
+                            <ContextMenuItem
+                              key={f.value}
+                              onClick={() => updatePanelStyle("right", selectedPanelId, { filter: f.value })}
+                              className="hover:bg-zinc-800 cursor-pointer"
+                            >
+                              {f.name}
                             </ContextMenuItem>
                           ))}
                         </ContextMenuSubContent>

@@ -104,5 +104,16 @@ Preferred communication style: Simple, everyday language.
 ### Font Resources
 - Google Fonts: Space Grotesk, Inter, JetBrains Mono.
 
+### Mad Mixed Media (Streaming) Integration
+- **Streaming Webhooks:** `/api/webhooks/streaming` receives events from Mad Mixed Media streaming platform, forwards to PSLMS.
+- **Portfolio Webhook:** `/api/webhooks/streaming/portfolio` sends streaming content to PSLMS student portfolios.
+- **Authentication:** Shared `PSLMS_API_KEY` or `PSLMS_WEBHOOK_SECRET` via `x-api-key` or `x-webhook-secret` headers.
+- **Auto-Publish on Approval:** Admin project approval now auto-triggers the publish pipeline to sync content to Emergent streaming platform.
+
+### Comic Creator Panel Filters
+- **CSS Filters:** Panels support visual filters (grayscale, sepia, vintage, high contrast, blur, invert, warm, cool, noir, dreamy, etc.) applied via right-click context menu.
+- **Filter Property:** `filter` field on Panel interface, applied as CSS filter to panel content container.
+- **Auto-Save:** Debounced 3-second auto-save with `userEditCountRef` to skip first trigger after initial project load, preventing data overwrite.
+
 ### Ecosystem Integration Points (Planned/Future)
 - `pscomixx.com`, `comixx.website`, `pscomixx.online`, `psstreaming.online`.

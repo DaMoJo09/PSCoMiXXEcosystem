@@ -3974,6 +3974,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(400).json({ message: "Project is not in review status" });
       }
       const updated = await storage.updateProject(project.id, { status: "approved" } as any);
+
+      // Auto-trigger publish pipeline on approval to sync to Emergent streaming
+      try {
+        const result = await runPublishPipeline(project.id, project.userId, { visibility: "public" });
+        console.log(`[Auto-Publish] Triggered for approved project ${project.id}: jobId=${result.jobId}`);
+      } catch (pubErr: any) {
+        console.error(`[Auto-Publish] Failed for project ${project.id}:`, pubErr.message);
+      }
+
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -4298,6 +4307,129 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       pslms_url: pslmsUrl ? pslmsUrl.replace(/\/api.*$/, "") : null,
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // ============================================================
+  // Mad Mixed Media (Streaming) → PSLMS Integration
+  // ============================================================
+
+  // POST /api/webhooks/streaming - receives events from Mad Mixed Media streaming platform
+  app.post("/api/webhooks/streaming", async (req: Request, res: Response) => {
+    try {
+      const apiKey = req.headers["x-api-key"] as string;
+      const webhookSecret = req.headers["x-webhook-secret"] as string;
+      const pslmsKey = process.env.PSLMS_API_KEY;
+      const pslmsWh = process.env.PSLMS_WEBHOOK_SECRET;
+
+      if ((!apiKey || apiKey !== pslmsKey) && (!webhookSecret || webhookSecret !== pslmsWh)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { event, email, title, description, video_url, thumbnail_url, project_id, xp } = req.body;
+      if (!event || !email) {
+        return res.status(400).json({ error: "event and email are required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+
+      console.log(`[Streaming Webhook] Received ${event} for ${email}: "${title}" (project: ${project_id})`);
+
+      // Forward to PSLMS if configured
+      const pslmsUrl = process.env.PSLMS_API_URL;
+      if (pslmsUrl) {
+        try {
+          const payload = { event, email, title, description, video_url, thumbnail_url, project_id, xp: xp || 75 };
+          const bodyStr = JSON.stringify(payload);
+          const signature = createHmac("sha256", pslmsWh || "").update(bodyStr).digest("hex");
+
+          await fetch(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Webhook-Signature": signature,
+              "X-API-Key": pslmsKey || "",
+            },
+            body: bodyStr,
+          });
+          console.log(`[Streaming Webhook] Forwarded to PSLMS for ${email}`);
+        } catch (fwdErr: any) {
+          console.error(`[Streaming Webhook] Forward to PSLMS failed:`, fwdErr.message);
+        }
+      }
+
+      res.json({
+        received: true,
+        event,
+        user_found: !!user,
+        user_id: user?.id || null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/webhooks/streaming/portfolio - 1-button send to PSLMS portfolio from streaming
+  app.post("/api/webhooks/streaming/portfolio", async (req: Request, res: Response) => {
+    try {
+      const apiKey = req.headers["x-api-key"] as string;
+      const webhookSecret = req.headers["x-webhook-secret"] as string;
+      const pslmsKey = process.env.PSLMS_API_KEY;
+      const pslmsWh = process.env.PSLMS_WEBHOOK_SECRET;
+
+      if ((!apiKey || apiKey !== pslmsKey) && (!webhookSecret || webhookSecret !== pslmsWh)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { email, title, description, video_url, thumbnail_url, project_id } = req.body;
+      if (!email || !title) {
+        return res.status(400).json({ error: "email and title are required" });
+      }
+
+      const pslmsUrl = process.env.PSLMS_API_URL;
+      if (!pslmsUrl) {
+        return res.status(503).json({ error: "PSLMS not configured" });
+      }
+
+      const payload = {
+        event: "video.portfolio_submit",
+        email,
+        title,
+        description: description || "",
+        video_url: video_url || "",
+        thumbnail_url: thumbnail_url || "",
+        project_id: project_id || "",
+        xp: 75,
+        submitted_at: new Date().toISOString(),
+      };
+
+      const bodyStr = JSON.stringify(payload);
+      const signature = createHmac("sha256", pslmsWh || "").update(bodyStr).digest("hex");
+
+      const response = await fetch(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming/portfolio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Webhook-Signature": signature,
+          "X-API-Key": pslmsKey || "",
+        },
+        body: bodyStr,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(502).json({ error: `PSLMS responded with ${response.status}`, details: errorText });
+      }
+
+      const result = await response.json();
+      res.json({
+        status: "success",
+        item_id: result.item_id || null,
+        xp_awarded: 75,
+        pslms_response: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   return server;

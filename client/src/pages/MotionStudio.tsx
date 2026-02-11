@@ -335,16 +335,8 @@ export default function MotionStudio() {
     }
   }, [projectId]);
 
-  // Load project data
-  useEffect(() => {
-    if (project) {
-      setTitle(project.title);
-      const data = project.data as any;
-      if (data?.frames?.length > 0) {
-        setFrames(data.frames);
-      }
-    }
-  }, [project]);
+  // Track whether we imported from comic panel so project load doesn't overwrite
+  const importedFromPanelRef = useRef(false);
 
   // Load panel data from comic builder (when launched via "Edit in Motion Studio")
   useEffect(() => {
@@ -391,6 +383,7 @@ export default function MotionStudio() {
             }
           });
           if (imageLayers.length > 0) {
+            importedFromPanelRef.current = true;
             setFrames(prev => {
               const updated = [...prev];
               updated[0] = { ...updated[0], imageLayers };
@@ -405,6 +398,19 @@ export default function MotionStudio() {
       }
     }
   }, []);
+
+  // Load project data (skip if we imported from a comic panel)
+  useEffect(() => {
+    if (project && !importedFromPanelRef.current) {
+      setTitle(project.title);
+      const data = project.data as any;
+      if (data?.frames?.length > 0) {
+        setFrames(data.frames);
+      }
+    } else if (project && importedFromPanelRef.current) {
+      setTitle(project.title);
+    }
+  }, [project]);
 
   // Canvas setup
   useEffect(() => {
