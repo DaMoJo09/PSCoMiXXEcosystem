@@ -128,10 +128,13 @@ const mapBlendMode = (mode: string): GlobalCompositeOperation => {
   return modeMap[mode] || 'source-over';
 };
 
-// Composite frame with effects applied
+// Composite frame with effects and image layers applied (for export/output)
 const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
   return new Promise((resolve) => {
-    if (!frame.imageData) {
+    const hasRaster = !!frame.imageData;
+    const layers = frame.imageLayers?.filter(l => l.visible) || [];
+    
+    if (!hasRaster && layers.length === 0) {
       resolve("");
       return;
     }
@@ -141,31 +144,57 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
     offscreen.height = 1080;
     const ctx = offscreen.getContext('2d');
     if (!ctx) {
-      resolve(frame.imageData);
+      resolve(frame.imageData || "");
       return;
     }
     
-    // Fill with white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
     
-    // Load the frame image
-    const img = new Image();
-    img.onload = () => {
-      // Apply blend mode and opacity from frame metadata
-      ctx.globalAlpha = (frame.opacity ?? 100) / 100;
-      ctx.globalCompositeOperation = mapBlendMode(frame.blendMode || 'normal');
+    const drawLayers = () => {
+      if (layers.length === 0) {
+        applyEffectsAndResolve();
+        return;
+      }
+      let loaded = 0;
+      const total = layers.length;
+      const loadedLayers: { img: HTMLImageElement; layer: ImageLayer; idx: number }[] = [];
       
-      // Draw the frame
-      ctx.drawImage(img, 0, 0);
-      
-      // Reset for any additional effects
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
-      
-      // Apply quick FX overlays if any (visual indicators)
+      layers.forEach((layer, idx) => {
+        const lImg = new Image();
+        lImg.crossOrigin = 'anonymous';
+        lImg.onload = () => {
+          loadedLayers.push({ img: lImg, layer, idx });
+          loaded++;
+          if (loaded === total) {
+            loadedLayers.sort((a, b) => a.idx - b.idx);
+            loadedLayers.forEach(({ img: li, layer: l }) => {
+              ctx.save();
+              ctx.globalAlpha = l.opacity / 100;
+              if (l.rotation) {
+                const cx = l.x + l.width / 2;
+                const cy = l.y + l.height / 2;
+                ctx.translate(cx, cy);
+                ctx.rotate((l.rotation * Math.PI) / 180);
+                ctx.drawImage(li, -l.width / 2, -l.height / 2, l.width, l.height);
+              } else {
+                ctx.drawImage(li, l.x, l.y, l.width, l.height);
+              }
+              ctx.restore();
+            });
+            applyEffectsAndResolve();
+          }
+        };
+        lImg.onerror = () => {
+          loaded++;
+          if (loaded === total) applyEffectsAndResolve();
+        };
+        lImg.src = layer.src;
+      });
+    };
+    
+    const applyEffectsAndResolve = () => {
       if (frame.effects?.length) {
-        // Add subtle effect indicators to exported frame
         frame.effects.forEach(effectId => {
           if (effectId === 'vignette') {
             const gradient = ctx.createRadialGradient(960, 540, 0, 960, 540, 1100);
@@ -181,11 +210,26 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
           }
         });
       }
-      
       resolve(offscreen.toDataURL('image/png'));
     };
-    img.onerror = () => resolve(frame.imageData);
-    img.src = frame.imageData;
+    
+    if (hasRaster) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.globalAlpha = (frame.opacity ?? 100) / 100;
+        ctx.globalCompositeOperation = mapBlendMode(frame.blendMode || 'normal');
+        ctx.drawImage(img, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        drawLayers();
+      };
+      img.onerror = () => {
+        drawLayers();
+      };
+      img.src = frame.imageData;
+    } else {
+      drawLayers();
+    }
   });
 };
 
@@ -352,10 +396,11 @@ export default function MotionStudio() {
         if (panelData.contents && panelData.contents.length > 0) {
           const imageLayers: ImageLayer[] = [];
           panelData.contents.forEach((content: any, idx: number) => {
-            if ((content.type === "image" || content.type === "gif") && content.data?.url) {
+            const src = content.data?.url || content.data?.drawingData || content.data?.imageUrl || content.data?.src || null;
+            if (src && (content.type === "image" || content.type === "gif" || content.type === "ai_image" || content.type === "drawing" || content.type === "sticker")) {
               imageLayers.push({
                 id: `imported_${Date.now()}_${idx}`,
-                src: content.data.url,
+                src,
                 x: content.transform?.x || 0,
                 y: content.transform?.y || 0,
                 width: content.transform?.width || 400,
@@ -364,21 +409,7 @@ export default function MotionStudio() {
                 opacity: 100,
                 locked: false,
                 visible: true,
-                name: `Imported ${idx + 1}`,
-              });
-            } else if (content.type === "drawing" && content.data?.drawingData) {
-              imageLayers.push({
-                id: `imported_${Date.now()}_${idx}`,
-                src: content.data.drawingData,
-                x: content.transform?.x || 0,
-                y: content.transform?.y || 0,
-                width: content.transform?.width || 400,
-                height: content.transform?.height || 400,
-                rotation: content.transform?.rotation || 0,
-                opacity: 100,
-                locked: false,
-                visible: true,
-                name: `Drawing ${idx + 1}`,
+                name: content.data?.name || `Layer ${idx + 1}`,
               });
             }
           });
@@ -501,6 +532,8 @@ export default function MotionStudio() {
   }, []);
 
   // Load frame image and effects when switching frames
+  // Image layers are rendered as HTML overlays, NOT on the raster canvas,
+  // to keep canvas data clean for compositing during save/export/apply.
   useEffect(() => {
     const canvas = canvasRef.current;
     const context = ctxRef.current;
@@ -648,28 +681,27 @@ export default function MotionStudio() {
     if (!projectId) return;
     setIsSaving(true);
     
-    // Compute updated frames inline to avoid stale state
-    const canvas = canvasRef.current;
-    const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
-    const frameId = frames[currentFrameIndex]?.id;
-    const currentKeyframe = frameId ? keyframes[frameId] : undefined;
-    
-    const updatedFrames = frames.map((f, i) => 
-      i === currentFrameIndex ? { 
-        ...f, 
-        imageData, 
-        vectorPaths,
-        effects: activeEffects,
-        opacity: frameOpacity,
-        blendMode,
-        easing: selectedEasing,
-        keyframe: currentKeyframe
-      } : f
-    );
-    
-    setFrames(updatedFrames);
-    
     try {
+      const canvas = canvasRef.current;
+      const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
+      const frameId = frames[currentFrameIndex]?.id;
+      const currentKeyframe = frameId ? keyframes[frameId] : undefined;
+      
+      const updatedFrames = frames.map((f, i) => 
+        i === currentFrameIndex ? { 
+          ...f, 
+          imageData, 
+          vectorPaths,
+          effects: activeEffects,
+          opacity: frameOpacity,
+          blendMode,
+          easing: selectedEasing,
+          keyframe: currentKeyframe
+        } : f
+      );
+      
+      setFrames(updatedFrames);
+      
       await updateProject.mutateAsync({
         id: projectId,
         data: { title, data: { frames: updatedFrames, tracks } },
@@ -810,16 +842,15 @@ export default function MotionStudio() {
   const handleExport = async () => {
     toast.info("Compositing frames with effects...");
     
-    // Compute updated frames inline to include current state
     const canvas = canvasRef.current;
-    const imageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
+    const rasterImageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
     const frameId = frames[currentFrameIndex]?.id;
     const currentKeyframe = frameId ? keyframes[frameId] : undefined;
     
     const updatedFrames = frames.map((f, i) => 
       i === currentFrameIndex ? { 
         ...f, 
-        imageData, 
+        imageData: rasterImageData, 
         vectorPaths,
         effects: activeEffects,
         opacity: frameOpacity,
@@ -829,7 +860,7 @@ export default function MotionStudio() {
       } : f
     );
     
-    // Composite all frames with their effects applied
+    // Composite all frames with their effects and image layers applied
     const compositedFrames = await Promise.all(
       updatedFrames.map(async (frame) => {
         const compositedImage = await compositeFrameWithEffects(frame);
@@ -1258,7 +1289,10 @@ export default function MotionStudio() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const imageData = canvas.toDataURL('image/png');
+    const currentFrame = frames[currentFrameIndex];
+    const rasterData = canvas.toDataURL('image/png');
+    const frameForComposite = { ...currentFrame, imageData: rasterData };
+    const imageData = await compositeFrameWithEffects(frameForComposite);
     
     try {
       const comicData = selectedComic?.data as any;
