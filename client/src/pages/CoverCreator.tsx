@@ -224,6 +224,7 @@ export default function CoverCreator() {
   const [location, navigate] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const projectId = searchParams.get('id');
+  const comicId = searchParams.get('comicId');
   
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
@@ -292,6 +293,58 @@ export default function CoverCreator() {
         });
       }
       toast.success("Cover saved");
+    } catch (error: any) {
+      toast.error(error.message || "Save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAndReturnToComic = async () => {
+    setIsSaving(true);
+    try {
+      if (projectId) {
+        await updateProject.mutateAsync({
+          id: projectId,
+          data: { title: coverData.title, data: coverData },
+        });
+      }
+
+      let coverImageUrl = "";
+      if (canvasRef.current) {
+        try {
+          const html2canvasMod = await import("html2canvas");
+          const canvas = await html2canvasMod.default(canvasRef.current, {
+            scale: 1,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            logging: false,
+          });
+          coverImageUrl = canvas.toDataURL("image/png");
+        } catch {}
+      }
+
+      if (comicId) {
+        await fetch(`/api/projects/${comicId}/autosave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            data: {
+              comicMeta: {
+                frontCover: coverImageUrl || projectId,
+                coverProjectId: projectId,
+              }
+            },
+            thumbnail: coverImageUrl || undefined,
+          }),
+        });
+        toast.success("Cover linked to comic!");
+        navigate(`/creator/comic?id=${comicId}`);
+      } else {
+        toast.success("Cover saved");
+      }
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -604,6 +657,16 @@ export default function CoverCreator() {
             >
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
+            {comicId && (
+              <button 
+                onClick={handleSaveAndReturnToComic}
+                disabled={isSaving}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                data-testid="button-save-return-comic"
+              >
+                <ArrowLeft className="w-4 h-4" /> {isSaving ? "Saving..." : "Save & Return to Comic"}
+              </button>
+            )}
             <button 
               onClick={handleExport}
               className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200"

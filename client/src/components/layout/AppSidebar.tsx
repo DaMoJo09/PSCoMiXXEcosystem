@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -263,6 +264,7 @@ export function AppSidebar() {
             </div>
           </div>
         )}
+        <EcosystemStatus />
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold font-mono text-xs">
             {user?.name?.substring(0, 2).toUpperCase() || "ME"}
@@ -282,5 +284,49 @@ export function AppSidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function EcosystemStatus() {
+  const [connections, setConnections] = React.useState<{ name: string; configured: boolean; status: string }[]>([]);
+  const [loaded, setLoaded] = React.useState(false);
+  const { user } = useAuth();
+
+  React.useEffect(() => {
+    if (!user) return;
+    fetch("/api/ecosystem/status", { credentials: "include" })
+      .then(r => r.json())
+      .then(data => {
+        if (data.connections) {
+          setConnections(data.connections);
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [user]);
+
+  if (!loaded || connections.length === 0) return null;
+
+  const allConnected = connections.every(c => c.configured);
+
+  return (
+    <div className="px-4 py-2 border-t border-border" data-testid="ecosystem-status">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Globe className="w-3 h-3 text-muted-foreground" />
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ecosystem</span>
+        <div className={`w-2 h-2 rounded-full ml-auto ${allConnected ? "bg-green-500" : "bg-yellow-500"}`} />
+      </div>
+      <div className="space-y-1">
+        {connections.map(c => (
+          <div key={c.name} className="flex items-center gap-1.5" data-testid={`ecosystem-${c.name.replace(/\s+/g, "-").toLowerCase()}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${c.configured ? "bg-green-500" : "bg-zinc-500"}`} />
+            <span className="text-[10px] text-muted-foreground">{c.name}</span>
+            <span className={`text-[9px] ml-auto font-mono ${c.configured ? "text-green-400" : "text-zinc-500"}`}>
+              {c.configured ? "LIVE" : "OFF"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

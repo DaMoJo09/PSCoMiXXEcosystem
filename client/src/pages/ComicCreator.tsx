@@ -374,6 +374,8 @@ export default function ComicCreator() {
     bonusCards: [] as string[],
     credits: "Created with Press Start CoMixx"
   });
+  const [showCoverPrompt, setShowCoverPrompt] = useState(false);
+  const [coverDismissed, setCoverDismissed] = useState(false);
   
 
   const leftPageRef = useRef<HTMLDivElement>(null);
@@ -415,15 +417,40 @@ export default function ComicCreator() {
       if (data?.spreads?.length > 0) {
         setSpreads(data.spreads);
       }
+      if (data?.comicMeta) {
+        setComicMeta(data.comicMeta);
+      }
+      if (!data?.comicMeta?.frontCover && !coverDismissed) {
+        setShowCoverPrompt(true);
+      }
     }
   }, [project]);
 
-  // Auto-save when spreads or title change (debounced)
+  // Auto-save system: debounced save + flush on unmount/beforeunload
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userEditCountRef = useRef(0);
-  const updateProjectRef = useRef(updateProject);
-  updateProjectRef.current = updateProject;
   const initialLoadDoneRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const latestDataRef = useRef({ title, spreads, comicMeta, projectId: effectiveProjectId });
+  latestDataRef.current = { title, spreads, comicMeta, projectId: effectiveProjectId };
+
+  const flushSave = useCallback(async () => {
+    const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+    if (!projectId || !pendingSaveRef.current) return;
+    pendingSaveRef.current = false;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    try {
+      await fetch(`/api/projects/${projectId}/autosave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } }),
+      });
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (project && !initialLoadDoneRef.current) {
@@ -436,19 +463,48 @@ export default function ComicCreator() {
     if (!effectiveProjectId || !initialLoadDoneRef.current) return;
     userEditCountRef.current += 1;
     if (userEditCountRef.current <= 1) return;
+    pendingSaveRef.current = true;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(async () => {
-      try {
-        await updateProjectRef.current.mutateAsync({
-          id: effectiveProjectId,
-          data: { title, data: { spreads } },
-        });
-      } catch {}
+      await flushSave();
     }, 3000);
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [spreads, title, effectiveProjectId]);
+  }, [spreads, title, effectiveProjectId, flushSave]);
+
+  // Save on unmount (navigating away)
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+        if (projectId) {
+          navigator.sendBeacon(
+            `/api/projects/${projectId}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  // Save on browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+        if (projectId) {
+          navigator.sendBeacon(
+            `/api/projects/${projectId}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -681,31 +737,50 @@ export default function ComicCreator() {
       return;
     }
     try {
-      toast.info("Exporting all pages...");
+      toast.info("Exporting full comic (cover + all pages)...");
+      let pageNum = 0;
+
+      if (comicMeta.frontCover && comicMeta.frontCover.startsWith("data:")) {
+        pageNum++;
+        const coverLink = document.createElement("a");
+        coverLink.download = `${title.replace(/\s+/g, "_")}_00_cover.png`;
+        coverLink.href = comicMeta.frontCover;
+        coverLink.click();
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
       
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
         
         if (spread.leftPage.length > 0) {
+          pageNum++;
           const leftCanvas = await exportPageToCanvas(spread.leftPage, 800, 1200);
           const leftLink = document.createElement("a");
-          leftLink.download = `${title.replace(/\s+/g, "_")}_page_${i * 2 + 1}.png`;
+          leftLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           leftLink.href = leftCanvas.toDataURL("image/png");
           leftLink.click();
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
         if (spread.rightPage.length > 0) {
+          pageNum++;
           const rightCanvas = await exportPageToCanvas(spread.rightPage, 800, 1200);
           const rightLink = document.createElement("a");
-          rightLink.download = `${title.replace(/\s+/g, "_")}_page_${i * 2 + 2}.png`;
+          rightLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           rightLink.href = rightCanvas.toDataURL("image/png");
           rightLink.click();
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
+
+      if (comicMeta.backCover && comicMeta.backCover.startsWith("data:")) {
+        const backLink = document.createElement("a");
+        backLink.download = `${title.replace(/\s+/g, "_")}_${String(pageNum + 1).padStart(2, "0")}_back_cover.png`;
+        backLink.href = comicMeta.backCover;
+        backLink.click();
+      }
       
-      toast.success("All pages exported successfully!");
+      toast.success(`Full comic exported! ${pageNum} pages total`);
     } catch (error) {
       toast.error("Failed to export pages");
     }
@@ -1831,7 +1906,7 @@ export default function ComicCreator() {
                   <ImageIcon className="w-4 h-4 mr-2" /> Current Page as PNG
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportAllPagesPNG} className="hover:bg-zinc-800 cursor-pointer">
-                  <Layers className="w-4 h-4 mr-2" /> All Pages as PNGs
+                  <Layers className="w-4 h-4 mr-2" /> Full Comic (Cover + Pages)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-700" />
                 <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
@@ -1883,6 +1958,31 @@ export default function ComicCreator() {
             )}
           </div>
         </header>
+
+        {showCoverPrompt && !comicMeta.frontCover && (
+          <div className="bg-gradient-to-r from-cyan-900/60 to-purple-900/60 border-b border-cyan-700/50 px-4 py-2.5 flex items-center justify-between" data-testid="cover-prompt-banner">
+            <div className="flex items-center gap-3">
+              <Palette className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+              <p className="text-sm text-zinc-200">
+                <span className="font-bold text-white">Pro tip:</span> Create a cover first to give your comic a professional look. Every great comic starts with a great cover!
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link href={`/creator/cover?comicId=${effectiveProjectId}`}>
+                <button className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold border border-cyan-500" data-testid="button-create-cover">
+                  Create Cover
+                </button>
+              </Link>
+              <button 
+                onClick={() => { setShowCoverPrompt(false); setCoverDismissed(true); }}
+                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                data-testid="button-dismiss-cover-prompt"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 flex overflow-hidden">
           <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">

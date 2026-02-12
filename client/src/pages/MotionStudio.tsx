@@ -412,6 +412,74 @@ export default function MotionStudio() {
     }
   }, [project]);
 
+  // Auto-save system for Motion Studio
+  const msAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const msEditCountRef = useRef(0);
+  const msInitialLoadRef = useRef(false);
+  const msPendingSaveRef = useRef(false);
+  const msLatestDataRef = useRef({ title, frames, tracks, projectId });
+  msLatestDataRef.current = { title, frames, tracks, projectId };
+
+  useEffect(() => {
+    if (project && !msInitialLoadRef.current) {
+      msInitialLoadRef.current = true;
+      msEditCountRef.current = 0;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    if (!projectId || !msInitialLoadRef.current) return;
+    msEditCountRef.current += 1;
+    if (msEditCountRef.current <= 1) return;
+    msPendingSaveRef.current = true;
+    if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
+    msAutoSaveTimerRef.current = setTimeout(async () => {
+      msPendingSaveRef.current = false;
+      try {
+        await fetch(`/api/projects/${projectId}/autosave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ title, data: { frames, tracks } }),
+        });
+      } catch {}
+    }, 3000);
+    return () => {
+      if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
+    };
+  }, [frames, title, projectId]);
+
+  useEffect(() => {
+    return () => {
+      if (msPendingSaveRef.current) {
+        const { projectId: pid, title: t, frames: f, tracks: tk } = msLatestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk } })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (msPendingSaveRef.current) {
+        const { projectId: pid, title: t, frames: f, tracks: tk } = msLatestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk } })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   // Canvas setup
   useEffect(() => {
     const canvas = canvasRef.current;

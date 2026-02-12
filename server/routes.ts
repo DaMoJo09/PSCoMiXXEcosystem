@@ -602,6 +602,33 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // POST endpoint for beacon-based auto-save (sendBeacon only supports POST)
+  // Merges data fields instead of overwriting to prevent data loss
+  app.post("/api/projects/:id/autosave", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const existingData = (project.data as any) || {};
+      const incomingData = req.body.data || {};
+      const mergedData = { ...existingData, ...incomingData };
+      if (incomingData.comicMeta && existingData.comicMeta) {
+        mergedData.comicMeta = { ...existingData.comicMeta, ...incomingData.comicMeta };
+      }
+      const updatePayload: any = { data: mergedData };
+      if (req.body.title) updatePayload.title = req.body.title;
+      if (req.body.thumbnail) updatePayload.thumbnail = req.body.thumbnail;
+      const updated = await storage.updateProject(req.params.id, updatePayload);
+      res.json({ saved: true, id: updated?.id });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.delete("/api/projects/:id", isAuthenticated, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
@@ -4132,6 +4159,41 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const health = await checkEmergentHealth();
       res.json(health);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Ecosystem connection status (for all authenticated users)
+  app.get("/api/ecosystem/status", isAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      const pslmsUrl = process.env.PSLMS_API_URL;
+      const pslmsKey = process.env.PSLMS_API_KEY;
+      const emergentSecret = process.env.EMERGENT_WEBHOOK_SECRET;
+      const emergentUrl = process.env.EMERGENT_API_URL;
+
+      const connections: { name: string; configured: boolean; url: string | null; status: string }[] = [];
+
+      connections.push({
+        name: "Press Start LMS",
+        configured: !!(pslmsUrl && pslmsKey),
+        url: pslmsUrl ? pslmsUrl.replace(/\/api.*$/, "") : null,
+        status: pslmsUrl && pslmsKey ? "connected" : "not_configured",
+      });
+
+      connections.push({
+        name: "Mad Mixed Media",
+        configured: !!emergentSecret,
+        url: emergentUrl || null,
+        status: emergentSecret ? "connected" : "not_configured",
+      });
+
+      res.json({
+        ecosystem: "PSCoMiXX",
+        connections,
+        allConnected: connections.every(c => c.configured),
+        timestamp: new Date().toISOString(),
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
