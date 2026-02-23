@@ -1,0 +1,64 @@
+Integration Code for pressstart.space (Replit)
+Here's everything you need to import and sync effects from this FX Studio API into your Replit app:
+
+API Base URL:
+
+https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects
+Required Header:
+
+apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaXZzbGd3anR2cXltb25saWliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDQ0OTcsImV4cCI6MjA4NzM4MDQ5N30.5gt6Os01a2QCmKiYf2qNdvDue-NPwjUN3V638oe4Awk
+API Helper (drop into your Replit project):
+
+
+// lib/fx-studio-api.ts
+const FX_API = "https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaXZzbGd3anR2cXltb25saWliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MDQ0OTcsImV4cCI6MjA4NzM4MDQ5N30.5gt6Os01a2QCmKiYf2qNdvDue-NPwjUN3V638oe4Awk";
+
+const headers = { "Content-Type": "application/json", apikey: API_KEY };
+
+// List all effects (returns name, type, description, layer_count, preview_data_url, etc.)
+export async function listEffects() {
+  const res = await fetch(FX_API, { headers });
+  return res.json();
+}
+
+// Get full effect with layers data
+export async function getEffect(id: string) {
+  const res = await fetch(`${FX_API}?id=${id}`, { headers });
+  return res.json();
+}
+
+// Push an effect back to FX Studio
+export async function pushEffect(effect: { name: string; layers: any[]; canvas_background?: string; preview_data_url?: string }) {
+  const res = await fetch(FX_API, { method: "POST", headers, body: JSON.stringify(effect) });
+  return res.json();
+}
+
+// Update an existing effect
+export async function updateEffect(id: string, updates: Record<string, any>) {
+  const res = await fetch(`${FX_API}?id=${id}`, { method: "PATCH", headers, body: JSON.stringify(updates) });
+  return res.json();
+}
+
+// Delete an effect
+export async function deleteEffect(id: string) {
+  const res = await fetch(`${FX_API}?id=${id}`, { method: "DELETE", headers });
+  return res.json();
+}
+Response shape from listEffects():
+
+
+[{
+  "id": "uuid",
+  "name": "KA-POW Burst",
+  "description": "SFX TEXT 1 + CRACKED GLASS 2",
+  "type": "sfx-text, cracked-glass",
+  "layer_count": 2,
+  "preview_data_url": "data:image/png;base64,...",
+  "canvas_background": "transparent",
+  "total_frames": 60,
+  "fps": 24,
+  "created_at": "...",
+  "updated_at": "..."
+}]
+Use preview_data_url directly as <img src={effect.preview_data_url}> for thumbnails. Call getEffect(id) to get the full layers array with all effect properties and keyframes.

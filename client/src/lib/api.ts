@@ -358,3 +358,58 @@ export const marketplaceApi = {
     return handleResponse<any>(response);
   },
 };
+
+export interface FxEffect {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  layer_count: number;
+  preview_data_url: string;
+  canvas_background: string;
+  total_frames: number;
+  fps: number;
+  created_at: string;
+  updated_at: string;
+  layers?: any[];
+}
+
+export const fxStudioApi = {
+  listEffects: async () => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects`, { credentials: "include" });
+    return handleResponse<FxEffect[]>(response);
+  },
+
+  getEffect: async (id: string) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects/${id}`, { credentials: "include" });
+    return handleResponse<FxEffect>(response);
+  },
+
+  pushEffect: async (effect: { name: string; layers: any[]; canvas_background?: string; preview_data_url?: string }) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(effect),
+      credentials: "include",
+    });
+    return handleResponse<any>(response);
+  },
+
+  updateEffect: async (id: string, updates: Record<string, any>) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+      credentials: "include",
+    });
+    return handleResponse<any>(response);
+  },
+
+  deleteEffect: async (id: string) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    return handleResponse<any>(response);
+  },
+};

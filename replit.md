@@ -9,74 +9,86 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-- **Framework:** React with TypeScript, Vite for bundling, Wouter for routing.
-- **Styling:** TailwindCSS v4 with custom design tokens, Radix UI primitives, shadcn/ui components ("new-york" style), brutalist aesthetic with hard shadows and dark theme.
+- **Framework:** React with TypeScript, Vite, Wouter.
+- **Styling:** TailwindCSS v4 with custom design tokens, Radix UI primitives, shadcn/ui components ("new-york" style). Brutalist aesthetic with hard shadows, dark theme, and neon accents.
 - **State Management:** TanStack Query for server state, React Context for authentication.
 - **Design Patterns:** Component composition (class-variance-authority), path aliases, separation of concerns.
-- **Mobile Companion:** Will maintain visual and interaction consistency with desktop, including brutalist aesthetic, dark theme, neon accents, and shared component design. Features include core infrastructure, card builder, social media hub, real-time collaboration, card games, VN/CYOA viewer, and performance optimizations.
+- **Mobile Companion:** Consistent brutalist aesthetic, dark theme, neon accents, shared component design, and core features like card builder, social media hub, real-time collaboration, and content viewers.
 
 ### Backend
 - **Server:** Express.js with TypeScript, Node.js `http` module.
 - **Authentication:** Session-based with Passport.js (local strategy, scrypt hashing, `express-session` with MemoryStore).
-- **API:** RESTful endpoints (`/api`), middleware for authentication and authorization (role-based: creator, admin).
-- **Key Decisions:** Session cookies for authentication, middleware for route protection, server-side rendering fallback.
+- **API:** RESTful endpoints (`/api`), middleware for authentication and role-based authorization (creator, admin).
+- **Key Decisions:** Session cookies for authentication, middleware for route protection.
 
 ### Data Storage
-- **Database:** PostgreSQL via Neon serverless, Drizzle ORM for type-safe operations, WebSocket pooling.
-- **Schema:** `users`, `projects` (polymorphic for various creative types), `assets`, `project_versions`, `publish_jobs`, `engagement_events`. Uses JSONB for flexible project data, UUID primary keys, cascade deletes.
+- **Database:** PostgreSQL via Neon serverless, Drizzle ORM for type-safe operations.
+- **Schema:** `users`, `projects` (polymorphic), `assets`, `project_versions`, `publish_jobs`, `engagement_events`. Uses JSONB for flexible project data, UUID primary keys, cascade deletes.
 - **Migrations:** Drizzle Kit.
 
 ### Content Publishing Pipeline
-- **Project Lifecycle:** draft → review → approved/rejected → published
-- **PS Content Bundle v1:** Standard Zod-validated format for all published content types (comic, trading_card, visual_novel, cyoa, cover, motion). Includes creator metadata, payload, assets, visibility, tags, age rating.
-- **Pipeline Steps:** validate → bundle → save → sync (Emergent platform integration LIVE)
-- **Emergent Streaming Integration:** Real API sync to `gamexclub.preview.emergentagent.com` (will become `madmixedmedia.com`). Uses `EMERGENT_API_URL` and `EMERGENT_WEBHOOK_SECRET` env vars. Supports content sync, creator profile sync, and health checks. Content types mapped: comic→pages[], visual_novel→scenes, cyoa→nodes, trading_card→card data.
-- **Bundle Builder:** `server/publishPipeline.ts` - converts project data into PSContentBundle, validates via Zod, runs async pipeline with job tracking.
+- **Project Lifecycle:** draft → review → approved/rejected → published.
+- **PS Content Bundle v1:** Standard Zod-validated format for all published content types, including creator metadata, payload, assets, visibility, tags, and age rating.
+- **Pipeline Steps:** validate → bundle → save → sync (Emergent platform).
+- **Emergent Streaming Integration:** Real API sync to `gamexclub.preview.emergentagent.com` (will become `madmixedmedia.com`) for content and creator profile synchronization.
 - **Version Tracking:** `project_versions` table snapshots project data at each publish.
-- **Job Tracking:** `publish_jobs` table tracks pipeline status (queued → building → syncing → complete/failed).
-- **Engagement Events:** `engagement_events` table receives inbound analytics from Emergent streaming platform via webhook (`/api/webhooks/engagement`).
-- **Admin Review Queue:** `/admin/review-queue` page with approve/reject workflow. Admin accounts and mojocreative1@gmail.com have access.
-- **API Endpoints:**
-  - `POST /api/projects/:id/submit-review` - creator submits for review
-  - `GET /api/admin/review-queue` - admin gets pending reviews
-  - `POST /api/admin/projects/:id/approve` - admin approves
-  - `POST /api/admin/projects/:id/reject` - admin rejects (with reason)
-  - `POST /api/projects/:id/publish` - triggers publish pipeline
-  - `GET /api/publish-jobs/:id` - check job status
-  - `GET /api/projects/:id/versions` - version history
-  - `GET /api/projects/:id/bundle-preview` - preview bundle without publishing
-  - `POST /api/webhooks/engagement` - inbound engagement events
-  - `GET /api/content/:contentId/engagement` - engagement summary
-  - `GET /api/streaming/health` - check Emergent platform connection (admin only)
+- **Job Tracking:** `publish_jobs` table tracks pipeline status.
+- **Engagement Events:** `engagement_events` table receives inbound analytics from Emergent streaming platform via webhook.
+- **Admin Review Queue:** Page for approving/rejecting submitted projects.
 
 ### XP & Account System
-- **Account Types:** Student (ages 6-17) and Creator (18+), determined by date of birth at signup.
-- **Student Restrictions:** No access to monetization features (Pricing page hidden from sidebar). Publishing still allowed for portfolio building.
-- **XP System:** Time-based progression - 10 XP per minute of active use, tracked via heartbeat (POST /api/xp/heartbeat every 60 seconds). 1000 XP per level. Max 5 minutes credited per heartbeat to prevent manipulation.
-- **XP Display:** Level badge and XP progress bar shown in sidebar, account type badge (Student/Creator) displayed alongside.
-- **Schema Fields:** `dateOfBirth` (date), `accountType` (student/creator), `xp` (integer), `level` (integer), `totalMinutes` (integer) on users table.
-- **API Endpoints:**
-  - `POST /api/xp/heartbeat` - records activity time, awards XP
-  - `GET /api/xp/stats` - returns current XP, level, totalMinutes
+- **Account Types:** Student (6-17) and Creator (18+), determined by date of birth. Students have restricted access to monetization features.
+- **XP System:** Time-based progression (10 XP per minute of active use, 1000 XP per level), tracked via heartbeat.
+- **XP Display:** Level badge and XP progress bar, along with account type badge.
 
 ### PSLMS Integration (Press Start LMS)
-- **Purpose:** Allows students to send their CoMiXX creations to their PSLMS portfolio, and lets PSLMS fetch student comics via API.
-- **PSLMS Domain:** `https://pressstart.tech` (configurable via `PSLMS_API_URL` env var)
-- **Authentication:** Shared secret via `PSLMS_API_KEY` env var. PSLMS sends `Authorization: Bearer <key>` to fetch comics. CoMiXX signs outbound webhooks with `PSLMS_WEBHOOK_SECRET`.
-- **User Matching:** Email-based matching across both apps (same email = same student).
-- **"Send to Portfolio" Button:** Visible only to Student accounts in Comic Creator. Sends project data to PSLMS webhook at `POST {PSLMS_API_URL}/api/webhooks/comixx`.
-- **Webhook Payload:** `{event: "comic.submitted", user_id, user_email, user_name, title, project_type, image_url, xp: 50, project_id, submitted_at}`
-- **API Endpoints (for PSLMS to call):**
-  - `GET /api/pslms/comics?email=student@example.com` - list student's comics (requires API key)
-  - `GET /api/pslms/comics/:id` - get full comic data with creator info (requires API key)
-  - `POST /api/pslms/send-to-portfolio` - send comic to PSLMS (session auth, student-facing)
-  - `GET /api/pslms/health` - integration health check (public)
-- **Env Vars:** `PSLMS_API_URL` (set), `PSLMS_API_KEY` (shared secret), `PSLMS_WEBHOOK_SECRET` (optional signing)
+- **Purpose:** Allows students to send CoMiXX creations to their PSLMS portfolio and enables PSLMS to fetch student comics via API.
+- **Authentication:** Shared secret via `PSLMS_API_KEY`.
+- **User Matching:** Email-based matching.
+- **"Send to Portfolio" Button:** Visible to student accounts, sends project data to PSLMS webhook.
 
 ### System Design Choices
-- **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers with thick borders, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.
-- **Mobile Design:** Bottom tab bar navigation, consistent page headers, shared modal/dialog styling, and iconography.
-- **Future SEO & Marketplace:** Planned migration to Next.js (App Router) for SSR/SSG of marketing and marketplace pages. Focus on server-rendered HTML, internal linking, canonicalization, robots.txt, sitemap.xml, comprehensive metadata (title, meta description, OpenGraph, Twitter Cards), and structured data (JSON-LD). Marketplace will feature product listings with trust signals, friction reduction in checkout, and upsell strategies.
+- **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.
+- **Mobile Design:** Bottom tab bar navigation, consistent page headers, shared modal/dialog styling.
+- **Future SEO & Marketplace:** Planned migration to Next.js (App Router) for SSR/SSG of marketing and marketplace pages, with a focus on comprehensive metadata and structured data.
+
+### My Library (Private)
+- **Library Page:** Private workspace displaying all user projects with status and type filters.
+- **Project Cards:** Show thumbnail, type, status, and last-edited time.
+- **Search:** Filter projects by title.
+
+### Portfolio Website (Public-Facing)
+- **Owner View:** Editable portfolio website for the logged-in user, showing published works and artworks.
+- **Public View:** Shareable public page viewable by anyone, showing only published/approved work.
+- **Profile Editing:** Hero section, bio, creator class, social links (owner-only).
+- **Published Works Gallery:** Displays published/approved projects with type badges.
+- **Artworks:** Manual portfolio artworks with CRUD functionality (owner-only).
+
+### Comic Creator Panel Filters
+- **CSS Filters:** Panels support visual filters (grayscale, sepia, vintage, etc.) applied via a right-click context menu, stored in the `filter` field of the Panel interface.
+- **Auto-Save:** Debounced 3-second auto-save functionality.
+
+### Creator Marketplace
+- **Browse:** Public storefront with search and type filters for various content.
+- **Listing Detail:** Full listing view with hero image, price, description, tags, preview gallery, and buy button.
+- **Sell Content:** Creators can list published/approved projects for sale (students cannot sell).
+- **Purchases & Sales:** Tabbed page showing purchase history and a seller dashboard with earnings.
+- **Stripe Integration:** Uses Stripe Checkout for one-time purchases.
+- **Database Tables:** `marketplace_listings`, `marketplace_orders`.
+
+### Motion Studio Audio
+- **Audio Clips:** Upload audio files, stored as data URLs in project data.
+- **AudioClip Interface:** Includes id, name, src, startFrame, durationFrames, volume, and muted.
+- **Timeline Visualization:** Audio clips displayed as emerald-colored blocks in the audio track with faux waveform SVG.
+- **Playback Sync:** Web Audio API decodes and plays audio synchronized with the frame timeline.
+- **Controls:** Upload, mute/unmute, and volume controls.
+
+### FX Studio Integration (pressplays.site)
+- **Purpose:** Sync effects created in the FX Maker app into CoMiXX Motion Studio.
+- **Server Proxy:** All FX Studio API calls routed through the server to secure API keys.
+- **FX Browser Panel:** Floating panel in Motion Studio toolbar displaying effects from FX Studio with previews.
+- **Import Functionality:** "Save to Library" imports effect preview as an asset; "Add to Frame" adds effect preview as an image layer.
+- **Search:** Filter effects by name or type.
 
 ## External Dependencies
 
@@ -99,70 +111,15 @@ Preferred communication style: Simple, everyday language.
 - `react`, `typescript`, `vite`, `wouter`, `tailwindcss`.
 
 ### Development Tools
-- ESBuild, PostCSS, Autoprefixer, Replit-specific plugins.
+- ESBuild, PostCSS, Autoprefixer.
 
 ### Font Resources
 - Google Fonts: Space Grotesk, Inter, JetBrains Mono.
 
 ### Mad Mixed Media (Streaming) Integration
-- **Streaming Webhooks:** `/api/webhooks/streaming` receives events from Mad Mixed Media streaming platform, forwards to PSLMS.
-- **Portfolio Webhook:** `/api/webhooks/streaming/portfolio` sends streaming content to PSLMS student portfolios.
-- **Authentication:** Shared `PSLMS_API_KEY` or `PSLMS_WEBHOOK_SECRET` via `x-api-key` or `x-webhook-secret` headers.
-- **Auto-Publish on Approval:** Admin project approval now auto-triggers the publish pipeline to sync content to Emergent streaming platform.
+- **Streaming Webhooks:** Receives events from Mad Mixed Media streaming platform, forwards to PSLMS.
+- **Authentication:** Shared `PSLMS_API_KEY` or `PSLMS_WEBHOOK_SECRET` for webhook security.
+- **Auto-Publish on Approval:** Admin project approval auto-triggers the publish pipeline to sync content to Emergent streaming platform.
 
-### My Library (Private)
-- **Library Page:** `/library` - private workspace showing ALL user projects (comics, cards, VNs, CYOAs, covers, motion comics).
-- **Filters:** Status filters (All, In Progress, Completed) + type filters (Comic, Card, VN, CYOA, Cover, Motion).
-- **Continue Editing:** Click any project card to open it in the correct editor (`/creator/{type}?id={projectId}`).
-- **Project Cards:** Show thumbnail, type badge, status badge (Draft/In Review/Needs Work/Approved/Published), last-edited time.
-- **Search:** Filter projects by title.
-
-### Portfolio Website (Public-Facing)
-- **Owner View:** `/portfolio` - editable portfolio website for the logged-in user. Shows published works + artworks.
-- **Public View:** `/portfolio/:userId` - shareable public page viewable by anyone without login. Shows only published/approved work.
-- **Hero Section:** Cover image, avatar, name, tagline with edit mode for owner only.
-- **Profile Editing:** Bio, creator class, social links (Twitter, Instagram, Website, YouTube) with smart URL handling (accepts handles or full URLs). Owner-only.
-- **Share Button:** Copies public portfolio URL to clipboard for easy sharing.
-- **Published Works Gallery:** Shows published/approved projects with type badges, thumbnails, click-to-view detail modal.
-- **Artworks:** Manual portfolio artworks from `portfolioArtworks` table with full CRUD (owner-only) and category filtering.
-- **Stats Row:** Level, XP, creator class, published count, artwork count, studio time, social links.
-- **API Routes:** `GET/PATCH /api/profile`, `GET /api/projects`, `GET/POST/PATCH/DELETE /api/portfolio`, `GET /api/portfolio/:userId/public` (public, no auth).
-- **Sidebar:** "My Work" section with "My Library" and "My Portfolio" links.
-
-### Comic Creator Panel Filters
-- **CSS Filters:** Panels support visual filters (grayscale, sepia, vintage, high contrast, blur, invert, warm, cool, noir, dreamy, etc.) applied via right-click context menu.
-- **Filter Property:** `filter` field on Panel interface, applied as CSS filter to panel content container.
-- **Auto-Save:** Debounced 3-second auto-save with `userEditCountRef` to skip first trigger after initial project load, preventing data overwrite.
-
-### Creator Marketplace
-- **Browse:** `/marketplace` - public storefront with search, type filters (Comic, Card, VN, CYOA, Cover, Motion, Asset Pack), and listing cards.
-- **Listing Detail:** `/marketplace/listing/:id` - full listing view with hero image, price, description, tags, preview gallery, buy button.
-- **Sell Content:** `/marketplace/sell` - creators list published/approved projects for sale with price, description, tags. Students cannot sell.
-- **Purchases & Sales:** `/marketplace/purchases` - tabbed page showing purchase history and seller dashboard with earnings.
-- **Stripe Integration:** Uses Stripe Checkout in `payment` mode (one-time purchases). Checkout creates a pending order, verify-purchase confirms via Stripe session.
-- **Database Tables:** `marketplace_listings` (seller, project, price, type, status, stripe IDs, sales count, earnings), `marketplace_orders` (buyer, listing, seller, amount, status, stripe session/payment intent).
-- **Security:** Server-side student restriction on listing creation, seller ownership verification on updates/deletes, purchase verification before download access.
-- **API Endpoints:**
-  - `GET /api/marketplace/listings` - browse (public)
-  - `GET /api/marketplace/listings/:id` - detail (public)
-  - `POST /api/marketplace/listings` - create listing (creator only)
-  - `PUT /api/marketplace/listings/:id` - update (owner only)
-  - `DELETE /api/marketplace/listings/:id` - delete (owner/admin)
-  - `GET /api/marketplace/my-listings` - seller's listings
-  - `POST /api/marketplace/checkout` - initiate Stripe checkout
-  - `POST /api/marketplace/verify-purchase` - confirm payment
-  - `GET /api/marketplace/purchases` - buyer's orders
-  - `GET /api/marketplace/earnings` - seller's orders + total
-  - `GET /api/marketplace/listings/:id/download` - download content (verified purchasers only)
-- **Sidebar:** "Marketplace" section with Browse, Sell Content (creator only), My Purchases.
-
-### Motion Studio Audio
-- **Audio Clips:** Upload audio files (any format), stored as data URLs in project data.
-- **AudioClip Interface:** id, name, src, startFrame, durationFrames, volume, muted.
-- **Timeline Visualization:** Audio clips shown as emerald-colored blocks in the audio track with faux waveform SVG display.
-- **Playback Sync:** Web Audio API decodes and plays audio synchronized with frame timeline, with offset calculation for mid-clip starts.
-- **Controls:** Upload button, mute/unmute toggle, volume slider in transport bar. Per-clip mute/delete in timeline.
-- **Save/Load:** Audio clips persisted with project data in all save paths (manual, auto-save, beacon).
-
-### Ecosystem Integration Points (Planned/Future)
+### Ecosystem Integration Points
 - `pscomixx.com`, `comixx.website`, `pscomixx.online`, `psstreaming.online`.

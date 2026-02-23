@@ -4789,5 +4789,75 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ==================== FX STUDIO API ROUTES (pressplays.site sync) ====================
+
+  const FX_API_URL = process.env.FX_STUDIO_API_URL || "https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects";
+  const FX_API_KEY = process.env.FX_STUDIO_API_KEY || "";
+
+  app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
+    try {
+      const response = await fetch(FX_API_URL, {
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
+    try {
+      const response = await fetch(FX_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        body: JSON.stringify(req.body),
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        body: JSON.stringify(req.body),
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return server;
 }
