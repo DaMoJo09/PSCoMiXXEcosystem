@@ -44,7 +44,8 @@ export default function CYOABuilder() {
 
   const [title, setTitle] = useState("Untitled CYOA");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(!projectId);
+  const creationAttempted = useRef(false);
   const [storyText, setStoryText] = useState("");
   const [branchPoints, setBranchPoints] = useState(5);
   const [optionsPerBranch, setOptionsPerBranch] = useState(3);
@@ -62,28 +63,36 @@ export default function CYOABuilder() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const creatingFlag = sessionStorage.getItem('cyoa_creating');
-    if (!projectId && !creatingFlag && !createProject.isPending) {
-      sessionStorage.setItem('cyoa_creating', 'true');
-      setIsCreating(true);
-      createProject.mutateAsync({
-        title: "Untitled CYOA",
-        type: "cyoa",
-        status: "draft",
-        data: { nodes: [], storyText: "", backgrounds: [] },
-      }).then((newProject) => {
-        sessionStorage.removeItem('cyoa_creating');
-        setIsCreating(false);
-        navigate(`/creator/cyoa?id=${newProject.id}`, { replace: true });
-      }).catch(() => {
-        toast.error("Failed to create project");
-        sessionStorage.removeItem('cyoa_creating');
-        setIsCreating(false);
-      });
-    } else if (projectId) {
-      sessionStorage.removeItem('cyoa_creating');
+    if (projectId) {
       setIsCreating(false);
+      return;
     }
+    if (creationAttempted.current) return;
+
+    creationAttempted.current = true;
+    setIsCreating(true);
+
+    const timeoutId = setTimeout(() => {
+      setIsCreating(false);
+      creationAttempted.current = false;
+      toast.error("Project creation timed out - please try again");
+    }, 15000);
+
+    createProject.mutateAsync({
+      title: "Untitled CYOA",
+      type: "cyoa",
+      status: "draft",
+      data: { nodes: [], storyText: "", backgrounds: [] },
+    }).then((newProject) => {
+      clearTimeout(timeoutId);
+      setIsCreating(false);
+      navigate(`/creator/cyoa?id=${newProject.id}`, { replace: true });
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      toast.error(err?.message || "Failed to create project - please try again");
+      setIsCreating(false);
+      creationAttempted.current = false;
+    });
   }, [projectId]);
 
   useEffect(() => {

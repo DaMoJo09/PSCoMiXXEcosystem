@@ -182,7 +182,8 @@ export default function CardCreator() {
   const [showAIGen, setShowAIGen] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(!projectId);
+  const creationAttempted = useRef(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
 
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -231,28 +232,36 @@ export default function CardCreator() {
   const packArtInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const creatingFlag = sessionStorage.getItem('card_creating');
-    if (!projectId && !creatingFlag && !createProject.isPending) {
-      sessionStorage.setItem('card_creating', 'true');
-      setIsCreating(true);
-      createProject.mutateAsync({
-        title: "Untitled Card",
-        type: "card",
-        status: "draft",
-        data: cardData,
-      }).then((newProject) => {
-        sessionStorage.removeItem('card_creating');
-        setIsCreating(false);
-        navigate(`/creator/card?id=${newProject.id}`, { replace: true });
-      }).catch(() => {
-        toast.error("Failed to create project");
-        sessionStorage.removeItem('card_creating');
-        setIsCreating(false);
-      });
-    } else if (projectId) {
-      sessionStorage.removeItem('card_creating');
+    if (projectId) {
       setIsCreating(false);
+      return;
     }
+    if (creationAttempted.current) return;
+
+    creationAttempted.current = true;
+    setIsCreating(true);
+
+    const timeoutId = setTimeout(() => {
+      setIsCreating(false);
+      creationAttempted.current = false;
+      toast.error("Project creation timed out - please try again");
+    }, 15000);
+
+    createProject.mutateAsync({
+      title: "Untitled Card",
+      type: "card",
+      status: "draft",
+      data: cardData,
+    }).then((newProject) => {
+      clearTimeout(timeoutId);
+      setIsCreating(false);
+      navigate(`/creator/card?id=${newProject.id}`, { replace: true });
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      toast.error(err?.message || "Failed to create project - please try again");
+      setIsCreating(false);
+      creationAttempted.current = false;
+    });
   }, [projectId]);
 
   useEffect(() => {

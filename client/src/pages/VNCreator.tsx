@@ -62,7 +62,8 @@ export default function VNCreator() {
 
   const [title, setTitle] = useState("Untitled Visual Novel");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(!projectId);
+  const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
@@ -96,28 +97,36 @@ export default function VNCreator() {
   const [backgrounds, setBackgrounds] = useState<VNBackground[]>(defaultBackgrounds);
 
   useEffect(() => {
-    const creatingFlag = sessionStorage.getItem('vn_creating');
-    if (!projectId && !creatingFlag && !createProject.isPending) {
-      sessionStorage.setItem('vn_creating', 'true');
-      setIsCreating(true);
-      createProject.mutateAsync({
-        title: "Untitled Visual Novel",
-        type: "vn",
-        status: "draft",
-        data: { scenes, characters, backgrounds },
-      }).then((newProject) => {
-        sessionStorage.removeItem('vn_creating');
-        setIsCreating(false);
-        navigate(`/creator/vn?id=${newProject.id}`, { replace: true });
-      }).catch(() => {
-        toast.error("Failed to create project");
-        sessionStorage.removeItem('vn_creating');
-        setIsCreating(false);
-      });
-    } else if (projectId) {
-      sessionStorage.removeItem('vn_creating');
+    if (projectId) {
       setIsCreating(false);
+      return;
     }
+    if (creationAttempted.current) return;
+
+    creationAttempted.current = true;
+    setIsCreating(true);
+
+    const timeoutId = setTimeout(() => {
+      setIsCreating(false);
+      creationAttempted.current = false;
+      toast.error("Project creation timed out - please try again");
+    }, 15000);
+
+    createProject.mutateAsync({
+      title: "Untitled Visual Novel",
+      type: "vn",
+      status: "draft",
+      data: { scenes, characters, backgrounds },
+    }).then((newProject) => {
+      clearTimeout(timeoutId);
+      setIsCreating(false);
+      navigate(`/creator/vn?id=${newProject.id}`, { replace: true });
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      toast.error(err?.message || "Failed to create project - please try again");
+      setIsCreating(false);
+      creationAttempted.current = false;
+    });
   }, [projectId]);
 
   useEffect(() => {

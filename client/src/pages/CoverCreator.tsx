@@ -238,7 +238,8 @@ export default function CoverCreator() {
   const [drawingTarget, setDrawingTarget] = useState<"front" | "back" | "spine">("front");
   const [aiTarget, setAiTarget] = useState<"front" | "back" | "spine">("front");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(!projectId);
+  const creationAttempted = useRef(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
@@ -248,28 +249,36 @@ export default function CoverCreator() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const creatingFlag = sessionStorage.getItem('cover_creating');
-    if (!projectId && !creatingFlag && !createProject.isPending) {
-      sessionStorage.setItem('cover_creating', 'true');
-      setIsCreating(true);
-      createProject.mutateAsync({
-        title: "Untitled Cover",
-        type: "cover",
-        status: "draft",
-        data: defaultCover,
-      }).then((newProject) => {
-        sessionStorage.removeItem('cover_creating');
-        setIsCreating(false);
-        navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
-      }).catch(() => {
-        toast.error("Failed to create project");
-        sessionStorage.removeItem('cover_creating');
-        setIsCreating(false);
-      });
-    } else if (projectId) {
-      sessionStorage.removeItem('cover_creating');
+    if (projectId) {
       setIsCreating(false);
+      return;
     }
+    if (creationAttempted.current) return;
+
+    creationAttempted.current = true;
+    setIsCreating(true);
+
+    const timeoutId = setTimeout(() => {
+      setIsCreating(false);
+      creationAttempted.current = false;
+      toast.error("Project creation timed out - please try again");
+    }, 15000);
+
+    createProject.mutateAsync({
+      title: "Untitled Cover",
+      type: "cover",
+      status: "draft",
+      data: defaultCover,
+    }).then((newProject) => {
+      clearTimeout(timeoutId);
+      setIsCreating(false);
+      navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      toast.error(err?.message || "Failed to create project - please try again");
+      setIsCreating(false);
+      creationAttempted.current = false;
+    });
   }, [projectId]);
 
   useEffect(() => {

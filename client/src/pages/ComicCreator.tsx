@@ -341,7 +341,7 @@ export default function ComicCreator() {
   const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(!projectId);
   
   const [spreads, setSpreads] = useState<Spread[]>([
     { id: "spread_1", leftPage: [], rightPage: [] }
@@ -387,27 +387,37 @@ export default function ComicCreator() {
   const currentSpread = spreads[currentSpreadIndex];
 
   useEffect(() => {
-    sessionStorage.removeItem('comic_creating');
-    if (!projectId && !createdProjectId && !creationAttempted.current && !createProject.isPending) {
-      creationAttempted.current = true;
-      setIsCreating(true);
-      createProject.mutateAsync({
-        title: "Untitled Comic",
-        type: "comic",
-        status: "draft",
-        data: { spreads: [] },
-      }).then((newProject) => {
-        setCreatedProjectId(newProject.id);
-        setIsCreating(false);
-        navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
-      }).catch(() => {
-        toast.error("Failed to create project - please try again");
-        setIsCreating(false);
-        creationAttempted.current = false;
-      });
-    } else if (projectId) {
+    if (projectId) {
       setIsCreating(false);
+      return;
     }
+    if (createdProjectId || creationAttempted.current) return;
+    
+    creationAttempted.current = true;
+    setIsCreating(true);
+    
+    const timeoutId = setTimeout(() => {
+      setIsCreating(false);
+      creationAttempted.current = false;
+      toast.error("Project creation timed out - please try again");
+    }, 15000);
+    
+    createProject.mutateAsync({
+      title: "Untitled Comic",
+      type: "comic",
+      status: "draft",
+      data: { spreads: [] },
+    }).then((newProject) => {
+      clearTimeout(timeoutId);
+      setCreatedProjectId(newProject.id);
+      setIsCreating(false);
+      navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      toast.error(err?.message || "Failed to create project - please try again");
+      setIsCreating(false);
+      creationAttempted.current = false;
+    });
   }, [projectId]);
 
   useEffect(() => {
