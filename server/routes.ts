@@ -5,7 +5,7 @@ import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema } from "@shared/schema";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -4535,6 +4535,257 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==================== MARKETPLACE API ROUTES ====================
+
+  app.get("/api/marketplace/listings", async (req, res) => {
+    try {
+      const { type, search, limit, offset } = req.query;
+      const listings = await storage.getMarketplaceListings({
+        type: type as string | undefined,
+        status: "active",
+        search: search as string | undefined,
+        limit: limit ? parseInt(limit as string) : 20,
+        offset: offset ? parseInt(offset as string) : 0,
+      });
+      res.json(listings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/my-listings", isAuthenticated, async (req, res) => {
+    try {
+      const listings = await storage.getSellerListings(req.user!.id);
+      res.json(listings);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/purchases", isAuthenticated, async (req, res) => {
+    try {
+      const orders = await storage.getBuyerOrders(req.user!.id);
+      res.json(orders);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/earnings", isAuthenticated, async (req, res) => {
+    try {
+      const orders = await storage.getSellerOrders(req.user!.id);
+      const totalEarnings = orders
+        .filter(o => o.status === "completed")
+        .reduce((sum, o) => sum + o.amountInCents, 0);
+      res.json({ orders, totalEarnings });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/listings/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const listing = await storage.getMarketplaceListing(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      const hasPurchased = await storage.hasUserPurchasedListing(req.user!.id, listing.id);
+      if (!hasPurchased && listing.sellerId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "You have not purchased this listing" });
+      }
+      res.json({ downloadData: listing.downloadData });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/listings/:id", async (req, res) => {
+    try {
+      const listing = await storage.getMarketplaceListing(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      res.json(listing);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketplace/listings", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.accountType === "student") {
+        return res.status(403).json({ message: "Students cannot create marketplace listings" });
+      }
+
+      const { projectId, title, description, type, priceInCents, previewImages, thumbnail, tags } = req.body;
+
+      if (projectId) {
+        const project = await storage.getProject(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        if (project.userId !== req.user!.id) {
+          return res.status(403).json({ message: "You do not own this project" });
+        }
+        if (project.status !== "published" && project.status !== "approved") {
+          return res.status(400).json({ message: "Project must be published or approved to list on marketplace" });
+        }
+      }
+
+      const result = insertMarketplaceListingSchema.safeParse({
+        sellerId: req.user!.id,
+        projectId,
+        title,
+        description,
+        type,
+        priceInCents,
+        previewImages,
+        thumbnail,
+        tags,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
+      }
+
+      const listing = await storage.createMarketplaceListing(result.data);
+      res.status(201).json(listing);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/marketplace/listings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const listing = await storage.getMarketplaceListing(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (listing.sellerId !== req.user!.id) {
+        return res.status(403).json({ message: "You do not own this listing" });
+      }
+      const updated = await storage.updateMarketplaceListing(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/marketplace/listings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const listing = await storage.getMarketplaceListing(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (listing.sellerId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "You do not own this listing" });
+      }
+      await storage.deleteMarketplaceListing(req.params.id);
+      res.json({ message: "Listing removed" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketplace/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const { listingId } = req.body;
+      if (!listingId) {
+        return res.status(400).json({ message: "listingId is required" });
+      }
+
+      const listing = await storage.getMarketplaceListing(listingId);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (listing.status !== "active") {
+        return res.status(400).json({ message: "Listing is not available for purchase" });
+      }
+
+      const alreadyPurchased = await storage.hasUserPurchasedListing(req.user!.id, listingId);
+      if (alreadyPurchased) {
+        return res.status(400).json({ message: "You have already purchased this listing" });
+      }
+
+      const baseUrl = req.headers.origin || (process.env.REPLIT_DEPLOYMENT
+        ? "https://pressstart.space"
+        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: listing.currency || 'usd',
+            product_data: { name: listing.title, description: listing.description || undefined },
+            unit_amount: listing.priceInCents,
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${baseUrl}/marketplace/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/marketplace`,
+        metadata: { listingId: listing.id, buyerId: req.user!.id, sellerId: listing.sellerId },
+      });
+
+      await storage.createMarketplaceOrder({
+        buyerId: req.user!.id,
+        listingId: listing.id,
+        sellerId: listing.sellerId,
+        amountInCents: listing.priceInCents,
+        currency: listing.currency || 'usd',
+        status: 'pending',
+        stripeSessionId: session.id,
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketplace/verify-purchase", isAuthenticated, async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (session.payment_status === 'paid') {
+        const buyerOrders = await storage.getBuyerOrders(req.user!.id);
+        const order = buyerOrders.find(o => o.stripeSessionId === sessionId);
+
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (order.status !== 'completed') {
+          await storage.updateMarketplaceOrder(order.id, {
+            status: 'completed',
+            completedAt: new Date(),
+          });
+
+          const listing = await storage.getMarketplaceListing(order.listingId);
+          if (listing) {
+            await storage.updateMarketplaceListing(listing.id, {
+              salesCount: (listing.salesCount || 0) + 1,
+              totalEarnings: (listing.totalEarnings || 0) + order.amountInCents,
+            } as any);
+          }
+        }
+
+        return res.json({ success: true, orderId: order.id });
+      }
+
+      res.json({ success: false, message: "Payment not completed" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 

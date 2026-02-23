@@ -58,6 +58,10 @@ import AdminModeration from "@/pages/AdminModeration";
 import AdminControlRoom from "@/pages/AdminControlRoom";
 import AdminReviewQueue from "@/pages/AdminReviewQueue";
 import PricingPage from "@/pages/PricingPage";
+import MarketplacePage from "@/pages/MarketplacePage";
+import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
+import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
+import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRouter() {
@@ -152,6 +156,10 @@ function ProtectedRouter() {
         <Route path="/social/notifications" component={Notifications} />
         <Route path="/social/search" component={UserSearch} />
         <Route path="/tools/import" component={ImportCenter} />
+        <Route path="/marketplace" component={MarketplacePage} />
+        <Route path="/marketplace/sell" component={MarketplaceSellPage} />
+        <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />
+        <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>

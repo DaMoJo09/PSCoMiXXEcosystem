@@ -1,4 +1,4 @@
-import type { User, Project, Asset, InsertUser, InsertProject, InsertAsset } from "@shared/schema";
+import type { User, Project, Asset, InsertUser, InsertProject, InsertAsset, MarketplaceListing, InsertMarketplaceListing, MarketplaceOrder } from "@shared/schema";
 
 const API_BASE = "/api";
 
@@ -271,5 +271,90 @@ export const announcementsApi = {
       credentials: "include",
     });
     return handleResponse<{ success: boolean }>(response);
+  },
+};
+
+export const marketplaceApi = {
+  getListings: async (filters?: { type?: string; search?: string; limit?: number; offset?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.type) params.set('type', filters.type);
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    if (filters?.offset) params.set('offset', String(filters.offset));
+    const response = await fetch(`${API_BASE}/marketplace/listings?${params}`, { credentials: "include" });
+    return handleResponse<MarketplaceListing[]>(response);
+  },
+
+  getListing: async (id: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/listings/${id}`, { credentials: "include" });
+    return handleResponse<MarketplaceListing>(response);
+  },
+
+  getMyListings: async () => {
+    const response = await fetch(`${API_BASE}/marketplace/my-listings`, { credentials: "include" });
+    return handleResponse<MarketplaceListing[]>(response);
+  },
+
+  createListing: async (data: Partial<InsertMarketplaceListing>) => {
+    const response = await fetch(`${API_BASE}/marketplace/listings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    return handleResponse<MarketplaceListing>(response);
+  },
+
+  updateListing: async (id: string, data: Partial<InsertMarketplaceListing>) => {
+    const response = await fetch(`${API_BASE}/marketplace/listings/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    return handleResponse<MarketplaceListing>(response);
+  },
+
+  deleteListing: async (id: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/listings/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    return handleResponse<{ message: string }>(response);
+  },
+
+  checkout: async (listingId: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId }),
+      credentials: "include",
+    });
+    return handleResponse<{ url: string }>(response);
+  },
+
+  verifyPurchase: async (sessionId: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/verify-purchase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+      credentials: "include",
+    });
+    return handleResponse<{ success: boolean; orderId: string }>(response);
+  },
+
+  getPurchases: async () => {
+    const response = await fetch(`${API_BASE}/marketplace/purchases`, { credentials: "include" });
+    return handleResponse<MarketplaceOrder[]>(response);
+  },
+
+  getEarnings: async () => {
+    const response = await fetch(`${API_BASE}/marketplace/earnings`, { credentials: "include" });
+    return handleResponse<{ orders: MarketplaceOrder[]; totalEarnings: number }>(response);
+  },
+
+  getDownload: async (listingId: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/listings/${listingId}/download`, { credentials: "include" });
+    return handleResponse<any>(response);
   },
 };

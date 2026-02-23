@@ -1888,6 +1888,64 @@ export const insertContentReportSchema = createInsertSchema(contentReports).omit
 export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 export type ContentReport = typeof contentReports.$inferSelect;
 
+// Marketplace Listings - creators list published content for sale
+export const marketplaceListings = pgTable("marketplace_listings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // comic | card | vn | cyoa | cover | motion | asset_pack
+  priceInCents: integer("price_in_cents").notNull(),
+  currency: text("currency").notNull().default("usd"),
+  previewImages: jsonb("preview_images").default([]), // string[] of image URLs
+  thumbnail: text("thumbnail"),
+  tags: jsonb("tags").default([]), // string[]
+  status: text("status").notNull().default("active"), // active | paused | sold_out | removed
+  stripeProductId: text("stripe_product_id"),
+  stripePriceId: text("stripe_price_id"),
+  downloadData: jsonb("download_data"), // { type, projectData, assets } - the purchasable content
+  salesCount: integer("sales_count").default(0),
+  totalEarnings: integer("total_earnings").default(0), // in cents
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertMarketplaceListingSchema = createInsertSchema(marketplaceListings).omit({
+  id: true,
+  salesCount: true,
+  totalEarnings: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
+export type MarketplaceListing = typeof marketplaceListings.$inferSelect;
+
+// Marketplace Orders - tracks purchases
+export const marketplaceOrders = pgTable("marketplace_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  listingId: varchar("listing_id").notNull().references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amountInCents: integer("amount_in_cents").notNull(),
+  currency: text("currency").notNull().default("usd"),
+  status: text("status").notNull().default("pending"), // pending | completed | refunded | failed
+  stripeSessionId: text("stripe_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertMarketplaceOrderSchema = createInsertSchema(marketplaceOrders).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export type InsertMarketplaceOrder = z.infer<typeof insertMarketplaceOrderSchema>;
+export type MarketplaceOrder = typeof marketplaceOrders.$inferSelect;
+
 // Tier Entitlements Definition
 export const tierEntitlements = {
   free: {

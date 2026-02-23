@@ -62,6 +62,12 @@ const galleryTools = [
   { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio" },
 ];
 
+const marketplaceTools = [
+  { icon: ShoppingBag, label: "Browse Marketplace", href: "/marketplace", studentOk: true },
+  { icon: DollarSign, label: "Sell Content", href: "/marketplace/sell", studentOk: false },
+  { icon: Layers, label: "My Purchases", href: "/marketplace/purchases", studentOk: true },
+];
+
 const ecosystemToolsBase = [
   { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem", studentOk: true },
   { icon: Rocket, label: "Publish", href: "/ecosystem/publish", studentOk: true },
@@ -148,6 +154,24 @@ export function AppSidebar() {
             className={cn(
               "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
               location === item.href 
+                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
+                : "hover:bg-muted hover:border-border"
+            )}
+            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
+          </Link>
+        ))}
+
+        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">Marketplace</div>
+        {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => (
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
+              location === item.href || location.startsWith(item.href + "/")
                 ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
                 : "hover:bg-muted hover:border-border"
             )}

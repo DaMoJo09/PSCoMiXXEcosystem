@@ -134,5 +134,35 @@ Preferred communication style: Simple, everyday language.
 - **Filter Property:** `filter` field on Panel interface, applied as CSS filter to panel content container.
 - **Auto-Save:** Debounced 3-second auto-save with `userEditCountRef` to skip first trigger after initial project load, preventing data overwrite.
 
+### Creator Marketplace
+- **Browse:** `/marketplace` - public storefront with search, type filters (Comic, Card, VN, CYOA, Cover, Motion, Asset Pack), and listing cards.
+- **Listing Detail:** `/marketplace/listing/:id` - full listing view with hero image, price, description, tags, preview gallery, buy button.
+- **Sell Content:** `/marketplace/sell` - creators list published/approved projects for sale with price, description, tags. Students cannot sell.
+- **Purchases & Sales:** `/marketplace/purchases` - tabbed page showing purchase history and seller dashboard with earnings.
+- **Stripe Integration:** Uses Stripe Checkout in `payment` mode (one-time purchases). Checkout creates a pending order, verify-purchase confirms via Stripe session.
+- **Database Tables:** `marketplace_listings` (seller, project, price, type, status, stripe IDs, sales count, earnings), `marketplace_orders` (buyer, listing, seller, amount, status, stripe session/payment intent).
+- **Security:** Server-side student restriction on listing creation, seller ownership verification on updates/deletes, purchase verification before download access.
+- **API Endpoints:**
+  - `GET /api/marketplace/listings` - browse (public)
+  - `GET /api/marketplace/listings/:id` - detail (public)
+  - `POST /api/marketplace/listings` - create listing (creator only)
+  - `PUT /api/marketplace/listings/:id` - update (owner only)
+  - `DELETE /api/marketplace/listings/:id` - delete (owner/admin)
+  - `GET /api/marketplace/my-listings` - seller's listings
+  - `POST /api/marketplace/checkout` - initiate Stripe checkout
+  - `POST /api/marketplace/verify-purchase` - confirm payment
+  - `GET /api/marketplace/purchases` - buyer's orders
+  - `GET /api/marketplace/earnings` - seller's orders + total
+  - `GET /api/marketplace/listings/:id/download` - download content (verified purchasers only)
+- **Sidebar:** "Marketplace" section with Browse, Sell Content (creator only), My Purchases.
+
+### Motion Studio Audio
+- **Audio Clips:** Upload audio files (any format), stored as data URLs in project data.
+- **AudioClip Interface:** id, name, src, startFrame, durationFrames, volume, muted.
+- **Timeline Visualization:** Audio clips shown as emerald-colored blocks in the audio track with faux waveform SVG display.
+- **Playback Sync:** Web Audio API decodes and plays audio synchronized with frame timeline, with offset calculation for mid-clip starts.
+- **Controls:** Upload button, mute/unmute toggle, volume slider in transport bar. Per-clip mute/delete in timeline.
+- **Save/Load:** Audio clips persisted with project data in all save paths (manual, auto-save, beacon).
+
 ### Ecosystem Integration Points (Planned/Future)
 - `pscomixx.com`, `comixx.website`, `pscomixx.online`, `psstreaming.online`.

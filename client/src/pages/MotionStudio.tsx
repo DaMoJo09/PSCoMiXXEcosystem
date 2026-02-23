@@ -13,7 +13,7 @@ import {
   BookOpen, Layers, MonitorPlay, Check,
   Blend, Droplets, Zap, Move, RotateCcw, FlipHorizontal,
   Diamond, Clock, TrendingUp, Sliders, GitBranch, Aperture,
-  Volume2, Grid3X3, Focus, Lightbulb, Wind, Flame
+  Volume2, VolumeX, Grid3X3, Focus, Lightbulb, Wind, Flame
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
@@ -97,6 +97,16 @@ interface Track {
   type: "video" | "audio" | "effects";
   visible: boolean;
   locked: boolean;
+}
+
+interface AudioClip {
+  id: string;
+  name: string;
+  src: string;
+  startFrame: number;
+  durationFrames: number;
+  volume: number;
+  muted: boolean;
 }
 
 const COLORS = [
@@ -337,6 +347,13 @@ export default function MotionStudio() {
   // Keyframes (per-frame animation properties)
   const [keyframes, setKeyframes] = useState<Record<string, { x: number; y: number; scale: number; rotation: number; opacity: number }>>({});
 
+  const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
+  const [audioVolume, setAudioVolume] = useState(1);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourcesRef = useRef<Map<string, { source: AudioBufferSourceNode; gainNode: GainNode; buffer: AudioBuffer }>>(new Map());
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+
   // Global mouse/keyboard handlers for drag operations
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -438,6 +455,9 @@ export default function MotionStudio() {
       if (data?.frames?.length > 0) {
         setFrames(data.frames);
       }
+      if (data?.audioClips?.length > 0) {
+        setAudioClips(data.audioClips);
+      }
     } else if (project && importedFromPanelRef.current) {
       setTitle(project.title);
     }
@@ -448,8 +468,8 @@ export default function MotionStudio() {
   const msEditCountRef = useRef(0);
   const msInitialLoadRef = useRef(false);
   const msPendingSaveRef = useRef(false);
-  const msLatestDataRef = useRef({ title, frames, tracks, projectId });
-  msLatestDataRef.current = { title, frames, tracks, projectId };
+  const msLatestDataRef = useRef({ title, frames, tracks, projectId, audioClips });
+  msLatestDataRef.current = { title, frames, tracks, projectId, audioClips };
 
   useEffect(() => {
     if (project && !msInitialLoadRef.current) {
@@ -471,23 +491,23 @@ export default function MotionStudio() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ title, data: { frames, tracks } }),
+          body: JSON.stringify({ title, data: { frames, tracks, audioClips } }),
         });
       } catch {}
     }, 3000);
     return () => {
       if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
     };
-  }, [frames, title, projectId]);
+  }, [frames, title, projectId, audioClips]);
 
   useEffect(() => {
     return () => {
       if (msPendingSaveRef.current) {
-        const { projectId: pid, title: t, frames: f, tracks: tk } = msLatestDataRef.current;
+        const { projectId: pid, title: t, frames: f, tracks: tk, audioClips: ac } = msLatestDataRef.current;
         if (pid) {
           navigator.sendBeacon(
             `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk, audioClips: ac } })], { type: "application/json" })
           );
         }
       }
@@ -497,11 +517,11 @@ export default function MotionStudio() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (msPendingSaveRef.current) {
-        const { projectId: pid, title: t, frames: f, tracks: tk } = msLatestDataRef.current;
+        const { projectId: pid, title: t, frames: f, tracks: tk, audioClips: ac } = msLatestDataRef.current;
         if (pid) {
           navigator.sendBeacon(
             `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { frames: f, tracks: tk, audioClips: ac } })], { type: "application/json" })
           );
         }
         e.preventDefault();
@@ -704,7 +724,7 @@ export default function MotionStudio() {
       
       await updateProject.mutateAsync({
         id: projectId,
-        data: { title, data: { frames: updatedFrames, tracks } },
+        data: { title, data: { frames: updatedFrames, tracks, audioClips } },
       });
       toast.success("Project saved");
     } catch {
@@ -712,6 +732,31 @@ export default function MotionStudio() {
     }
     setIsSaving(false);
   };
+
+  const handleAudioUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      toast.error("Please select an audio file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newClip: AudioClip = {
+        id: `audio_${Date.now()}`,
+        name: file.name.replace(/\.[^.]+$/, ''),
+        src: reader.result as string,
+        startFrame: currentFrameIndex,
+        durationFrames: Math.max(frames.length - currentFrameIndex, 1),
+        volume: 1,
+        muted: false,
+      };
+      setAudioClips(prev => [...prev, newClip]);
+      toast.success(`Added audio: ${newClip.name}`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [currentFrameIndex, frames.length]);
 
   const addFrame = () => {
     saveCurrentFrame();
@@ -1279,6 +1324,58 @@ export default function MotionStudio() {
     }
   }, [isPlaying, showComicPreview, currentFrameIndex, frames.length, loopEnabled]);
 
+  useEffect(() => {
+    if (!audioClips.length) return;
+    
+    if (isPlaying && !audioMuted) {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      const ctx = audioContextRef.current;
+      
+      audioClips.forEach(clip => {
+        if (clip.muted) return;
+        if (currentFrameIndex >= clip.startFrame && currentFrameIndex < clip.startFrame + clip.durationFrames) {
+          if (!audioSourcesRef.current.has(clip.id)) {
+            fetch(clip.src)
+              .then(r => r.arrayBuffer())
+              .then(buf => ctx.decodeAudioData(buf))
+              .then(audioBuffer => {
+                const source = ctx.createBufferSource();
+                const gainNode = ctx.createGain();
+                source.buffer = audioBuffer;
+                gainNode.gain.value = clip.volume * audioVolume;
+                source.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                
+                const framesIntoClip = currentFrameIndex - clip.startFrame;
+                const msPerFrame = frames[currentFrameIndex]?.duration || 1000;
+                const offsetSec = (framesIntoClip * msPerFrame) / 1000;
+                
+                source.start(0, Math.min(offsetSec, audioBuffer.duration));
+                audioSourcesRef.current.set(clip.id, { source, gainNode, buffer: audioBuffer });
+              })
+              .catch(() => {});
+          }
+        }
+      });
+    } else {
+      audioSourcesRef.current.forEach(({ source }) => {
+        try { source.stop(); } catch {}
+      });
+      audioSourcesRef.current.clear();
+    }
+    
+    return () => {
+      if (!isPlaying) {
+        audioSourcesRef.current.forEach(({ source }) => {
+          try { source.stop(); } catch {}
+        });
+        audioSourcesRef.current.clear();
+      }
+    };
+  }, [isPlaying, audioMuted, currentFrameIndex, audioClips, audioVolume]);
+
   // Apply drawing to comic panel
   const applyToPanel = async () => {
     if (!selectedComicId || !selectedPanelId) {
@@ -1489,6 +1586,40 @@ export default function MotionStudio() {
           <div className="ml-2 px-3 py-1 bg-[#1a1a1a] rounded text-xs font-mono text-zinc-400">
             {formatTime(currentTime)} / {formatTime(duration)}
           </div>
+          <input
+            ref={audioFileInputRef}
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={handleAudioUpload}
+          />
+          <button
+            onClick={() => audioFileInputRef.current?.click()}
+            className="p-2 bg-zinc-800 border border-white/10 rounded-lg hover:border-emerald-500/50 transition"
+            title="Add Audio Track"
+          >
+            <Music className="w-4 h-4 text-emerald-400" />
+          </button>
+          {audioClips.length > 0 && (
+            <>
+              <button
+                onClick={() => setAudioMuted(!audioMuted)}
+                className={`p-2 rounded-lg border transition ${audioMuted ? 'bg-red-900/30 border-red-500/50' : 'bg-zinc-800 border-white/10'}`}
+                title={audioMuted ? "Unmute Audio" : "Mute Audio"}
+              >
+                {audioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={audioVolume * 100}
+                onChange={(e) => setAudioVolume(Number(e.target.value) / 100)}
+                className="w-16 h-1 accent-emerald-500"
+                title={`Volume: ${Math.round(audioVolume * 100)}%`}
+              />
+            </>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -2166,6 +2297,53 @@ export default function MotionStudio() {
                         </div>
                       </div>
                     ))}
+                    {track.type === "audio" && (
+                      <div className="absolute inset-0 flex items-center px-1">
+                        {audioClips.map(clip => {
+                          const left = (clip.startFrame / Math.max(frames.length, 1)) * 100;
+                          const width = (clip.durationFrames / Math.max(frames.length, 1)) * 100;
+                          return (
+                            <div
+                              key={clip.id}
+                              className={`absolute top-1 bottom-1 rounded-lg ${clip.muted ? 'bg-zinc-700' : 'bg-emerald-900/80 border border-emerald-500/50'} flex items-center px-2 gap-1 cursor-pointer group`}
+                              style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
+                              title={clip.name}
+                            >
+                              <Music className="w-3 h-3 text-emerald-400 shrink-0" />
+                              <span className="text-[9px] text-emerald-300 truncate z-10">{clip.name}</span>
+                              <svg className="absolute inset-0 w-full h-full opacity-30" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                {Array.from({ length: 50 }).map((_, i) => {
+                                  const h = Math.abs(Math.sin(i * 0.7 + clip.id.charCodeAt(clip.id.length - 1)) * 8) + 2;
+                                  return <rect key={i} x={i * 2} y={10 - h / 2} width="1.2" height={h} fill="#10b981" />;
+                                })}
+                              </svg>
+                              <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 z-10">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setAudioClips(prev => prev.map(c => c.id === clip.id ? { ...c, muted: !c.muted } : c)); }}
+                                  className="p-0.5 hover:bg-black/50 rounded"
+                                >
+                                  {clip.muted ? <VolumeX className="w-3 h-3 text-zinc-400" /> : <Volume2 className="w-3 h-3 text-emerald-400" />}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setAudioClips(prev => prev.filter(c => c.id !== clip.id)); }}
+                                  className="p-0.5 hover:bg-red-900/50 rounded"
+                                >
+                                  <Trash2 className="w-3 h-3 text-red-400" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {audioClips.length === 0 && (
+                          <button
+                            onClick={() => audioFileInputRef.current?.click()}
+                            className="w-full h-full flex items-center justify-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 transition"
+                          >
+                            <Plus className="w-3 h-3" /> Add Audio
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {/* Enhanced Playhead - draggable */}
                     <div 
                       className="absolute top-0 bottom-0 w-0.5 bg-white z-10 cursor-ew-resize"
