@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
+import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -361,6 +362,7 @@ export default function ComicCreator() {
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const [selectedLibraryFolder, setSelectedLibraryFolder] = useState<string | null>(null);
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
+  const [assetLibraryTab, setAssetLibraryTab] = useState<"library" | "fx-studio">("library");
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
@@ -3288,135 +3290,168 @@ export default function ComicCreator() {
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <Layers className="w-5 h-5" /> Asset Library
               </h3>
-              <button 
-                onClick={() => setShowAssetLibrary(false)}
-                className="p-1 hover:bg-zinc-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex bg-zinc-800 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setAssetLibraryTab("library")}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition ${assetLibraryTab === "library" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                    data-testid="button-asset-tab-library"
+                  >
+                    My Library
+                  </button>
+                  <button
+                    onClick={() => setAssetLibraryTab("fx-studio")}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition flex items-center gap-1 ${assetLibraryTab === "fx-studio" ? "bg-purple-600 text-white" : "text-purple-400 hover:text-purple-300"}`}
+                    data-testid="button-asset-tab-fx"
+                  >
+                    <Sparkles className="w-3 h-3" /> FX Studio
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setShowAssetLibrary(false)}
+                  className="p-1 hover:bg-zinc-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
-            <div className="flex flex-1 overflow-hidden">
-              <div className="w-48 border-r border-zinc-700 p-2 overflow-y-auto">
-                <button
-                  onClick={() => setSelectedLibraryFolder(null)}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 ${selectedLibraryFolder === null ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
-                >
-                  All Assets
-                </button>
-                {folders.map(folder => (
-                  <button
-                    key={folder.id}
-                    onClick={() => setSelectedLibraryFolder(folder.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2 ${selectedLibraryFolder === folder.id ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
-                  >
-                    <FolderOpen className="w-4 h-4 text-zinc-400" />
-                    {folder.name}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="flex-1 p-4 overflow-y-auto">
-                <div className="grid grid-cols-4 gap-3">
-                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).map((asset, index) => (
+            {assetLibraryTab === "library" ? (
+              <>
+                <div className="flex flex-1 overflow-hidden">
+                  <div className="w-48 border-r border-zinc-700 p-2 overflow-y-auto">
                     <button
-                      key={asset.id}
-                      draggable
-                      onDragStart={(e) => {
-                        setDraggedAssetId(asset.id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragEnd={() => setDraggedAssetId(null)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={async (e) => {
-                        e.preventDefault();
-                        if (draggedAssetId && draggedAssetId !== asset.id) {
-                          const currentAssets = selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets;
-                          const draggedIndex = currentAssets.findIndex(a => a.id === draggedAssetId);
-                          const dropIndex = index;
-                          if (draggedIndex !== -1) {
-                            const newOrder = [...currentAssets];
-                            const [removed] = newOrder.splice(draggedIndex, 1);
-                            newOrder.splice(dropIndex, 0, removed);
-                            await reorderAssets(newOrder.map(a => a.id));
-                            toast.success("Assets reordered");
-                          }
-                        }
-                        setDraggedAssetId(null);
-                      }}
-                      onClick={() => {
-                        if (selectedPanelId) {
-                          addContentToPanel(selectedPage, selectedPanelId, {
-                            type: "image",
-                            transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
-                            data: { url: asset.url },
-                            locked: false,
-                          });
-                          toast.success("Asset added to panel");
-                          setShowAssetLibrary(false);
-                        } else {
-                          toast.error("Select a panel first");
-                        }
-                      }}
-                      className={`group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden cursor-grab active:cursor-grabbing ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
+                      onClick={() => setSelectedLibraryFolder(null)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 ${selectedLibraryFolder === null ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
                     >
-                      {asset.type === "image" || asset.type === "sprite" || asset.type === "background" ? (
-                        <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover pointer-events-none" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-8 h-8 text-zinc-600" />
+                      All Assets
+                    </button>
+                    {folders.map(folder => (
+                      <button
+                        key={folder.id}
+                        onClick={() => setSelectedLibraryFolder(folder.id)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-800 flex items-center gap-2 ${selectedLibraryFolder === folder.id ? 'bg-zinc-800 border-l-2 border-white' : ''}`}
+                      >
+                        <FolderOpen className="w-4 h-4 text-zinc-400" />
+                        {folder.name}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="flex-1 p-4 overflow-y-auto">
+                    <div className="grid grid-cols-4 gap-3">
+                      {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).map((asset, index) => (
+                        <button
+                          key={asset.id}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedAssetId(asset.id);
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragEnd={() => setDraggedAssetId(null)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }}
+                          onDrop={async (e) => {
+                            e.preventDefault();
+                            if (draggedAssetId && draggedAssetId !== asset.id) {
+                              const currentAssets = selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets;
+                              const draggedIndex = currentAssets.findIndex(a => a.id === draggedAssetId);
+                              const dropIndex = index;
+                              if (draggedIndex !== -1) {
+                                const newOrder = [...currentAssets];
+                                const [removed] = newOrder.splice(draggedIndex, 1);
+                                newOrder.splice(dropIndex, 0, removed);
+                                await reorderAssets(newOrder.map(a => a.id));
+                                toast.success("Assets reordered");
+                              }
+                            }
+                            setDraggedAssetId(null);
+                          }}
+                          onClick={() => {
+                            if (selectedPanelId) {
+                              addContentToPanel(selectedPage, selectedPanelId, {
+                                type: "image",
+                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                data: { url: asset.url },
+                                locked: false,
+                              });
+                              toast.success("Asset added to panel");
+                              setShowAssetLibrary(false);
+                            } else {
+                              toast.error("Select a panel first");
+                            }
+                          }}
+                          className={`group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden cursor-grab active:cursor-grabbing ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
+                        >
+                          {asset.url ? (
+                            <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover pointer-events-none" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              {asset.type === "effect" ? (
+                                <Sparkles className="w-8 h-8 text-purple-500/50" />
+                              ) : (
+                                <ImageIcon className="w-8 h-8 text-zinc-600" />
+                              )}
+                            </div>
+                          )}
+                          {asset.type === "effect" && (
+                            <div className="absolute top-1 right-1 bg-purple-600/80 rounded px-1 py-0.5">
+                              <Sparkles className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 bg-black/80 px-2 py-1 text-xs truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                            {asset.name}
+                          </div>
+                        </button>
+                      ))}
+                      {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length === 0 && (
+                        <div className="col-span-4 text-center py-12 text-zinc-500">
+                          <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                          <p>No assets in this folder</p>
+                          <p className="text-xs mt-1">Import images or browse FX Studio effects</p>
                         </div>
                       )}
-                      <div className="absolute inset-x-0 bottom-0 bg-black/80 px-2 py-1 text-xs truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                        {asset.name}
-                      </div>
-                    </button>
-                  ))}
-                  {(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length === 0 && (
-                    <div className="col-span-4 text-center py-12 text-zinc-500">
-                      <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>No assets in this folder</p>
-                      <p className="text-xs mt-1">Import images to add them here</p>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="p-3 border-t border-zinc-700 flex justify-between items-center">
-              <span className="text-xs text-zinc-500">
-                {isAssetLibraryLoading ? "Loading..." : `${(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length} assets`}
-              </span>
-              <label className="px-4 py-2 bg-white text-black text-sm font-bold hover:bg-zinc-200 cursor-pointer">
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*"
-                  multiple
-                  onChange={async (e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                      try {
-                        const filesArray = Array.from(files);
-                        if (filesArray.length === 1) {
-                          await importFromFile(filesArray[0], selectedLibraryFolder || "sprites");
-                          toast.success("Asset imported!");
-                        } else {
-                          await importFromFiles(filesArray, selectedLibraryFolder || "sprites");
-                          toast.success(`${filesArray.length} assets imported!`);
+                
+                <div className="p-3 border-t border-zinc-700 flex justify-between items-center">
+                  <span className="text-xs text-zinc-500">
+                    {isAssetLibraryLoading ? "Loading..." : `${(selectedLibraryFolder ? getAssetsInFolder(selectedLibraryFolder) : assets).length} assets`}
+                  </span>
+                  <label className="px-4 py-2 bg-white text-black text-sm font-bold hover:bg-zinc-200 cursor-pointer">
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      multiple
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          try {
+                            const filesArray = Array.from(files);
+                            if (filesArray.length === 1) {
+                              await importFromFile(filesArray[0], selectedLibraryFolder || "sprites");
+                              toast.success("Asset imported!");
+                            } else {
+                              await importFromFiles(filesArray, selectedLibraryFolder || "sprites");
+                              toast.success(`${filesArray.length} assets imported!`);
+                            }
+                          } catch (err) {
+                            toast.error("Failed to import assets");
+                          }
                         }
-                      } catch (err) {
-                        toast.error("Failed to import assets");
-                      }
-                    }
-                  }}
-                />
-                Import Assets
-              </label>
-            </div>
+                      }}
+                    />
+                    Import Assets
+                  </label>
+                </div>
+              </>
+            ) : (
+              <FxBrowserPanel onClose={() => setAssetLibraryTab("library")} />
+            )}
           </div>
         </div>
       )}

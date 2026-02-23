@@ -2,10 +2,12 @@ import { useState, useMemo, useCallback } from "react";
 import { 
   Search, X, FolderOpen, Image as ImageIcon, Zap, MessageSquare,
   Grid, List, Filter, Download, Plus, Sparkles, Star, Clock,
-  ChevronDown, ChevronRight, Layers, Upload, Check
+  ChevronDown, ChevronRight, Layers, Upload, Check, Library
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
+import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 
 interface AssetItem {
   id: string;
@@ -310,6 +312,8 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<AssetItem | null>(null);
+  const [activeTab, setActiveTab] = useState<"built-in" | "my-library" | "fx-studio">("built-in");
+  const { assets: libraryAssets, folders: libraryFolders, getAssetsInFolder } = useAssetLibrary();
 
   const filteredAssets = useMemo(() => {
     let assets = ALL_ASSETS;
@@ -377,17 +381,161 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl h-[80vh] p-0 bg-[#0a0a0a] border-[#252525] text-white flex flex-col overflow-hidden">
         <DialogHeader className="p-4 border-b border-[#252525] shrink-0">
-          <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-violet-600 to-purple-600 rounded-lg">
-              <Layers className="w-5 h-5" />
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-violet-600 to-purple-600 rounded-lg">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-lg font-bold">Asset Library</span>
+                <p className="text-xs text-zinc-500 font-normal">Browse effects, bubbles, and graphics</p>
+              </div>
             </div>
-            <div>
-              <span className="text-lg font-bold">Asset Library</span>
-              <p className="text-xs text-zinc-500 font-normal">Browse effects, bubbles, and graphics</p>
+            <div className="flex bg-[#1a1a1a] rounded-lg p-0.5 border border-[#303030]">
+              <button
+                onClick={() => setActiveTab("built-in")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${activeTab === "built-in" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}
+                data-testid="button-tab-builtin"
+              >
+                Built-in
+              </button>
+              <button
+                onClick={() => setActiveTab("my-library")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${activeTab === "my-library" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                data-testid="button-tab-my-library"
+              >
+                <FolderOpen className="w-3 h-3" /> My Library
+              </button>
+              <button
+                onClick={() => setActiveTab("fx-studio")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition flex items-center gap-1 ${activeTab === "fx-studio" ? "bg-purple-600 text-white" : "text-purple-400 hover:text-purple-300"}`}
+                data-testid="button-tab-fx-studio"
+              >
+                <Sparkles className="w-3 h-3" /> FX Studio
+              </button>
             </div>
           </DialogTitle>
         </DialogHeader>
 
+        {activeTab === "fx-studio" ? (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <FxBrowserPanel onClose={() => setActiveTab("built-in")} />
+          </div>
+        ) : activeTab === "my-library" ? (
+          <div className="flex flex-1 min-h-0">
+            <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto">
+              <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedCategory("all")}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+                    selectedCategory === "all" 
+                      ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" 
+                      : "hover:bg-[#1a1a1a] text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span className="flex-1 text-sm">All Assets</span>
+                  <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full">{libraryAssets.length}</span>
+                </button>
+                {libraryFolders.map(folder => (
+                  <button
+                    key={folder.id}
+                    onClick={() => setSelectedCategory(folder.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+                      selectedCategory === folder.id 
+                        ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" 
+                        : "hover:bg-[#1a1a1a] text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {folder.id === "effects" ? <Sparkles className="w-4 h-4 text-purple-400" /> : <FolderOpen className="w-4 h-4" />}
+                    <span className="flex-1 text-sm">{folder.name}</span>
+                    <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full">{getAssetsInFolder(folder.id).length}</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="p-3 border-b border-[#252525] flex items-center gap-3 shrink-0">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    placeholder="Search my library..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#1a1a1a] border border-[#303030] rounded-lg text-sm outline-none focus:border-violet-500 transition-colors"
+                    data-testid="input-search-my-library"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {(() => {
+                  const displayAssets = selectedCategory === "all" 
+                    ? libraryAssets 
+                    : getAssetsInFolder(selectedCategory);
+                  const filtered = searchQuery 
+                    ? displayAssets.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    : displayAssets;
+                  return filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <div className="p-4 bg-[#1a1a1a] rounded-full mb-4">
+                        <FolderOpen className="w-8 h-8 text-zinc-600" />
+                      </div>
+                      <p className="text-zinc-400 mb-2">No assets in your library</p>
+                      <p className="text-zinc-600 text-sm">Import effects from FX Studio or upload custom assets</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-4">
+                      {filtered.map(asset => (
+                        <div
+                          key={asset.id}
+                          className="group relative bg-[#1a1a1a] rounded-xl border border-[#252525] overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer"
+                          onClick={() => {
+                            onSelectAsset({ id: asset.id, name: asset.name, url: asset.url, category: asset.type === "effect" ? "effect" : "prop", tags: asset.tags || [] });
+                            if (mode === "insert") onClose();
+                            toast.success(`${asset.name} added`);
+                          }}
+                          data-testid={`my-asset-${asset.id}`}
+                        >
+                          <div className="aspect-square bg-[#0d0d0d] flex items-center justify-center p-4 relative overflow-hidden">
+                            {asset.url ? (
+                              <img src={asset.thumbnail || asset.url} alt={asset.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-300" loading="lazy" />
+                            ) : (
+                              asset.type === "effect" ? <Sparkles className="w-10 h-10 text-purple-500/40" /> : <ImageIcon className="w-10 h-10 text-zinc-600" />
+                            )}
+                            {asset.type === "effect" && (
+                              <div className="absolute top-2 left-2 bg-purple-600/80 rounded px-1.5 py-0.5 text-[9px] font-medium flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5" /> FX
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-3">
+                            <p className="text-sm font-medium truncate">{asset.name}</p>
+                            {asset.tags && asset.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {asset.tags.slice(0, 3).map((tag, i) => (
+                                  <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#252525] rounded text-zinc-500">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="p-3 bg-violet-600 rounded-full shadow-lg">
+                              <Plus className="w-5 h-5" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="p-3 border-t border-[#252525] flex items-center justify-between text-sm text-zinc-500 shrink-0">
+                <span>{(selectedCategory === "all" ? libraryAssets : getAssetsInFolder(selectedCategory)).length} assets in library</span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex flex-1 min-h-0">
           <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto">
             <div className="space-y-1">
@@ -608,8 +756,9 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
             </div>
           </div>
         </div>
+        )}
 
-        {previewAsset && (
+        {previewAsset && activeTab === "built-in" && (
           <div className="absolute bottom-20 right-8 p-4 bg-[#1a1a1a] border border-[#303030] rounded-xl shadow-2xl pointer-events-none z-50">
             <img 
               src={previewAsset.url} 
