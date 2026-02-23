@@ -29,6 +29,7 @@ import AuthPage from "@/pages/AuthPage";
 import AdminLogin from "@/pages/AdminLogin";
 import LandingPage from "@/pages/LandingPage";
 import PortfolioPage from "@/pages/PortfolioPage";
+import LibraryPage from "@/pages/LibraryPage";
 import ExhibitionsPage from "@/pages/ExhibitionsPage";
 import BlogPage from "@/pages/BlogPage";
 import ContactPage from "@/pages/ContactPage";
@@ -89,6 +90,15 @@ function ProtectedRouter() {
     return <ResetPassword />;
   }
 
+  if (location.startsWith("/portfolio/") && !isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/portfolio/:userId" component={PortfolioPage} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
   if (!isAuthenticated) {
     return <LandingPage />;
   }
@@ -108,7 +118,9 @@ function ProtectedRouter() {
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/assets" component={AssetBuilder} />
         <Route path="/tools/cyoa" component={CYOABuilder} />
+        <Route path="/library" component={LibraryPage} />
         <Route path="/portfolio" component={PortfolioPage} />
+        <Route path="/portfolio/:userId" component={PortfolioPage} />
         <Route path="/exhibitions" component={ExhibitionsPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/contact" component={ContactPage} />

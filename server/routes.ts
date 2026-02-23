@@ -1433,6 +1433,50 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Public portfolio - get user's published projects (no auth required)
+  app.get("/api/portfolio/:userId/public", async (req, res) => {
+    try {
+      const profile = await storage.getUserProfile(req.params.userId);
+      if (!profile) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const allProjects = await storage.getUserProjects(req.params.userId);
+      const publishedProjects = allProjects.filter(
+        (p: any) => p.status === "published" || p.status === "approved"
+      );
+
+      const safeProjects = publishedProjects.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        type: p.type,
+        status: p.status,
+        thumbnail: p.thumbnail,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+
+      res.json({
+        profile: {
+          id: profile.id,
+          name: profile.name,
+          avatar: profile.avatar,
+          coverImage: profile.coverImage,
+          tagline: profile.tagline,
+          bio: profile.bio,
+          creatorClass: profile.creatorClass,
+          xp: profile.xp,
+          level: profile.level,
+          socialLinks: (profile as any).socialLinks || null,
+          totalMinutes: (profile as any).totalMinutes || 0,
+        },
+        projects: safeProjects,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Get user profile
   app.get("/api/social/profile/:userId", async (req, res) => {
     try {

@@ -34,7 +34,8 @@ import {
   Link2,
   Download,
   Zap,
-  Star
+  Star,
+  Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +58,7 @@ const aiTools = [
 ];
 
 const galleryTools = [
+  { icon: Layers, label: "My Library", href: "/library" },
   { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio" },
 ];
 
@@ -138,7 +140,7 @@ export function AppSidebar() {
           </Link>
         ))}
 
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">Gallery</div>
+        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">My Work</div>
         {galleryTools.map((item) => (
           <Link 
             key={item.href} 

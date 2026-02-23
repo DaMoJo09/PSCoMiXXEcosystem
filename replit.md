@@ -110,16 +110,24 @@ Preferred communication style: Simple, everyday language.
 - **Authentication:** Shared `PSLMS_API_KEY` or `PSLMS_WEBHOOK_SECRET` via `x-api-key` or `x-webhook-secret` headers.
 - **Auto-Publish on Approval:** Admin project approval now auto-triggers the publish pipeline to sync content to Emergent streaming platform.
 
-### Portfolio Website
-- **Full Portfolio Page:** `/portfolio` - editable portfolio website for each user.
-- **Hero Section:** Cover image, avatar, name, tagline with edit mode for all fields.
-- **Profile Editing:** Bio, creator class, social links (Twitter, Instagram, Website, YouTube) with smart URL handling (accepts handles or full URLs).
-- **Three Tabbed Sections:**
-  - Published Works: pulls from `projects` table (status=published/approved), shows type badges, thumbnails, click-to-view detail modal.
-  - Works in Progress: shows draft/review/rejected projects, click navigates to correct editor.
-  - Artwork: manual portfolio artworks from `portfolioArtworks` table with full CRUD and category filtering.
-- **Stats Row:** Level, XP, creator class, published/WIP counts, artwork count, studio time, social links.
-- **API Routes Used:** `GET/PATCH /api/profile`, `GET /api/projects`, `GET/POST/PATCH/DELETE /api/portfolio`.
+### My Library (Private)
+- **Library Page:** `/library` - private workspace showing ALL user projects (comics, cards, VNs, CYOAs, covers, motion comics).
+- **Filters:** Status filters (All, In Progress, Completed) + type filters (Comic, Card, VN, CYOA, Cover, Motion).
+- **Continue Editing:** Click any project card to open it in the correct editor (`/creator/{type}?id={projectId}`).
+- **Project Cards:** Show thumbnail, type badge, status badge (Draft/In Review/Needs Work/Approved/Published), last-edited time.
+- **Search:** Filter projects by title.
+
+### Portfolio Website (Public-Facing)
+- **Owner View:** `/portfolio` - editable portfolio website for the logged-in user. Shows published works + artworks.
+- **Public View:** `/portfolio/:userId` - shareable public page viewable by anyone without login. Shows only published/approved work.
+- **Hero Section:** Cover image, avatar, name, tagline with edit mode for owner only.
+- **Profile Editing:** Bio, creator class, social links (Twitter, Instagram, Website, YouTube) with smart URL handling (accepts handles or full URLs). Owner-only.
+- **Share Button:** Copies public portfolio URL to clipboard for easy sharing.
+- **Published Works Gallery:** Shows published/approved projects with type badges, thumbnails, click-to-view detail modal.
+- **Artworks:** Manual portfolio artworks from `portfolioArtworks` table with full CRUD (owner-only) and category filtering.
+- **Stats Row:** Level, XP, creator class, published count, artwork count, studio time, social links.
+- **API Routes:** `GET/PATCH /api/profile`, `GET /api/projects`, `GET/POST/PATCH/DELETE /api/portfolio`, `GET /api/portfolio/:userId/public` (public, no auth).
+- **Sidebar:** "My Work" section with "My Library" and "My Portfolio" links.
 
 ### Comic Creator Panel Filters
 - **CSS Filters:** Panels support visual filters (grayscale, sepia, vintage, high contrast, blur, invert, warm, cool, noir, dreamy, etc.) applied via right-click context menu.
