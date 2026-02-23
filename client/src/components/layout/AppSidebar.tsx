@@ -57,11 +57,7 @@ const aiTools = [
 ];
 
 const galleryTools = [
-  { icon: GalleryHorizontal, label: "Portfolio", href: "/portfolio" },
-  { icon: User, label: "Artist", href: "/artist" },
-  { icon: Calendar, label: "Exhibitions", href: "/exhibitions" },
-  { icon: Newspaper, label: "Blog", href: "/blog" },
-  { icon: Mail, label: "Contact", href: "/contact" },
+  { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio" },
 ];
 
 const ecosystemToolsBase = [
