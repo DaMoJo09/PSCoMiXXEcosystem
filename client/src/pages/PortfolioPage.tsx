@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import {
-  Edit2, Save, X, ExternalLink, Plus, Trash2, Eye, EyeOff,
-  BookOpen, Palette, Clock, Award, Users, Globe, Instagram,
+  Edit2, Save, X, ExternalLink, Plus, Trash2, Search,
+  BookOpen, Palette, Clock, Award, Globe, Instagram,
   Twitter, Link2, ChevronRight, Layers, Sparkles, FileText,
   Image as ImageIcon, Film, Gamepad2, BookMarked, Pencil
 } from "lucide-react";
@@ -91,11 +91,11 @@ export default function PortfolioPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
-  const [activeSection, setActiveSection] = useState<"published" | "wip" | "artwork">("published");
+  const [galleryFilter, setGalleryFilter] = useState<"all" | "published" | "wip" | "artwork">("all");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isAddArtworkOpen, setIsAddArtworkOpen] = useState(false);
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
-  const [artworkCategory, setArtworkCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -160,10 +160,45 @@ export default function PortfolioPage() {
     [projects]
   );
 
-  const filteredArtworks = useMemo(() =>
-    artworkCategory === "all" ? artworks : artworks.filter((a: Artwork) => a.category === artworkCategory),
-    [artworks, artworkCategory]
-  );
+  type GalleryItem = 
+    | { kind: "project"; project: Project }
+    | { kind: "artwork"; artwork: Artwork };
+
+  const galleryItems = useMemo(() => {
+    const items: GalleryItem[] = [];
+
+    const shouldShowProjects = galleryFilter === "all" || galleryFilter === "published" || galleryFilter === "wip";
+    const shouldShowArtwork = galleryFilter === "all" || galleryFilter === "artwork";
+
+    if (shouldShowProjects) {
+      projects.forEach(p => {
+        const isPublished = p.status === "published" || p.status === "approved";
+        const isWip = p.status === "draft" || p.status === "review" || p.status === "rejected";
+        if (galleryFilter === "published" && !isPublished) return;
+        if (galleryFilter === "wip" && !isWip) return;
+        items.push({ kind: "project", project: p });
+      });
+    }
+
+    if (shouldShowArtwork) {
+      artworks.forEach((a: Artwork) => items.push({ kind: "artwork", artwork: a }));
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return items.filter(item => {
+        if (item.kind === "project") return item.project.title.toLowerCase().includes(q);
+        return item.artwork.title.toLowerCase().includes(q) || 
+               (item.artwork.tags || []).some((t: string) => t.toLowerCase().includes(q));
+      });
+    }
+
+    return items.sort((a, b) => {
+      const dateA = a.kind === "project" ? a.project.updatedAt : a.artwork.updatedAt;
+      const dateB = b.kind === "project" ? b.project.updatedAt : b.artwork.updatedAt;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [projects, artworks, galleryFilter, searchQuery]);
 
   const profileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -615,281 +650,194 @@ export default function PortfolioPage() {
             )}
           </section>
 
-          {/* SECTION TABS */}
-          <div className="flex border-b-2 border-zinc-800 mb-8">
-            <button
-              onClick={() => setActiveSection("published")}
-              className={`px-6 py-3 font-bold text-sm transition-colors relative ${
-                activeSection === "published"
-                  ? "text-cyan-400"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-              data-testid="tab-published"
-            >
-              <span className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                PUBLISHED WORKS ({publishedProjects.length})
-              </span>
-              {activeSection === "published" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400" />}
-            </button>
-            <button
-              onClick={() => setActiveSection("wip")}
-              className={`px-6 py-3 font-bold text-sm transition-colors relative ${
-                activeSection === "wip"
-                  ? "text-yellow-400"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-              data-testid="tab-wip"
-            >
-              <span className="flex items-center gap-2">
-                <Pencil className="w-4 h-4" />
-                WORKS IN PROGRESS ({wipProjects.length})
-              </span>
-              {activeSection === "wip" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-400" />}
-            </button>
-            <button
-              onClick={() => setActiveSection("artwork")}
-              className={`px-6 py-3 font-bold text-sm transition-colors relative ${
-                activeSection === "artwork"
-                  ? "text-purple-400"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-              data-testid="tab-artwork"
-            >
-              <span className="flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                ARTWORK ({artworks.length})
-              </span>
-              {activeSection === "artwork" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400" />}
-            </button>
+          {/* GALLERY HEADER - FILTER + SEARCH + ADD */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-black mr-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>GALLERY</h2>
+              {([
+                { id: "all" as const, label: "ALL", count: projects.length + artworks.length },
+                { id: "published" as const, label: "PUBLISHED", count: publishedProjects.length },
+                { id: "wip" as const, label: "IN PROGRESS", count: wipProjects.length },
+                { id: "artwork" as const, label: "ARTWORK", count: artworks.length },
+              ]).map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setGalleryFilter(f.id)}
+                  className={`px-3 py-1 text-xs font-bold border transition-colors ${
+                    galleryFilter === f.id
+                      ? "bg-cyan-500 text-black border-cyan-500"
+                      : "border-zinc-700 text-zinc-400 hover:border-cyan-500/50"
+                  }`}
+                  data-testid={`filter-${f.id}`}
+                >
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-1.5 bg-black border border-zinc-700 text-sm text-white focus:border-cyan-500 outline-none w-48"
+                  data-testid="gallery-search"
+                />
+              </div>
+              <Dialog open={isAddArtworkOpen || !!editingArtwork} onOpenChange={(open) => {
+                if (!open) { setIsAddArtworkOpen(false); setEditingArtwork(null); resetArtworkForm(); }
+              }}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setIsAddArtworkOpen(true)} size="sm" variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10" data-testid="btn-add-artwork">
+                    <Plus className="w-4 h-4 mr-1" /> ADD ARTWORK
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-zinc-900 border-2 border-cyan-500 text-white max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-cyan-400">{editingArtwork ? "EDIT ARTWORK" : "ADD ARTWORK"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <div>
+                      <Label className="text-zinc-400">Title *</Label>
+                      <Input value={artworkForm.title} onChange={(e) => setArtworkForm({ ...artworkForm, title: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-title" />
+                    </div>
+                    <div>
+                      <Label className="text-zinc-400">Description</Label>
+                      <Textarea value={artworkForm.description} onChange={(e) => setArtworkForm({ ...artworkForm, description: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-description" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-zinc-400">Category</Label>
+                        <Select value={artworkForm.category} onValueChange={(v) => setArtworkForm({ ...artworkForm, category: v })}>
+                          <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-700">
+                            {ARTWORK_CATEGORIES.filter(c => c.id !== "all").map(cat => (
+                              <SelectItem key={cat.id} value={cat.id} className="text-white">{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400">Medium</Label>
+                        <Input value={artworkForm.medium} onChange={(e) => setArtworkForm({ ...artworkForm, medium: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="e.g., Digital Painting" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-zinc-400">Year</Label>
+                        <Input type="number" value={artworkForm.year} onChange={(e) => setArtworkForm({ ...artworkForm, year: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400">Price (cents)</Label>
+                        <Input type="number" value={artworkForm.price} onChange={(e) => setArtworkForm({ ...artworkForm, price: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
+                      </div>
+                    </div>
+                    <ImageUpload label="Artwork Image" value={artworkForm.images[0]} onChange={(value) => setArtworkForm({ ...artworkForm, images: [value] })} />
+                    <div>
+                      <Label className="text-zinc-400">Tags (comma-separated)</Label>
+                      <Input value={artworkForm.tags} onChange={(e) => setArtworkForm({ ...artworkForm, tags: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="digital, portrait, noir" />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" checked={artworkForm.available} onChange={(e) => setArtworkForm({ ...artworkForm, available: e.target.checked })} className="w-4 h-4" />
+                        Available for Sale
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input type="checkbox" checked={artworkForm.featured} onChange={(e) => setArtworkForm({ ...artworkForm, featured: e.target.checked })} className="w-4 h-4" />
+                        Featured
+                      </label>
+                    </div>
+                    <Button onClick={submitArtwork} disabled={!artworkForm.title || createArtworkMutation.isPending || updateArtworkMutation.isPending} className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold" data-testid="btn-save-artwork">
+                      {editingArtwork ? "UPDATE" : "ADD TO PORTFOLIO"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
-          {/* PUBLISHED WORKS */}
-          {activeSection === "published" && (
-            <section>
-              {publishedProjects.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-zinc-700">
-                  <BookOpen className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-                  <p className="text-zinc-500 mb-2">No published works yet</p>
-                  <p className="text-zinc-600 text-sm">Finish and publish your projects to showcase them here</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {publishedProjects.map(project => {
-                    const typeConfig = getProjectTypeConfig(project.type);
-                    const TypeIcon = typeConfig.icon;
-                    const thumb = getThumbnail(project);
-                    return (
-                      <div
-                        key={project.id}
-                        className="group border-2 border-zinc-700 hover:border-cyan-500 bg-zinc-900/50 cursor-pointer transition-all hover:shadow-[4px_4px_0_rgba(0,255,255,0.2)]"
-                        onClick={() => setSelectedProject(project)}
-                        data-testid={`project-card-${project.id}`}
-                      >
-                        <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800">
-                          {thumb ? (
-                            <img src={thumb} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-30`} />
-                            </div>
-                          )}
-                          <div className="absolute top-2 left-2">
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
-                              <TypeIcon className="w-3 h-3" />
-                              {typeConfig.label.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="absolute top-2 right-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-bold border ${getStatusBadge(project.status)}`}>
-                              {project.status.toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="p-4 border-t border-zinc-700">
-                          <h3 className="font-black text-lg mb-1 truncate" data-testid={`text-project-title-${project.id}`}>{project.title}</h3>
-                          <p className="text-zinc-500 text-xs">
-                            Updated {new Date(project.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* UNIFIED GALLERY GRID */}
+          {galleryItems.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-zinc-700">
+              <Layers className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
+              <p className="text-zinc-500 mb-2">
+                {searchQuery ? "No results found" : "Your gallery is empty"}
+              </p>
+              <p className="text-zinc-600 text-sm">
+                {searchQuery ? "Try a different search" : "Create projects or add artwork to build your portfolio"}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => navigate("/dashboard")} variant="outline" className="mt-4 border-cyan-500 text-cyan-400" data-testid="btn-go-dashboard">
+                  GO TO DASHBOARD
+                </Button>
               )}
-            </section>
-          )}
-
-          {/* WORKS IN PROGRESS */}
-          {activeSection === "wip" && (
-            <section>
-              {wipProjects.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-zinc-700">
-                  <Pencil className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-                  <p className="text-zinc-500 mb-2">No works in progress</p>
-                  <p className="text-zinc-600 text-sm">Start a new project from the dashboard</p>
-                  <Button onClick={() => navigate("/dashboard")} variant="outline" className="mt-4 border-yellow-500 text-yellow-400" data-testid="btn-go-dashboard">
-                    GO TO DASHBOARD
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {wipProjects.map(project => {
-                    const typeConfig = getProjectTypeConfig(project.type);
-                    const TypeIcon = typeConfig.icon;
-                    const thumb = getThumbnail(project);
-                    return (
-                      <div
-                        key={project.id}
-                        className="group border-2 border-zinc-800 hover:border-yellow-500 bg-zinc-900/30 cursor-pointer transition-all hover:shadow-[4px_4px_0_rgba(234,179,8,0.15)]"
-                        onClick={() => navigateToProject(project)}
-                        data-testid={`wip-card-${project.id}`}
-                      >
-                        <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800/50">
-                          {thumb ? (
-                            <img src={thumb} alt={project.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-20`} />
-                            </div>
-                          )}
-                          <div className="absolute top-2 left-2">
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
-                              <TypeIcon className="w-3 h-3" />
-                              {typeConfig.label.toUpperCase()}
-                            </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {galleryItems.map((item) => {
+                if (item.kind === "project") {
+                  const project = item.project;
+                  const typeConfig = getProjectTypeConfig(project.type);
+                  const TypeIcon = typeConfig.icon;
+                  const thumb = getThumbnail(project);
+                  const isWip = project.status === "draft" || project.status === "review" || project.status === "rejected";
+                  return (
+                    <div
+                      key={`p-${project.id}`}
+                      className={`group border-2 bg-zinc-900/50 cursor-pointer transition-all ${
+                        isWip
+                          ? "border-zinc-800 hover:border-yellow-500 hover:shadow-[4px_4px_0_rgba(234,179,8,0.15)]"
+                          : "border-zinc-700 hover:border-cyan-500 hover:shadow-[4px_4px_0_rgba(0,255,255,0.2)]"
+                      }`}
+                      onClick={() => isWip ? navigateToProject(project) : setSelectedProject(project)}
+                      data-testid={`gallery-card-${project.id}`}
+                    >
+                      <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800">
+                        {thumb ? (
+                          <img src={thumb} alt={project.title} className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isWip ? "opacity-70 group-hover:opacity-100" : ""}`} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-30`} />
                           </div>
-                          <div className="absolute top-2 right-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-bold border ${getStatusBadge(project.status)}`}>
-                              {project.status.toUpperCase()}
-                            </span>
-                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 flex gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
+                            <TypeIcon className="w-3 h-3" />
+                            {typeConfig.label.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="absolute top-2 right-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-bold border ${getStatusBadge(project.status)}`}>
+                            {project.status.toUpperCase()}
+                          </span>
+                        </div>
+                        {isWip && (
                           <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <span className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500 text-black text-xs font-bold">
                               CONTINUE <ChevronRight className="w-3 h-3" />
                             </span>
                           </div>
-                        </div>
-                        <div className="p-4 border-t border-zinc-800">
-                          <h3 className="font-black text-lg mb-1 truncate" data-testid={`text-wip-title-${project.id}`}>{project.title}</h3>
-                          <p className="text-zinc-500 text-xs">
-                            Last edited {new Date(project.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* ADDITIONAL ARTWORK */}
-          {activeSection === "artwork" && (
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-2 flex-wrap">
-                  {ARTWORK_CATEGORIES.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setArtworkCategory(cat.id)}
-                      className={`px-3 py-1 text-xs font-bold border transition-colors ${
-                        artworkCategory === cat.id
-                          ? "bg-purple-500 text-black border-purple-500"
-                          : "border-zinc-700 text-zinc-400 hover:border-purple-500"
-                      }`}
-                      data-testid={`artwork-cat-${cat.id}`}
-                    >
-                      {cat.name.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-                <Dialog open={isAddArtworkOpen || !!editingArtwork} onOpenChange={(open) => {
-                  if (!open) { setIsAddArtworkOpen(false); setEditingArtwork(null); resetArtworkForm(); }
-                }}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => setIsAddArtworkOpen(true)} variant="outline" className="border-purple-500 text-purple-400 hover:bg-purple-500/10" data-testid="btn-add-artwork">
-                      <Plus className="w-4 h-4 mr-2" /> ADD ARTWORK
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-zinc-900 border-2 border-purple-500 text-white max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-black text-purple-400">{editingArtwork ? "EDIT ARTWORK" : "ADD ARTWORK"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
-                      <div>
-                        <Label className="text-zinc-400">Title *</Label>
-                        <Input value={artworkForm.title} onChange={(e) => setArtworkForm({ ...artworkForm, title: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-title" />
+                      <div className="p-4 border-t border-zinc-700">
+                        <h3 className="font-black text-lg mb-1 truncate" data-testid={`text-title-${project.id}`}>{project.title}</h3>
+                        <p className="text-zinc-500 text-xs">
+                          {isWip ? "Last edited" : "Updated"} {new Date(project.updatedAt).toLocaleDateString()}
+                        </p>
                       </div>
-                      <div>
-                        <Label className="text-zinc-400">Description</Label>
-                        <Textarea value={artworkForm.description} onChange={(e) => setArtworkForm({ ...artworkForm, description: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-description" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-zinc-400">Category</Label>
-                          <Select value={artworkForm.category} onValueChange={(v) => setArtworkForm({ ...artworkForm, category: v })}>
-                            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-700">
-                              {ARTWORK_CATEGORIES.filter(c => c.id !== "all").map(cat => (
-                                <SelectItem key={cat.id} value={cat.id} className="text-white">{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-zinc-400">Medium</Label>
-                          <Input value={artworkForm.medium} onChange={(e) => setArtworkForm({ ...artworkForm, medium: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="e.g., Digital Painting" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-zinc-400">Year</Label>
-                          <Input type="number" value={artworkForm.year} onChange={(e) => setArtworkForm({ ...artworkForm, year: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
-                        </div>
-                        <div>
-                          <Label className="text-zinc-400">Price (cents)</Label>
-                          <Input type="number" value={artworkForm.price} onChange={(e) => setArtworkForm({ ...artworkForm, price: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
-                        </div>
-                      </div>
-                      <ImageUpload label="Artwork Image" value={artworkForm.images[0]} onChange={(value) => setArtworkForm({ ...artworkForm, images: [value] })} />
-                      <div>
-                        <Label className="text-zinc-400">Tags (comma-separated)</Label>
-                        <Input value={artworkForm.tags} onChange={(e) => setArtworkForm({ ...artworkForm, tags: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="digital, portrait, noir" />
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input type="checkbox" checked={artworkForm.available} onChange={(e) => setArtworkForm({ ...artworkForm, available: e.target.checked })} className="w-4 h-4" />
-                          Available for Sale
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input type="checkbox" checked={artworkForm.featured} onChange={(e) => setArtworkForm({ ...artworkForm, featured: e.target.checked })} className="w-4 h-4" />
-                          Featured
-                        </label>
-                      </div>
-                      <Button onClick={submitArtwork} disabled={!artworkForm.title || createArtworkMutation.isPending || updateArtworkMutation.isPending} className="w-full bg-purple-500 hover:bg-purple-600 text-black font-bold" data-testid="btn-save-artwork">
-                        {editingArtwork ? "UPDATE" : "ADD TO PORTFOLIO"}
-                      </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              {filteredArtworks.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-zinc-700">
-                  <Palette className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-                  <p className="text-zinc-500 mb-2">No artworks yet</p>
-                  <p className="text-zinc-600 text-sm">Add your standalone artwork pieces here</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredArtworks.map((artwork: Artwork) => (
+                  );
+                } else {
+                  const artwork = item.artwork;
+                  return (
                     <div
-                      key={artwork.id}
+                      key={`a-${artwork.id}`}
                       className="group border-2 border-zinc-800 hover:border-purple-500 bg-zinc-900/30 transition-all hover:shadow-[4px_4px_0_rgba(168,85,247,0.15)]"
-                      data-testid={`artwork-card-${artwork.id}`}
+                      data-testid={`gallery-artwork-${artwork.id}`}
                     >
-                      <div className="aspect-[3/4] relative overflow-hidden bg-zinc-800/50">
+                      <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800/50">
                         {artwork.images?.[0] ? (
                           <img src={artwork.images[0]} alt={artwork.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         ) : (
@@ -897,8 +845,13 @@ export default function PortfolioPage() {
                             <ImageIcon className="w-12 h-12 opacity-30" />
                           </div>
                         )}
+                        <div className="absolute top-2 left-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border border-purple-400 text-purple-400 bg-black/80">
+                            <Palette className="w-3 h-3" /> ARTWORK
+                          </span>
+                        </div>
                         {artwork.featured && (
-                          <div className="absolute top-2 left-2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold">FEATURED</div>
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold">FEATURED</div>
                         )}
                         <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
@@ -926,19 +879,12 @@ export default function PortfolioPage() {
                             {artwork.available === false && <span className="text-xs text-red-400">SOLD</span>}
                           </div>
                         ) : null}
-                        {artwork.tags && artwork.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {(artwork.tags as string[]).slice(0, 3).map(tag => (
-                              <span key={tag} className="px-1.5 py-0.5 bg-zinc-800 text-zinc-500 text-[10px]">{tag}</span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                  );
+                }
+              })}
+            </div>
           )}
         </div>
 
