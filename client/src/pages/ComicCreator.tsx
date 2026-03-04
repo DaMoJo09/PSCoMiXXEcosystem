@@ -2024,6 +2024,41 @@ export default function ComicCreator() {
                 </TooltipContent>
               </Tooltip>
             ))}
+            <div className="w-8 border-t border-zinc-700 my-1" />
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    setAssetLibraryTab("library");
+                    setShowAssetLibrary(true);
+                  }}
+                  className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                  data-testid="tool-asset-library"
+                >
+                  <FolderOpen className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Asset Library</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    setAssetLibraryTab("fx-studio");
+                    setShowAssetLibrary(true);
+                  }}
+                  className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
+                  data-testid="tool-fx-studio"
+                >
+                  <Sparkles className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black border border-purple-500 text-purple-300 font-mono text-xs z-[200]">
+                <p>FX Studio</p>
+              </TooltipContent>
+            </Tooltip>
           </aside>
 
           <BubbleSidebar
