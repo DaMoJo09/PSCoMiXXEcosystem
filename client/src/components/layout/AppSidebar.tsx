@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -39,7 +39,8 @@ import {
   Layers,
   Pin,
   PinOff,
-  ChevronRight
+  ChevronRight,
+  Monitor
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -103,10 +104,53 @@ const socialTools = [
 
 const XP_PER_LEVEL = 1000;
 
+function useInstallPrompt() {
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
+  }, []);
+
+  const install = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      setIsInstalled(true);
+    }
+    setInstallPrompt(null);
+  };
+
+  return { canInstall: !!installPrompt && !isInstalled, isInstalled, install };
+}
+
 export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProps) {
   const [location] = useLocation();
   const { user, logout, isStudent, isCreator } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { canInstall, isInstalled, install } = useInstallPrompt();
   const xp = user?.xp || 0;
   const level = user?.level || 1;
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
@@ -291,6 +335,32 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
             <div className="flex flex-col items-center gap-0.5">
               <Star className="w-3.5 h-3.5 text-yellow-400" />
               <span className="text-[9px] font-bold">{level}</span>
+            </div>
+          </div>
+        )}
+        {canInstall && (
+          <div className={cn("border-t border-border", isExpanded ? "px-4 py-2" : "px-1 py-2 flex justify-center")}>
+            <button
+              onClick={install}
+              className={cn(
+                "flex items-center gap-2 text-sm font-bold transition-all",
+                "bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-white",
+                "hover:from-cyan-400 hover:to-fuchsia-400",
+                isExpanded ? "w-full px-3 py-2 justify-center" : "p-2"
+              )}
+              data-testid="button-install-app"
+              title="Install App"
+            >
+              <Monitor className="w-4 h-4 shrink-0" />
+              {isExpanded && <span>INSTALL APP</span>}
+            </button>
+          </div>
+        )}
+        {isInstalled && isExpanded && (
+          <div className="px-4 py-1.5 border-t border-border">
+            <div className="flex items-center gap-2 text-[10px] text-green-400 font-mono">
+              <Monitor className="w-3 h-3" />
+              <span>APP INSTALLED</span>
             </div>
           </div>
         )}

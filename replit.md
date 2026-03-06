@@ -49,7 +49,8 @@ Preferred communication style: Simple, everyday language.
 
 ### System Design Choices
 - **UI/UX:** Brutalist aesthetic with hard shadows, dark theme (zinc-900/950), neon accent colors (cyan, magenta, yellow), card-style containers, gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono.
-- **Sidebar:** Auto-hide navigation sidebar collapses to icon-only strip (48px), expands to full width (256px) on hover with smooth transition. Pin/unpin toggle to keep sidebar open. Layout adjusts main content padding dynamically.
+- **Sidebar:** Auto-hide navigation sidebar collapses to icon-only strip (48px), expands to full width (256px) on hover with smooth transition. Pin/unpin toggle to keep sidebar open. Layout adjusts main content padding dynamically. Includes PWA install button (gradient cyan-to-fuchsia) when browser supports installation.
+- **PWA Install:** App is installable as a desktop PWA. Manifest at `client/public/manifest.json`, service worker at `client/public/sw.js`. Install button in sidebar via `useInstallPrompt` hook that captures `beforeinstallprompt` event. Shows "APP INSTALLED" status when already installed.
 - **Mobile Design:** Bottom tab bar navigation, consistent page headers, shared modal/dialog styling.
 - **Future SEO & Marketplace:** Planned migration to Next.js (App Router) for SSR/SSG of marketing and marketplace pages, with a focus on comprehensive metadata and structured data.
 
