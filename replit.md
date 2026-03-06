@@ -77,6 +77,12 @@ Preferred communication style: Simple, everyday language.
 - **Text Arch:** `textArch` property on TextLayer (-100 to 100) renders arched text via SVG `<textPath>`.
 
 ### Card Creator
+- **Card Modes:** TCG mode (trading card game) and Sports mode toggled via sidebar buttons.
+- **TCG Mode:** Character, Weapon, Spell, Event, Location, Item types with ATK/DEF/Cost stats.
+- **Sports Mode:** Player, Coach, MVP, Rookie, Team, All-Star, Legend, Captain types with sport-specific fields: Sport, Position, Jersey #, Season, Team Name, School/Org, Grade, Height, Weight, Stat Line, Awards.
+- **Sports Support:** 16 sports with position lists (Baseball, Basketball, Football, Soccer, Hockey, Volleyball, Track & Field, Swimming, Tennis, Lacrosse, Wrestling, Softball, Cheerleading, Gymnastics, Cross Country, Other). Designed for schools and rec teams to create cards for their teams.
+- **Sports Templates:** Baseball Classic, Basketball Court, Football Gridiron, Soccer Pitch, Hockey Ice, Varsity Classic, Retro Sports, Neon Athlete, Team Spirit, Rookie Card.
+- **Sports Card Preview:** Photo-forward layout with jersey number badge, position/team overlay on image gradient, stat line and school info.
 - **Name Arch:** `nameArch` property on CardData renders the card name with SVG arch. Slider control in style sidebar (-100 to 100).
 
 ### Creator Marketplace

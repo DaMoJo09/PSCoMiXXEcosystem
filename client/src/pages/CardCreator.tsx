@@ -68,7 +68,33 @@ const FONT_OPTIONS = [
 ];
 
 const CARD_TYPES = ["Character", "Weapon", "Spell", "Event", "Location", "Item"];
+const SPORTS_CARD_TYPES = ["Player", "Coach", "MVP", "Rookie", "Team", "All-Star", "Legend", "Captain"];
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"];
+
+const SPORTS_LIST = [
+  "Baseball", "Basketball", "Football", "Soccer", "Hockey", "Volleyball",
+  "Track & Field", "Swimming", "Tennis", "Lacrosse", "Wrestling", "Softball",
+  "Cheerleading", "Gymnastics", "Cross Country", "Other"
+];
+
+const SPORTS_POSITIONS: Record<string, string[]> = {
+  Baseball: ["Pitcher", "Catcher", "1st Base", "2nd Base", "3rd Base", "Shortstop", "Left Field", "Center Field", "Right Field", "DH"],
+  Basketball: ["Point Guard", "Shooting Guard", "Small Forward", "Power Forward", "Center"],
+  Football: ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "Safety", "Kicker", "Punter"],
+  Soccer: ["Goalkeeper", "Defender", "Midfielder", "Forward", "Striker", "Winger"],
+  Hockey: ["Center", "Left Wing", "Right Wing", "Defenseman", "Goalie"],
+  Volleyball: ["Setter", "Outside Hitter", "Middle Blocker", "Libero", "Opposite Hitter"],
+  "Track & Field": ["Sprinter", "Distance", "Jumper", "Thrower", "Hurdler", "Multi-Event"],
+  Swimming: ["Freestyle", "Backstroke", "Breaststroke", "Butterfly", "IM", "Relay"],
+  Tennis: ["Singles", "Doubles"],
+  Lacrosse: ["Attack", "Midfield", "Defense", "Goalie"],
+  Wrestling: ["Lightweight", "Middleweight", "Heavyweight"],
+  Softball: ["Pitcher", "Catcher", "Infield", "Outfield"],
+  Cheerleading: ["Flyer", "Base", "Back Spot", "Tumbler"],
+  Gymnastics: ["All-Around", "Floor", "Vault", "Bars", "Beam"],
+  "Cross Country": ["Varsity", "JV", "Open"],
+  Other: ["Player", "Captain", "Starter", "Reserve"],
+};
 
 const PACK_TEMPLATES = [
   { id: "starter", name: "Starter Pack", cards: 10, guaranteed: ["Rare"], distribution: { Common: 5, Uncommon: 3, Rare: 2 } },
@@ -121,6 +147,19 @@ const CARD_TEMPLATES = [
   { id: "dark-souls", name: "Dark Souls Style", borderColor: "#1a1a1a", accentColor: "#FF6600", frameStyle: "gothic" },
 ];
 
+const SPORTS_CARD_TEMPLATES = [
+  { id: "baseball-classic", name: "Baseball Classic", borderColor: "#1a3a1a", accentColor: "#C41E3A", frameStyle: "classic", sport: "Baseball" },
+  { id: "basketball-court", name: "Basketball Court", borderColor: "#FF6B00", accentColor: "#1D1160", frameStyle: "rounded", sport: "Basketball" },
+  { id: "football-gridiron", name: "Football Gridiron", borderColor: "#013369", accentColor: "#D50A0A", frameStyle: "angular", sport: "Football" },
+  { id: "soccer-pitch", name: "Soccer Pitch", borderColor: "#006633", accentColor: "#FFFFFF", frameStyle: "classic", sport: "Soccer" },
+  { id: "hockey-ice", name: "Hockey Ice", borderColor: "#002868", accentColor: "#BF0A30", frameStyle: "tech", sport: "Hockey" },
+  { id: "varsity-classic", name: "Varsity Classic", borderColor: "#2C2C2C", accentColor: "#CDA434", frameStyle: "ornate", sport: "All" },
+  { id: "retro-sports", name: "Retro Sports", borderColor: "#5C4033", accentColor: "#D4A574", frameStyle: "aged", sport: "All" },
+  { id: "neon-athlete", name: "Neon Athlete", borderColor: "#0a0a0a", accentColor: "#00FF88", frameStyle: "tech", sport: "All" },
+  { id: "team-spirit", name: "Team Spirit", borderColor: "#1a1a4a", accentColor: "#FFD700", frameStyle: "ornate", sport: "All" },
+  { id: "rookie-card", name: "Rookie Card", borderColor: "#FFFFFF", accentColor: "#FF1493", frameStyle: "clean", sport: "All" },
+];
+
 const CARD_FILTERS = {
   contrast: 50,
   brightness: 50,
@@ -152,6 +191,17 @@ interface CardData {
   templateId: string;
   filters: typeof CARD_FILTERS;
   nameArch: number;
+  cardMode?: "tcg" | "sports";
+  sport?: string;
+  position?: string;
+  jerseyNumber?: string;
+  teamName?: string;
+  season?: string;
+  height?: string;
+  weight?: string;
+  statLine?: string;
+  grade?: string;
+  school?: string;
 }
 
 interface PackData {
@@ -186,9 +236,44 @@ export default function CardCreator() {
   const [isCreating, setIsCreating] = useState(!projectId);
   const creationAttempted = useRef(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
+  const [cardMode, setCardMode] = useState<"tcg" | "sports">("tcg");
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+
+  const switchCardMode = (newMode: "tcg" | "sports") => {
+    setCardMode(newMode);
+    if (newMode === "sports") {
+      setCardData(prev => ({
+        ...prev,
+        cardMode: "sports",
+        type: "Player",
+        sport: "Basketball",
+        position: "Point Guard",
+        jerseyNumber: "23",
+        teamName: "",
+        season: new Date().getFullYear().toString(),
+        school: "",
+        grade: "",
+        height: "",
+        weight: "",
+        statLine: "",
+        lore: "",
+        effect: "",
+        name: prev.name === "Cyber Ronin" ? "Player Name" : prev.name,
+      }));
+    } else {
+      setCardData(prev => ({
+        ...prev,
+        cardMode: "tcg",
+        type: "Character",
+        attack: prev.attack || 8,
+        defense: prev.defense || 4,
+        cost: prev.cost || 3,
+        name: prev.name === "Player Name" ? "Cyber Ronin" : prev.name,
+      }));
+    }
+  };
 
   const [cardData, setCardData] = useState<CardData>({
     id: `card_${Date.now()}`,
@@ -210,6 +295,7 @@ export default function CardCreator() {
     templateId: "noir-classic",
     filters: { ...CARD_FILTERS },
     nameArch: 0,
+    cardMode: "tcg",
   });
 
   const [packData, setPackData] = useState<PackData>({
@@ -315,7 +401,8 @@ export default function CardCreator() {
   };
 
   const applyCardTemplate = (templateId: string) => {
-    const template = CARD_TEMPLATES.find(t => t.id === templateId);
+    const allTemplates = [...CARD_TEMPLATES, ...SPORTS_CARD_TEMPLATES];
+    const template = allTemplates.find(t => t.id === templateId);
     if (!template) return;
     updateCard({
       templateId,
@@ -337,26 +424,34 @@ export default function CardCreator() {
   };
 
   const addCardToPack = () => {
+    const types = cardMode === "sports" ? SPORTS_CARD_TYPES : CARD_TYPES;
     const newCard: CardData = {
       id: `card_${Date.now()}`,
-      name: `Card ${packData.cards.length + 1}`,
-      type: CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)],
+      name: cardMode === "sports" ? `Player ${packData.cards.length + 1}` : `Card ${packData.cards.length + 1}`,
+      type: types[Math.floor(Math.random() * types.length)],
       rarity: RARITIES[Math.floor(Math.random() * 3)],
       frontImage: cardArt,
       backImage: backCoverArt,
       attack: Math.floor(Math.random() * 10) + 1,
       defense: Math.floor(Math.random() * 10) + 1,
       cost: Math.floor(Math.random() * 5) + 1,
-      lore: "A mysterious card waiting to be designed...",
-      effect: "Effect to be determined.",
+      lore: "",
+      effect: "",
       nameFont: "'Impact', sans-serif",
       statsFont: "'Courier New', monospace",
       loreFont: "Georgia, serif",
-      borderColor: "#000000",
-      accentColor: "#FFD700",
-      templateId: "noir-classic",
+      borderColor: cardData.borderColor,
+      accentColor: cardData.accentColor,
+      templateId: cardData.templateId,
       filters: { ...CARD_FILTERS },
       nameArch: 0,
+      cardMode,
+      sport: cardData.sport,
+      position: "",
+      jerseyNumber: "",
+      teamName: cardData.teamName,
+      season: cardData.season,
+      school: cardData.school,
     };
     setPackData({ ...packData, cards: [...packData.cards, newCard] });
     setSelectedPackCard(newCard.id);
@@ -550,8 +645,25 @@ export default function CardCreator() {
 
             {activeSection === "design" && (
               <div className="space-y-4">
+                <div className="flex border border-zinc-700 rounded overflow-hidden">
+                  <button
+                    onClick={() => switchCardMode("tcg")}
+                    className={`flex-1 py-1.5 text-xs font-bold uppercase ${cardMode === "tcg" ? "bg-cyan-500 text-black" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                    data-testid="button-mode-tcg"
+                  >
+                    TCG Card
+                  </button>
+                  <button
+                    onClick={() => switchCardMode("sports")}
+                    className={`flex-1 py-1.5 text-xs font-bold uppercase ${cardMode === "sports" ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                    data-testid="button-mode-sports"
+                  >
+                    Sports Card
+                  </button>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-zinc-400">Card Name</label>
+                  <label className="text-xs font-bold uppercase text-zinc-400">{cardMode === "sports" ? "Player / Team Name" : "Card Name"}</label>
                   <input 
                     type="text" 
                     value={cardData.name}
@@ -559,6 +671,93 @@ export default function CardCreator() {
                     className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
                   />
                 </div>
+
+                {cardMode === "sports" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Sport</label>
+                        <select
+                          value={cardData.sport || "Basketball"}
+                          onChange={(e) => updateCard({ sport: e.target.value, position: (SPORTS_POSITIONS[e.target.value] || SPORTS_POSITIONS.Other)[0] })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          data-testid="select-sport"
+                        >
+                          {SPORTS_LIST.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Position</label>
+                        <select
+                          value={cardData.position || ""}
+                          onChange={(e) => updateCard({ position: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          data-testid="select-position"
+                        >
+                          {(SPORTS_POSITIONS[cardData.sport || "Other"] || SPORTS_POSITIONS.Other).map(p => <option key={p}>{p}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Jersey #</label>
+                        <input
+                          type="text"
+                          value={cardData.jerseyNumber || ""}
+                          onChange={(e) => updateCard({ jerseyNumber: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          data-testid="input-jersey"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Season</label>
+                        <input
+                          type="text"
+                          value={cardData.season || ""}
+                          onChange={(e) => updateCard({ season: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          data-testid="input-season"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Grade</label>
+                        <input
+                          type="text"
+                          value={cardData.grade || ""}
+                          onChange={(e) => updateCard({ grade: e.target.value })}
+                          placeholder="9th"
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          data-testid="input-grade"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">Team Name</label>
+                      <input
+                        type="text"
+                        value={cardData.teamName || ""}
+                        onChange={(e) => updateCard({ teamName: e.target.value })}
+                        placeholder="e.g. Eastside Eagles"
+                        className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                        data-testid="input-team"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">School / Organization</label>
+                      <input
+                        type="text"
+                        value={cardData.school || ""}
+                        onChange={(e) => updateCard({ school: e.target.value })}
+                        placeholder="e.g. Lincoln Middle School"
+                        className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                        data-testid="input-school"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">
@@ -568,7 +767,7 @@ export default function CardCreator() {
                       onChange={(e) => updateCard({ type: e.target.value })}
                       className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
                     >
-                      {CARD_TYPES.map(t => <option key={t}>{t}</option>)}
+                      {(cardMode === "sports" ? SPORTS_CARD_TYPES : CARD_TYPES).map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -624,9 +823,15 @@ export default function CardCreator() {
                     onChange={(e) => applyCardTemplate(e.target.value)}
                     className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
                   >
-                    {CARD_TEMPLATES.map(template => (
-                      <option key={template.id} value={template.id}>{template.name}</option>
-                    ))}
+                    {cardMode === "sports" ? (
+                      SPORTS_CARD_TEMPLATES.map(template => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))
+                    ) : (
+                      CARD_TEMPLATES.map(template => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -701,54 +906,105 @@ export default function CardCreator() {
 
             {activeSection === "stats" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">ATK</label>
-                    <input 
-                      type="number" 
-                      value={cardData.attack}
-                      onChange={(e) => updateCard({ attack: Number(e.target.value) })}
-                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">DEF</label>
-                    <input 
-                      type="number" 
-                      value={cardData.defense}
-                      onChange={(e) => updateCard({ defense: Number(e.target.value) })}
-                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Cost</label>
-                    <input 
-                      type="number" 
-                      value={cardData.cost}
-                      onChange={(e) => updateCard({ cost: Number(e.target.value) })}
-                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-zinc-400">Card Effect</label>
-                  <textarea 
-                    value={cardData.effect}
-                    onChange={(e) => updateCard({ effect: e.target.value })}
-                    className="w-full h-24 bg-zinc-800 border border-zinc-700 p-2 text-sm resize-none"
-                  />
-                </div>
+                {cardMode === "sports" ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Height</label>
+                        <input
+                          type="text"
+                          value={cardData.height || ""}
+                          onChange={(e) => updateCard({ height: e.target.value })}
+                          placeholder={`5'10"`}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          data-testid="input-height"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Weight</label>
+                        <input
+                          type="text"
+                          value={cardData.weight || ""}
+                          onChange={(e) => updateCard({ weight: e.target.value })}
+                          placeholder="165 lbs"
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          data-testid="input-weight"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">Stat Line / Highlights</label>
+                      <textarea
+                        value={cardData.statLine || ""}
+                        onChange={(e) => updateCard({ statLine: e.target.value })}
+                        placeholder="e.g. 15.2 PPG • 4.3 APG • 3.1 RPG"
+                        className="w-full h-24 bg-zinc-800 border border-zinc-700 p-2 text-sm resize-none"
+                        data-testid="input-statline"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">Awards / Achievements</label>
+                      <textarea
+                        value={cardData.effect}
+                        onChange={(e) => updateCard({ effect: e.target.value })}
+                        placeholder="e.g. Team MVP, All-Conference, State Champion"
+                        className="w-full h-20 bg-zinc-800 border border-zinc-700 p-2 text-sm resize-none"
+                        data-testid="input-awards"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">ATK</label>
+                        <input 
+                          type="number" 
+                          value={cardData.attack}
+                          onChange={(e) => updateCard({ attack: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">DEF</label>
+                        <input 
+                          type="number" 
+                          value={cardData.defense}
+                          onChange={(e) => updateCard({ defense: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Cost</label>
+                        <input 
+                          type="number" 
+                          value={cardData.cost}
+                          onChange={(e) => updateCard({ cost: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">Card Effect</label>
+                      <textarea 
+                        value={cardData.effect}
+                        onChange={(e) => updateCard({ effect: e.target.value })}
+                        className="w-full h-24 bg-zinc-800 border border-zinc-700 p-2 text-sm resize-none"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {activeSection === "lore" && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-zinc-400">Flavor Text / Lore</label>
+                  <label className="text-xs font-bold uppercase text-zinc-400">{cardMode === "sports" ? "Player Bio / Fun Facts" : "Flavor Text / Lore"}</label>
                   <textarea 
                     value={cardData.lore}
                     onChange={(e) => updateCard({ lore: e.target.value })}
+                    placeholder={cardMode === "sports" ? "e.g. Started playing at age 5. Favorite player: LeBron James. Hobbies: Drawing, Gaming." : ""}
                     className="w-full h-40 bg-zinc-800 border border-zinc-700 p-2 text-sm resize-none"
                   />
                 </div>
@@ -1211,6 +1467,76 @@ export default function CardCreator() {
                     )}
                   </div>
                 ) : side === "front" ? (
+                  cardMode === "sports" ? (
+                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
+                    <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
+                      <div className="flex-1 relative overflow-hidden">
+                        <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
+                        {cardData.filters.halftone && (
+                          <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
+                               style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
+                        )}
+                        {cardData.jerseyNumber && (
+                          <div className="absolute top-3 right-3 w-14 h-14 rounded-full flex items-center justify-center font-bold text-2xl shadow-lg" style={{ backgroundColor: cardData.accentColor, color: cardData.borderColor, fontFamily: cardData.statsFont }}>
+                            {cardData.jerseyNumber}
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 px-2 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: cardData.accentColor, color: cardData.borderColor }}>
+                          {cardData.type}
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 px-4">
+                          {cardData.nameArch !== 0 ? (
+                            <svg viewBox="0 0 300 40" className="w-full h-10" preserveAspectRatio="xMidYMid meet">
+                              <defs>
+                                <path
+                                  id="card-name-arch"
+                                  d={cardData.nameArch > 0
+                                    ? `M 5,35 Q 150,${35 - Math.abs(cardData.nameArch) * 0.35} 295,35`
+                                    : `M 5,10 Q 150,${10 + Math.abs(cardData.nameArch) * 0.35} 295,10`}
+                                  fill="none"
+                                />
+                              </defs>
+                              <text fontSize="18" fontFamily={cardData.nameFont} fontWeight="bold" fill="white" textAnchor="middle" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                <textPath href="#card-name-arch" startOffset="50%">{cardData.name}</textPath>
+                              </text>
+                            </svg>
+                          ) : (
+                            <h3 className="text-xl font-bold uppercase tracking-wider text-white" style={{ fontFamily: cardData.nameFont }} data-testid="text-card-name">{cardData.name}</h3>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {cardData.position && <span className="text-xs text-white/80 font-medium">{cardData.position}</span>}
+                            {cardData.teamName && <span className="text-xs text-white/60">• {cardData.teamName}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3 flex flex-col gap-2" style={{ backgroundColor: cardData.borderColor === "#FFFFFF" ? "#f8f8f8" : "white" }}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 text-black">
+                            {cardData.sport && <span className="text-xs font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: cardData.accentColor + "20", color: cardData.borderColor === "#FFFFFF" ? "#333" : cardData.borderColor }}>{cardData.sport}</span>}
+                            {cardData.season && <span className="text-xs text-zinc-500" style={{ fontFamily: cardData.statsFont }}>{cardData.season}</span>}
+                          </div>
+                          {cardData.school && <span className="text-[10px] text-zinc-400 italic">{cardData.school}</span>}
+                        </div>
+                        {(cardData.height || cardData.weight) && (
+                          <div className="flex gap-4 text-[11px] text-zinc-600 border-t border-zinc-200 pt-2" style={{ fontFamily: cardData.statsFont }}>
+                            {cardData.height && <span>HT: {cardData.height}</span>}
+                            {cardData.weight && <span>WT: {cardData.weight}</span>}
+                            {cardData.grade && <span>Grade: {cardData.grade}</span>}
+                          </div>
+                        )}
+                        {cardData.statLine && (
+                          <p className="text-xs font-bold text-black border-t border-zinc-200 pt-2" style={{ fontFamily: cardData.statsFont }}>{cardData.statLine}</p>
+                        )}
+                        {cardData.effect && (
+                          <p className="text-[10px] text-zinc-600 italic" style={{ fontFamily: cardData.loreFont }}>{cardData.effect}</p>
+                        )}
+                        {cardData.lore && (
+                          <p className="text-[9px] text-zinc-400 italic leading-relaxed" style={{ fontFamily: cardData.loreFont }}>"{cardData.lore.substring(0, 80)}{cardData.lore.length > 80 ? "..." : ""}"</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  ) : (
                   <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-2 bg-white flex flex-col">
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
@@ -1274,6 +1600,7 @@ export default function CardCreator() {
                       </div>
                     </div>
                   </div>
+                  )
                 ) : (
                   <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-4 border-2 border-white/30" />
