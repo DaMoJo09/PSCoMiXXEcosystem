@@ -24,7 +24,6 @@ interface CommunityLibraryResponse {
 }
 
 export default function CommunityLibrary() {
-  console.log("[CommunityLibrary] Component rendered");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "popular">("newest");
   const [page, setPage] = useState(1);

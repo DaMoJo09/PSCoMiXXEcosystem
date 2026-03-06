@@ -70,8 +70,6 @@ function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   
-  console.log("[ProtectedRouter] location:", location, "isAuthenticated:", isAuthenticated, "isLoading:", isLoading);
-  
   useAnalytics();
 
   if (location === "/welcome" || location === "/landing") {
