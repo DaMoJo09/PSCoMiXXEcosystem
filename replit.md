@@ -121,6 +121,7 @@ Preferred communication style: Simple, everyday language.
 - **FX Browser Panel:** Floating panel in Motion Studio toolbar displaying effects from FX Studio with previews.
 - **Import Functionality:** "Save to Library" imports effect preview as an asset; "Add to Frame" adds effect preview as an image layer.
 - **Search:** Filter effects by name or type.
+- **Sidebar Link:** "FX Studio" external link in AI Tools section opens pressplays.site in a new tab.
 
 ## External Dependencies
 

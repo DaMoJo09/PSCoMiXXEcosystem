@@ -66,6 +66,7 @@ const aiTools = [
   { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
   { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
   { icon: Download, label: "Import Center", href: "/tools/import" },
+  { icon: Zap, label: "FX Studio", href: "https://pressplays.site", external: true },
 ];
 
 const galleryTools = [
@@ -156,22 +157,43 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
   const xpProgress = Math.min((xpInLevel / XP_PER_LEVEL) * 100, 100);
 
-  const renderNavLink = (item: { icon: any; label: string; href: string }, matchPrefix = false) => {
-    const isActive = matchPrefix
+  const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean }, matchPrefix = false) => {
+    const isExternal = (item as any).external;
+    const isActive = !isExternal && (matchPrefix
       ? location === item.href || location.startsWith(item.href + "/")
-      : location === item.href;
+      : location === item.href);
+    const className = cn(
+      "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent",
+      isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
+      isActive 
+        ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
+        : "hover:bg-muted hover:border-border"
+    );
+    const testId = `nav-${item.label.toLowerCase().replace(/\s/g, '-')}`;
+
+    if (isExternal) {
+      return (
+        <a
+          key={item.href}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+          data-testid={testId}
+          title={!isExpanded ? item.label : undefined}
+        >
+          <item.icon className="w-4 h-4 shrink-0" />
+          {isExpanded && <span className="truncate">{item.label}</span>}
+        </a>
+      );
+    }
+
     return (
       <Link 
         key={item.href} 
         href={item.href}
-        className={cn(
-          "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent",
-          isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
-          isActive 
-            ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-            : "hover:bg-muted hover:border-border"
-        )}
-        data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+        className={className}
+        data-testid={testId}
         title={!isExpanded ? item.label : undefined}
       >
         <item.icon className="w-4 h-4 shrink-0" />
