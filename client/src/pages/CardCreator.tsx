@@ -151,6 +151,7 @@ interface CardData {
   accentColor: string;
   templateId: string;
   filters: typeof CARD_FILTERS;
+  nameArch: number;
 }
 
 interface PackData {
@@ -208,6 +209,7 @@ export default function CardCreator() {
     accentColor: "#FFD700",
     templateId: "noir-classic",
     filters: { ...CARD_FILTERS },
+    nameArch: 0,
   });
 
   const [packData, setPackData] = useState<PackData>({
@@ -354,6 +356,7 @@ export default function CardCreator() {
       accentColor: "#FFD700",
       templateId: "noir-classic",
       filters: { ...CARD_FILTERS },
+      nameArch: 0,
     };
     setPackData({ ...packData, cards: [...packData.cards, newCard] });
     setSelectedPackCard(newCard.id);
@@ -807,6 +810,23 @@ export default function CardCreator() {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold uppercase text-zinc-400">Name Arch</label>
+                    <span className="text-xs text-zinc-500">{cardData.nameArch}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-100"
+                    max="100"
+                    value={cardData.nameArch}
+                    onChange={(e) => updateCard({ nameArch: Number(e.target.value) })}
+                    className="w-full accent-white"
+                    data-testid="slider-name-arch"
+                  />
+                  <p className="text-[10px] text-zinc-500">Curve the card name up or down</p>
+                </div>
               </div>
             )}
 
@@ -1194,7 +1214,33 @@ export default function CardCreator() {
                   <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-2 bg-white flex flex-col">
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
-                        <span className="font-bold uppercase tracking-tight text-black" style={{ fontFamily: cardData.nameFont }}>{cardData.name}</span>
+                        {cardData.nameArch !== 0 ? (
+                          <svg viewBox="0 0 300 40" className="flex-1 h-full" preserveAspectRatio="xMidYMid meet">
+                            <defs>
+                              <path
+                                id="card-name-arch"
+                                d={cardData.nameArch > 0
+                                  ? `M 5,35 Q 150,${35 - Math.abs(cardData.nameArch) * 0.35} 295,35`
+                                  : `M 5,10 Q 150,${10 + Math.abs(cardData.nameArch) * 0.35} 295,10`}
+                                fill="none"
+                              />
+                            </defs>
+                            <text
+                              fontSize="16"
+                              fontFamily={cardData.nameFont}
+                              fontWeight="bold"
+                              fill="black"
+                              textAnchor="middle"
+                              style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}
+                            >
+                              <textPath href="#card-name-arch" startOffset="50%">
+                                {cardData.name}
+                              </textPath>
+                            </text>
+                          </svg>
+                        ) : (
+                          <span className="font-bold uppercase tracking-tight text-black" style={{ fontFamily: cardData.nameFont }} data-testid="text-card-name">{cardData.name}</span>
+                        )}
                         <div className="flex gap-1">
                           {[...Array(Math.min(cardData.cost, 5))].map((_, i) => (
                             <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: cardData.accentColor }} />

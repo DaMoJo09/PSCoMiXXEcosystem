@@ -138,6 +138,14 @@ interface TextLayer {
   fontFamily: string;
   color: string;
   locked: boolean;
+  textArch?: number;
+  textEffect?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  shadowColor?: string;
+  fontWeight?: string;
+  fontStyle?: string;
+  textTransform?: string;
 }
 
 interface CoverData {
@@ -178,6 +186,10 @@ interface CoverData {
   publisherName: string;
   tagline: string;
   filters: typeof FILTER_PRESETS;
+  titleTransform?: TransformState;
+  subtitleTransform?: TransformState;
+  authorTransform?: TransformState;
+  backBlurbTransform?: TransformState;
 }
 
 const defaultCover: CoverData = {
@@ -539,47 +551,91 @@ export default function CoverCreator() {
               </div>
             )}
             
-            <div className="absolute inset-0 flex flex-col items-center justify-between p-8 text-center z-10">
-              <div className="mt-16">
+            <TransformableElement
+              id="master-title"
+              initialTransform={coverData.titleTransform || { x: 30, y: 80, width: 280, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
+              isSelected={selectedLayerId === "master-title"}
+              onSelect={setSelectedLayerId}
+              onTransformChange={(_, transform) => updateCover({ titleTransform: transform })}
+              locked={false}
+              containerRef={canvasRef}
+            >
+              <div className="w-full h-full flex items-center justify-center text-center">
                 <h1 
                   style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
                   className="font-bold uppercase tracking-tight leading-none"
                 >
                   {coverData.title}
                 </h1>
+              </div>
+            </TransformableElement>
+
+            <TransformableElement
+              id="master-subtitle"
+              initialTransform={coverData.subtitleTransform || { x: 80, y: 170, width: 200, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+              isSelected={selectedLayerId === "master-subtitle"}
+              onSelect={setSelectedLayerId}
+              onTransformChange={(_, transform) => updateCover({ subtitleTransform: transform })}
+              locked={false}
+              containerRef={canvasRef}
+            >
+              <div className="w-full h-full flex items-center justify-center text-center">
                 <p 
                   style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
-                  className="mt-2 italic"
+                  className="italic"
                 >
                   {coverData.subtitle}
                 </p>
               </div>
-              <p 
-                style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
-                className="mb-8 font-medium tracking-widest uppercase"
-              >
-                {coverData.author}
-              </p>
-            </div>
+            </TransformableElement>
+
+            <TransformableElement
+              id="master-author"
+              initialTransform={coverData.authorTransform || { x: 60, y: 440, width: 220, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+              isSelected={selectedLayerId === "master-author"}
+              onSelect={setSelectedLayerId}
+              onTransformChange={(_, transform) => updateCover({ authorTransform: transform })}
+              locked={false}
+              containerRef={canvasRef}
+            >
+              <div className="w-full h-full flex items-center justify-center text-center">
+                <p 
+                  style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                  className="font-medium tracking-widest uppercase"
+                >
+                  {coverData.author}
+                </p>
+              </div>
+            </TransformableElement>
           </>
         )}
 
         {view === "back" && (
-          <div className="absolute inset-0 flex flex-col p-8 z-10">
-            <div className="flex-1 flex items-center justify-center">
-              <p 
-                style={{ fontFamily: coverData.backBlurbFont, color: coverData.backBlurbColor, fontSize: `${coverData.backBlurbSize}px` }}
-                className="max-w-[80%] text-center leading-relaxed"
-              >
-                {coverData.backBlurb}
-              </p>
-            </div>
-            <div className="flex justify-center mt-4">
+          <>
+            <TransformableElement
+              id="master-blurb"
+              initialTransform={coverData.backBlurbTransform || { x: 20, y: 60, width: 300, height: 350, rotation: 0, scaleX: 1, scaleY: 1 }}
+              isSelected={selectedLayerId === "master-blurb"}
+              onSelect={setSelectedLayerId}
+              onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
+              locked={false}
+              containerRef={canvasRef}
+            >
+              <div className="w-full h-full flex items-center justify-center text-center p-4">
+                <p 
+                  style={{ fontFamily: coverData.backBlurbFont, color: coverData.backBlurbColor, fontSize: `${coverData.backBlurbSize}px` }}
+                  className="leading-relaxed"
+                >
+                  {coverData.backBlurb}
+                </p>
+              </div>
+            </TransformableElement>
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
               <div className="w-32 h-10 bg-white/10 flex items-center justify-center text-xs text-white/50 font-mono">
                 ISBN
               </div>
             </div>
-          </div>
+          </>
         )}
 
         {view === "spine" && (
@@ -611,6 +667,14 @@ export default function CoverCreator() {
               fontSize={layer.fontSize}
               fontFamily={layer.fontFamily}
               color={layer.color}
+              textArch={layer.textArch}
+              textEffect={layer.textEffect}
+              strokeColor={layer.strokeColor}
+              strokeWidth={layer.strokeWidth}
+              shadowColor={layer.shadowColor}
+              fontWeight={layer.fontWeight}
+              fontStyle={layer.fontStyle}
+              textTransform={layer.textTransform}
               isEditing={editingTextId === layer.id}
               onEditStart={() => setEditingTextId(layer.id)}
               onEditEnd={() => setEditingTextId(null)}
@@ -936,10 +1000,152 @@ export default function CoverCreator() {
                     <button 
                       onClick={() => addTextLayer(activeView === "spread" ? "front" : activeView)}
                       className="p-1 bg-white text-black text-xs flex items-center gap-1"
+                      data-testid="button-add-text-layer"
                     >
                       <Plus className="w-3 h-3" /> Add
                     </button>
                   </div>
+                  {(() => {
+                    const viewKey = activeView === "spread" ? "front" : activeView;
+                    const layers = coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[];
+                    return layers.length > 0 && (
+                      <div className="space-y-2">
+                        {layers.map((layer) => (
+                          <div 
+                            key={layer.id}
+                            onClick={() => setSelectedLayerId(layer.id)}
+                            className={`p-2 border cursor-pointer ${selectedLayerId === layer.id ? "border-cyan-500 bg-zinc-800" : "border-zinc-700 hover:border-zinc-500"}`}
+                            data-testid={`layer-item-${layer.id}`}
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold truncate flex-1" style={{ fontFamily: layer.fontFamily, color: layer.color }}>
+                                {layer.text || "Empty"}
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTextLayer(viewKey, layer.id); }}
+                                className="p-0.5 hover:text-red-500"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                            {selectedLayerId === layer.id && (
+                              <div className="space-y-2 pt-2 border-t border-zinc-700" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={layer.text}
+                                  onChange={(e) => updateTextLayer(viewKey, layer.id, { text: e.target.value })}
+                                  className="w-full bg-zinc-900 border border-zinc-600 p-1.5 text-xs"
+                                  placeholder="Text content"
+                                  data-testid="input-layer-text"
+                                />
+                                <select
+                                  value={layer.fontFamily}
+                                  onChange={(e) => updateTextLayer(viewKey, layer.id, { fontFamily: e.target.value })}
+                                  className="w-full bg-zinc-900 border border-zinc-600 p-1 text-xs"
+                                  data-testid="select-layer-font"
+                                >
+                                  {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                                </select>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="color"
+                                    value={layer.color}
+                                    onChange={(e) => updateTextLayer(viewKey, layer.id, { color: e.target.value })}
+                                    className="w-8 h-7 bg-zinc-900 border border-zinc-600 cursor-pointer"
+                                    data-testid="input-layer-color"
+                                  />
+                                  <input
+                                    type="number"
+                                    value={layer.fontSize}
+                                    onChange={(e) => updateTextLayer(viewKey, layer.id, { fontSize: Number(e.target.value) })}
+                                    className="flex-1 bg-zinc-900 border border-zinc-600 p-1 text-xs text-center"
+                                    min="8"
+                                    max="200"
+                                    data-testid="input-layer-fontsize"
+                                  />
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => updateTextLayer(viewKey, layer.id, { fontWeight: layer.fontWeight === "bold" ? "normal" : "bold" })}
+                                    className={`px-2 py-1 text-xs font-bold border ${layer.fontWeight === "bold" ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400"}`}
+                                    data-testid="button-layer-bold"
+                                  >B</button>
+                                  <button
+                                    onClick={() => updateTextLayer(viewKey, layer.id, { fontStyle: layer.fontStyle === "italic" ? "normal" : "italic" })}
+                                    className={`px-2 py-1 text-xs italic border ${layer.fontStyle === "italic" ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400"}`}
+                                    data-testid="button-layer-italic"
+                                  >I</button>
+                                  <button
+                                    onClick={() => updateTextLayer(viewKey, layer.id, { textTransform: layer.textTransform === "uppercase" ? "none" : "uppercase" })}
+                                    className={`px-2 py-1 text-xs border ${layer.textTransform === "uppercase" ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400"}`}
+                                    data-testid="button-layer-uppercase"
+                                  >AA</button>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-zinc-500 block mb-0.5">Effect</label>
+                                  <select
+                                    value={layer.textEffect || "comic"}
+                                    onChange={(e) => updateTextLayer(viewKey, layer.id, { textEffect: e.target.value })}
+                                    className="w-full bg-zinc-900 border border-zinc-600 p-1 text-xs"
+                                    data-testid="select-layer-effect"
+                                  >
+                                    {["none", "comic", "outline", "3d", "retro", "glow", "neon", "fire", "ice"].map(e => (
+                                      <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                {["outline", "comic", "3d", "retro"].includes(layer.textEffect || "comic") && (
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <label className="text-[10px] text-zinc-500">Stroke</label>
+                                      <input
+                                        type="color"
+                                        value={layer.strokeColor || "#000000"}
+                                        onChange={(e) => updateTextLayer(viewKey, layer.id, { strokeColor: e.target.value })}
+                                        className="w-full h-6 bg-zinc-900 border border-zinc-600 cursor-pointer"
+                                      />
+                                    </div>
+                                    <div className="flex-1">
+                                      <label className="text-[10px] text-zinc-500">Width</label>
+                                      <input
+                                        type="number"
+                                        value={layer.strokeWidth || 2}
+                                        onChange={(e) => updateTextLayer(viewKey, layer.id, { strokeWidth: Number(e.target.value) })}
+                                        className="w-full bg-zinc-900 border border-zinc-600 p-1 text-xs text-center"
+                                        min="0" max="10" step="0.5"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="text-[10px] text-zinc-500 flex justify-between">
+                                    <span>Text Arch</span>
+                                    <span className="text-zinc-600">{layer.textArch || 0}</span>
+                                  </label>
+                                  <input
+                                    type="range"
+                                    min="-100" max="100" step="5"
+                                    value={layer.textArch || 0}
+                                    onChange={(e) => updateTextLayer(viewKey, layer.id, { textArch: Number(e.target.value) })}
+                                    className="w-full h-1.5 accent-cyan-500"
+                                    data-testid="input-layer-arch"
+                                  />
+                                  <div className="flex justify-between text-[9px] text-zinc-600">
+                                    <span>Down</span>
+                                    <button
+                                      onClick={() => updateTextLayer(viewKey, layer.id, { textArch: 0 })}
+                                      className="text-zinc-400 hover:text-white"
+                                    >Reset</button>
+                                    <span>Up</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

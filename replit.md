@@ -71,6 +71,14 @@ Preferred communication style: Simple, everyday language.
 - **Text Formatting:** Bold, italic, alignment (left/center/right), uppercase toggle, line height, and letter spacing controls in Caption Properties panel.
 - **Auto-Save:** Debounced 3-second auto-save functionality.
 
+### Cover Creator
+- **Transformable Master Text:** Title, subtitle, author, and back blurb are `TransformableElement` components with drag/resize/rotate. Transform states stored as `titleTransform`, `subtitleTransform`, `authorTransform`, `backBlurbTransform` in CoverData.
+- **Text Layer Editing Panel:** Sidebar shows full editing controls for selected text layers: text content, font, color, fontSize, bold/italic/uppercase, text effect (none/comic/outline/3d/retro/glow/neon/fire/ice), stroke color/width, and text arch slider.
+- **Text Arch:** `textArch` property on TextLayer (-100 to 100) renders arched text via SVG `<textPath>`.
+
+### Card Creator
+- **Name Arch:** `nameArch` property on CardData renders the card name with SVG arch. Slider control in style sidebar (-100 to 100).
+
 ### Creator Marketplace
 - **Browse:** Public storefront with search, type filters, and pricing filters (All/Free/Paid) for various content.
 - **Listing Detail:** Full listing view with hero image, price, description, tags, preview gallery, and buy/claim button.
