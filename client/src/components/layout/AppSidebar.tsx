@@ -35,11 +35,20 @@ import {
   Download,
   Zap,
   Star,
-  Layers
+  Layers,
+  Pin,
+  PinOff,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+
+interface AppSidebarProps {
+  isExpanded: boolean;
+  isPinned: boolean;
+  onTogglePin: () => void;
+}
 
 const creatorTools = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
@@ -89,7 +98,7 @@ const socialTools = [
 
 const XP_PER_LEVEL = 1000;
 
-export function AppSidebar() {
+export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProps) {
   const [location] = useLocation();
   const { user, logout, isStudent, isCreator } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -98,167 +107,152 @@ export function AppSidebar() {
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
   const xpProgress = Math.min((xpInLevel / XP_PER_LEVEL) * 100, 100);
 
+  const renderNavLink = (item: { icon: any; label: string; href: string }, matchPrefix = false) => {
+    const isActive = matchPrefix
+      ? location === item.href || location.startsWith(item.href + "/")
+      : location === item.href;
+    return (
+      <Link 
+        key={item.href} 
+        href={item.href}
+        className={cn(
+          "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent",
+          isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
+          isActive 
+            ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
+            : "hover:bg-muted hover:border-border"
+        )}
+        data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
+        title={!isExpanded ? item.label : undefined}
+      >
+        <item.icon className="w-4 h-4 shrink-0" />
+        {isExpanded && <span className="truncate">{item.label}</span>}
+      </Link>
+    );
+  };
+
+  const renderSectionLabel = (label: string, id?: string) => {
+    if (!isExpanded) {
+      return <div className="w-6 h-px bg-border mx-auto my-2" />;
+    }
+    return (
+      <div
+        className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4"
+        id={id}
+      >
+        {label}
+      </div>
+    );
+  };
+
   return (
-    <aside className="w-64 h-screen bg-background border-r border-border flex flex-col fixed left-0 top-0 z-50" aria-label="Main navigation">
-      <div className="p-4 border-b border-border">
-        <img 
-          src="/logo.png" 
-          alt="Press Start CoMixx logo" 
-          className="h-16 w-auto mx-auto"
-        />
-        <p className="text-xs text-muted-foreground mt-2 text-center font-mono">CREATOR STUDIO</p>
+    <aside
+      className={cn(
+        "h-screen bg-background border-r border-border flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+        isExpanded ? "w-64" : "w-12"
+      )}
+      aria-label="Main navigation"
+    >
+      <div className={cn(
+        "border-b border-border flex items-center",
+        isExpanded ? "p-4 justify-between" : "p-2 justify-center"
+      )}>
+        {isExpanded ? (
+          <>
+            <div className="flex-1">
+              <img 
+                src="/logo.png" 
+                alt="Press Start CoMixx logo" 
+                className="h-12 w-auto mx-auto"
+              />
+              <p className="text-xs text-muted-foreground mt-1 text-center font-mono">CREATOR STUDIO</p>
+            </div>
+            <button
+              onClick={onTogglePin}
+              className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+              title={isPinned ? "Unpin sidebar" : "Pin sidebar open"}
+              data-testid="button-pin-sidebar"
+            >
+              {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+            </button>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Site navigation">
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>
-        {creatorTools.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href 
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-          >
-            <item.icon className="w-4 h-4" />
-            {item.label}
-          </Link>
-        ))}
+      <nav className={cn(
+        "flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden",
+        isExpanded ? "p-4" : "p-1"
+      )} role="navigation" aria-label="Site navigation">
+        {isExpanded && <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>}
+        {!isExpanded && <div className="h-2" />}
+        {creatorTools.map((item) => renderNavLink(item))}
         
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">AI Tools</div>
-        {aiTools.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href 
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-          >
-            <item.icon className="w-4 h-4" />
-            {item.label}
-          </Link>
-        ))}
+        {renderSectionLabel("AI Tools")}
+        {aiTools.map((item) => renderNavLink(item))}
 
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">My Work</div>
-        {galleryTools.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href 
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-          >
-            <item.icon className="w-4 h-4" />
-            {item.label}
-          </Link>
-        ))}
+        {renderSectionLabel("My Work")}
+        {galleryTools.map((item) => renderNavLink(item))}
 
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4">Marketplace</div>
-        {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href || location.startsWith(item.href + "/")
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-          >
-            <item.icon className="w-4 h-4" />
-            {item.label}
-          </Link>
-        ))}
+        {renderSectionLabel("Marketplace")}
+        {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
 
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4" id="community-nav-label">Community</div>
-        {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href || location.startsWith(item.href + "/")
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-            aria-current={location === item.href ? "page" : undefined}
-          >
-            <item.icon className="w-4 h-4" aria-hidden="true" />
-            {item.label}
-          </Link>
-        ))}
+        {renderSectionLabel("Community", "community-nav-label")}
+        {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
 
-        <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2 mt-4" id="social-nav-label">Social</div>
-        {socialTools.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent",
-              location === item.href || location.startsWith(item.href + "/")
-                ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-                : "hover:bg-muted hover:border-border"
-            )}
-            data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, '-')}`}
-            aria-current={location === item.href ? "page" : undefined}
-          >
-            <item.icon className="w-4 h-4" aria-hidden="true" />
-            {item.label}
-          </Link>
-        ))}
+        {renderSectionLabel("Social", "social-nav-label")}
+        {socialTools.map((item) => renderNavLink(item, true))}
         
         <div className="pt-4 mt-4 border-t border-border space-y-1">
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border w-full text-left"
+            className={cn(
+              "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border w-full text-left",
+              isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center"
+            )}
             data-testid="button-theme-toggle"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={!isExpanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
           >
-            {theme === "dark" ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            {theme === "dark" ? <Sun className="w-4 h-4 shrink-0" aria-hidden="true" /> : <Moon className="w-4 h-4 shrink-0" aria-hidden="true" />}
+            {isExpanded && (theme === "dark" ? "Light Mode" : "Dark Mode")}
           </button>
           <Link 
             href="/settings"
             className={cn(
-              "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground",
+              "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground",
+              isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
               location === "/settings" && "text-foreground bg-muted border-border"
             )}
             data-testid="nav-settings"
+            title={!isExpanded ? "Settings" : undefined}
           >
-            <Settings className="w-4 h-4" />
-            Settings
+            <Settings className="w-4 h-4 shrink-0" />
+            {isExpanded && "Settings"}
           </Link>
           {user?.role === "admin" && (
             <Link 
               href="/admin"
               className={cn(
-                "flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all hover:translate-x-1 border border-transparent text-muted-foreground hover:text-foreground",
+                "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground",
+                isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
                 location === "/admin" && "text-foreground bg-muted border-border"
               )}
               data-testid="nav-admin"
+              title={!isExpanded ? "Admin Console" : undefined}
             >
-              <ShieldAlert className="w-4 h-4" />
-              Admin Console
+              <ShieldAlert className="w-4 h-4 shrink-0" />
+              {isExpanded && "Admin Console"}
             </Link>
           )}
         </div>
       </nav>
 
-      <div className="p-4 border-t border-border bg-background z-10 space-y-2">
-        {user && (
+      <div className="border-t border-border bg-background z-10 space-y-2">
+        {user && isExpanded && (
           <div className="px-4 py-2 space-y-2" data-testid="xp-bar-section">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -286,23 +280,48 @@ export function AppSidebar() {
             </div>
           </div>
         )}
-        <EcosystemStatus />
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold font-mono text-xs">
-            {user?.name?.substring(0, 2).toUpperCase() || "ME"}
+        {user && !isExpanded && (
+          <div className="flex justify-center py-2" data-testid="xp-bar-section">
+            <div className="flex flex-col items-center gap-0.5">
+              <Star className="w-3.5 h-3.5 text-yellow-400" />
+              <span className="text-[9px] font-bold">{level}</span>
+            </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">{user?.name || "Creator"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pressstart.space"}</p>
-          </div>
-          <button 
-            onClick={logout}
-            className="text-muted-foreground hover:text-foreground"
-            data-testid="button-sidebar-logout"
-            aria-label="Sign out"
-          >
-            <LogOut className="w-4 h-4" aria-hidden="true" />
-          </button>
+        )}
+        {isExpanded && <EcosystemStatus />}
+        <div className={cn(
+          "flex items-center gap-3 py-3",
+          isExpanded ? "px-4" : "px-1 justify-center"
+        )}>
+          {isExpanded ? (
+            <>
+              <div className="w-8 h-8 bg-black text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold font-mono text-xs shrink-0">
+                {user?.name?.substring(0, 2).toUpperCase() || "ME"}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{user?.name || "Creator"}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pressstart.space"}</p>
+              </div>
+              <button 
+                onClick={logout}
+                className="text-muted-foreground hover:text-foreground"
+                data-testid="button-sidebar-logout"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={logout}
+              className="text-muted-foreground hover:text-foreground p-1"
+              data-testid="button-sidebar-logout"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

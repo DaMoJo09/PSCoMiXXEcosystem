@@ -12,7 +12,7 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-import { SendHorizonal, Rocket, Briefcase } from "lucide-react";
+import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, CaseSensitive } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -86,6 +86,12 @@ interface PanelContent {
     strokeWidth?: number;
     shadowColor?: string;
     shadowBlur?: number;
+    fontWeight?: "normal" | "bold" | "900";
+    fontStyle?: "normal" | "italic";
+    textAlign?: "left" | "center" | "right";
+    textTransform?: "none" | "uppercase" | "lowercase";
+    letterSpacing?: number;
+    lineHeight?: number;
   };
   zIndex: number;
   locked: boolean;
@@ -883,6 +889,8 @@ export default function ComicCreator() {
       contents: [],
       zIndex: page === "left" ? currentSpread.leftPage.length : currentSpread.rightPage.length,
       locked: autoLockPanels,
+      borderWidth: 3,
+      borderColor: "#000000",
     };
 
     setSpreads(prev => prev.map((spread, i) => {
@@ -1425,6 +1433,8 @@ export default function ComicCreator() {
         contents: [],
         zIndex: idx,
         locked: false,
+        borderWidth: 3,
+        borderColor: "#000000",
       }));
       return { ...spread, [key]: newPanels };
     }));
@@ -1555,6 +1565,12 @@ export default function ComicCreator() {
                   strokeWidth={content.data.strokeWidth}
                   shadowColor={content.data.shadowColor}
                   shadowBlur={content.data.shadowBlur}
+                  fontWeight={content.data.fontWeight}
+                  fontStyle={content.data.fontStyle}
+                  textAlign={content.data.textAlign}
+                  textTransform={content.data.textTransform}
+                  letterSpacing={content.data.letterSpacing}
+                  lineHeight={content.data.lineHeight}
                   isEditing={editingTextId === content.id}
                   onEditStart={() => setEditingTextId(content.id)}
                   onEditEnd={() => setEditingTextId(null)}
@@ -2954,6 +2970,95 @@ export default function ComicCreator() {
                           onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { color: e.target.value })}
                           className="w-full h-7 bg-zinc-800 border border-zinc-700 cursor-pointer"
                           data-testid="input-text-color"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Formatting</label>
+                      <div className="flex gap-1 flex-wrap">
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { 
+                            fontWeight: selectedContent.data.fontWeight === "bold" || selectedContent.data.fontWeight === "900" ? "normal" : "bold" 
+                          })}
+                          className={`p-1.5 border text-xs ${selectedContent.data.fontWeight === "bold" || selectedContent.data.fontWeight === "900" || !selectedContent.data.fontWeight ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="Bold"
+                          data-testid="button-bold"
+                        >
+                          <Bold className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { 
+                            fontStyle: selectedContent.data.fontStyle === "italic" ? "normal" : "italic" 
+                          })}
+                          className={`p-1.5 border text-xs ${selectedContent.data.fontStyle === "italic" ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="Italic"
+                          data-testid="button-italic"
+                        >
+                          <Italic className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="w-px bg-zinc-700 mx-0.5" />
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { textAlign: "left" })}
+                          className={`p-1.5 border text-xs ${selectedContent.data.textAlign === "left" ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="Align Left"
+                          data-testid="button-align-left"
+                        >
+                          <AlignLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { textAlign: "center" })}
+                          className={`p-1.5 border text-xs ${(!selectedContent.data.textAlign || selectedContent.data.textAlign === "center") ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="Align Center"
+                          data-testid="button-align-center"
+                        >
+                          <AlignCenter className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { textAlign: "right" })}
+                          className={`p-1.5 border text-xs ${selectedContent.data.textAlign === "right" ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="Align Right"
+                          data-testid="button-align-right"
+                        >
+                          <AlignRight className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="w-px bg-zinc-700 mx-0.5" />
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { 
+                            textTransform: selectedContent.data.textTransform === "uppercase" ? "none" : "uppercase" 
+                          })}
+                          className={`p-1.5 border text-xs ${selectedContent.data.textTransform === "uppercase" ? "bg-white text-black border-white" : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"}`}
+                          title="UPPERCASE"
+                          data-testid="button-uppercase"
+                        >
+                          <CaseSensitive className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Line Height</label>
+                        <input
+                          type="number"
+                          min="0.8"
+                          max="3"
+                          step="0.1"
+                          value={selectedContent.data.lineHeight || 1.3}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { lineHeight: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                          data-testid="input-line-height"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-zinc-400 block mb-1">Letter Spacing</label>
+                        <input
+                          type="number"
+                          min="-0.1"
+                          max="0.5"
+                          step="0.01"
+                          value={selectedContent.data.letterSpacing || 0.02}
+                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { letterSpacing: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
+                          data-testid="input-letter-spacing"
                         />
                       </div>
                     </div>

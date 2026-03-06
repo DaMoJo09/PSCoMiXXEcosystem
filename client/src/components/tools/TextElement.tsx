@@ -15,6 +15,12 @@ interface TextElementProps {
   strokeWidth?: number;
   shadowColor?: string;
   shadowBlur?: number;
+  fontWeight?: "normal" | "bold" | "900";
+  fontStyle?: "normal" | "italic";
+  textAlign?: "left" | "center" | "right";
+  textTransform?: "none" | "uppercase" | "lowercase";
+  letterSpacing?: number;
+  lineHeight?: number;
   onChange?: (id: string, text: string) => void;
   onStyleChange?: (id: string, styles: TextStyles) => void;
   isEditing?: boolean;
@@ -39,6 +45,12 @@ interface TextStyles {
   strokeWidth?: number;
   shadowColor?: string;
   shadowBlur?: number;
+  fontWeight?: "normal" | "bold" | "900";
+  fontStyle?: "normal" | "italic";
+  textAlign?: "left" | "center" | "right";
+  textTransform?: "none" | "uppercase" | "lowercase";
+  letterSpacing?: number;
+  lineHeight?: number;
 }
 
 const FONT_OPTIONS = [
@@ -261,6 +273,12 @@ export function TextElement({
   strokeWidth = 2,
   shadowColor = "rgba(0,0,0,0.8)",
   shadowBlur = 4,
+  fontWeight = "bold",
+  fontStyle = "normal",
+  textAlign = "center",
+  textTransform = "none",
+  letterSpacing = 0.02,
+  lineHeight = 1.3,
   onChange,
   onStyleChange,
   isEditing = false,
@@ -281,6 +299,12 @@ export function TextElement({
     strokeWidth,
     shadowColor,
     shadowBlur,
+    fontWeight,
+    fontStyle,
+    textAlign,
+    textTransform,
+    letterSpacing,
+    lineHeight,
   });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -302,8 +326,14 @@ export function TextElement({
       strokeWidth,
       shadowColor,
       shadowBlur,
+      fontWeight,
+      fontStyle,
+      textAlign,
+      textTransform,
+      letterSpacing,
+      lineHeight,
     });
-  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur]);
+  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur, fontWeight, fontStyle, textAlign, textTransform, letterSpacing, lineHeight]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -360,15 +390,20 @@ export function TextElement({
     }
   };
 
-  const textStyles = {
+  const textStyles: React.CSSProperties = {
     fontSize: styles.fontSize,
     fontFamily: styles.fontFamily,
     color: styles.color,
-    lineHeight: 1.3,
-    letterSpacing: "0.02em",
-    fontWeight: 700,
+    lineHeight: styles.lineHeight || 1.3,
+    letterSpacing: `${styles.letterSpacing || 0.02}em`,
+    fontWeight: styles.fontWeight === "900" ? 900 : styles.fontWeight === "bold" ? 700 : 400,
+    fontStyle: styles.fontStyle || "normal",
+    textAlign: styles.textAlign || "center",
+    textTransform: styles.textTransform || "none",
     ...getTextEffectStyles(),
   };
+
+  const alignClass = styles.textAlign === "left" ? "text-left" : styles.textAlign === "right" ? "text-right" : "text-center";
 
   return (
     <div
@@ -396,13 +431,13 @@ export function TextElement({
               onEditEnd?.();
             }
           }}
-          className="w-full h-full bg-transparent outline-none resize-none text-center"
-          style={textStyles as React.CSSProperties}
+          className={`w-full h-full bg-transparent outline-none resize-none ${alignClass}`}
+          style={textStyles}
         />
       ) : (
         <p
-          className="w-full text-center whitespace-pre-wrap break-words"
-          style={textStyles as React.CSSProperties}
+          className={`w-full whitespace-pre-wrap break-words ${alignClass}`}
+          style={textStyles}
         >
           {localText || "Double-click to edit"}
         </p>

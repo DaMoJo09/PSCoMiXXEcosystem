@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 
 interface LayoutProps {
@@ -5,6 +6,11 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+
+  const isExpanded = sidebarHovered || sidebarPinned;
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-primary-foreground">
       <a 
@@ -13,8 +19,25 @@ export function Layout({ children }: LayoutProps) {
       >
         Skip to main content
       </a>
-      <AppSidebar />
-      <main id="main-content" className="pl-64 min-h-screen" role="main" tabIndex={-1}>
+      <div
+        className="fixed left-0 top-0 h-screen z-50"
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+        style={{ width: isExpanded ? "16rem" : "3rem" }}
+      >
+        <AppSidebar
+          isExpanded={isExpanded}
+          isPinned={sidebarPinned}
+          onTogglePin={() => setSidebarPinned(!sidebarPinned)}
+        />
+      </div>
+      <main
+        id="main-content"
+        className="min-h-screen transition-[padding-left] duration-300 ease-in-out"
+        role="main"
+        tabIndex={-1}
+        style={{ paddingLeft: isExpanded ? "16rem" : "3rem" }}
+      >
         {children}
       </main>
     </div>
