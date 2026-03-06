@@ -3374,7 +3374,7 @@ export default function ComicCreator() {
 
       {showAssetLibrary && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border-2 border-white w-[700px] h-[500px] flex flex-col">
+          <div className="bg-zinc-900 border-2 border-white w-[700px] max-h-[80vh] h-[500px] flex flex-col">
             <div className="flex justify-between items-center p-4 border-b border-zinc-700">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <Layers className="w-5 h-5" /> Asset Library

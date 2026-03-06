@@ -102,6 +102,7 @@ export default function PortfolioPage() {
   const [editingArtwork, setEditingArtwork] = useState<Artwork | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -374,18 +375,36 @@ export default function PortfolioPage() {
     return null;
   };
 
-  const sharePortfolio = async () => {
-    const userId = user?.id;
-    if (!userId) return;
-    const url = `${window.location.origin}/portfolio/${userId}`;
+  const portfolioUrl = user ? `${window.location.origin}/portfolio/${user.id}` : "";
+
+  const copyPortfolioLink = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(portfolioUrl);
       setCopiedLink(true);
       toast.success("Portfolio link copied!");
       setTimeout(() => setCopiedLink(false), 2000);
     } catch {
       toast.error("Could not copy link");
     }
+  };
+
+  const shareToSocial = (platform: string) => {
+    const text = `Check out my creative portfolio on Press Start CoMiXX!`;
+    const encodedUrl = encodeURIComponent(portfolioUrl);
+    const encodedText = encodeURIComponent(text);
+    let shareUrl = "";
+    switch (platform) {
+      case "twitter":
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+        break;
+      case "facebook":
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        break;
+      case "linkedin":
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+        break;
+    }
+    if (shareUrl) window.open(shareUrl, "_blank", "width=600,height=400");
   };
 
   if (!profile && !viewingUserId) {
@@ -518,9 +537,8 @@ export default function PortfolioPage() {
                       </>
                     ) : (
                       <>
-                        <Button onClick={sharePortfolio} variant="outline" className="border-zinc-600 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400" data-testid="btn-share-portfolio">
-                          {copiedLink ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
-                          {copiedLink ? "COPIED!" : "SHARE"}
+                        <Button onClick={() => setShowShareModal(true)} variant="outline" className="border-zinc-600 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400" data-testid="btn-share-portfolio">
+                          <Share2 className="w-4 h-4 mr-2" /> SHARE
                         </Button>
                         <Button onClick={startEditMode} variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10" data-testid="btn-edit-portfolio">
                           <Edit2 className="w-4 h-4 mr-2" /> EDIT
@@ -919,6 +937,74 @@ export default function PortfolioPage() {
             </DialogContent>
           </Dialog>
         )}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowShareModal(false)}>
+          <div className="bg-zinc-900 border-2 border-cyan-500 w-[420px] shadow-[4px_4px_0px_0px_rgba(0,255,255,0.3)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+              <h3 className="font-bold text-lg flex items-center gap-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                <Share2 className="w-5 h-5 text-cyan-400" /> Share Portfolio
+              </h3>
+              <button onClick={() => setShowShareModal(false)} className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white" data-testid="btn-close-share-modal">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <div>
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Your Portfolio Link</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-zinc-950 border border-zinc-700 px-3 py-2.5 text-sm text-cyan-400 font-mono truncate select-all" data-testid="text-portfolio-url">
+                    {portfolioUrl}
+                  </div>
+                  <button
+                    onClick={copyPortfolioLink}
+                    className={`px-4 py-2.5 font-bold text-sm border transition-all ${copiedLink ? "bg-green-600 border-green-500 text-white" : "bg-cyan-500 border-cyan-400 text-black hover:bg-cyan-400"}`}
+                    data-testid="btn-copy-link"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-500 mt-1.5">Anyone with this link can view your published works and artworks.</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 block">Share On</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => shareToSocial("twitter")}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-sm font-bold transition-colors"
+                    data-testid="btn-share-twitter"
+                  >
+                    <Twitter className="w-4 h-4 text-sky-400" /> Twitter
+                  </button>
+                  <button
+                    onClick={() => shareToSocial("facebook")}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-sm font-bold transition-colors"
+                    data-testid="btn-share-facebook"
+                  >
+                    <Globe className="w-4 h-4 text-blue-400" /> Facebook
+                  </button>
+                  <button
+                    onClick={() => shareToSocial("linkedin")}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-sm font-bold transition-colors"
+                    data-testid="btn-share-linkedin"
+                  >
+                    <Link2 className="w-4 h-4 text-blue-300" /> LinkedIn
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-800">
+                <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+                  <ExternalLink className="w-3 h-3" />
+                  Only published and approved works are visible on your public portfolio.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </PageWrapper>
   );
