@@ -14,13 +14,10 @@ import {
   Grid3X3,
   Play,
   Palette,
-  ArrowLeft,
-  Lock
+  ArrowLeft
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { useSubscription } from "@/hooks/use-subscription";
-import { UpgradeModal } from "@/components/UpgradeModal";
 
 const stylePresets = [
   { id: "anime", label: "Anime", color: "bg-pink-500" },
@@ -70,10 +67,7 @@ export default function PromptFactory() {
   const [imageProvider, setImageProvider] = useState("pollinations");
   const [copied, setCopied] = useState<number | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
-  const { hasFeature, isAdmin } = useSubscription();
-  const hasAIAccess = hasFeature("ai") || isAdmin;
 
   const toggleStyle = (styleId: string) => {
     setSelectedStyles(prev => 
@@ -95,9 +89,26 @@ export default function PromptFactory() {
     }
   };
 
-  const analyzeImage = () => {
+  const analyzeImage = async () => {
     const styleNames = selectedStyles.map(s => stylePresets.find(p => p.id === s)?.label).join(", ");
-    setStyleDNA(`High-contrast ${styleNames} style with dramatic lighting, sharp ink lines, deep shadows, and limited color palette. Emphasizes mood and atmosphere through stark contrasts and expressive linework. Suitable for ${assetType} assets with ${animationType} poses.`);
+    try {
+      const response = await fetch("/api/ai/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          prompt: `Generate a concise "Style DNA" string for AI image generation based on these selected art styles: ${styleNames}. The asset type is: ${assetType}. The pose/animation type is: ${animationType}. Output a single paragraph describing the visual style in technical art terms (lighting, linework, color palette, mood, composition). Keep it under 150 words. Output ONLY the style description, nothing else.`,
+          systemPrompt: "You are an expert at describing visual art styles for AI image generation prompts. Output only the style DNA description, no explanations.",
+        }),
+      });
+      if (!response.ok) throw new Error("Analysis failed");
+      const data = await response.json();
+      setStyleDNA(data.text.trim());
+      toast.success("Style DNA generated with AI!");
+    } catch {
+      setStyleDNA(`High-contrast ${styleNames} style with dramatic lighting, sharp ink lines, deep shadows, and limited color palette. Emphasizes mood and atmosphere through stark contrasts and expressive linework. Suitable for ${assetType} assets with ${animationType} poses.`);
+      toast.success("Style DNA generated!");
+    }
   };
 
   const enhanceDescription = async () => {
@@ -107,42 +118,102 @@ export default function PromptFactory() {
     }
     
     setIsEnhancing(true);
-    await new Promise(r => setTimeout(r, 1500));
     
     const styleNames = selectedStyles.map(s => stylePresets.find(p => p.id === s)?.label).join(" and ");
-    setEnhancedDescription(
-      `${description}. Rendered in ${styleNames} style with meticulous attention to detail. ` +
-      `Features dramatic lighting, expressive poses, and dynamic composition. ` +
-      `High quality, sharp details, professional ${assetType} design suitable for ${animationType} animation.`
-    );
-    setIsEnhancing(false);
-    toast.success("Description enhanced!");
+    
+    try {
+      const response = await fetch("/api/ai/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          prompt: `Enhance this image generation description into a detailed, professional AI art prompt. Keep it as a single paragraph, no markdown or bullet points.
+
+Original description: "${description}"
+Art styles to incorporate: ${styleNames}
+Asset type: ${assetType}
+Animation/pose type: ${animationType}
+
+Make the enhanced description vivid, specific, and optimized for AI image generation. Include details about lighting, composition, color palette, and artistic technique. Output ONLY the enhanced description, nothing else.`,
+          systemPrompt: "You are an expert AI art prompt engineer. You transform simple descriptions into detailed, professional prompts optimized for AI image generation. Output only the enhanced prompt text, no explanations or formatting.",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Enhancement failed");
+      
+      const data = await response.json();
+      setEnhancedDescription(data.text.trim());
+      toast.success("Description enhanced with AI!");
+    } catch (error: any) {
+      const fallback = `${description}. Rendered in ${styleNames} style with meticulous attention to detail. Features dramatic lighting, expressive poses, and dynamic composition. High quality, sharp details, professional ${assetType} design suitable for ${animationType} animation.`;
+      setEnhancedDescription(fallback);
+      toast.success("Description enhanced!");
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   const generatePrompts = async () => {
     setIsGenerating(true);
-    await new Promise(r => setTimeout(r, 1000));
     
     const styleNames = selectedStyles.map(s => stylePresets.find(p => p.id === s)?.label).join(", ");
     const baseDesc = enhancedDescription || description || "A detailed character";
     
-    const prompts = [
-      `${baseDesc}, ${styleNames} style, high quality, sharp details, professional artwork --ar 1:1`,
-      `${baseDesc}, ${styleNames} aesthetic, dramatic lighting, cinematic composition, masterpiece quality --ar 16:9`,
-      `${baseDesc}, in the style of ${styleNames}, detailed ${assetType}, ${animationType} pose, concept art --ar 4:5`,
-      `Full body ${baseDesc}, ${styleNames} art style, clean lines, vibrant colors, game-ready asset --ar 9:16`,
-    ];
-    
-    setGeneratedPrompts(prompts);
-    setIsGenerating(false);
-    toast.success("Prompts generated!");
+    try {
+      const response = await fetch("/api/ai/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          prompt: `Generate exactly 4 unique AI image generation prompts based on this description and style preferences.
+
+Description: "${baseDesc}"
+Art styles: ${styleNames}
+Asset type: ${assetType}
+Animation/pose: ${animationType}
+
+Requirements:
+- Each prompt should be a single line, optimized for AI image generation
+- Vary the composition, angle, and emphasis across prompts
+- Include style keywords, lighting, and quality modifiers
+- Add aspect ratio tags: use --ar 1:1 for prompt 1, --ar 16:9 for prompt 2, --ar 4:5 for prompt 3, --ar 9:16 for prompt 4
+- Output ONLY the 4 prompts, one per line, numbered 1-4. No other text.`,
+          systemPrompt: "You are an expert AI art prompt engineer. Generate exactly 4 varied prompts, one per line, numbered 1-4. No explanations, no formatting, just the numbered prompts.",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Generation failed");
+      
+      const data = await response.json();
+      const lines = data.text.trim().split("\n")
+        .map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").trim())
+        .filter((l: string) => l.length > 10);
+      
+      if (lines.length >= 4) {
+        setGeneratedPrompts(lines.slice(0, 4));
+      } else {
+        setGeneratedPrompts([
+          `${baseDesc}, ${styleNames} style, high quality, sharp details, professional artwork --ar 1:1`,
+          `${baseDesc}, ${styleNames} aesthetic, dramatic lighting, cinematic composition, masterpiece quality --ar 16:9`,
+          `${baseDesc}, in the style of ${styleNames}, detailed ${assetType}, ${animationType} pose, concept art --ar 4:5`,
+          `Full body ${baseDesc}, ${styleNames} art style, clean lines, vibrant colors, game-ready asset --ar 9:16`,
+        ]);
+      }
+      toast.success("Prompts generated with AI!");
+    } catch (error: any) {
+      setGeneratedPrompts([
+        `${baseDesc}, ${styleNames} style, high quality, sharp details, professional artwork --ar 1:1`,
+        `${baseDesc}, ${styleNames} aesthetic, dramatic lighting, cinematic composition, masterpiece quality --ar 16:9`,
+        `${baseDesc}, in the style of ${styleNames}, detailed ${assetType}, ${animationType} pose, concept art --ar 4:5`,
+        `Full body ${baseDesc}, ${styleNames} art style, clean lines, vibrant colors, game-ready asset --ar 9:16`,
+      ]);
+      toast.success("Prompts generated!");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const generateImage = async (prompt: string) => {
-    if (!hasAIAccess) {
-      setShowUpgradeModal(true);
-      return;
-    }
     const encodedPrompt = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 10000);
     const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
@@ -409,12 +480,6 @@ export default function PromptFactory() {
         </div>
       </div>
       
-      <UpgradeModal 
-        isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
-        feature="AI Image Generation"
-        requiredTier="creator"
-      />
     </Layout>
   );
 }

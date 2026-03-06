@@ -4843,6 +4843,41 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   // ==================== FX STUDIO API ROUTES (pressplays.site sync) ====================
 
+  app.post("/api/ai/generate-text", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { prompt, systemPrompt, maxTokens } = req.body;
+      if (!prompt || typeof prompt !== "string") {
+        return res.status(400).json({ error: "prompt is required" });
+      }
+
+      const messages = [];
+      if (systemPrompt) {
+        messages.push({ role: "system", content: systemPrompt });
+      }
+      messages.push({ role: "user", content: prompt });
+
+      const response = await fetch("https://text.pollinations.ai/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages,
+          model: "openai",
+          seed: Math.floor(Math.random() * 100000),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pollinations API error: ${response.status}`);
+      }
+
+      const text = await response.text();
+      res.json({ text });
+    } catch (error: any) {
+      console.error("AI text generation error:", error);
+      res.status(500).json({ error: error.message || "AI generation failed" });
+    }
+  });
+
   const FX_API_URL = process.env.FX_STUDIO_API_URL || "https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects";
   const FX_API_KEY = process.env.FX_STUDIO_API_KEY || "";
 

@@ -111,7 +111,9 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### AI Services
-- **AI Image Generation:** Pollinations.ai.
+- **AI Image Generation:** Pollinations.ai (image.pollinations.ai) — free, no API key required.
+- **AI Text Generation:** Pollinations.ai (text.pollinations.ai) — free, no API key required. Server-side proxy at `/api/ai/generate-text`.
+- **Access Policy:** All AI features are free and open to all users. No subscription gating or paywall.
 
 ### Databases & ORMs
 - `@neondatabase/serverless`: PostgreSQL client.

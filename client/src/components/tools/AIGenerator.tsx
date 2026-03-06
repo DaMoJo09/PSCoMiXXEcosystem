@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets, Lock } from "lucide-react";
+import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets } from "lucide-react";
 import { AI_MODELS, AIModel, generateImageUrl } from "@/lib/aiModels";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useSubscription } from "@/hooks/use-subscription";
-import { UpgradeModal } from "@/components/UpgradeModal";
 
 interface AIGeneratorProps {
   onImageGenerated: (url: string) => void;
@@ -58,9 +56,6 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
   const [selectedModel, setSelectedModel] = useState<string>("classic-freestyle");
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showTips, setShowTips] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  
-  const { hasFeature, isAdmin } = useSubscription();
   const hasAIAccess = true;
 
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[1];
@@ -277,12 +272,6 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
         </div>
       )}
       
-      <UpgradeModal 
-        isOpen={showUpgrade} 
-        onClose={() => setShowUpgrade(false)} 
-        feature="AI Image Generation"
-        requiredTier="creator"
-      />
     </div>
   );
 }
