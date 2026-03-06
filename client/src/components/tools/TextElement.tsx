@@ -21,6 +21,7 @@ interface TextElementProps {
   textTransform?: "none" | "uppercase" | "lowercase";
   letterSpacing?: number;
   lineHeight?: number;
+  textArch?: number;
   onChange?: (id: string, text: string) => void;
   onStyleChange?: (id: string, styles: TextStyles) => void;
   isEditing?: boolean;
@@ -51,6 +52,7 @@ interface TextStyles {
   textTransform?: "none" | "uppercase" | "lowercase";
   letterSpacing?: number;
   lineHeight?: number;
+  textArch?: number;
 }
 
 const FONT_OPTIONS = [
@@ -279,6 +281,7 @@ export function TextElement({
   textTransform = "none",
   letterSpacing = 0.02,
   lineHeight = 1.3,
+  textArch = 0,
   onChange,
   onStyleChange,
   isEditing = false,
@@ -305,6 +308,7 @@ export function TextElement({
     textTransform,
     letterSpacing,
     lineHeight,
+    textArch,
   });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -332,8 +336,9 @@ export function TextElement({
       textTransform,
       letterSpacing,
       lineHeight,
+      textArch,
     });
-  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur, fontWeight, fontStyle, textAlign, textTransform, letterSpacing, lineHeight]);
+  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur, fontWeight, fontStyle, textAlign, textTransform, letterSpacing, lineHeight, textArch]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -405,6 +410,122 @@ export function TextElement({
 
   const alignClass = styles.textAlign === "left" ? "text-left" : styles.textAlign === "right" ? "text-right" : "text-center";
 
+  const archAmount = styles.textArch || 0;
+  const hasArch = archAmount !== 0;
+
+  const renderArchedText = () => {
+    const displayText = styles.textTransform === "uppercase" ? (localText || "Double-click to edit").toUpperCase() 
+      : styles.textTransform === "lowercase" ? (localText || "Double-click to edit").toLowerCase()
+      : (localText || "Double-click to edit");
+    const svgWidth = 400;
+    const svgHeight = 200;
+    const absArch = Math.abs(archAmount);
+    const curveDepth = absArch * 1.5;
+    const isInverted = archAmount < 0;
+    
+    const pathId = `arch-path-${id}`;
+    let pathD: string;
+    
+    if (isInverted) {
+      const startY = svgHeight * 0.3;
+      const controlY = startY + curveDepth;
+      pathD = `M 10,${startY} Q ${svgWidth / 2},${controlY} ${svgWidth - 10},${startY}`;
+    } else {
+      const startY = svgHeight * 0.7;
+      const controlY = startY - curveDepth;
+      pathD = `M 10,${startY} Q ${svgWidth / 2},${controlY} ${svgWidth - 10},${startY}`;
+    }
+
+    const textAnchor = styles.textAlign === "left" ? "start" : styles.textAlign === "right" ? "end" : "middle";
+    const startOffset = styles.textAlign === "left" ? "0%" : styles.textAlign === "right" ? "100%" : "50%";
+    const scaledFontSize = styles.fontSize * 2.5;
+    const fWeight = styles.fontWeight === "900" ? 900 : styles.fontWeight === "bold" ? 700 : 400;
+    const outlineColor = styles.strokeColor || "#000000";
+    const outlineWidth = styles.strokeWidth || 2;
+    const effect = styles.textEffect || "comic";
+
+    const needsOutline = ["outline", "comic", "3d", "retro"].includes(effect);
+    const needsGlow = ["glow", "neon", "fire", "ice"].includes(effect);
+    const glowColors: Record<string, string> = {
+      glow: "#ffffff", neon: "#00ffff", fire: "#ff4500", ice: "#00bfff"
+    };
+    const filterId = `arch-filter-${id}`;
+
+    return (
+      <svg
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        className="w-full h-full"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <path id={pathId} d={pathD} fill="none" />
+          {needsGlow && (
+            <filter id={filterId}>
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+              <feFlood floodColor={glowColors[effect] || "#ffffff"} floodOpacity="0.8" result="color" />
+              <feComposite in="color" in2="blur" operator="in" result="glow" />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          )}
+        </defs>
+        {needsOutline && (
+          <text
+            fontSize={scaledFontSize}
+            fontFamily={styles.fontFamily}
+            fontWeight={fWeight}
+            fontStyle={styles.fontStyle || "normal"}
+            fill="none"
+            stroke={outlineColor}
+            strokeWidth={outlineWidth * 2}
+            strokeLinejoin="round"
+            textAnchor={textAnchor}
+            letterSpacing={`${(styles.letterSpacing || 0.02) * scaledFontSize}px`}
+          >
+            <textPath href={`#${pathId}`} startOffset={startOffset}>
+              {displayText}
+            </textPath>
+          </text>
+        )}
+        {effect === "3d" && Array.from({ length: 5 }, (_, i) => (
+          <text
+            key={i}
+            fontSize={scaledFontSize}
+            fontFamily={styles.fontFamily}
+            fontWeight={fWeight}
+            fontStyle={styles.fontStyle || "normal"}
+            fill={styles.shadowColor || "#000000"}
+            textAnchor={textAnchor}
+            letterSpacing={`${(styles.letterSpacing || 0.02) * scaledFontSize}px`}
+            dx={i + 1}
+            dy={i + 1}
+          >
+            <textPath href={`#${pathId}`} startOffset={startOffset}>
+              {displayText}
+            </textPath>
+          </text>
+        ))}
+        <text
+          fontSize={scaledFontSize}
+          fontFamily={styles.fontFamily}
+          fontWeight={fWeight}
+          fontStyle={styles.fontStyle || "normal"}
+          fill={styles.color}
+          textAnchor={textAnchor}
+          letterSpacing={`${(styles.letterSpacing || 0.02) * scaledFontSize}px`}
+          filter={needsGlow ? `url(#${filterId})` : undefined}
+        >
+          <textPath href={`#${pathId}`} startOffset={startOffset}>
+            {displayText}
+          </textPath>
+        </text>
+      </svg>
+    );
+  };
+
   return (
     <div
       className={`w-full h-full flex items-center justify-center ${getBubbleClasses()}`}
@@ -434,6 +555,8 @@ export function TextElement({
           className={`w-full h-full bg-transparent outline-none resize-none ${alignClass}`}
           style={textStyles}
         />
+      ) : hasArch ? (
+        renderArchedText()
       ) : (
         <p
           className={`w-full whitespace-pre-wrap break-words ${alignClass}`}

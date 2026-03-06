@@ -92,6 +92,7 @@ interface PanelContent {
     textTransform?: "none" | "uppercase" | "lowercase";
     letterSpacing?: number;
     lineHeight?: number;
+    textArch?: number;
   };
   zIndex: number;
   locked: boolean;
@@ -1571,6 +1572,7 @@ export default function ComicCreator() {
                   textTransform={content.data.textTransform}
                   letterSpacing={content.data.letterSpacing}
                   lineHeight={content.data.lineHeight}
+                  textArch={content.data.textArch}
                   isEditing={editingTextId === content.id}
                   onEditStart={() => setEditingTextId(content.id)}
                   onEditEnd={() => setEditingTextId(null)}
@@ -3060,6 +3062,33 @@ export default function ComicCreator() {
                           className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
                           data-testid="input-letter-spacing"
                         />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">
+                        Text Arch
+                        <span className="ml-1 text-zinc-500">({selectedContent.data.textArch || 0})</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="-100"
+                        max="100"
+                        step="5"
+                        value={selectedContent.data.textArch || 0}
+                        onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { textArch: Number(e.target.value) })}
+                        className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        data-testid="input-text-arch"
+                      />
+                      <div className="flex justify-between text-[9px] text-zinc-500 mt-0.5">
+                        <span>⌢ Down</span>
+                        <button
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { textArch: 0 })}
+                          className="text-zinc-400 hover:text-white"
+                          data-testid="button-reset-arch"
+                        >
+                          Reset
+                        </button>
+                        <span>⌣ Up</span>
                       </div>
                     </div>
                     <div className="flex gap-2 items-end">
