@@ -59,6 +59,8 @@ import AdminControlRoom from "@/pages/AdminControlRoom";
 import AdminReviewQueue from "@/pages/AdminReviewQueue";
 import PricingPage from "@/pages/PricingPage";
 import MarketplacePage from "@/pages/MarketplacePage";
+import CommunityLibrary from "@/pages/CommunityLibrary";
+import ComicReader from "@/pages/ComicReader";
 import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
 import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
 import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
@@ -160,6 +162,8 @@ function ProtectedRouter() {
         <Route path="/marketplace/sell" component={MarketplaceSellPage} />
         <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />
         <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
+        <Route path="/community" component={CommunityLibrary} />
+        <Route path="/community/read/:id" component={ComicReader} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>

@@ -107,6 +107,8 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+  getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number }): Promise<{ comics: any[]; total: number }>;
+  getCommunityComic(id: string): Promise<any | undefined>;
   
   // Asset operations
   getAsset(id: string): Promise<Asset | undefined>;
@@ -451,6 +453,65 @@ export class DatabaseStorage implements IStorage {
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number }): Promise<{ comics: any[]; total: number }> {
+    const { search, sort = "newest", limit = 20, offset = 0 } = options;
+    const conditions = [
+      sql`${projects.type} = 'comic'`,
+      sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`,
+    ];
+    if (search) {
+      conditions.push(sql`LOWER(${projects.title}) LIKE ${`%${search.toLowerCase()}%`}`);
+    }
+    const whereClause = sql.join(conditions, sql` AND `);
+    const orderBy = sort === "popular" ? desc(projects.updatedAt) : desc(projects.createdAt);
+    const comicRows = await db.select({
+      id: projects.id,
+      title: projects.title,
+      type: projects.type,
+      status: projects.status,
+      thumbnail: projects.thumbnail,
+      data: projects.data,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+      userId: projects.userId,
+      creatorName: users.name,
+      creatorAvatar: users.avatar,
+    }).from(projects)
+      .innerJoin(users, eq(projects.userId, users.id))
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db.select({ count: count() })
+      .from(projects)
+      .where(whereClause);
+
+    return { comics: comicRows, total: countResult?.count || 0 };
+  }
+
+  async getCommunityComic(id: string): Promise<any | undefined> {
+    const [comic] = await db.select({
+      id: projects.id,
+      title: projects.title,
+      type: projects.type,
+      status: projects.status,
+      thumbnail: projects.thumbnail,
+      data: projects.data,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+      userId: projects.userId,
+      creatorName: users.name,
+      creatorAvatar: users.avatar,
+    }).from(projects)
+      .innerJoin(users, eq(projects.userId, users.id))
+      .where(and(
+        eq(projects.id, id),
+        sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`
+      ));
+    return comic || undefined;
   }
   
   // Asset operations

@@ -96,6 +96,13 @@ Preferred communication style: Simple, everyday language.
 - **Stripe Integration:** Uses Stripe Checkout for paid purchases only.
 - **Database Tables:** `marketplace_listings`, `marketplace_orders`.
 
+### Community Library (Webtoons-Style)
+- **Browse Page:** `/community` — Hero banner, search bar, sort (Newest/Popular), responsive comic card grid with thumbnails, creator info, page counts.
+- **Comic Reader:** `/community/read/:id` — Vertical scrolling reader showing front/back covers, all spreads with panels, like button, creator info card with portfolio link.
+- **Admin Gating:** Only comics with status `published` or `approved` appear in the library. Admin must approve before listing.
+- **API Endpoints:** `GET /api/community/library` (search, sort, pagination), `GET /api/community/comic/:id` (full comic data), `POST /api/community/comic/:id/like` (toggle like).
+- **Navigation:** "Community Library" link in sidebar under Community section, accessible to all account types.
+
 ### Portfolio Sharing
 - **Share Modal:** Portfolio share button opens a dedicated modal with the shareable URL displayed, copy-to-clipboard functionality, and social sharing buttons (Twitter, Facebook, LinkedIn).
 - **Public URL Pattern:** `/portfolio/{userId}` accessible without authentication.

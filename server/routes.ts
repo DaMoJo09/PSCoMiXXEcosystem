@@ -4946,5 +4946,62 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ==========================================
+  // COMMUNITY LIBRARY
+  // ==========================================
+
+  app.get("/api/community/library", async (req, res) => {
+    try {
+      const { search, sort, page, limit } = req.query;
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.min(50, Math.max(1, Number(limit) || 20));
+      const offset = (pageNum - 1) * limitNum;
+
+      const result = await storage.getCommunityComics({
+        search: search as string,
+        sort: (sort as string) || "newest",
+        limit: limitNum,
+        offset,
+      });
+
+      res.json({
+        comics: result.comics.map(c => ({
+          ...c,
+          data: undefined,
+          pageCount: (c.data as any)?.spreads?.length || 0,
+        })),
+        total: result.total,
+        page: pageNum,
+        totalPages: Math.ceil(result.total / limitNum),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/comic/:id", async (req, res) => {
+    try {
+      const comic = await storage.getCommunityComic(req.params.id);
+      if (!comic) {
+        return res.status(404).json({ message: "Comic not found" });
+      }
+      res.json(comic);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/community/comic/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const comic = await storage.getCommunityComic(req.params.id);
+      if (!comic) {
+        return res.status(404).json({ message: "Comic not found" });
+      }
+      res.json({ success: true, message: "Liked" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return server;
 }

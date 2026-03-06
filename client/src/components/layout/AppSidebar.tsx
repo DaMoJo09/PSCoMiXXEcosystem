@@ -33,6 +33,7 @@ import {
   Handshake,
   Link2,
   Download,
+  Library,
   Zap,
   Star,
   Layers,
@@ -69,6 +70,10 @@ const aiTools = [
 const galleryTools = [
   { icon: Layers, label: "My Library", href: "/library" },
   { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio" },
+];
+
+const communityTools = [
+  { icon: Library, label: "Community Library", href: "/community", studentOk: true },
 ];
 
 const marketplaceTools = [
@@ -201,6 +206,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
         {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
 
         {renderSectionLabel("Community", "community-nav-label")}
+        {communityTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
         {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
 
         {renderSectionLabel("Social", "social-nav-label")}
