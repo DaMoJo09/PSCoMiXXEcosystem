@@ -124,6 +124,8 @@ function ProtectedRouter() {
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/assets" component={AssetBuilder} />
         <Route path="/tools/cyoa" component={CYOABuilder} />
+        <Route path="/community/read/:id" component={ComicReader} />
+        <Route path="/community" component={CommunityLibrary} />
         <Route path="/library" component={LibraryPage} />
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/portfolio/:userId" component={PortfolioPage} />
@@ -162,8 +164,6 @@ function ProtectedRouter() {
         <Route path="/marketplace/sell" component={MarketplaceSellPage} />
         <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />
         <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
-        <Route path="/community" component={CommunityLibrary} />
-        <Route path="/community/read/:id" component={ComicReader} />
         <Route component={NotFound} />
       </Switch>
     </LegalGate>
