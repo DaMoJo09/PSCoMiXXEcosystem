@@ -255,6 +255,7 @@ export default function CoverCreator() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
+  const coverContentRef = useRef<HTMLDivElement>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
   const spineInputRef = useRef<HTMLInputElement>(null);
@@ -312,8 +313,17 @@ export default function CoverCreator() {
           id: projectId,
           data: { title: coverData.title, data: coverData },
         });
+        toast.success("Cover saved");
+      } else {
+        const newProject = await createProject.mutateAsync({
+          title: coverData.title || "Untitled Cover",
+          type: "cover",
+          status: "draft",
+          data: coverData,
+        });
+        navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
+        toast.success("Cover created and saved");
       }
-      toast.success("Cover saved");
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -324,18 +334,27 @@ export default function CoverCreator() {
   const handleSaveAndReturnToComic = async () => {
     setIsSaving(true);
     try {
+      let savedProjectId = projectId;
       if (projectId) {
         await updateProject.mutateAsync({
           id: projectId,
           data: { title: coverData.title, data: coverData },
         });
+      } else {
+        const newProject = await createProject.mutateAsync({
+          title: coverData.title || "Untitled Cover",
+          type: "cover",
+          status: "draft",
+          data: coverData,
+        });
+        savedProjectId = newProject.id;
       }
 
       let coverImageUrl = "";
-      if (canvasRef.current) {
+      if (coverContentRef.current) {
         try {
           const html2canvasMod = await import("html2canvas");
-          const canvas = await html2canvasMod.default(canvasRef.current, {
+          const canvas = await html2canvasMod.default(coverContentRef.current, {
             scale: 1,
             useCORS: true,
             allowTaint: true,
@@ -354,8 +373,8 @@ export default function CoverCreator() {
           body: JSON.stringify({
             data: {
               comicMeta: {
-                frontCover: coverImageUrl || projectId,
-                coverProjectId: projectId,
+                frontCover: coverImageUrl || savedProjectId,
+                coverProjectId: savedProjectId,
               }
             },
             thumbnail: coverImageUrl || undefined,
@@ -374,13 +393,12 @@ export default function CoverCreator() {
   };
 
   const handleExport = async () => {
-    if (!canvasRef.current) return;
+    if (!coverContentRef.current) return;
     
     try {
       toast.info("Exporting cover...");
       
-      // Use html2canvas for accurate rendering of all layers, filters, and elements
-      const canvas = await html2canvas(canvasRef.current, {
+      const canvas = await html2canvas(coverContentRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -388,7 +406,6 @@ export default function CoverCreator() {
         logging: false,
       });
       
-      // Download
       const link = document.createElement("a");
       link.download = `${coverData.title.replace(/\s+/g, "_")}_cover.png`;
       link.href = canvas.toDataURL("image/png");
@@ -1334,6 +1351,7 @@ export default function CoverCreator() {
                 <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
                      style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
                 
+                <div ref={coverContentRef}>
                 {activeView === "spread" ? (
                   <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
                     {renderCoverSection("back", "400px", "600px")}
@@ -1347,6 +1365,7 @@ export default function CoverCreator() {
                 ) : (
                   renderCoverSection("spine", "60px", "675px")
                 )}
+                </div>
                 
                 <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
                   {activeView.toUpperCase()} VIEW • 300 DPI PRINT READY
