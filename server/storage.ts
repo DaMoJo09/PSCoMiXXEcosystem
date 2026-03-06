@@ -90,7 +90,7 @@ import {
   type EngagementEvent, type InsertEngagementEvent,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, sql, ilike } from "drizzle-orm";
+import { eq, desc, and, count, sql, ilike, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -367,7 +367,7 @@ export interface IStorage {
   getEngagementSummary(contentId: string): Promise<Record<string, number>>;
 
   // Marketplace operations
-  getMarketplaceListings(filters?: { type?: string; status?: string; search?: string; limit?: number; offset?: number }): Promise<MarketplaceListing[]>;
+  getMarketplaceListings(filters?: { type?: string; status?: string; search?: string; pricing?: string; limit?: number; offset?: number }): Promise<MarketplaceListing[]>;
   getMarketplaceListing(id: string): Promise<MarketplaceListing | undefined>;
   getSellerListings(sellerId: string): Promise<MarketplaceListing[]>;
   createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
@@ -2387,7 +2387,7 @@ export class DatabaseStorage implements IStorage {
   // MARKETPLACE OPERATIONS
   // ============================================
 
-  async getMarketplaceListings(filters?: { type?: string; status?: string; search?: string; limit?: number; offset?: number }): Promise<MarketplaceListing[]> {
+  async getMarketplaceListings(filters?: { type?: string; status?: string; search?: string; pricing?: string; limit?: number; offset?: number }): Promise<MarketplaceListing[]> {
     const conditions = [];
     const status = filters?.status || "active";
     conditions.push(eq(marketplaceListings.status, status));
@@ -2397,6 +2397,11 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.search) {
       conditions.push(ilike(marketplaceListings.title, `%${filters.search}%`));
+    }
+    if (filters?.pricing === "free") {
+      conditions.push(eq(marketplaceListings.priceInCents, 0));
+    } else if (filters?.pricing === "paid") {
+      conditions.push(gt(marketplaceListings.priceInCents, 0));
     }
 
     const query = db.select().from(marketplaceListings)

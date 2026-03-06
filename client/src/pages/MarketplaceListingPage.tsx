@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { ArrowLeft, ShoppingCart, Star, Eye, DollarSign, Package, User, Calendar, Tag, Download, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Star, Eye, DollarSign, Package, User, Calendar, Tag, Download, Edit, Trash2, Gift, FolderOpen } from "lucide-react";
 import { marketplaceApi } from "@/lib/api";
 import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -34,8 +35,10 @@ export default function MarketplaceListingPage() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { addAsset } = useAssetLibrary();
   const queryClient = useQueryClient();
   const [selectedPreview, setSelectedPreview] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
 
   const { data: listing, isLoading, error } = useQuery({
     queryKey: ["marketplace-listing", params.id],
@@ -43,9 +46,26 @@ export default function MarketplaceListingPage() {
     enabled: !!params.id,
   });
 
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["marketplace-purchases"],
+    queryFn: () => marketplaceApi.getPurchases(),
+    enabled: !!user,
+  });
+
+  const hasPurchased = purchases.some((p: any) => p.listingId === params.id && p.status === "completed");
+
   const checkoutMutation = useMutation({
     mutationFn: () => marketplaceApi.checkout(listing!.id),
     onSuccess: (data) => { window.location.href = data.url; },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const claimFreeMutation = useMutation({
+    mutationFn: () => marketplaceApi.claimFree(listing!.id),
+    onSuccess: () => {
+      toast.success("Added to your library!");
+      queryClient.invalidateQueries({ queryKey: ["marketplace-purchases"] });
+    },
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -65,7 +85,37 @@ export default function MarketplaceListingPage() {
     }
   };
 
+  const handleImportToLibrary = async () => {
+    if (!listing) return;
+    setIsImporting(true);
+    try {
+      const downloadData = await marketplaceApi.getDownload(listing.id);
+      const assets = downloadData?.downloadData?.assets || [];
+      if (assets.length === 0) {
+        toast.error("No assets found in this pack");
+        return;
+      }
+      let imported = 0;
+      for (const asset of assets) {
+        await addAsset({
+          name: asset.name || `Asset ${imported + 1}`,
+          type: "image",
+          url: asset.url,
+          folderId: "sprites",
+          tags: [],
+        });
+        imported++;
+      }
+      toast.success(`${imported} asset(s) imported to your library!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to import assets");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const isOwner = user && listing && String(listing.sellerId) === String(user.id);
+  const isFree = listing && listing.priceInCents === 0;
 
   if (isLoading) {
     return (
@@ -144,10 +194,15 @@ export default function MarketplaceListingPage() {
                     <Tag className="w-20 h-20 text-white/20" />
                   </div>
                 )}
-                <div className="absolute top-3 left-3">
+                <div className="absolute top-3 left-3 flex gap-2">
                   <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${typeColor}`}>
                     {listing.type?.replace("_", " ")}
                   </span>
+                  {isFree && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-green-500 text-black">
+                      <Gift className="w-3 h-3" /> FREE
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -216,17 +271,26 @@ export default function MarketplaceListingPage() {
                 </h1>
 
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-green-400" />
-                  <span className="text-3xl font-bold text-green-400" data-testid="text-listing-price">
-                    ${formatPrice(listing.priceInCents || 0)}
-                  </span>
+                  {isFree ? (
+                    <>
+                      <Gift className="w-6 h-6 text-green-400" />
+                      <span className="text-3xl font-bold text-green-400" data-testid="text-listing-price">FREE</span>
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="w-6 h-6 text-green-400" />
+                      <span className="text-3xl font-bold text-green-400" data-testid="text-listing-price">
+                        ${formatPrice(listing.priceInCents || 0)}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground py-2 border-t border-b border-border">
                   {(listing as any).salesCount > 0 && (
                     <span className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 text-yellow-400" />
-                      {(listing as any).salesCount} sold
+                      {(listing as any).salesCount} {isFree ? "claimed" : "sold"}
                     </span>
                   )}
                   {listing.createdAt && (
@@ -251,7 +315,7 @@ export default function MarketplaceListingPage() {
                     data-testid="button-sign-in-to-purchase"
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Sign in to purchase
+                    Sign in to {isFree ? "claim" : "purchase"}
                   </button>
                 ) : isOwner ? (
                   <button
@@ -261,6 +325,38 @@ export default function MarketplaceListingPage() {
                   >
                     <Package className="w-4 h-4" />
                     This is your listing
+                  </button>
+                ) : hasPurchased ? (
+                  <div className="space-y-2">
+                    <button
+                      disabled
+                      className="w-full py-3 text-sm font-bold uppercase tracking-wide bg-green-500/20 text-green-400 border-2 border-green-500/50 cursor-default flex items-center justify-center gap-2"
+                      data-testid="button-already-owned"
+                    >
+                      <Download className="w-4 h-4" />
+                      {isFree ? "Already Claimed" : "Already Purchased"}
+                    </button>
+                    {listing.type === "asset_pack" && (
+                      <button
+                        onClick={handleImportToLibrary}
+                        disabled={isImporting}
+                        className="w-full py-2.5 text-xs font-bold uppercase tracking-wide border-2 border-blue-500 text-blue-400 hover:bg-blue-500/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        data-testid="button-import-to-library"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        {isImporting ? "Importing..." : "Import to Asset Library"}
+                      </button>
+                    )}
+                  </div>
+                ) : isFree ? (
+                  <button
+                    onClick={() => claimFreeMutation.mutate()}
+                    disabled={claimFreeMutation.isPending}
+                    className="w-full py-3 text-sm font-bold uppercase tracking-wide bg-green-500 text-black border-2 border-green-500 hover:bg-green-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    data-testid="button-get-free"
+                  >
+                    <Gift className="w-4 h-4" />
+                    {claimFreeMutation.isPending ? "Claiming..." : "Get Free"}
                   </button>
                 ) : (
                   <button

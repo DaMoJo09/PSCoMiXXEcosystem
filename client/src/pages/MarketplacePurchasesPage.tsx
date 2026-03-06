@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { ArrowLeft, ShoppingBag, DollarSign, Package, Calendar, TrendingUp, Download } from "lucide-react";
+import { ArrowLeft, ShoppingBag, DollarSign, Package, Calendar, TrendingUp, Download, FolderOpen, Gift } from "lucide-react";
 import { marketplaceApi } from "@/lib/api";
+import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const formatPrice = (cents: number) => (cents / 100).toFixed(2);
 
@@ -27,6 +29,8 @@ const TYPE_GRADIENTS: Record<string, string> = {
 export default function MarketplacePurchasesPage() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<"purchases" | "sales">("purchases");
+  const [importingOrderId, setImportingOrderId] = useState<string | null>(null);
+  const { addAsset } = useAssetLibrary();
 
   const { data: purchases = [], isLoading: purchasesLoading } = useQuery({
     queryKey: ["marketplace-purchases"],
@@ -51,6 +55,34 @@ export default function MarketplacePurchasesPage() {
       }
     } catch (err) {
       console.error("Download failed:", err);
+    }
+  };
+
+  const handleImportToLibrary = async (orderId: string, listingId: string) => {
+    setImportingOrderId(orderId);
+    try {
+      const data = await marketplaceApi.getDownload(listingId);
+      const assets = data?.downloadData?.assets || [];
+      if (assets.length === 0) {
+        toast.error("No assets found in this pack");
+        return;
+      }
+      let imported = 0;
+      for (const asset of assets) {
+        await addAsset({
+          name: asset.name || `Asset ${imported + 1}`,
+          type: "image",
+          url: asset.url,
+          folderId: "sprites",
+          tags: [],
+        });
+        imported++;
+      }
+      toast.success(`${imported} asset(s) imported to your library!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to import assets");
+    } finally {
+      setImportingOrderId(null);
     }
   };
 
@@ -192,14 +224,22 @@ export default function MarketplacePurchasesPage() {
                             </span>
 
                             {order.status === "completed" && order.listingId && (
-                              <button
-                                onClick={() => handleDownload(order.listingId)}
-                                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wide border-2 border-green-500 text-green-400 hover:bg-green-500 hover:text-black transition-colors"
-                                data-testid={`button-download-${order.id}`}
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                Download
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {order.amountInCents === 0 && (
+                                  <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border border-green-500/30">
+                                    <Gift className="w-3 h-3 inline mr-1" />Free
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => handleImportToLibrary(order.id, order.listingId)}
+                                  disabled={importingOrderId === order.id}
+                                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wide border-2 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-black transition-colors disabled:opacity-50"
+                                  data-testid={`button-import-${order.id}`}
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5" />
+                                  {importingOrderId === order.id ? "Importing..." : "Import to Library"}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>

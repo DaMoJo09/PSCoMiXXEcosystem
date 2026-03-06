@@ -275,12 +275,13 @@ export const announcementsApi = {
 };
 
 export const marketplaceApi = {
-  getListings: async (filters?: { type?: string; search?: string; limit?: number; offset?: number }) => {
+  getListings: async (filters?: { type?: string; search?: string; limit?: number; offset?: number; pricing?: string }) => {
     const params = new URLSearchParams();
     if (filters?.type) params.set('type', filters.type);
     if (filters?.search) params.set('search', filters.search);
     if (filters?.limit) params.set('limit', String(filters.limit));
     if (filters?.offset) params.set('offset', String(filters.offset));
+    if (filters?.pricing) params.set('pricing', filters.pricing);
     const response = await fetch(`${API_BASE}/marketplace/listings?${params}`, { credentials: "include" });
     return handleResponse<MarketplaceListing[]>(response);
   },
@@ -351,6 +352,16 @@ export const marketplaceApi = {
   getEarnings: async () => {
     const response = await fetch(`${API_BASE}/marketplace/earnings`, { credentials: "include" });
     return handleResponse<{ orders: MarketplaceOrder[]; totalEarnings: number }>(response);
+  },
+
+  claimFree: async (listingId: string) => {
+    const response = await fetch(`${API_BASE}/marketplace/claim-free`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId }),
+      credentials: "include",
+    });
+    return handleResponse<{ success: boolean; orderId: string }>(response);
   },
 
   getDownload: async (listingId: string) => {

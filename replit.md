@@ -69,12 +69,19 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Save:** Debounced 3-second auto-save functionality.
 
 ### Creator Marketplace
-- **Browse:** Public storefront with search and type filters for various content.
-- **Listing Detail:** Full listing view with hero image, price, description, tags, preview gallery, and buy button.
-- **Sell Content:** Creators can list published/approved projects for sale (students cannot sell).
-- **Purchases & Sales:** Tabbed page showing purchase history and a seller dashboard with earnings.
-- **Stripe Integration:** Uses Stripe Checkout for one-time purchases.
+- **Browse:** Public storefront with search, type filters, and pricing filters (All/Free/Paid) for various content.
+- **Listing Detail:** Full listing view with hero image, price, description, tags, preview gallery, and buy/claim button.
+- **Free Listings:** Creators can list content for free ($0). Free items use a "Get Free" flow that bypasses Stripe, creating a completed order directly via `/api/marketplace/claim-free`.
+- **Paid Listings:** Minimum $0.99, uses Stripe Checkout for one-time purchases.
+- **Asset Packs:** Creators can upload image asset packs directly (without needing a published project). Pack assets stored as data URLs in `downloadData` field. Users can import purchased/claimed asset packs into their personal Asset Library.
+- **Sell Content:** Creators can list published/approved projects or upload asset packs for sale or free (students cannot sell). Two listing modes: "Published Project" or "Asset Pack".
+- **Purchases & Sales:** Tabbed page showing purchase history (with "Import to Library" for asset packs) and a seller dashboard with earnings.
+- **Stripe Integration:** Uses Stripe Checkout for paid purchases only.
 - **Database Tables:** `marketplace_listings`, `marketplace_orders`.
+
+### Portfolio Sharing
+- **Share Modal:** Portfolio share button opens a dedicated modal with the shareable URL displayed, copy-to-clipboard functionality, and social sharing buttons (Twitter, Facebook, LinkedIn).
+- **Public URL Pattern:** `/portfolio/{userId}` accessible without authentication.
 
 ### Motion Studio Audio
 - **Audio Clips:** Upload audio files, stored as data URLs in project data.

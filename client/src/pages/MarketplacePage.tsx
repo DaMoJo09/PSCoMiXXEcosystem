@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { Search, ShoppingBag, Filter, Tag, Star, Eye, DollarSign, Package } from "lucide-react";
+import { Search, ShoppingBag, Filter, Tag, Star, Eye, DollarSign, Package, Gift } from "lucide-react";
 import { marketplaceApi } from "@/lib/api";
 import { useLocation } from "wouter";
 
@@ -14,6 +14,12 @@ const TYPE_FILTERS = [
   { id: "cover", label: "Cover" },
   { id: "motion", label: "Motion" },
   { id: "asset_pack", label: "Asset Pack" },
+];
+
+const PRICING_FILTERS = [
+  { id: "", label: "All Prices" },
+  { id: "free", label: "Free" },
+  { id: "paid", label: "Paid" },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
@@ -42,10 +48,15 @@ export default function MarketplacePage() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("");
+  const [selectedPricing, setSelectedPricing] = useState<string>("");
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ["marketplace-listings", selectedType, searchQuery],
-    queryFn: () => marketplaceApi.getListings({ type: selectedType || undefined, search: searchQuery || undefined }),
+    queryKey: ["marketplace-listings", selectedType, searchQuery, selectedPricing],
+    queryFn: () => marketplaceApi.getListings({
+      type: selectedType || undefined,
+      search: searchQuery || undefined,
+      pricing: selectedPricing || undefined,
+    }),
   });
 
   return (
@@ -63,11 +74,11 @@ export default function MarketplacePage() {
               </h1>
             </div>
             <p className="text-muted-foreground text-lg">
-              Buy and sell comics, cards, and creative assets
+              Buy, sell, and share comics, cards, and creative assets
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+          <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
             <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -99,6 +110,25 @@ export default function MarketplacePage() {
             </div>
           </div>
 
+          <div className="flex items-center gap-2 mb-6">
+            <DollarSign className="w-4 h-4 text-muted-foreground hidden md:block" />
+            {PRICING_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setSelectedPricing(f.id)}
+                className={`px-3 py-1.5 text-xs font-bold border-2 transition-colors uppercase tracking-wide ${
+                  selectedPricing === f.id
+                    ? f.id === "free" ? "bg-green-500 text-black border-green-500" : "bg-cyan-500 text-black border-cyan-500"
+                    : "border-border text-muted-foreground hover:border-cyan-500/50 hover:text-foreground"
+                }`}
+                data-testid={`filter-pricing-${f.id || "all"}`}
+              >
+                {f.id === "free" && <Gift className="w-3 h-3 inline mr-1" />}
+                {f.label}
+              </button>
+            ))}
+          </div>
+
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -117,12 +147,12 @@ export default function MarketplacePage() {
             <div className="text-center py-20 border-2 border-dashed border-border">
               <Package className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground text-lg mb-2" data-testid="text-empty-state">
-                {searchQuery || selectedType
+                {searchQuery || selectedType || selectedPricing
                   ? "No listings match your filters"
                   : "No listings available yet"}
               </p>
               <p className="text-muted-foreground/60 text-sm">
-                {searchQuery || selectedType
+                {searchQuery || selectedType || selectedPricing
                   ? "Try adjusting your search or filters"
                   : "Check back soon for new creative assets"}
               </p>
@@ -132,6 +162,7 @@ export default function MarketplacePage() {
               {listings.map((listing: any) => {
                 const typeColor = TYPE_COLORS[listing.type] || "bg-zinc-600 text-white";
                 const gradient = TYPE_GRADIENTS[listing.type] || "from-zinc-800 to-zinc-600";
+                const isFree = listing.priceInCents === 0;
 
                 return (
                   <div
@@ -141,9 +172,9 @@ export default function MarketplacePage() {
                     data-testid={`card-listing-${listing.id}`}
                   >
                     <div className="aspect-[4/3] relative overflow-hidden">
-                      {listing.thumbnailUrl ? (
+                      {(listing.thumbnailUrl || listing.thumbnail) ? (
                         <img
-                          src={listing.thumbnailUrl}
+                          src={listing.thumbnailUrl || listing.thumbnail}
                           alt={listing.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -160,10 +191,17 @@ export default function MarketplacePage() {
                       </div>
 
                       <div className="absolute top-2 right-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-green-500 text-black">
-                          <DollarSign className="w-3 h-3" />
-                          {formatPrice(listing.priceInCents || 0)}
-                        </span>
+                        {isFree ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-green-500 text-black">
+                            <Gift className="w-3 h-3" />
+                            FREE
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-green-500 text-black">
+                            <DollarSign className="w-3 h-3" />
+                            {formatPrice(listing.priceInCents || 0)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -190,21 +228,25 @@ export default function MarketplacePage() {
                         {listing.salesCount > 0 && (
                           <span className="flex items-center gap-1 text-yellow-400">
                             <Star className="w-3 h-3" />
-                            {listing.salesCount} sold
+                            {listing.salesCount} {isFree ? "claimed" : "sold"}
                           </span>
                         )}
                       </div>
 
                       <button
-                        className="w-full py-2 text-xs font-bold uppercase tracking-wide border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors flex items-center justify-center gap-2"
+                        className={`w-full py-2 text-xs font-bold uppercase tracking-wide border-2 transition-colors flex items-center justify-center gap-2 ${
+                          isFree
+                            ? "border-green-500 text-green-400 hover:bg-green-500 hover:text-black"
+                            : "border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black"
+                        }`}
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/marketplace/listing/${listing.id}`);
                         }}
                         data-testid={`button-view-listing-${listing.id}`}
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        View Details
+                        {isFree ? <Gift className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {isFree ? "Get Free" : "View Details"}
                       </button>
                     </div>
                   </div>

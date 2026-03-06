@@ -4542,11 +4542,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/marketplace/listings", async (req, res) => {
     try {
-      const { type, search, limit, offset } = req.query;
+      const { type, search, limit, offset, pricing } = req.query;
       const listings = await storage.getMarketplaceListings({
         type: type as string | undefined,
         status: "active",
         search: search as string | undefined,
+        pricing: pricing as string | undefined,
         limit: limit ? parseInt(limit as string) : 20,
         offset: offset ? parseInt(offset as string) : 0,
       });
@@ -4620,7 +4621,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(403).json({ message: "Students cannot create marketplace listings" });
       }
 
-      const { projectId, title, description, type, priceInCents, previewImages, thumbnail, tags } = req.body;
+      const { projectId, title, description, type, priceInCents, previewImages, thumbnail, tags, downloadData } = req.body;
 
       if (projectId) {
         const project = await storage.getProject(projectId);
@@ -4637,7 +4638,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const result = insertMarketplaceListingSchema.safeParse({
         sellerId: req.user!.id,
-        projectId,
+        projectId: projectId || undefined,
         title,
         description,
         type,
@@ -4645,6 +4646,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         previewImages,
         thumbnail,
         tags,
+        downloadData: downloadData || undefined,
       });
 
       if (!result.success) {
@@ -4690,6 +4692,52 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/marketplace/claim-free", isAuthenticated, async (req, res) => {
+    try {
+      const { listingId } = req.body;
+      if (!listingId) {
+        return res.status(400).json({ message: "listingId is required" });
+      }
+
+      const listing = await storage.getMarketplaceListing(listingId);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (listing.status !== "active") {
+        return res.status(400).json({ message: "Listing is not available" });
+      }
+      if (listing.priceInCents !== 0) {
+        return res.status(400).json({ message: "This listing is not free" });
+      }
+      if (listing.sellerId === req.user!.id) {
+        return res.status(400).json({ message: "You cannot claim your own listing" });
+      }
+
+      const alreadyClaimed = await storage.hasUserPurchasedListing(req.user!.id, listingId);
+      if (alreadyClaimed) {
+        return res.status(400).json({ message: "You have already claimed this listing" });
+      }
+
+      const order = await storage.createMarketplaceOrder({
+        buyerId: req.user!.id,
+        listingId: listing.id,
+        sellerId: listing.sellerId,
+        amountInCents: 0,
+        currency: listing.currency || 'usd',
+        status: 'completed',
+        stripeSessionId: null,
+      });
+
+      await storage.updateMarketplaceListing(listing.id, {
+        salesCount: (listing as any).salesCount ? (listing as any).salesCount + 1 : 1,
+      } as any);
+
+      res.json({ success: true, orderId: order.id });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/marketplace/checkout", isAuthenticated, async (req, res) => {
     try {
       const { listingId } = req.body;
@@ -4703,6 +4751,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       if (listing.status !== "active") {
         return res.status(400).json({ message: "Listing is not available for purchase" });
+      }
+
+      if (listing.priceInCents === 0) {
+        return res.status(400).json({ message: "This listing is free. Use /api/marketplace/claim-free instead." });
       }
 
       const alreadyPurchased = await storage.hasUserPurchasedListing(req.user!.id, listingId);
