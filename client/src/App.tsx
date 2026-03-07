@@ -92,7 +92,7 @@ function ProtectedRouter() {
     );
   }
 
-  if (location === "/login" || location === "/signup") {
+  if (location === "/login" || location === "/signup" || location === "/auth") {
     return <AuthPage />;
   }
 
