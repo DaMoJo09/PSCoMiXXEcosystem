@@ -1537,16 +1537,16 @@ export default function CoverCreator() {
                 <div ref={coverContentRef}>
                 {activeView === "spread" ? (
                   <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
-                    {renderCoverSection("back", "400px", "600px")}
-                    {renderCoverSection("spine", "50px", "600px")}
-                    {renderCoverSection("front", "400px", "600px")}
+                    {renderCoverSection("back", "480px", "720px")}
+                    {renderCoverSection("spine", "60px", "720px")}
+                    {renderCoverSection("front", "480px", "720px")}
                   </div>
                 ) : activeView === "front" ? (
-                  renderCoverSection("front", "500px", "750px")
+                  renderCoverSection("front", "600px", "900px")
                 ) : activeView === "back" ? (
-                  renderCoverSection("back", "500px", "750px")
+                  renderCoverSection("back", "600px", "900px")
                 ) : (
-                  renderCoverSection("spine", "70px", "750px")
+                  renderCoverSection("spine", "80px", "900px")
                 )}
                 </div>
                 
