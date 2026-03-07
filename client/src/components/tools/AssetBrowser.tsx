@@ -379,7 +379,7 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 bg-[#0a0a0a] border-[#252525] text-white flex flex-col overflow-hidden">
+      <DialogContent className="max-w-5xl max-h-[80vh] h-[80vh] p-0 bg-[#0a0a0a] border-[#252525] text-white flex flex-col overflow-hidden [&>button.absolute]:hidden">
         <DialogHeader className="p-4 border-b border-[#252525] shrink-0">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
