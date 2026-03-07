@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import html2canvas from "html2canvas";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
@@ -240,6 +241,7 @@ export default function CardCreator() {
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+  const cardPreviewRef = useRef<HTMLDivElement>(null);
 
   const switchCardMode = (newMode: "tcg" | "sports") => {
     setCardMode(newMode);
@@ -377,6 +379,39 @@ export default function CardCreator() {
       toast.error(error.message || "Save failed");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!cardPreviewRef.current) return;
+    try {
+      toast.info("Exporting print-ready card (300 DPI)...");
+      
+      const el = cardPreviewRef.current;
+      const elWidth = el.offsetWidth;
+      const targetDPI = 300;
+      const inchW = mode === "pack" ? 4.5 : 2.5;
+      const targetWidth = Math.round(inchW * targetDPI);
+      const printScale = targetWidth / elWidth;
+      
+      const canvas = await html2canvas(el, {
+        scale: printScale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+      
+      const label = mode === "pack" ? "pack" : `card_${side}`;
+      const link = document.createElement("a");
+      link.download = `${cardData.name.replace(/\s+/g, "_")}_${label}_print.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      
+      toast.success(`Exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export card");
     }
   };
 
@@ -610,7 +645,7 @@ export default function CardCreator() {
             >
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
+            <button onClick={handleExport} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export-card">
               <Download className="w-4 h-4" /> Export
             </button>
             {projectId && (
@@ -1413,7 +1448,7 @@ export default function CardCreator() {
 
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <div className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
+              <div className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative">
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                      style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
             
@@ -1425,13 +1460,14 @@ export default function CardCreator() {
                   onChange={handlePackArtUpload} 
                 />
             
+                <div ref={cardPreviewRef}>
                 {mode === "pack" ? (
                   <div className="relative">
                     <div className="text-center mb-4">
                       <h3 className="text-2xl font-bold">{packData.name}</h3>
                       <p className="text-sm text-zinc-500">{packData.cards.length} / {packData.cardsPerPack} cards</p>
                     </div>
-                    <div className="relative w-[500px] aspect-[3/4] mx-auto">
+                    <div className="relative w-[550px] aspect-[3/4] mx-auto">
                       <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
                         <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
@@ -1468,7 +1504,7 @@ export default function CardCreator() {
                   </div>
                 ) : side === "front" ? (
                   cardMode === "sports" ? (
-                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
                     <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
                       <div className="flex-1 relative overflow-hidden">
                         <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
@@ -1537,7 +1573,7 @@ export default function CardCreator() {
                     </div>
                   </div>
                   ) : (
-                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-2 bg-white flex flex-col">
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
                         {cardData.nameArch !== 0 ? (
@@ -1602,7 +1638,7 @@ export default function CardCreator() {
                   </div>
                   )
                 ) : (
-                  <div className="relative w-[500px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-4 border-2 border-white/30" />
                     <div className="absolute inset-0 opacity-30">
                       <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />
@@ -1612,6 +1648,7 @@ export default function CardCreator() {
                     </div>
                   </div>
                 )}
+                </div>
                 <p className="absolute bottom-8 font-mono text-xs text-zinc-500">
                   {side.toUpperCase()} • 300 DPI PRINT READY
                 </p>

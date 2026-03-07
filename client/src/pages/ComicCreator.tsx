@@ -737,16 +737,16 @@ export default function ComicCreator() {
       return;
     }
     try {
-      toast.info("Exporting current page...");
+      toast.info("Exporting print-ready page (300 DPI)...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-      const canvas = await exportPageToCanvas(panels, 800, 1200);
+      const canvas = await exportPageToCanvas(panels, 1988, 3075);
       
       const link = document.createElement("a");
       link.download = `${title.replace(/\s+/g, "_")}_page_${currentSpreadIndex * 2 + (selectedPage === "left" ? 1 : 2)}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       
-      toast.success("Page exported successfully!");
+      toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
     } catch (error) {
       toast.error("Failed to export page");
     }
@@ -775,7 +775,7 @@ export default function ComicCreator() {
         
         if (spread.leftPage.length > 0) {
           pageNum++;
-          const leftCanvas = await exportPageToCanvas(spread.leftPage, 800, 1200);
+          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075);
           const leftLink = document.createElement("a");
           leftLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           leftLink.href = leftCanvas.toDataURL("image/png");
@@ -785,7 +785,7 @@ export default function ComicCreator() {
         
         if (spread.rightPage.length > 0) {
           pageNum++;
-          const rightCanvas = await exportPageToCanvas(spread.rightPage, 800, 1200);
+          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075);
           const rightLink = document.createElement("a");
           rightLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           rightLink.href = rightCanvas.toDataURL("image/png");
@@ -801,7 +801,7 @@ export default function ComicCreator() {
         backLink.click();
       }
       
-      toast.success(`Full comic exported! ${pageNum} pages total`);
+      toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
     } catch (error) {
       toast.error("Failed to export pages");
     }

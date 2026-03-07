@@ -78,6 +78,7 @@ Preferred communication style: Simple, everyday language.
 - **Text Arch:** `textArch` property on TextLayer (-100 to 100) renders arched text via SVG `<textPath>`.
 - **Asset Library Integration:** Assets from the Asset Library can be added to covers as transformable image layers via the Assets button in the header toolbar, the sidebar Image Layers section, or right-click context menu. Image layers support drag/resize/rotate via `TransformableElement` and per-layer opacity control.
 - **Image Layers:** `ImageLayer` interface with `url`, `name`, `transform`, `opacity`, `locked`. Stored as `frontImageLayers`, `backImageLayers`, `spineImageLayers` in CoverData. Rendered below text layers, above background.
+- **Print-Ready Export:** Exports at 300 DPI. Front/Back: 6.625" (1988px), Spine: 0.7" (210px), Spread: 13.95" (4185px). Uses html2canvas with dynamic scale based on actual element width.
 
 ### Card Creator
 - **Card Modes:** TCG mode (trading card game) and Sports mode toggled via sidebar buttons.
@@ -87,6 +88,7 @@ Preferred communication style: Simple, everyday language.
 - **Sports Templates:** Baseball Classic, Basketball Court, Football Gridiron, Soccer Pitch, Hockey Ice, Varsity Classic, Retro Sports, Neon Athlete, Team Spirit, Rookie Card.
 - **Sports Card Preview:** Photo-forward layout with jersey number badge, position/team overlay on image gradient, stat line and school info.
 - **Name Arch:** `nameArch` property on CardData renders the card name with SVG arch. Slider control in style sidebar (-100 to 100).
+- **Print-Ready Export:** Exports at 300 DPI (2.5"x3.5" = 750x1050px). Uses html2canvas with `cardPreviewRef`. Supports both single card and pack mode export.
 
 ### Creator Marketplace
 - **Browse:** Public storefront with search, type filters, and pricing filters (All/Free/Paid) for various content.

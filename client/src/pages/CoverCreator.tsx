@@ -414,10 +414,18 @@ export default function CoverCreator() {
     if (!coverContentRef.current) return;
     
     try {
-      toast.info("Exporting cover...");
+      toast.info("Exporting print-ready cover (300 DPI)...");
       
-      const canvas = await html2canvas(coverContentRef.current, {
-        scale: 2,
+      const el = coverContentRef.current;
+      const elWidth = el.offsetWidth;
+      const elHeight = el.offsetHeight;
+      const targetDPI = 300;
+      const inchW = activeView === "spread" ? 13.95 : activeView === "spine" ? 0.7 : 6.625;
+      const targetWidth = Math.round(inchW * targetDPI);
+      const printScale = targetWidth / elWidth;
+      
+      const canvas = await html2canvas(el, {
+        scale: printScale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
@@ -425,11 +433,11 @@ export default function CoverCreator() {
       });
       
       const link = document.createElement("a");
-      link.download = `${coverData.title.replace(/\s+/g, "_")}_cover.png`;
+      link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       
-      toast.success("Cover exported successfully!");
+      toast.success(`Cover exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export cover");
@@ -1489,7 +1497,7 @@ export default function CoverCreator() {
 
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <div ref={canvasRef} className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative">
+              <div ref={canvasRef} className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative">
                 <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
                      style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
                 
@@ -1501,11 +1509,11 @@ export default function CoverCreator() {
                     {renderCoverSection("front", "400px", "600px")}
                   </div>
                 ) : activeView === "front" ? (
-                  renderCoverSection("front", "450px", "675px")
+                  renderCoverSection("front", "500px", "750px")
                 ) : activeView === "back" ? (
-                  renderCoverSection("back", "450px", "675px")
+                  renderCoverSection("back", "500px", "750px")
                 ) : (
-                  renderCoverSection("spine", "60px", "675px")
+                  renderCoverSection("spine", "70px", "750px")
                 )}
                 </div>
                 
