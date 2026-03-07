@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { ArrowLeft, ShoppingCart, Star, Eye, DollarSign, Package, User, Calendar, Tag, Download, Edit, Trash2, Gift, FolderOpen } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Star, Eye, DollarSign, Package, User, Calendar, Tag, Download, Edit, Trash2, Gift, FolderOpen, CheckCircle, MessageSquare } from "lucide-react";
 import { marketplaceApi } from "@/lib/api";
 import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
 
 const TYPE_COLORS: Record<string, string> = {
   comic: "bg-cyan-500 text-black",
@@ -39,6 +40,9 @@ export default function MarketplaceListingPage() {
   const queryClient = useQueryClient();
   const [selectedPreview, setSelectedPreview] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   const { data: listing, isLoading, error } = useQuery({
     queryKey: ["marketplace-listing", params.id],
@@ -50,6 +54,33 @@ export default function MarketplaceListingPage() {
     queryKey: ["marketplace-purchases"],
     queryFn: () => marketplaceApi.getPurchases(),
     enabled: !!user,
+  });
+
+  const { data: reviews = [] } = useQuery<any[]>({
+    queryKey: ["marketplace-reviews", params.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/marketplace/listings/${params.id}/reviews`);
+      if (!res.ok) throw new Error("Failed to load reviews");
+      return res.json();
+    },
+    enabled: !!params.id,
+  });
+
+  const submitReviewMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/marketplace/listings/${params.id}/reviews`, {
+        rating: reviewRating,
+        reviewText: reviewText || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Review submitted!");
+      setShowReviewForm(false);
+      setReviewText("");
+      queryClient.invalidateQueries({ queryKey: ["marketplace-reviews", params.id] });
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const hasPurchased = purchases.some((p: any) => p.listingId === params.id && p.status === "completed");
@@ -394,6 +425,114 @@ export default function MarketplaceListingPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-8 border-2 border-border bg-zinc-900 p-6" data-testid="section-reviews">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-cyan-400" />
+              Reviews ({reviews.length})
+              {reviews.length > 0 && (
+                <span className="text-sm text-yellow-400 flex items-center gap-1 ml-2">
+                  <Star className="w-4 h-4 fill-yellow-400" />
+                  {(reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length).toFixed(1)}
+                </span>
+              )}
+            </h2>
+            {user && hasPurchased && !reviews.some((r: any) => r.userId === user.id) && (
+              <button
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wide border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                data-testid="button-write-review"
+              >
+                Write a Review
+              </button>
+            )}
+          </div>
+
+          {showReviewForm && (
+            <div className="mb-6 p-4 border border-border bg-zinc-800" data-testid="form-review">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm text-muted-foreground">Rating:</span>
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setReviewRating(s)}
+                    className="focus:outline-none"
+                    data-testid={`button-star-${s}`}
+                  >
+                    <Star className={`w-5 h-5 ${s <= reviewRating ? "fill-yellow-400 text-yellow-400" : "text-zinc-600"}`} />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewText}
+                onChange={e => setReviewText(e.target.value)}
+                placeholder="Share your experience (optional)..."
+                className="w-full h-24 px-3 py-2 bg-zinc-900 border border-border text-sm text-white placeholder:text-muted-foreground resize-none focus:outline-none focus:border-cyan-500"
+                maxLength={1000}
+                data-testid="input-review-text"
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  onClick={() => setShowReviewForm(false)}
+                  className="px-4 py-2 text-xs font-bold uppercase border border-border text-muted-foreground hover:text-white"
+                  data-testid="button-cancel-review"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => submitReviewMutation.mutate()}
+                  disabled={submitReviewMutation.isPending}
+                  className="px-4 py-2 text-xs font-bold uppercase bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
+                  data-testid="button-submit-review"
+                >
+                  {submitReviewMutation.isPending ? "Submitting..." : "Submit Review"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No reviews yet. Be the first to review!</p>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review: any) => (
+                <div key={review.id} className="p-4 border border-border bg-zinc-800/50" data-testid={`review-${review.id}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-white">
+                        {(review.userName || "U")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{review.userName || "User"}</span>
+                          {review.verifiedPurchase && (
+                            <span className="flex items-center gap-1 text-[10px] text-green-400 font-mono">
+                              <CheckCircle className="w-3 h-3" />
+                              VERIFIED PURCHASE
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star key={s} className={`w-3 h-3 ${s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-zinc-600"}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {review.createdAt ? format(new Date(review.createdAt), "MMM d, yyyy") : ""}
+                    </span>
+                  </div>
+                  {review.reviewText && (
+                    <p className="text-sm text-zinc-300 mt-2">{review.reviewText}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </Layout>

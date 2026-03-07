@@ -50,16 +50,16 @@ export default function CommunityLibrary() {
   return (
     <Layout>
       <div className="min-h-screen bg-zinc-950 text-white">
-        <div className="bg-zinc-900 border-b-2 border-cyan-500 py-12 px-6">
+        <div className="bg-zinc-900 border-b-2 border-cyan-500 py-8 sm:py-12 px-4 sm:px-6">
           <div className="max-w-7xl mx-auto text-center">
             <h1
-              className="text-4xl md:text-5xl font-black tracking-tight mb-3"
+              className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight mb-3"
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               data-testid="text-community-library-title"
             >
               COMMUNITY LIBRARY
             </h1>
-            <p className="text-zinc-400 text-lg mb-8" data-testid="text-community-subtitle">
+            <p className="text-zinc-400 text-sm sm:text-lg mb-6 sm:mb-8" data-testid="text-community-subtitle">
               Discover comics from creators around the world
             </p>
             <div className="max-w-xl mx-auto relative">
@@ -79,12 +79,12 @@ export default function CommunityLibrary() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center gap-3 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
             <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Sort by:</span>
             <button
               onClick={() => { setSort("newest"); setPage(1); }}
-              className={`px-4 py-2 text-xs font-bold border-2 transition-colors ${
+              className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors ${
                 sort === "newest"
                   ? "bg-cyan-500 text-black border-cyan-500"
                   : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
@@ -95,7 +95,7 @@ export default function CommunityLibrary() {
             </button>
             <button
               onClick={() => { setSort("popular"); setPage(1); }}
-              className={`px-4 py-2 text-xs font-bold border-2 transition-colors ${
+              className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors ${
                 sort === "popular"
                   ? "bg-cyan-500 text-black border-cyan-500"
                   : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
@@ -113,7 +113,7 @@ export default function CommunityLibrary() {
               <p className="text-zinc-600">Please try again later.</p>
             </div>
           ) : isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="skeleton-grid">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" data-testid="skeleton-grid">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-[2/3] bg-zinc-800 mb-3" />
@@ -130,7 +130,7 @@ export default function CommunityLibrary() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="comics-grid">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" data-testid="comics-grid">
                 {comics.map((comic) => (
                   <Link
                     key={comic.id}

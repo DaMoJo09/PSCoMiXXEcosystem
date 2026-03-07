@@ -47,12 +47,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount } from "@/lib/offlineStorage";
+import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount, getLastSyncTime, startBackgroundSync, subscribeSyncStatus, type SyncStatus, type ConflictInfo, resolveConflict } from "@/lib/offlineStorage";
 
 interface AppSidebarProps {
   isExpanded: boolean;
   isPinned: boolean;
   onTogglePin: () => void;
+  onMobileClose?: () => void;
 }
 
 const creatorTools = [
@@ -153,31 +154,53 @@ function useInstallPrompt() {
 function useOnlineStatus() {
   const [online, setOnline] = useState(isOnline());
   const [pendingSync, setPendingSync] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(getLastSyncTime());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
 
   useEffect(() => {
-    const cleanup = onOnlineStatusChange(async (status) => {
+    const cleanupOnline = onOnlineStatusChange((status) => {
       setOnline(status);
-      if (status) {
-        const result = await syncPendingChanges();
-        if (result.synced > 0) {
-          setPendingSync(0);
-        }
-      }
     });
 
-    getPendingSyncCount().then(setPendingSync);
-    return cleanup;
+    const cleanupSync = subscribeSyncStatus((status: SyncStatus) => {
+      setPendingSync(status.pendingCount);
+      setLastSyncTime(status.lastSyncTime);
+      setIsSyncing(status.isSyncing);
+    });
+
+    const cleanupBackground = startBackgroundSync();
+
+    return () => {
+      cleanupOnline();
+      cleanupSync();
+      cleanupBackground();
+    };
   }, []);
 
-  return { online, pendingSync };
+  const handleResolveConflict = async (projectId: string, resolution: 'keep-local' | 'keep-server' | 'keep-both') => {
+    await resolveConflict(projectId, resolution);
+    setConflicts(prev => prev.filter(c => c.projectId !== projectId));
+  };
+
+  return { online, pendingSync, lastSyncTime, isSyncing, conflicts, handleResolveConflict };
 }
 
-export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProps) {
+function formatSyncTime(time: number | null): string {
+  if (!time) return 'Never';
+  const diff = Date.now() - time;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(time).toLocaleDateString();
+}
+
+export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }: AppSidebarProps) {
   const [location] = useLocation();
   const { user, logout, isStudent, isCreator } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { canInstall, isInstalled, install } = useInstallPrompt();
-  const { online, pendingSync } = useOnlineStatus();
+  const { online, pendingSync, lastSyncTime, isSyncing, conflicts, handleResolveConflict } = useOnlineStatus();
   const xp = user?.xp || 0;
   const level = user?.level || 1;
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
@@ -207,8 +230,9 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
           className={className}
           data-testid={testId}
           title={!isExpanded ? item.label : undefined}
+          aria-label={!isExpanded ? item.label : undefined}
         >
-          <item.icon className="w-4 h-4 shrink-0" />
+          <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
           {isExpanded && <span className="truncate">{item.label}</span>}
         </a>
       );
@@ -221,8 +245,10 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
         className={className}
         data-testid={testId}
         title={!isExpanded ? item.label : undefined}
+        aria-label={!isExpanded ? item.label : undefined}
+        onClick={() => onMobileClose?.()}
       >
-        <item.icon className="w-4 h-4 shrink-0" />
+        <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
         {isExpanded && <span className="truncate">{item.label}</span>}
       </Link>
     );
@@ -417,19 +443,71 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
           isExpanded ? "px-4 py-1.5" : "px-1 py-1.5 flex justify-center"
         )} data-testid="status-online">
           {online ? (
-            <div className="flex items-center gap-2 text-[10px] text-green-400 font-mono">
-              <Wifi className="w-3 h-3 shrink-0" />
-              {isExpanded && <span>ONLINE</span>}
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 text-[10px] text-green-400 font-mono">
+                <Wifi className="w-3 h-3 shrink-0" />
+                {isExpanded && (
+                  <span>{isSyncing ? "SYNCING..." : "ONLINE"}</span>
+                )}
+                {isExpanded && pendingSync > 0 && (
+                  <span className="ml-auto text-amber-400" data-testid="text-pending-sync">{pendingSync} pending</span>
+                )}
+              </div>
+              {isExpanded && (
+                <div className="text-[9px] text-muted-foreground font-mono pl-5" data-testid="text-last-sync">
+                  Last sync: {formatSyncTime(lastSyncTime)}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-[10px] text-amber-400 font-mono">
-              <WifiOff className="w-3 h-3 shrink-0 animate-pulse" />
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2 text-[10px] text-amber-400 font-mono">
+                <WifiOff className="w-3 h-3 shrink-0 animate-pulse" />
+                {isExpanded && (
+                  <span>OFFLINE{pendingSync > 0 ? ` (${pendingSync} pending)` : ""}</span>
+                )}
+              </div>
               {isExpanded && (
-                <span>OFFLINE{pendingSync > 0 ? ` (${pendingSync} pending)` : ""}</span>
+                <div className="text-[9px] text-muted-foreground font-mono pl-5" data-testid="text-last-sync">
+                  Last sync: {formatSyncTime(lastSyncTime)}
+                </div>
               )}
             </div>
           )}
         </div>
+        {conflicts.length > 0 && isExpanded && (
+          <div className="border-t border-border px-4 py-2 space-y-2" data-testid="conflict-resolution-panel">
+            <div className="text-[10px] font-bold text-amber-400 uppercase">Sync Conflicts</div>
+            {conflicts.map(conflict => (
+              <div key={conflict.projectId} className="bg-amber-500/10 border border-amber-500/30 rounded p-2 space-y-1.5" data-testid={`conflict-${conflict.projectId}`}>
+                <div className="text-[10px] text-foreground font-mono">Project #{conflict.projectId}</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleResolveConflict(conflict.projectId, 'keep-local')}
+                    className="text-[9px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/30"
+                    data-testid={`button-keep-local-${conflict.projectId}`}
+                  >
+                    Keep Local
+                  </button>
+                  <button
+                    onClick={() => handleResolveConflict(conflict.projectId, 'keep-server')}
+                    className="text-[9px] px-1.5 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded hover:bg-green-500/30"
+                    data-testid={`button-keep-server-${conflict.projectId}`}
+                  >
+                    Keep Server
+                  </button>
+                  <button
+                    onClick={() => handleResolveConflict(conflict.projectId, 'keep-both')}
+                    className="text-[9px] px-1.5 py-0.5 bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded hover:bg-fuchsia-500/30"
+                    data-testid={`button-keep-both-${conflict.projectId}`}
+                  >
+                    Keep Both
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isExpanded && <EcosystemStatus />}
         <div className={cn(
           "flex items-center gap-3 py-3",

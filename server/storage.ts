@@ -81,9 +81,11 @@ import {
   type ContentReport, type InsertContentReport,
   type ApiKey, type InsertApiKey,
   type AssetPack, type InsertAssetPack,
-  marketplaceListings, marketplaceOrders,
+  marketplaceListings, marketplaceOrders, marketplaceReviews, creatorAnalytics,
   type MarketplaceListing, type InsertMarketplaceListing,
   type MarketplaceOrder, type InsertMarketplaceOrder,
+  type MarketplaceReview,
+  usageTracking, type UsageTracking,
   projectVersions, publishJobs, engagementEvents,
   type ProjectVersion, type InsertProjectVersion,
   type PublishJob, type InsertPublishJob,
@@ -381,6 +383,13 @@ export interface IStorage {
   getSellerOrders(sellerId: string): Promise<MarketplaceOrder[]>;
   updateMarketplaceOrder(id: string, updates: Partial<MarketplaceOrder>): Promise<MarketplaceOrder | undefined>;
   hasUserPurchasedListing(buyerId: string, listingId: string): Promise<boolean>;
+  
+  getListingReviews(listingId: string): Promise<any[]>;
+  createReview(data: { listingId: string; userId: string; rating: number; reviewText: string | null; verifiedPurchase: boolean }): Promise<any>;
+  trackListingEvent(listingId: string, eventType: string, userId: string | null): Promise<void>;
+
+  getUsageCount(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number>;
+  incrementUsage(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2542,6 +2551,83 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return !!order;
+  }
+
+  async getListingReviews(listingId: string): Promise<any[]> {
+    const reviews = await db
+      .select({
+        id: marketplaceReviews.id,
+        listingId: marketplaceReviews.listingId,
+        userId: marketplaceReviews.userId,
+        rating: marketplaceReviews.rating,
+        reviewText: marketplaceReviews.reviewText,
+        verifiedPurchase: marketplaceReviews.verifiedPurchase,
+        createdAt: marketplaceReviews.createdAt,
+        userName: users.name,
+        userAvatar: users.avatar,
+      })
+      .from(marketplaceReviews)
+      .leftJoin(users, eq(marketplaceReviews.userId, users.id))
+      .where(eq(marketplaceReviews.listingId, listingId))
+      .orderBy(desc(marketplaceReviews.createdAt));
+    return reviews;
+  }
+
+  async createReview(data: { listingId: string; userId: string; rating: number; reviewText: string | null; verifiedPurchase: boolean }): Promise<any> {
+    const [review] = await db.insert(marketplaceReviews).values({
+      listingId: data.listingId,
+      userId: data.userId,
+      rating: data.rating,
+      reviewText: data.reviewText,
+      verifiedPurchase: data.verifiedPurchase,
+    }).returning();
+    return review;
+  }
+
+  async trackListingEvent(listingId: string, eventType: string, userId: string | null): Promise<void> {
+    await db.insert(creatorAnalytics).values({
+      listingId,
+      eventType,
+      userId,
+    });
+  }
+
+  async getUsageCount(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number> {
+    const [row] = await db.select().from(usageTracking).where(
+      and(
+        eq(usageTracking.userId, userId),
+        eq(usageTracking.actionType, actionType),
+        eq(usageTracking.periodType, periodType),
+        eq(usageTracking.periodKey, periodKey),
+      )
+    );
+    return row?.count || 0;
+  }
+
+  async incrementUsage(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number> {
+    const [existing] = await db.select().from(usageTracking).where(
+      and(
+        eq(usageTracking.userId, userId),
+        eq(usageTracking.actionType, actionType),
+        eq(usageTracking.periodType, periodType),
+        eq(usageTracking.periodKey, periodKey),
+      )
+    );
+    if (existing) {
+      const newCount = existing.count + 1;
+      await db.update(usageTracking)
+        .set({ count: newCount, updatedAt: new Date() })
+        .where(eq(usageTracking.id, existing.id));
+      return newCount;
+    }
+    const [created] = await db.insert(usageTracking).values({
+      userId,
+      actionType,
+      periodType,
+      periodKey,
+      count: 1,
+    }).returning();
+    return created.count;
   }
 }
 

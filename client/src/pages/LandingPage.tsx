@@ -89,7 +89,7 @@ export default function LandingPage() {
           {glitchText && (
             <>
               <h1 
-                className="absolute inset-0 text-7xl md:text-9xl font-black uppercase tracking-tight text-cyan-500 opacity-70"
+                className="absolute inset-0 text-5xl sm:text-7xl md:text-9xl font-black uppercase tracking-tight text-cyan-500 opacity-70"
                 style={{
                   fontFamily: "'Space Grotesk', sans-serif",
                   transform: `translate(${glitchOffset.x - 3}px, ${glitchOffset.y}px)`,
@@ -100,7 +100,7 @@ export default function LandingPage() {
                 <span className="block">START</span>
               </h1>
               <h1 
-                className="absolute inset-0 text-7xl md:text-9xl font-black uppercase tracking-tight text-red-500 opacity-70"
+                className="absolute inset-0 text-5xl sm:text-7xl md:text-9xl font-black uppercase tracking-tight text-red-500 opacity-70"
                 style={{
                   fontFamily: "'Space Grotesk', sans-serif",
                   transform: `translate(${glitchOffset.x + 3}px, ${glitchOffset.y}px)`,
@@ -114,10 +114,9 @@ export default function LandingPage() {
           )}
           
           <h1 
-            className="text-7xl md:text-9xl font-black uppercase mb-4 tracking-tight text-white relative"
+            className="text-5xl sm:text-7xl md:text-9xl font-black uppercase mb-4 tracking-tight text-white relative"
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: '7rem',
               fontWeight: 900,
               textTransform: 'uppercase',
               marginBottom: '1rem',
@@ -144,7 +143,7 @@ export default function LandingPage() {
           />
           
           <h2 
-            className="text-5xl md:text-7xl font-black uppercase tracking-[0.3em] relative"
+            className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] relative"
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
               background: glitchText 
@@ -161,7 +160,7 @@ export default function LandingPage() {
         </div>
 
         <p 
-          className="text-xl text-zinc-400 text-center mb-12 max-w-2xl font-mono"
+          className="text-sm sm:text-lg md:text-xl text-zinc-400 text-center mb-8 sm:mb-12 max-w-2xl font-mono px-4"
           style={{
             opacity: glitchText ? 0.5 : 1,
             transform: glitchText ? `translateX(${glitchOffset.x * 2}px)` : 'none',
@@ -170,7 +169,7 @@ export default function LandingPage() {
           THE ULTIMATE CREATIVE STUDIO FOR COMICS, CARDS, MOTION GRAPHICS & MORE
         </p>
 
-        <div className="flex flex-wrap justify-center gap-3 mb-12">
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 px-4">
           {features.map((feature, i) => (
             <div
               key={feature.label}
@@ -187,7 +186,7 @@ export default function LandingPage() {
 
         <button
           onClick={() => navigate("/login")}
-          className="group px-10 py-4 bg-white text-black font-bold text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative"
+          className="group px-6 sm:px-10 py-3 sm:py-4 bg-white text-black font-bold text-base sm:text-xl uppercase tracking-wider flex items-center gap-2 sm:gap-3 hover:bg-zinc-200 transition-all relative"
           style={{
             padding: '1rem 2.5rem',
             backgroundColor: '#fff',
@@ -218,7 +217,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <div className="absolute top-6 left-6 z-20 flex items-center gap-3">
+      <div className="absolute top-6 left-4 sm:left-6 z-20 flex items-center gap-3">
         <div 
           className="w-12 h-12 border-2 border-white flex items-center justify-center font-black text-lg"
           style={{
@@ -232,7 +231,7 @@ export default function LandingPage() {
         </span>
       </div>
 
-      <div className="absolute top-6 right-6 z-20 flex gap-4">
+      <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-2 sm:gap-4">
         <button 
           onClick={() => navigate("/login")}
           className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors"

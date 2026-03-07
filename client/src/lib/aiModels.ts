@@ -186,7 +186,7 @@ export function getModelsByCategory(category: AIModel["category"]): AIModel[] {
   return AI_MODELS.filter(m => m.category === category);
 }
 
-export function generateImageUrl(modelId: string, prompt: string, width = 1024, height = 1024): string {
+export function generateImageUrl(modelId: string, prompt: string, width = 1024, height = 1024, isStudent = false): string {
   const seed = Math.floor(Math.random() * 10000);
   
   let styleModifier = "";
@@ -231,6 +231,7 @@ export function generateImageUrl(modelId: string, prompt: string, width = 1024, 
       styleModifier = ", high quality";
   }
   
-  const encodedPrompt = encodeURIComponent(`${prompt}${styleModifier}`);
+  const safetyModifier = isStudent ? ", safe for children, family friendly, age appropriate, no violence, no mature content" : "";
+  const encodedPrompt = encodeURIComponent(`${prompt}${styleModifier}${safetyModifier}`);
   return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 }

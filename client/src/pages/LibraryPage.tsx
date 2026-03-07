@@ -39,7 +39,7 @@ export default function LibraryPage() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     queryFn: async () => {
       const res = await fetch("/api/projects", { credentials: "include" });
@@ -206,7 +206,19 @@ export default function LibraryPage() {
             </div>
           </div>
 
-          {filteredProjects.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" data-testid="skeleton-grid">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="border-2 border-border bg-card animate-pulse">
+                  <div className="aspect-[4/3] bg-zinc-800" />
+                  <div className="p-4 border-t border-border space-y-3">
+                    <div className="h-5 bg-zinc-800 w-3/4 rounded" />
+                    <div className="h-3 bg-zinc-800 w-1/2 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border">
               <Layers className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground text-lg mb-2">

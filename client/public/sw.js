@@ -8,11 +8,17 @@ const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/logo.png',
+  '/logo-dark.png',
+  '/logo-light.png',
   '/icon-192.png',
   '/icon-512.png',
   '/favicon.png',
-  '/offline.html'
+  '/offline.html',
+  '/og-image.png'
 ];
+
+const ICON_CACHE = `pressstart-icons-${CACHE_VERSION}`;
+const SVG_CACHE = `pressstart-svg-${CACHE_VERSION}`;
 
 const FONT_ORIGINS = [
   'https://fonts.googleapis.com',
@@ -22,7 +28,7 @@ const FONT_ORIGINS = [
 const EXCLUDED_EXTENSIONS = ['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'];
 
 const DB_NAME = 'pressstart-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_PROJECTS = 'projects';
 const STORE_QUEUE = 'syncQueue';
 
@@ -126,6 +132,23 @@ self.addEventListener('fetch', (event) => {
             headers: { 'Content-Type': 'application/json' }
           });
         })
+    );
+    return;
+  }
+
+  if (url.pathname.endsWith('.svg') && url.origin === self.location.origin) {
+    event.respondWith(
+      caches.open(SVG_CACHE).then((cache) => {
+        return cache.match(request).then((cached) => {
+          if (cached) return cached;
+          return fetch(request).then((response) => {
+            if (isValidCacheResponse(response)) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          }).catch(() => cached);
+        });
+      })
     );
     return;
   }
@@ -251,6 +274,9 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains(STORE_QUEUE)) {
         db.createObjectStore(STORE_QUEUE, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('syncMeta')) {
+        db.createObjectStore('syncMeta', { keyPath: 'key' });
       }
     };
     request.onsuccess = () => resolve(request.result);

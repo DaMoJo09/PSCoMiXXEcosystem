@@ -19,7 +19,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string, dateOfBirth: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, dateOfBirth: string, parentalConsent?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   updateXp: (xp: number, level: number, totalMinutes: number) => void;
   isStudent: boolean;
@@ -90,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries();
   }
 
-  async function signup(email: string, password: string, name: string, dateOfBirth: string) {
-    const userData = await authApi.signup({ email, password, name, dateOfBirth });
+  async function signup(email: string, password: string, name: string, dateOfBirth: string, parentalConsent?: boolean) {
+    const userData = await authApi.signup({ email, password, name, dateOfBirth, parentalConsent });
     setUser(userData);
     queryClient.invalidateQueries();
   }

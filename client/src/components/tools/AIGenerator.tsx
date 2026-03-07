@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets } from "lucide-react";
+import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets, Shield } from "lucide-react";
 import { AI_MODELS, AIModel, generateImageUrl } from "@/lib/aiModels";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Tooltip,
   TooltipContent,
@@ -57,6 +58,7 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const hasAIAccess = true;
+  const { isStudent } = useAuth();
 
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[1];
 
@@ -64,7 +66,7 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
     if (!prompt) return;
     setIsGenerating(true);
     
-    const url = generateImageUrl(selectedModel, `${prompt}, ${type} style`, 1024, 1024);
+    const url = generateImageUrl(selectedModel, `${prompt}, ${type} style`, 1024, 1024, isStudent);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -165,6 +167,13 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
           </div>
         )}
       </div>
+
+      {isStudent && (
+        <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/30 text-green-400 text-xs" data-testid="text-student-safety-notice">
+          <Shield className="w-4 h-4 shrink-0" />
+          <span>Safe Mode Active - All generated content is filtered for age-appropriate results</span>
+        </div>
+      )}
 
       <div className="border border-border bg-card p-3">
         <div className="flex items-center justify-between mb-2">

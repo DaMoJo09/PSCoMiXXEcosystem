@@ -29,6 +29,7 @@ export const users = pgTable("users", {
   statCollaboration: integer("stat_collaboration").default(10),
   // Social links
   socialLinks: jsonb("social_links"), // { twitter, instagram, website, etc. }
+  parentalConsentAt: timestamp("parental_consent_at"),
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1901,6 +1902,7 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   previewImages: jsonb("preview_images").default([]), // string[] of image URLs
   thumbnail: text("thumbnail"),
   tags: jsonb("tags").default([]), // string[]
+  contentRating: text("content_rating").notNull().default("everyone"), // everyone | teen | mature
   status: text("status").notNull().default("active"), // active | paused | sold_out | removed
   stripeProductId: text("stripe_product_id"),
   stripePriceId: text("stripe_price_id"),
@@ -1946,6 +1948,25 @@ export const insertMarketplaceOrderSchema = createInsertSchema(marketplaceOrders
 export type InsertMarketplaceOrder = z.infer<typeof insertMarketplaceOrderSchema>;
 export type MarketplaceOrder = typeof marketplaceOrders.$inferSelect;
 
+// Usage Tracking table - daily/monthly counters for tier-based limits
+export const usageTracking = pgTable("usage_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actionType: text("action_type").notNull(), // ai_generation | export
+  periodType: text("period_type").notNull(), // daily | monthly
+  periodKey: text("period_key").notNull(), // YYYY-MM-DD or YYYY-MM
+  count: integer("count").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUsageTrackingSchema = createInsertSchema(usageTracking).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertUsageTracking = z.infer<typeof insertUsageTrackingSchema>;
+export type UsageTracking = typeof usageTracking.$inferSelect;
+
 // Tier Entitlements Definition
 export const tierEntitlements = {
   free: {
@@ -1955,6 +1976,8 @@ export const tierEntitlements = {
     batch: false,
     maxProjects: 3,
     maxStorage: 100, // MB
+    aiGenerationsPerDay: 3,
+    exportsPerMonth: 2,
   },
   creator: {
     export: true,
@@ -1963,6 +1986,8 @@ export const tierEntitlements = {
     batch: false,
     maxProjects: 20,
     maxStorage: 1000,
+    aiGenerationsPerDay: 50,
+    exportsPerMonth: 30,
   },
   pro: {
     export: true,
@@ -1971,6 +1996,8 @@ export const tierEntitlements = {
     batch: true,
     maxProjects: 100,
     maxStorage: 5000,
+    aiGenerationsPerDay: 200,
+    exportsPerMonth: -1,
   },
   studio: {
     export: true,
@@ -1979,6 +2006,8 @@ export const tierEntitlements = {
     batch: true,
     maxProjects: -1, // Unlimited
     maxStorage: 20000,
+    aiGenerationsPerDay: -1,
+    exportsPerMonth: -1,
   },
   lifetime: {
     export: true,
@@ -1987,6 +2016,8 @@ export const tierEntitlements = {
     batch: true,
     maxProjects: -1,
     maxStorage: 50000,
+    aiGenerationsPerDay: -1,
+    exportsPerMonth: -1,
   },
 } as const;
 

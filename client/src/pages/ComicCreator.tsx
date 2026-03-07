@@ -19,6 +19,7 @@ import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
+import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
@@ -346,14 +347,58 @@ export default function ComicCreator() {
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
   const [showBubbleSidebar, setShowBubbleSidebar] = useState(false);
+
+  const openAIGen = useCallback(() => {
+    if (!hasFeature("ai") && !isAdmin) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setShowAIGen(true);
+  }, [hasFeature, isAdmin]);
   const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCreating, setIsCreating] = useState(!projectId);
   
-  const [spreads, setSpreads] = useState<Spread[]>([
+  const [spreads, setSpreadsRaw] = useState<Spread[]>([
     { id: "spread_1", leftPage: [], rightPage: [] }
   ]);
+  const undoStackRef = useRef<Spread[][]>([]);
+  const redoStackRef = useRef<Spread[][]>([]);
+  const isUndoRedoRef = useRef(false);
+  const MAX_HISTORY = 50;
+
+  const setSpreads: typeof setSpreadsRaw = useCallback((action) => {
+    setSpreadsRaw(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (!isUndoRedoRef.current) {
+        undoStackRef.current = [...undoStackRef.current.slice(-(MAX_HISTORY - 1)), prev];
+        redoStackRef.current = [];
+      }
+      return next;
+    });
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current[undoStackRef.current.length - 1];
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    setSpreadsRaw(current => {
+      redoStackRef.current = [...redoStackRef.current, current];
+      return prev;
+    });
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current[redoStackRef.current.length - 1];
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    setSpreadsRaw(current => {
+      undoStackRef.current = [...undoStackRef.current, current];
+      return next;
+    });
+  }, []);
+
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
@@ -442,7 +487,9 @@ export default function ComicCreator() {
       setTitle(project.title);
       const data = project.data as any;
       if (data?.spreads?.length > 0) {
-        setSpreads(data.spreads);
+        setSpreadsRaw(data.spreads);
+        undoStackRef.current = [];
+        redoStackRef.current = [];
       }
       if (data?.comicMeta) {
         setComicMeta(data.comicMeta);
@@ -469,14 +516,7 @@ export default function ComicCreator() {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-    try {
-      await fetch(`/api/projects/${projectId}/autosave`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } }),
-      });
-    } catch {}
+    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: cm } }, 'comic');
   }, []);
 
   useEffect(() => {
@@ -544,14 +584,15 @@ export default function ComicCreator() {
         case 'e': setActiveTool('erase'); break;
         case 't': setActiveTool('text'); break;
         case 'u': setShowBubbleSidebar(prev => !prev); break;
-        case 'g': setShowAIGen(true); break;
+        case 'g': openAIGen(); break;
         case 'delete': case 'backspace': {
           const isInInput = document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLInputElement || (document.activeElement as HTMLElement)?.isContentEditable;
           if (!editingTextId && !isInInput) { handleDeleteSelected(); e.preventDefault(); }
           break;
         }
         case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
-        case 'z': if (e.ctrlKey || e.metaKey) e.preventDefault(); break;
+        case 'z': if (e.ctrlKey || e.metaKey) { e.preventDefault(); if (e.shiftKey) { handleRedo(); } else { handleUndo(); } } break;
+        case 'y': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleRedo(); } break;
         case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
         case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
         case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); } break;
@@ -743,6 +784,17 @@ export default function ComicCreator() {
       return;
     }
     try {
+      const trackRes = await fetch("/api/usage/track-export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!trackRes.ok) {
+        const err = await trackRes.json();
+        if (err.code === "EXPORT_LIMIT_REACHED") {
+          toast.error(err.message);
+          setShowUpgradeModal(true);
+          return;
+        }
+      }
+    } catch {}
+    try {
       toast.info("Exporting print-ready page (300 DPI)...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
       const canvas = await exportPageToCanvas(panels, 1988, 3075);
@@ -763,6 +815,17 @@ export default function ComicCreator() {
       setShowUpgradeModal(true);
       return;
     }
+    try {
+      const trackRes = await fetch("/api/usage/track-export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!trackRes.ok) {
+        const err = await trackRes.json();
+        if (err.code === "EXPORT_LIMIT_REACHED") {
+          toast.error(err.message);
+          setShowUpgradeModal(true);
+          return;
+        }
+      }
+    } catch {}
     try {
       toast.info("Exporting full comic (cover + all pages)...");
       let pageNum = 0;
@@ -2123,8 +2186,26 @@ export default function ComicCreator() {
           </div>
           
           <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-zinc-800"><Undo className="w-4 h-4" /></button>
-            <button className="p-2 hover:bg-zinc-800"><Redo className="w-4 h-4" /></button>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button onClick={handleUndo} className="p-2 hover:bg-zinc-800" data-testid="button-undo" aria-label="Undo">
+                  <Undo className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Undo <span className="text-zinc-400 ml-1">(Ctrl+Z)</span></p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button onClick={handleRedo} className="p-2 hover:bg-zinc-800" data-testid="button-redo" aria-label="Redo">
+                  <Redo className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Redo <span className="text-zinc-400 ml-1">(Ctrl+Shift+Z)</span></p>
+              </TooltipContent>
+            </Tooltip>
             <div className="w-px h-6 bg-zinc-700 mx-2" />
             <button
               onClick={() => setShowTemplates(!showTemplates)}
@@ -2245,7 +2326,7 @@ export default function ComicCreator() {
                   <button
                     onClick={() => {
                       if (tool.id === "ai") {
-                        setShowAIGen(true);
+                        openAIGen();
                       } else if (tool.id === "bubble") {
                         setShowBubbleSidebar(prev => !prev);
                       } else {
@@ -2503,7 +2584,7 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("draw")} className="hover:bg-zinc-800 cursor-pointer">
                     <Pen className="w-4 h-4 mr-2" /> Draw <ContextMenuShortcut>B</ContextMenuShortcut>
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                  <ContextMenuItem onClick={() => openAIGen()} className="hover:bg-zinc-800 cursor-pointer">
                     <Wand2 className="w-4 h-4 mr-2" /> AI Generate
                   </ContextMenuItem>
                   <ContextMenuSub>
@@ -2831,7 +2912,7 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("draw")} className="hover:bg-zinc-800 cursor-pointer">
                     <Pen className="w-4 h-4 mr-2" /> Draw <ContextMenuShortcut>B</ContextMenuShortcut>
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => setShowAIGen(true)} className="hover:bg-zinc-800 cursor-pointer">
+                  <ContextMenuItem onClick={() => openAIGen()} className="hover:bg-zinc-800 cursor-pointer">
                     <Wand2 className="w-4 h-4 mr-2" /> AI Generate
                   </ContextMenuItem>
                   <ContextMenuSub>
@@ -3824,7 +3905,7 @@ export default function ComicCreator() {
                           className={`group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden cursor-grab active:cursor-grabbing ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
                         >
                           {asset.url ? (
-                            <img src={asset.thumbnail || asset.url} className="w-full h-full object-cover pointer-events-none" />
+                            <img src={asset.thumbnail || asset.url} loading="lazy" className="w-full h-full object-cover pointer-events-none" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               {asset.type === "effect" ? (

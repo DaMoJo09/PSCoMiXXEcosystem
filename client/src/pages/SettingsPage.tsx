@@ -15,11 +15,15 @@ import {
   Plus,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  Accessibility,
+  Contrast,
+  Zap
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface ApiKey {
   id: string;
@@ -52,6 +56,7 @@ const defaultSettings: AppSettings = {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { highContrast, toggleHighContrast, reducedMotion, toggleReducedMotion } = useTheme();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -436,6 +441,61 @@ export default function SettingsPage() {
                     Light
                   </button>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 border-b-2 border-white pb-2">
+              <Accessibility className="w-5 h-5" />
+              <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Accessibility</h2>
+            </div>
+
+            <div className="p-6 border-4 border-white bg-zinc-900 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold flex items-center gap-2"><Contrast className="w-4 h-4" /> High Contrast Mode</h3>
+                  <p className="text-sm text-zinc-400">Increase contrast for better visibility</p>
+                </div>
+                <button
+                  onClick={toggleHighContrast}
+                  className={`w-12 h-6 border-2 transition-colors ${
+                    highContrast ? "bg-white border-white" : "bg-zinc-800 border-zinc-600"
+                  }`}
+                  data-testid="toggle-high-contrast"
+                  aria-label={highContrast ? "Disable high contrast mode" : "Enable high contrast mode"}
+                  role="switch"
+                  aria-checked={highContrast}
+                >
+                  <div className={`w-4 h-4 bg-black rounded-none transition-transform ${
+                    highContrast ? "translate-x-6" : "translate-x-0.5"
+                  }`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold flex items-center gap-2"><Zap className="w-4 h-4" /> Reduced Motion</h3>
+                  <p className="text-sm text-zinc-400">Minimize animations and transitions</p>
+                </div>
+                <button
+                  onClick={toggleReducedMotion}
+                  className={`w-12 h-6 border-2 transition-colors ${
+                    reducedMotion ? "bg-white border-white" : "bg-zinc-800 border-zinc-600"
+                  }`}
+                  data-testid="toggle-reduced-motion"
+                  aria-label={reducedMotion ? "Disable reduced motion" : "Enable reduced motion"}
+                  role="switch"
+                  aria-checked={reducedMotion}
+                >
+                  <div className={`w-4 h-4 bg-black rounded-none transition-transform ${
+                    reducedMotion ? "translate-x-6" : "translate-x-0.5"
+                  }`} />
+                </button>
+              </div>
+
+              <div className="p-3 bg-white/10 border-2 border-white/30 text-sm">
+                Press <kbd className="px-1.5 py-0.5 text-xs font-mono bg-black border border-zinc-600">?</kbd> anywhere to view all keyboard shortcuts.
               </div>
             </div>
           </section>

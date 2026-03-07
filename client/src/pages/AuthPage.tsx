@@ -19,6 +19,7 @@ export default function AuthPage() {
     password: "",
     name: "",
     dateOfBirth: "",
+    parentalConsent: false,
   });
 
   useEffect(() => {
@@ -63,9 +64,21 @@ export default function AuthPage() {
       toast.error("You must be at least 6 years old to sign up");
       return;
     }
+    if (signupData.password.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(signupData.password) || !/[0-9]/.test(signupData.password)) {
+      toast.error("Password must contain at least one letter and one number");
+      return;
+    }
+    if (age !== null && age < 18 && !signupData.parentalConsent) {
+      toast.error("Parental or guardian consent is required for students under 18");
+      return;
+    }
     setIsLoading(true);
     try {
-      await signup(signupData.email, signupData.password, signupData.name, signupData.dateOfBirth);
+      await signup(signupData.email, signupData.password, signupData.name, signupData.dateOfBirth, signupData.parentalConsent);
       const type = age !== null && age >= 18 ? "Creator" : "Student";
       toast.success(`Welcome to Press Start CoMixx! You're signed up as a ${type}.`);
       navigate("/");
@@ -77,18 +90,18 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-4">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md space-y-6 sm:space-y-8">
+        <div className="text-center space-y-3 sm:space-y-4">
           <img 
             src="/logo.png" 
             alt="Press Start CoMixx" 
-            className="h-32 w-auto mx-auto"
+            className="h-20 sm:h-32 w-auto mx-auto"
           />
-          <p className="text-xl text-zinc-400">Creator Platform</p>
+          <p className="text-base sm:text-xl text-zinc-400">Creator Platform</p>
         </div>
 
-        <Card className="bg-zinc-950 border-white/20 p-6">
+        <Card className="bg-zinc-950 border-white/20 p-4 sm:p-6">
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-zinc-900">
               <TabsTrigger
@@ -245,10 +258,27 @@ export default function AuthPage() {
                       setSignupData({ ...signupData, password: e.target.value })
                     }
                     required
+                    minLength={8}
                     data-testid="input-signup-password"
                     className="bg-zinc-900 border-white/20 text-white placeholder:text-zinc-500"
                   />
+                  <p className="text-[10px] text-muted-foreground">Min 8 characters, at least one letter and one number</p>
                 </div>
+                {age !== null && age < 18 && age >= 6 && (
+                  <div className="flex items-start gap-2 p-3 border border-yellow-500/30 bg-yellow-500/5" data-testid="section-parental-consent">
+                    <input
+                      type="checkbox"
+                      id="parental-consent"
+                      checked={signupData.parentalConsent}
+                      onChange={(e) => setSignupData({ ...signupData, parentalConsent: e.target.checked })}
+                      className="mt-0.5 accent-yellow-500"
+                      data-testid="input-parental-consent"
+                    />
+                    <label htmlFor="parental-consent" className="text-xs text-yellow-300 leading-relaxed">
+                      I confirm that a parent or legal guardian has reviewed and consents to the creation of this Student Account, in accordance with COPPA requirements.
+                    </label>
+                  </div>
+                )}
                 <Button
                   type="submit"
                   className="w-full bg-white text-black hover:bg-zinc-200"

@@ -23,6 +23,10 @@ import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/h
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
+import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/UpgradeModal";
+import { apiRequest } from "@/lib/queryClient";
+import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 
 // Easing presets
 const EASING_PRESETS = [
@@ -265,172 +269,95 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
   });
 };
 
-function encodeGIF(
+function encodeGIFInWorker(
   frameDataArrays: Uint8ClampedArray[],
   width: number,
   height: number,
   delayMs: number,
   onProgress?: (progress: number) => void
-): Uint8Array {
-  const maxColors = 256;
-  const delayCentiseconds = Math.max(2, Math.round(delayMs / 10));
-
-  const buildPalette = (pixels: Uint8ClampedArray): number[][] => {
-    const colorMap = new Map<string, { r: number; g: number; b: number; count: number }>();
-    const step = Math.max(1, Math.floor(pixels.length / 4 / 10000));
-    for (let i = 0; i < pixels.length; i += 4 * step) {
-      const r = pixels[i] & 0xF8;
-      const g = pixels[i + 1] & 0xF8;
-      const b = pixels[i + 2] & 0xF8;
-      const key = `${r},${g},${b}`;
-      const existing = colorMap.get(key);
-      if (existing) existing.count++;
-      else colorMap.set(key, { r, g, b, count: 1 });
-    }
-    const sorted = Array.from(colorMap.values()).sort((a, b) => b.count - a.count);
-    const palette: number[][] = [];
-    for (let i = 0; i < Math.min(maxColors, sorted.length); i++) {
-      palette.push([sorted[i].r, sorted[i].g, sorted[i].b]);
-    }
-    while (palette.length < maxColors) palette.push([0, 0, 0]);
-    return palette;
-  };
-
-  const findClosest = (palette: number[][], r: number, g: number, b: number): number => {
-    let minDist = Infinity;
-    let idx = 0;
-    for (let i = 0; i < palette.length; i++) {
-      const dr = r - palette[i][0];
-      const dg = g - palette[i][1];
-      const db = b - palette[i][2];
-      const dist = dr * dr + dg * dg + db * db;
-      if (dist < minDist) { minDist = dist; idx = i; }
-    }
-    return idx;
-  };
-
-  const indexFrame = (pixels: Uint8ClampedArray, palette: number[][]): Uint8Array => {
-    const count = width * height;
-    const indexed = new Uint8Array(count);
-    for (let i = 0; i < count; i++) {
-      const off = i * 4;
-      indexed[i] = findClosest(palette, pixels[off], pixels[off + 1], pixels[off + 2]);
-    }
-    return indexed;
-  };
-
-  const lzwEncode = (indexed: Uint8Array, colorBits: number): Uint8Array => {
-    const minCodeSize = Math.max(2, colorBits);
-    const clearCode = 1 << minCodeSize;
-    const eoiCode = clearCode + 1;
-    let codeSize = minCodeSize + 1;
-    let nextCode = eoiCode + 1;
-    const maxCode = 4096;
-
-    const output: number[] = [];
-    let bitBuffer = 0;
-    let bitCount = 0;
-
-    const writeBits = (code: number, size: number) => {
-      bitBuffer |= code << bitCount;
-      bitCount += size;
-      while (bitCount >= 8) {
-        output.push(bitBuffer & 0xFF);
-        bitBuffer >>= 8;
-        bitCount -= 8;
+): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL('../workers/gifEncoder.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.type === 'progress') {
+        onProgress?.(e.data.progress);
+      } else if (e.data.type === 'done') {
+        resolve(e.data.gifBytes as Uint8Array);
+        worker.terminate();
       }
     };
-
-    const table = new Map<string, number>();
-    const initTable = () => {
-      table.clear();
-      for (let i = 0; i < clearCode; i++) table.set(String(i), i);
-      codeSize = minCodeSize + 1;
-      nextCode = eoiCode + 1;
+    worker.onerror = (err) => {
+      reject(new Error(err.message || 'GIF encoding worker failed'));
+      worker.terminate();
     };
+    const transferable = frameDataArrays.map(arr => arr.buffer);
+    worker.postMessage({ frameDataArrays, width, height, delayMs }, transferable as any);
+  });
+}
 
-    initTable();
-    writeBits(clearCode, codeSize);
+function VirtualizedFrameList({
+  frames,
+  currentFrameIndex,
+  onSelectFrame,
+  maxHeight
+}: {
+  frames: Frame[];
+  currentFrameIndex: number;
+  onSelectFrame: (idx: number) => void;
+  maxHeight: number;
+}) {
+  const ITEM_HEIGHT = 40;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
-    let current = String(indexed[0]);
-    for (let i = 1; i < indexed.length; i++) {
-      const next = current + ',' + indexed[i];
-      if (table.has(next)) {
-        current = next;
-      } else {
-        writeBits(table.get(current)!, codeSize);
-        if (nextCode < maxCode) {
-          table.set(next, nextCode++);
-          if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
-        } else {
-          writeBits(clearCode, codeSize);
-          initTable();
-        }
-        current = String(indexed[i]);
-      }
+  const useVirtualization = frames.length > 50;
+  const visibleCount = Math.ceil(maxHeight / ITEM_HEIGHT) + 2;
+  const startIdx = useVirtualization ? Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - 1) : 0;
+  const endIdx = useVirtualization ? Math.min(frames.length, startIdx + visibleCount) : frames.length;
+  const totalHeight = frames.length * ITEM_HEIGHT;
+
+  useEffect(() => {
+    if (useVirtualization && containerRef.current) {
+      const targetScroll = currentFrameIndex * ITEM_HEIGHT - maxHeight / 2;
+      containerRef.current.scrollTop = Math.max(0, targetScroll);
     }
-    writeBits(table.get(current)!, codeSize);
-    writeBits(eoiCode, codeSize);
-    if (bitCount > 0) output.push(bitBuffer & 0xFF);
+  }, [currentFrameIndex, useVirtualization, maxHeight]);
 
-    const result: number[] = [minCodeSize];
-    for (let pos = 0; pos < output.length;) {
-      const chunkSize = Math.min(255, output.length - pos);
-      result.push(chunkSize);
-      for (let j = 0; j < chunkSize; j++) result.push(output[pos + j]);
-      pos += chunkSize;
-    }
-    result.push(0);
-    return new Uint8Array(result);
-  };
-
-  const allBytes: number[] = [];
-  const writeByte = (b: number) => allBytes.push(b & 0xFF);
-  const writeShort = (s: number) => { writeByte(s & 0xFF); writeByte((s >> 8) & 0xFF); };
-  const writeBytes = (arr: Uint8Array | number[]) => { for (let i = 0; i < arr.length; i++) allBytes.push(arr[i]); };
-
-  writeByte(0x47); writeByte(0x49); writeByte(0x46);
-  writeByte(0x38); writeByte(0x39); writeByte(0x61);
-
-  const palette = buildPalette(frameDataArrays[0]);
-  const colorBits = 8;
-
-  writeShort(width);
-  writeShort(height);
-  writeByte(0x87);
-  writeByte(0);
-  writeByte(0);
-
-  for (let i = 0; i < 256; i++) {
-    writeByte(palette[i][0]); writeByte(palette[i][1]); writeByte(palette[i][2]);
-  }
-
-  writeByte(0x21); writeByte(0xFF); writeByte(11);
-  const netscape = [0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30];
-  writeBytes(netscape);
-  writeByte(3); writeByte(1); writeShort(0); writeByte(0);
-
-  for (let f = 0; f < frameDataArrays.length; f++) {
-    onProgress?.(f / frameDataArrays.length);
-
-    writeByte(0x21); writeByte(0xF9); writeByte(4);
-    writeByte(0x00);
-    writeShort(delayCentiseconds);
-    writeByte(0); writeByte(0);
-
-    writeByte(0x2C);
-    writeShort(0); writeShort(0);
-    writeShort(width); writeShort(height);
-    writeByte(0);
-
-    const indexed = indexFrame(frameDataArrays[f], palette);
-    const lzwData = lzwEncode(indexed, colorBits);
-    writeBytes(lzwData);
-  }
-
-  writeByte(0x3B);
-  onProgress?.(1);
-  return new Uint8Array(allBytes);
+  return (
+    <div
+      ref={containerRef}
+      className="overflow-y-auto"
+      style={{ maxHeight }}
+      onScroll={useVirtualization ? (e) => setScrollTop((e.target as HTMLDivElement).scrollTop) : undefined}
+    >
+      <div style={useVirtualization ? { height: totalHeight, position: 'relative' } : undefined} className={useVirtualization ? undefined : "space-y-1"}>
+        {frames.slice(startIdx, endIdx).map((frame, i) => {
+          const idx = startIdx + i;
+          return (
+            <button
+              key={frame.id}
+              onClick={() => onSelectFrame(idx)}
+              data-testid={`button-frame-${idx}`}
+              className={`w-full p-2 rounded-lg text-left transition-colors flex items-center gap-2 ${
+                idx === currentFrameIndex
+                  ? 'bg-white/20 border border-white/50'
+                  : 'bg-zinc-900 hover:bg-zinc-800 border border-transparent'
+              }`}
+              style={useVirtualization ? { position: 'absolute', top: idx * ITEM_HEIGHT, height: ITEM_HEIGHT - 4, left: 0, right: 0 } : undefined}
+            >
+              <div className="w-10 h-6 bg-[#252525] rounded overflow-hidden flex-shrink-0">
+                {frame.imageData && <img src={frame.imageData} loading="lazy" className="w-full h-full object-cover" alt="" />}
+              </div>
+              <span className="text-xs text-zinc-300">Frame {idx + 1}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function MotionStudio() {
@@ -441,6 +368,9 @@ export default function MotionStudio() {
   const { data: project } = useProject(projectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
+  const { hasFeature, isAdmin } = useSubscription();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeatureName, setUpgradeFeatureName] = useState("Export");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -715,14 +645,7 @@ export default function MotionStudio() {
     if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
     msAutoSaveTimerRef.current = setTimeout(async () => {
       msPendingSaveRef.current = false;
-      try {
-        await fetch(`/api/projects/${projectId}/autosave`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ title, data: { frames, tracks, audioClips } }),
-        });
-      } catch {}
+      await saveProjectWithOfflineFallback(projectId, { title, data: { frames, tracks, audioClips } }, 'motion');
     }, 3000);
     return () => {
       if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
@@ -1672,6 +1595,23 @@ export default function MotionStudio() {
   }, [currentFrameIndex]);
 
   const handleExport = async () => {
+    if (!hasFeature("export") && !isAdmin) {
+      setUpgradeFeatureName("Export");
+      setShowUpgradeModal(true);
+      return;
+    }
+    try {
+      const trackRes = await fetch("/api/usage/track-export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!trackRes.ok) {
+        const err = await trackRes.json();
+        if (err.code === "EXPORT_LIMIT_REACHED") {
+          toast.error(err.message);
+          setUpgradeFeatureName("More Exports");
+          setShowUpgradeModal(true);
+          return;
+        }
+      }
+    } catch {}
     toast.info("Compositing frames with effects...");
     
     const canvas = canvasRef.current;
@@ -1719,10 +1659,27 @@ export default function MotionStudio() {
   };
 
   const handleVideoExport = async () => {
+    if (!hasFeature("export") && !isAdmin) {
+      setUpgradeFeatureName("Video/GIF Export");
+      setShowUpgradeModal(true);
+      return;
+    }
     if (frames.length === 0) {
       toast.error("No frames to export");
       return;
     }
+    try {
+      const trackRes = await fetch("/api/usage/track-export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!trackRes.ok) {
+        const err = await trackRes.json();
+        if (err.code === "EXPORT_LIMIT_REACHED") {
+          toast.error(err.message);
+          setUpgradeFeatureName("More Exports");
+          setShowUpgradeModal(true);
+          return;
+        }
+      }
+    } catch {}
 
     setIsExporting(true);
     setExportProgress(0);
@@ -1857,10 +1814,10 @@ export default function MotionStudio() {
           frameDataArrays.push(renderCtx.getImageData(0, 0, gifWidth, gifHeight).data);
         }
 
-        setExportStatusText("Encoding GIF frames...");
+        setExportStatusText("Encoding GIF frames (in background)...");
         setExportProgress(65);
 
-        const gifBytes = encodeGIF(frameDataArrays, gifWidth, gifHeight, delayMs, (p: number) => {
+        const gifBytes = await encodeGIFInWorker(frameDataArrays, gifWidth, gifHeight, delayMs, (p: number) => {
           setExportProgress(65 + Math.round(p * 30));
         });
 
@@ -1983,6 +1940,9 @@ export default function MotionStudio() {
     }
   };
 
+  const drawMoveRafRef = useRef<number | null>(null);
+  const pendingDrawRef = useRef<{ x: number; y: number; pressure: number } | null>(null);
+
   const handleRasterPointerMove = (e: React.PointerEvent) => {
     if (!isDrawing) return;
     const { x, y } = getCoordinates(e);
@@ -2012,35 +1972,71 @@ export default function MotionStudio() {
     }
 
     if (!lastPointRef.current || rasterTool === "select") return;
-    
-    const ctx = ctxRef.current;
-    if (!ctx) return;
-    
+
     const pressure = e.pressure > 0 ? e.pressure : 0.5;
-    const currentLineWidth = rasterTool === "eraser" 
-      ? brushSize * 5 * pressure 
-      : brushSize * (0.5 + pressure);
-    
-    ctx.beginPath();
-    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-    ctx.lineTo(x, y);
-    
-    if (rasterTool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.strokeStyle = "rgba(0,0,0,1)";
-    } else {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = brushColor;
+    pendingDrawRef.current = { x, y, pressure };
+
+    if (drawMoveRafRef.current === null) {
+      drawMoveRafRef.current = requestAnimationFrame(() => {
+        drawMoveRafRef.current = null;
+        const pending = pendingDrawRef.current;
+        if (!pending || !lastPointRef.current) return;
+
+        const ctx = ctxRef.current;
+        if (!ctx) return;
+
+        const currentLineWidth = rasterTool === "eraser"
+          ? brushSize * 5 * pending.pressure
+          : brushSize * (0.5 + pending.pressure);
+
+        ctx.beginPath();
+        ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+        ctx.lineTo(pending.x, pending.y);
+
+        if (rasterTool === "eraser") {
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.strokeStyle = "rgba(0,0,0,1)";
+        } else {
+          ctx.globalCompositeOperation = "source-over";
+          ctx.strokeStyle = brushColor;
+        }
+
+        ctx.lineWidth = Math.max(1, currentLineWidth);
+        ctx.stroke();
+        ctx.globalCompositeOperation = "source-over";
+
+        lastPointRef.current = { x: pending.x, y: pending.y };
+      });
     }
-    
-    ctx.lineWidth = Math.max(1, currentLineWidth);
-    ctx.stroke();
-    ctx.globalCompositeOperation = "source-over";
-    
-    lastPointRef.current = { x, y };
   };
 
   const handleRasterPointerUp = () => {
+    if (drawMoveRafRef.current !== null) {
+      cancelAnimationFrame(drawMoveRafRef.current);
+      drawMoveRafRef.current = null;
+    }
+    const pending = pendingDrawRef.current;
+    if (pending && lastPointRef.current && isDrawing && !rasterTool.startsWith("shape-") && rasterTool !== "rect-select" && rasterTool !== "ellipse-select" && rasterTool !== "lasso-select" && rasterTool !== "select") {
+      const ctx = ctxRef.current;
+      if (ctx) {
+        ctx.beginPath();
+        ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+        ctx.lineTo(pending.x, pending.y);
+        if (rasterTool === "eraser") {
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.strokeStyle = "rgba(0,0,0,1)";
+        } else {
+          ctx.globalCompositeOperation = "source-over";
+          ctx.strokeStyle = brushColor;
+        }
+        ctx.lineWidth = Math.max(1, brushSize * (0.5 + pending.pressure));
+        ctx.stroke();
+        ctx.globalCompositeOperation = "source-over";
+        lastPointRef.current = { x: pending.x, y: pending.y };
+      }
+    }
+    pendingDrawRef.current = null;
+
     if (rasterTool === "rect-select" || rasterTool === "ellipse-select") {
       setIsDrawing(false);
       setShapeStart(null);
@@ -3022,27 +3018,17 @@ export default function MotionStudio() {
               {/* Frames */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Frames</span>
-                  <button onClick={addFrame} className="p-1 hover:bg-[#252525] rounded">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Frames ({frames.length})</span>
+                  <button onClick={addFrame} className="p-1 hover:bg-[#252525] rounded" data-testid="button-add-frame">
                     <Plus className="w-3.5 h-3.5 text-zinc-400" />
                   </button>
                 </div>
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {frames.map((frame, idx) => (
-                    <button key={frame.id}
-                      onClick={() => { saveCurrentFrame(); setCurrentFrameIndex(idx); }}
-                      className={`w-full p-2 rounded-lg text-left transition-colors flex items-center gap-2 ${
-                        idx === currentFrameIndex 
-                          ? 'bg-white/20 border border-white/50' 
-                          : 'bg-zinc-900 hover:bg-zinc-800 border border-transparent'
-                      }`}>
-                      <div className="w-10 h-6 bg-[#252525] rounded overflow-hidden flex-shrink-0">
-                        {frame.imageData && <img src={frame.imageData} className="w-full h-full object-cover" alt="" />}
-                      </div>
-                      <span className="text-xs text-zinc-300">Frame {idx + 1}</span>
-                    </button>
-                  ))}
-                </div>
+                <VirtualizedFrameList
+                  frames={frames}
+                  currentFrameIndex={currentFrameIndex}
+                  onSelectFrame={(idx) => { saveCurrentFrame(); setCurrentFrameIndex(idx); }}
+                  maxHeight={160}
+                />
               </div>
               
               {/* Quick Effects */}
@@ -3078,7 +3064,9 @@ export default function MotionStudio() {
                 width: `${(960 * zoom) / 100}px`, 
                 height: `${(540 * zoom) / 100}px`,
                 maxWidth: '100%',
-                maxHeight: '100%'
+                maxHeight: '100%',
+                willChange: 'transform',
+                contain: 'strict'
               }}>
               {/* Onion Skin - Previous Frames (red tint) */}
               {showOnionSkin && Array.from({ length: onionSkinFrames }).map((_, i) => {
@@ -3145,7 +3133,9 @@ export default function MotionStudio() {
                     : rasterTool === "fill" ? "cell"
                     : "crosshair",
                   opacity: (activeDrawingLayer?.opacity ?? 100) / 100,
-                  mixBlendMode: (activeDrawingLayer?.blendMode || blendMode) as any
+                  mixBlendMode: (activeDrawingLayer?.blendMode || blendMode) as any,
+                  willChange: 'transform',
+                  contain: 'layout style paint'
                 }}
                 onPointerDown={drawingMode === "raster" ? handlePointerDown : undefined}
                 onPointerMove={drawingMode === "raster" ? handlePointerMove : undefined}
@@ -3967,11 +3957,12 @@ export default function MotionStudio() {
             {frames.map((frame, idx) => (
               <button key={frame.id}
                 onClick={() => setPreviewFrameIndex(idx)}
+                data-testid={`button-preview-frame-${idx}`}
                 className={`w-20 h-16 rounded border-2 overflow-hidden flex-shrink-0 transition-all ${
                   idx === previewFrameIndex ? 'border-white scale-105' : 'border-transparent opacity-60 hover:opacity-100'
                 }`}>
                 {frame.imageData ? (
-                  <img src={frame.imageData} className="w-full h-full object-cover" alt="" />
+                  <img src={frame.imageData} loading="lazy" className="w-full h-full object-cover" alt="" />
                 ) : (
                   <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                     <span className="text-[10px] text-zinc-500">{idx + 1}</span>
@@ -4481,6 +4472,12 @@ export default function MotionStudio() {
           </div>
         </div>
       )}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature={upgradeFeatureName}
+        requiredTier="creator"
+      />
     </div>
   );
 }

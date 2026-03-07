@@ -62,12 +62,12 @@ export default function MarketplacePage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background text-foreground">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="mb-10 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="mb-6 sm:mb-10 text-center">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <ShoppingBag className="w-8 h-8 text-cyan-400" />
+              <ShoppingBag className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
               <h1
-                className="text-4xl md:text-5xl font-display font-bold uppercase tracking-tighter"
+                className="text-2xl sm:text-4xl md:text-5xl font-display font-bold uppercase tracking-tighter"
                 data-testid="text-marketplace-title"
               >
                 MARKETPLACE
@@ -78,7 +78,7 @@ export default function MarketplacePage() {
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 sm:gap-4 mb-4">
             <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -91,13 +91,13 @@ export default function MarketplacePage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap overflow-x-auto pb-1">
               <Filter className="w-4 h-4 text-muted-foreground hidden md:block" />
               {TYPE_FILTERS.map((f) => (
                 <button
                   key={f.id}
                   onClick={() => setSelectedType(f.id)}
-                  className={`px-3 py-1.5 text-xs font-bold border-2 transition-colors uppercase tracking-wide ${
+                  className={`px-3 py-2 sm:py-1.5 text-xs font-bold border-2 transition-colors uppercase tracking-wide whitespace-nowrap ${
                     selectedType === f.id
                       ? "bg-cyan-500 text-black border-cyan-500"
                       : "border-border text-muted-foreground hover:border-cyan-500/50 hover:text-foreground"
@@ -110,13 +110,13 @@ export default function MarketplacePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-6">
             <DollarSign className="w-4 h-4 text-muted-foreground hidden md:block" />
             {PRICING_FILTERS.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setSelectedPricing(f.id)}
-                className={`px-3 py-1.5 text-xs font-bold border-2 transition-colors uppercase tracking-wide ${
+                className={`px-3 py-2 sm:py-1.5 text-xs font-bold border-2 transition-colors uppercase tracking-wide ${
                   selectedPricing === f.id
                     ? f.id === "free" ? "bg-green-500 text-black border-green-500" : "bg-cyan-500 text-black border-cyan-500"
                     : "border-border text-muted-foreground hover:border-cyan-500/50 hover:text-foreground"
@@ -130,15 +130,15 @@ export default function MarketplacePage() {
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="border-2 border-border bg-card animate-pulse">
                   <div className="aspect-[4/3] bg-zinc-800" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-5 bg-zinc-800 w-3/4" />
-                    <div className="h-4 bg-zinc-800 w-full" />
-                    <div className="h-4 bg-zinc-800 w-1/2" />
-                    <div className="h-8 bg-zinc-800 w-full mt-2" />
+                  <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                    <div className="h-4 sm:h-5 bg-zinc-800 w-3/4" />
+                    <div className="h-3 sm:h-4 bg-zinc-800 w-full" />
+                    <div className="h-3 sm:h-4 bg-zinc-800 w-1/2" />
+                    <div className="h-7 sm:h-8 bg-zinc-800 w-full mt-2" />
                   </div>
                 </div>
               ))}
@@ -158,7 +158,7 @@ export default function MarketplacePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {listings.map((listing: any) => {
                 const typeColor = TYPE_COLORS[listing.type] || "bg-zinc-600 text-white";
                 const gradient = TYPE_GRADIENTS[listing.type] || "from-zinc-800 to-zinc-600";
@@ -207,16 +207,16 @@ export default function MarketplacePage() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
 
-                    <div className="p-4 border-t-2 border-border">
+                    <div className="p-3 sm:p-4 border-t-2 border-border">
                       <h3
-                        className="font-display font-bold text-lg mb-1 truncate"
+                        className="font-display font-bold text-sm sm:text-lg mb-1 truncate"
                         data-testid={`text-listing-title-${listing.id}`}
                       >
                         {listing.title}
                       </h3>
 
                       {listing.description && (
-                        <p className="text-zinc-400 text-sm line-clamp-2 mb-3">
+                        <p className="text-zinc-400 text-xs sm:text-sm line-clamp-2 mb-2 sm:mb-3 hidden sm:block">
                           {listing.description}
                         </p>
                       )}

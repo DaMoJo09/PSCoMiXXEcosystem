@@ -10,6 +10,7 @@ import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useEffect } from "react";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
@@ -65,6 +66,7 @@ import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
 import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
 import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
 import { Spinner } from "@/components/ui/spinner";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 
 function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -111,6 +113,7 @@ function ProtectedRouter() {
 
   return (
     <LegalGate>
+      <ErrorBoundary>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/comic" component={ComicCreator} />
@@ -166,6 +169,7 @@ function ProtectedRouter() {
         <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
         <Route component={NotFound} />
       </Switch>
+      </ErrorBoundary>
     </LegalGate>
   );
 }
@@ -186,6 +190,7 @@ function App() {
               <EcosystemProvider>
                 <TooltipProvider>
                   <Toaster />
+                  <KeyboardShortcutsDialog />
                   <ProtectedRouter />
                 </TooltipProvider>
               </EcosystemProvider>

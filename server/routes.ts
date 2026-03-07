@@ -11,6 +11,13 @@ import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 
+function getTodayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function getMonthKey(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
 // API Key utilities
 function generateApiKey(): string {
   return `psc_${randomBytes(32).toString('hex')}`;
@@ -62,6 +69,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       return next();
     }
     res.status(403).json({ message: "Forbidden" });
+  }
+
+  function blockStudents(req: Request, res: Response, next: Function) {
+    if (req.isAuthenticated() && req.user?.accountType === "student") {
+      return res.status(403).json({ message: "This feature is not available for student accounts" });
+    }
+    return next();
   }
 
   // API Key authentication middleware for external apps
@@ -153,6 +167,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         ...rest,
         dateOfBirth,
         accountType,
+        parentalConsentAt: accountType === "student" && parentalConsent ? new Date() : undefined,
       });
       if (!result.success) {
         return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
@@ -4616,7 +4631,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         limit: limit ? parseInt(limit as string) : 20,
         offset: offset ? parseInt(offset as string) : 0,
       });
-      res.json(listings);
+      const isStudent = req.isAuthenticated() && req.user?.accountType === "student";
+      const filtered = isStudent
+        ? listings.filter((l: any) => l.contentRating !== "mature")
+        : listings;
+      res.json(filtered);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -4673,6 +4692,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const listing = await storage.getMarketplaceListing(req.params.id);
       if (!listing) {
         return res.status(404).json({ message: "Listing not found" });
+      }
+      const isStudent = req.isAuthenticated() && req.user?.accountType === "student";
+      if (isStudent && (listing as any).contentRating === "mature") {
+        return res.status(403).json({ message: "This content is not available for student accounts" });
       }
       res.json(listing);
     } catch (error: any) {
@@ -4906,40 +4929,234 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // ==================== MARKETPLACE REVIEWS ====================
+
+  app.get("/api/marketplace/listings/:id/reviews", async (req, res) => {
+    try {
+      const reviews = await storage.getListingReviews(req.params.id);
+      res.json(reviews);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketplace/listings/:id/reviews", isAuthenticated, async (req, res) => {
+    try {
+      const { rating, reviewText } = req.body;
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Rating must be between 1 and 5" });
+      }
+
+      const orders = await storage.getBuyerOrders(req.user!.id);
+      const hasPurchased = orders.some(
+        o => o.listingId === req.params.id && o.status === "completed"
+      );
+
+      const existingReviews = await storage.getListingReviews(req.params.id);
+      const alreadyReviewed = existingReviews.some(r => r.userId === req.user!.id);
+      if (alreadyReviewed) {
+        return res.status(400).json({ message: "You have already reviewed this listing" });
+      }
+
+      const review = await storage.createReview({
+        listingId: req.params.id,
+        userId: req.user!.id,
+        rating,
+        reviewText: reviewText?.slice(0, 1000) || null,
+        verifiedPurchase: hasPurchased,
+      });
+
+      res.json(review);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketplace/analytics", isAuthenticated, async (req, res) => {
+    try {
+      const listings = await storage.getMarketplaceListings({ status: "active" });
+      const userListings = listings.filter(l => l.sellerId === req.user!.id);
+
+      const analytics = {
+        totalListings: userListings.length,
+        totalSales: userListings.reduce((sum, l) => sum + (l.salesCount || 0), 0),
+        totalRevenue: userListings.reduce((sum, l) => sum + (l.totalEarnings || 0), 0),
+        listings: userListings.map(l => ({
+          id: l.id,
+          title: l.title,
+          sales: l.salesCount || 0,
+          revenue: l.totalEarnings || 0,
+        })),
+      };
+
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketplace/listings/:id/track", async (req, res) => {
+    try {
+      const { eventType } = req.body;
+      if (!["view", "click"].includes(eventType)) {
+        return res.status(400).json({ message: "Invalid event type" });
+      }
+      await storage.trackListingEvent(req.params.id, eventType, (req.user as any)?.id || null);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ==================== FX STUDIO API ROUTES (pressplays.site sync) ====================
+
+  app.get("/api/usage/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const subscription = await storage.getUserSubscription(userId);
+      const tier = (subscription?.tier || "free") as TierName;
+      const entitlements = tierEntitlements[tier] || tierEntitlements.free;
+
+      const aiCount = await storage.getUsageCount(userId, "ai_generation", "daily", getTodayKey());
+      const exportCount = await storage.getUsageCount(userId, "export", "monthly", getMonthKey());
+
+      res.json({
+        tier,
+        ai: {
+          used: aiCount,
+          limit: entitlements.aiGenerationsPerDay,
+          remaining: entitlements.aiGenerationsPerDay === -1 ? -1 : Math.max(0, entitlements.aiGenerationsPerDay - aiCount),
+        },
+        export: {
+          used: exportCount,
+          limit: entitlements.exportsPerMonth,
+          remaining: entitlements.exportsPerMonth === -1 ? -1 : Math.max(0, entitlements.exportsPerMonth - exportCount),
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/usage/track-export", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      if (req.user!.role === "admin") {
+        return res.json({ allowed: true, remaining: -1 });
+      }
+      const subscription = await storage.getUserSubscription(userId);
+      const tier = (subscription?.tier || "free") as TierName;
+      const entitlements = tierEntitlements[tier] || tierEntitlements.free;
+
+      const monthKey = getMonthKey();
+      const currentCount = await storage.getUsageCount(userId, "export", "monthly", monthKey);
+
+      if (entitlements.exportsPerMonth !== -1 && currentCount >= entitlements.exportsPerMonth) {
+        return res.status(403).json({
+          message: `Export limit reached. Your ${tier} plan allows ${entitlements.exportsPerMonth} exports per month. Upgrade for more.`,
+          code: "EXPORT_LIMIT_REACHED",
+          used: currentCount,
+          limit: entitlements.exportsPerMonth,
+        });
+      }
+
+      const newCount = await storage.incrementUsage(userId, "export", "monthly", monthKey);
+      res.json({
+        allowed: true,
+        used: newCount,
+        limit: entitlements.exportsPerMonth,
+        remaining: entitlements.exportsPerMonth === -1 ? -1 : Math.max(0, entitlements.exportsPerMonth - newCount),
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   app.post("/api/ai/generate-text", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userId = req.user!.id;
+      if (req.user!.role !== "admin") {
+        const subscription = await storage.getUserSubscription(userId);
+        const tier = (subscription?.tier || "free") as TierName;
+        const entitlements = tierEntitlements[tier] || tierEntitlements.free;
+
+        const todayKey = getTodayKey();
+        const aiCount = await storage.getUsageCount(userId, "ai_generation", "daily", todayKey);
+
+        if (entitlements.aiGenerationsPerDay !== -1 && aiCount >= entitlements.aiGenerationsPerDay) {
+          return res.status(403).json({
+            error: `AI generation limit reached. Your ${tier} plan allows ${entitlements.aiGenerationsPerDay} generations per day. Upgrade for more.`,
+            code: "AI_LIMIT_REACHED",
+            used: aiCount,
+            limit: entitlements.aiGenerationsPerDay,
+          });
+        }
+      }
+
       const { prompt, systemPrompt, maxTokens } = req.body;
       if (!prompt || typeof prompt !== "string") {
         return res.status(400).json({ error: "prompt is required" });
       }
 
+      const sanitizedPrompt = prompt
+        .replace(/<[^>]*>/g, "")
+        .replace(/javascript:/gi, "")
+        .replace(/on\w+\s*=/gi, "")
+        .slice(0, 2000);
+
+      const isStudent = req.user?.accountType === "student";
+      const safetyPrefix = isStudent
+        ? "You are creating content for a young audience (ages 6-17). All content must be family-friendly, age-appropriate, and safe for children. Never include violence, mature themes, profanity, or inappropriate content. "
+        : "";
+
       const messages = [];
-      if (systemPrompt) {
-        messages.push({ role: "system", content: systemPrompt });
+      const finalSystemPrompt = safetyPrefix + (systemPrompt || "");
+      if (finalSystemPrompt) {
+        messages.push({ role: "system", content: finalSystemPrompt });
       }
-      messages.push({ role: "user", content: prompt });
+      messages.push({ role: "user", content: sanitizedPrompt });
 
-      const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          model: "openai",
-          seed: Math.floor(Math.random() * 100000),
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
 
-      if (!response.ok) {
-        throw new Error(`Pollinations API error: ${response.status}`);
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const response = await fetch("https://text.pollinations.ai/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages,
+              model: "openai",
+              seed: Math.floor(Math.random() * 100000),
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeout);
+
+          if (!response.ok) {
+            throw new Error(`Pollinations API error: ${response.status}`);
+          }
+
+          const text = await response.text();
+          await storage.incrementUsage(userId, "ai_generation", "daily", getTodayKey());
+          return res.json({ text });
+        } catch (err: any) {
+          lastError = err;
+          if (err.name === "AbortError") break;
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
       }
 
-      const text = await response.text();
-      res.json({ text });
+      clearTimeout(timeout);
+      throw lastError || new Error("AI generation failed after retries");
     } catch (error: any) {
       console.error("AI text generation error:", error);
-      res.status(500).json({ error: error.message || "AI generation failed" });
+      const msg = error.name === "AbortError"
+        ? "AI generation timed out. Please try again."
+        : error.message || "AI generation failed";
+      res.status(500).json({ error: msg });
     }
   });
 

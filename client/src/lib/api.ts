@@ -22,7 +22,7 @@ interface AuthResponse {
 }
 
 export const authApi = {
-  signup: async (data: { email: string; password: string; name: string; dateOfBirth: string }) => {
+  signup: async (data: { email: string; password: string; name: string; dateOfBirth: string; parentalConsent?: boolean }) => {
     const response = await fetch(`${API_BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
