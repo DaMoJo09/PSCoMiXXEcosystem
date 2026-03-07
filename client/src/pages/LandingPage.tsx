@@ -194,10 +194,10 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <a
+        <button
           data-testid="button-enter-studio"
-          href="/login"
-          className="group px-6 sm:px-10 py-3 sm:py-4 bg-white text-black font-bold text-base sm:text-xl uppercase tracking-wider flex items-center gap-2 sm:gap-3 hover:bg-zinc-200 transition-all relative no-underline"
+          onClick={() => navigate("/login")}
+          className="group px-6 sm:px-10 py-3 sm:py-4 bg-white text-black font-bold text-base sm:text-xl uppercase tracking-wider flex items-center gap-2 sm:gap-3 hover:bg-zinc-200 transition-all relative"
           style={{
             padding: '1rem 2.5rem',
             backgroundColor: '#fff',
@@ -212,7 +212,6 @@ export default function LandingPage() {
             cursor: 'pointer',
             border: 'none',
             position: 'relative',
-            textDecoration: 'none',
             boxShadow: glitchText 
               ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff`
               : '0 0 30px rgba(255,255,255,0.3)',
@@ -222,7 +221,7 @@ export default function LandingPage() {
           ENTER THE STUDIO
           <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" style={{ width: '1.5rem', height: '1.5rem' }} />
           <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
-        </a>
+        </button>
         
         <div className="w-full max-w-4xl mt-12">
           <EventCarousel featuredOnly={true} variant="dark" />
@@ -244,32 +243,32 @@ export default function LandingPage() {
       </div>
 
       <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-2 sm:gap-4">
-        <a 
+        <button 
           data-testid="button-login"
-          href="/login"
-          className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors no-underline"
+          onClick={() => navigate("/login")}
+          className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors bg-transparent border-none cursor-pointer"
         >
           Login
-        </a>
-        <a 
+        </button>
+        <button 
           data-testid="button-signup"
-          href="/signup"
-          className="text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 uppercase tracking-wider font-mono transition-colors no-underline"
+          onClick={() => navigate("/signup")}
+          className="text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 uppercase tracking-wider font-mono transition-colors border-none cursor-pointer"
         >
           Sign Up
-        </a>
+        </button>
       </div>
       
-      <a 
-        href="/login"
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 no-underline"
+      <button 
+        onClick={() => navigate("/login")}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 bg-transparent border-none cursor-pointer"
         data-testid="button-press-enter"
       >
         <div className="w-px h-16 bg-gradient-to-b from-transparent to-white/50" />
         <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
           Click or Press Enter
         </span>
-      </a>
+      </button>
     </div>
   );
 }

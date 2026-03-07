@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `pressstart-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `pressstart-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
