@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import JSZip from "jszip";
 import { 
   Download, 
   CheckCircle, 
@@ -24,7 +27,15 @@ import {
   Image,
   Film,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  FileArchive,
+  Images,
+  FileJson,
+  X,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Plus
 } from "lucide-react";
 
 const sourceApps = ["iClone", "CharacterCreator", "CartoonAnimator", "ComfyUI", "Unknown"];
@@ -32,9 +43,38 @@ const exportTypes = ["render", "image", "image_sequence", "video", "asset_pack"]
 const targetModes = ["library_card", "cover", "comic", "cyoa", "visual_novel"];
 const assetRoles = ["character", "background", "panel", "overlay", "cutscene", "prop"];
 
+type ImportFormat = "cbz" | "images" | "json";
+
+interface PreviewData {
+  format: ImportFormat;
+  title: string;
+  images: string[];
+  projectData?: any;
+  fileName: string;
+}
+
+function isImageFile(name: string): boolean {
+  const ext = name.toLowerCase().split(".").pop() || "";
+  return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
+}
+
+function naturalSort(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function fileToDataUrl(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ImportCenter() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("incoming");
+  const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState("file-import");
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [newImport, setNewImport] = useState({
     bundleName: "",
@@ -44,6 +84,14 @@ export default function ImportCenter() {
     assetName: "",
     assetRole: "character",
   });
+
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [projectTitle, setProjectTitle] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: imports = [], isLoading } = useQuery({
     queryKey: ["/api/imports"],
@@ -111,6 +159,168 @@ export default function ImportCenter() {
       toast({ title: "Import deleted" });
     },
   });
+
+  const fileImportMutation = useMutation({
+    mutationFn: async (data: { format: string; images?: string[]; projectData?: any; title: string }) => {
+      const res = await fetch("/api/imports/file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to import");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setPreview(null);
+      setProjectTitle("");
+      toast({
+        title: "Import successful!",
+        description: `Created project "${data.project.title}" with ${data.importedCount} item(s)`,
+      });
+      navigate(`/comic-creator?project=${data.project.id}`);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const processCBZ = useCallback(async (file: File) => {
+    setIsProcessing(true);
+    setImportProgress(0);
+    try {
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(file);
+      const imageFiles = Object.keys(contents.files)
+        .filter((name) => !contents.files[name].dir && isImageFile(name))
+        .sort(naturalSort);
+
+      if (imageFiles.length === 0) {
+        toast({ title: "No images found", description: "The archive doesn't contain any image files", variant: "destructive" });
+        return;
+      }
+
+      const images: string[] = [];
+      for (let i = 0; i < imageFiles.length; i++) {
+        const blob = await contents.files[imageFiles[i]].async("blob");
+        const ext = imageFiles[i].toLowerCase().split(".").pop() || "png";
+        const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : `image/${ext}`;
+        const typedBlob = new Blob([blob], { type: mimeType });
+        const dataUrl = await fileToDataUrl(typedBlob);
+        images.push(dataUrl);
+        setImportProgress(Math.round(((i + 1) / imageFiles.length) * 100));
+      }
+
+      const baseName = file.name.replace(/\.(cbz|cbr|zip)$/i, "");
+      setPreview({ format: "cbz", title: baseName, images, fileName: file.name });
+      setProjectTitle(baseName);
+    } catch (err: any) {
+      toast({ title: "Failed to read archive", description: err.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  const processImageSequence = useCallback(async (files: FileList | File[]) => {
+    setIsProcessing(true);
+    setImportProgress(0);
+    try {
+      const imageFiles = Array.from(files)
+        .filter((f) => isImageFile(f.name))
+        .sort((a, b) => naturalSort(a.name, b.name));
+
+      if (imageFiles.length === 0) {
+        toast({ title: "No images found", description: "No valid image files selected", variant: "destructive" });
+        return;
+      }
+
+      const images: string[] = [];
+      for (let i = 0; i < imageFiles.length; i++) {
+        const dataUrl = await fileToDataUrl(imageFiles[i]);
+        images.push(dataUrl);
+        setImportProgress(Math.round(((i + 1) / imageFiles.length) * 100));
+      }
+
+      setPreview({ format: "images", title: "Image Sequence", images, fileName: `${imageFiles.length} images` });
+      setProjectTitle("Image Sequence Comic");
+    } catch (err: any) {
+      toast({ title: "Failed to process images", description: err.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  const processJSON = useCallback(async (file: File) => {
+    setIsProcessing(true);
+    setImportProgress(50);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const baseName = file.name.replace(/\.(json|cyoa|psdcf)$/i, "");
+      setPreview({ format: "json", title: data.title || baseName, images: [], projectData: data, fileName: file.name });
+      setProjectTitle(data.title || baseName);
+      setImportProgress(100);
+    } catch (err: any) {
+      toast({ title: "Invalid JSON file", description: err.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
+
+    const firstFile = fileList[0];
+    const ext = firstFile.name.toLowerCase().split(".").pop() || "";
+
+    if (["cbz", "cbr", "zip"].includes(ext)) {
+      await processCBZ(firstFile);
+    } else if (["json", "cyoa", "psdcf"].includes(ext)) {
+      await processJSON(firstFile);
+    } else if (isImageFile(firstFile.name)) {
+      await processImageSequence(fileList);
+    } else {
+      toast({ title: "Unsupported format", description: `File type .${ext} is not supported. Use CBZ, ZIP, images, or JSON files.`, variant: "destructive" });
+    }
+  }, [processCBZ, processJSON, processImageSequence]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleConfirmImport = () => {
+    if (!preview) return;
+    if (preview.format === "json") {
+      fileImportMutation.mutate({
+        format: "json",
+        projectData: preview.projectData,
+        title: projectTitle || preview.title,
+      });
+    } else {
+      fileImportMutation.mutate({
+        format: preview.format,
+        images: preview.images,
+        title: projectTitle || preview.title,
+      });
+    }
+  };
 
   const pendingImports = imports.filter((i: any) => i.status === "pending");
   const importedAssets = imports.filter((i: any) => i.status === "imported");
@@ -215,7 +425,7 @@ export default function ImportCenter() {
               <h1 className="text-4xl font-black text-white tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 IMPORT CENTER
               </h1>
-              <p className="text-zinc-400 mt-1">Reallusion & ComfyUI Asset Pipeline</p>
+              <p className="text-zinc-400 mt-1">Import CBZ, image sequences, and project files</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 px-4 py-2 border-2 border-green-500 bg-green-500/10">
@@ -225,13 +435,13 @@ export default function ImportCenter() {
               <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-red-600 hover:bg-red-700 text-white border-2 border-white font-bold" data-testid="btn-add-import">
-                    <Upload className="w-4 h-4 mr-2" />
-                    ADD IMPORT
+                    <Plus className="w-4 h-4 mr-2" />
+                    MANUAL IMPORT
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-black border-2 border-white">
                   <DialogHeader>
-                    <DialogTitle className="text-white font-bold">Add New Import</DialogTitle>
+                    <DialogTitle className="text-white font-bold">Add Manual Import</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 pt-4">
                     <div>
@@ -327,25 +537,25 @@ export default function ImportCenter() {
           <div className="grid grid-cols-4 gap-4">
             <Card className="bg-black border-2 border-white">
               <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-yellow-500">{pendingImports.length}</div>
+                <div className="text-3xl font-black text-yellow-500" data-testid="text-pending-count">{pendingImports.length}</div>
                 <div className="text-xs text-zinc-400 uppercase font-bold">Pending</div>
               </CardContent>
             </Card>
             <Card className="bg-black border-2 border-white">
               <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-green-500">{importedAssets.length}</div>
+                <div className="text-3xl font-black text-green-500" data-testid="text-imported-count">{importedAssets.length}</div>
                 <div className="text-xs text-zinc-400 uppercase font-bold">Imported</div>
               </CardContent>
             </Card>
             <Card className="bg-black border-2 border-white">
               <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-red-500">{failedImports.length}</div>
+                <div className="text-3xl font-black text-red-500" data-testid="text-failed-count">{failedImports.length}</div>
                 <div className="text-xs text-zinc-400 uppercase font-bold">Failed</div>
               </CardContent>
             </Card>
             <Card className="bg-black border-2 border-white">
               <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-white">{imports.length}</div>
+                <div className="text-3xl font-black text-white" data-testid="text-total-count">{imports.length}</div>
                 <div className="text-xs text-zinc-400 uppercase font-bold">Total</div>
               </CardContent>
             </Card>
@@ -353,6 +563,14 @@ export default function ImportCenter() {
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="bg-zinc-900 border-2 border-white p-1">
+              <TabsTrigger
+                value="file-import"
+                className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-bold"
+                data-testid="tab-file-import"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                FILE IMPORT
+              </TabsTrigger>
               <TabsTrigger 
                 value="incoming" 
                 className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-bold"
@@ -375,6 +593,238 @@ export default function ImportCenter() {
                 FAILED ({failedImports.length})
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="file-import" className="space-y-6">
+              {!preview ? (
+                <>
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative border-4 border-dashed rounded-lg p-16 text-center cursor-pointer transition-all ${
+                      isDragOver
+                        ? "border-red-500 bg-red-500/10"
+                        : "border-zinc-600 hover:border-zinc-400 bg-zinc-900/30"
+                    }`}
+                    data-testid="drop-zone"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".cbz,.cbr,.zip,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.json,.cyoa,.psdcf"
+                      onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                      className="hidden"
+                      data-testid="input-file-upload"
+                    />
+                    {isProcessing ? (
+                      <div className="space-y-4">
+                        <div className="w-16 h-16 mx-auto border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        <p className="text-white font-bold text-lg">Processing files...</p>
+                        <Progress value={importProgress} className="w-64 mx-auto" />
+                        <p className="text-zinc-400 text-sm">{importProgress}% complete</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="w-16 h-16 text-zinc-500 mx-auto mb-4" />
+                        <h3 className="text-white font-bold text-xl mb-2">Drop files here or click to browse</h3>
+                        <p className="text-zinc-400 mb-6">Import comics and project files into your library</p>
+                        <div className="flex items-center justify-center gap-6">
+                          <div className="flex items-center gap-2 text-zinc-400">
+                            <FileArchive className="w-5 h-5 text-blue-400" />
+                            <span className="text-sm">CBZ / ZIP</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-400">
+                            <Images className="w-5 h-5 text-green-400" />
+                            <span className="text-sm">Image Sequence</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-400">
+                            <FileJson className="w-5 h-5 text-yellow-400" />
+                            <span className="text-sm">JSON / CYOA / PSDCF</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card className="bg-zinc-900/50 border border-zinc-700">
+                      <CardContent className="p-6">
+                        <FileArchive className="w-8 h-8 text-blue-400 mb-3" />
+                        <h4 className="text-white font-bold mb-1">CBZ / CBR / ZIP</h4>
+                        <p className="text-zinc-400 text-sm">Comic book archives. Images are extracted and each becomes a comic page.</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-zinc-900/50 border border-zinc-700">
+                      <CardContent className="p-6">
+                        <Images className="w-8 h-8 text-green-400 mb-3" />
+                        <h4 className="text-white font-bold mb-1">Image Sequence</h4>
+                        <p className="text-zinc-400 text-sm">Select multiple images. They'll be sorted naturally and arranged as comic pages.</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-zinc-900/50 border border-zinc-700">
+                      <CardContent className="p-6">
+                        <FileJson className="w-8 h-8 text-yellow-400 mb-3" />
+                        <h4 className="text-white font-bold mb-1">Project Files</h4>
+                        <p className="text-zinc-400 text-sm">Import .cyoa, .psdcf, or JSON project exports to restore saved work.</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <Card className="bg-black border-2 border-white">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white font-bold flex items-center gap-2">
+                        <Eye className="w-5 h-5" />
+                        Import Preview
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setPreview(null); setProjectTitle(""); }}
+                        className="text-zinc-400 hover:text-white"
+                        data-testid="btn-cancel-preview"
+                      >
+                        <X className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-zinc-400 text-xs uppercase">Format</Label>
+                        <p className="text-white font-bold" data-testid="text-preview-format">
+                          {preview.format === "cbz" ? "CBZ / ZIP Archive" : preview.format === "images" ? "Image Sequence" : "Project File (JSON)"}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs uppercase">Source</Label>
+                        <p className="text-white font-bold" data-testid="text-preview-source">{preview.fileName}</p>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs uppercase">
+                          {preview.format === "json" ? "Type" : "Pages"}
+                        </Label>
+                        <p className="text-white font-bold" data-testid="text-preview-count">
+                          {preview.format === "json"
+                            ? preview.projectData?.type || "comic"
+                            : `${preview.images.length} page${preview.images.length !== 1 ? "s" : ""}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-white mb-2 block">Project Title</Label>
+                      <Input
+                        value={projectTitle}
+                        onChange={(e) => setProjectTitle(e.target.value)}
+                        className="bg-zinc-900 border-white text-white"
+                        placeholder="Enter project title..."
+                        data-testid="input-project-title"
+                      />
+                    </div>
+
+                    {preview.images.length > 0 && (
+                      <div className="space-y-3">
+                        <Label className="text-zinc-400 text-xs uppercase">Preview</Label>
+                        <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden" style={{ minHeight: 320 }}>
+                          <img
+                            src={preview.images[previewIndex]}
+                            alt={`Page ${previewIndex + 1}`}
+                            className="max-h-[400px] mx-auto object-contain"
+                            data-testid="img-preview"
+                          />
+                          {preview.images.length > 1 && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 text-white hover:bg-black/80"
+                                onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
+                                disabled={previewIndex === 0}
+                                data-testid="btn-preview-prev"
+                              >
+                                <ChevronLeft className="w-5 h-5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 text-white hover:bg-black/80"
+                                onClick={() => setPreviewIndex(Math.min(preview.images.length - 1, previewIndex + 1))}
+                                disabled={previewIndex === preview.images.length - 1}
+                                data-testid="btn-preview-next"
+                              >
+                                <ChevronRight className="w-5 h-5" />
+                              </Button>
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded text-white text-sm font-bold">
+                                {previewIndex + 1} / {preview.images.length}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {preview.images.length > 1 && (
+                          <div className="flex gap-2 overflow-x-auto pb-2">
+                            {preview.images.map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setPreviewIndex(idx)}
+                                className={`flex-shrink-0 w-16 h-16 border-2 overflow-hidden transition-all ${
+                                  idx === previewIndex ? "border-red-500" : "border-zinc-700 hover:border-zinc-400"
+                                }`}
+                                data-testid={`btn-thumbnail-${idx}`}
+                              >
+                                <img src={img} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {preview.format === "json" && preview.projectData && (
+                      <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
+                        <Label className="text-zinc-400 text-xs uppercase mb-2 block">Project Data Preview</Label>
+                        <pre className="text-zinc-300 text-xs overflow-auto max-h-48 font-mono">
+                          {JSON.stringify(preview.projectData, null, 2).slice(0, 2000)}
+                          {JSON.stringify(preview.projectData, null, 2).length > 2000 ? "\n..." : ""}
+                        </pre>
+                      </div>
+                    )}
+
+                    <div className="flex gap-4">
+                      <Button
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white border-2 border-white font-bold text-lg py-6"
+                        onClick={handleConfirmImport}
+                        disabled={fileImportMutation.isPending || !projectTitle.trim()}
+                        data-testid="btn-confirm-import"
+                      >
+                        {fileImportMutation.isPending ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            IMPORTING...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-5 h-5 mr-2" />
+                            CREATE PROJECT
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-zinc-600 text-zinc-400 hover:text-white font-bold py-6"
+                        onClick={() => { setPreview(null); setProjectTitle(""); setPreviewIndex(0); }}
+                        data-testid="btn-cancel-import"
+                      >
+                        CANCEL
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
 
             <TabsContent value="incoming" className="space-y-4">
               {pendingImports.length === 0 ? (
@@ -421,27 +871,31 @@ export default function ImportCenter() {
 
           <Card className="bg-black border-2 border-white">
             <CardHeader>
-              <CardTitle className="text-white font-bold">Connection Status</CardTitle>
+              <CardTitle className="text-white font-bold">Supported Formats</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 border border-zinc-700 bg-zinc-900/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">Reallusion</span>
-                    <Badge className="bg-green-600 text-white">Ready</Badge>
+                    <span className="text-white font-bold">CBZ / CBR / ZIP</span>
+                    <Badge className="bg-blue-600 text-white">Archive</Badge>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-2">iClone, Character Creator, Cartoon Animator</p>
+                  <p className="text-xs text-zinc-400 mt-2">Comic book archives with images extracted into pages</p>
                 </div>
                 <div className="p-4 border border-zinc-700 bg-zinc-900/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">ComfyUI</span>
-                    <Badge className="bg-green-600 text-white">Ready</Badge>
+                    <span className="text-white font-bold">Image Sequence</span>
+                    <Badge className="bg-green-600 text-white">Images</Badge>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-2">AI Image Generation Workflow</p>
+                  <p className="text-xs text-zinc-400 mt-2">JPG, PNG, GIF, WebP - sorted and arranged as pages</p>
                 </div>
-              </div>
-              <div className="text-xs text-zinc-500">
-                Export assets to: <code className="bg-zinc-800 px-2 py-1">~/Documents/CoMiXX/_INBOX/</code>
+                <div className="p-4 border border-zinc-700 bg-zinc-900/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-bold">JSON / CYOA / PSDCF</span>
+                    <Badge className="bg-yellow-600 text-white">Project</Badge>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-2">Exported project files from CoMiXX or compatible tools</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -40,11 +40,14 @@ import {
   Pin,
   PinOff,
   ChevronRight,
-  Monitor
+  Monitor,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount } from "@/lib/offlineStorage";
 
 interface AppSidebarProps {
   isExpanded: boolean;
@@ -147,11 +150,34 @@ function useInstallPrompt() {
   return { canInstall: !!installPrompt && !isInstalled, isInstalled, install };
 }
 
+function useOnlineStatus() {
+  const [online, setOnline] = useState(isOnline());
+  const [pendingSync, setPendingSync] = useState(0);
+
+  useEffect(() => {
+    const cleanup = onOnlineStatusChange(async (status) => {
+      setOnline(status);
+      if (status) {
+        const result = await syncPendingChanges();
+        if (result.synced > 0) {
+          setPendingSync(0);
+        }
+      }
+    });
+
+    getPendingSyncCount().then(setPendingSync);
+    return cleanup;
+  }, []);
+
+  return { online, pendingSync };
+}
+
 export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProps) {
   const [location] = useLocation();
   const { user, logout, isStudent, isCreator } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { canInstall, isInstalled, install } = useInstallPrompt();
+  const { online, pendingSync } = useOnlineStatus();
   const xp = user?.xp || 0;
   const level = user?.level || 1;
   const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
@@ -386,6 +412,24 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin }: AppSidebarProp
             </div>
           </div>
         )}
+        <div className={cn(
+          "border-t border-border",
+          isExpanded ? "px-4 py-1.5" : "px-1 py-1.5 flex justify-center"
+        )} data-testid="status-online">
+          {online ? (
+            <div className="flex items-center gap-2 text-[10px] text-green-400 font-mono">
+              <Wifi className="w-3 h-3 shrink-0" />
+              {isExpanded && <span>ONLINE</span>}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-[10px] text-amber-400 font-mono">
+              <WifiOff className="w-3 h-3 shrink-0 animate-pulse" />
+              {isExpanded && (
+                <span>OFFLINE{pendingSync > 0 ? ` (${pendingSync} pending)` : ""}</span>
+              )}
+            </div>
+          )}
+        </div>
         {isExpanded && <EcosystemStatus />}
         <div className={cn(
           "flex items-center gap-3 py-3",

@@ -1,7 +1,8 @@
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `pressstart-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `pressstart-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
+const APP_SHELL_CACHE = `pressstart-shell-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',
@@ -18,7 +19,12 @@ const FONT_ORIGINS = [
   'https://fonts.gstatic.com'
 ];
 
-const EXCLUDED_EXTENSIONS = ['.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'];
+const EXCLUDED_EXTENSIONS = ['.mp4', '.webm', '.mp3', '.wav', '.ogg', '.m4a'];
+
+const DB_NAME = 'pressstart-offline';
+const DB_VERSION = 1;
+const STORE_PROJECTS = 'projects';
+const STORE_QUEUE = 'syncQueue';
 
 function shouldExcludeFromCache(url) {
   const pathname = url.pathname.toLowerCase();
@@ -27,6 +33,11 @@ function shouldExcludeFromCache(url) {
 
 function isValidCacheResponse(response) {
   return response && response.status === 200 && response.type !== 'opaque';
+}
+
+function isAppShellRequest(url) {
+  const ext = url.pathname.split('.').pop();
+  return ['js', 'css', 'woff', 'woff2', 'ttf', 'otf'].includes(ext) && url.origin === self.location.origin;
 }
 
 self.addEventListener('install', (event) => {
@@ -84,6 +95,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (isAppShellRequest(url)) {
+    event.respondWith(
+      caches.open(APP_SHELL_CACHE).then((cache) => {
+        return cache.match(request).then((cached) => {
+          const fetchPromise = fetch(request).then((response) => {
+            if (isValidCacheResponse(response)) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          }).catch(() => cached);
+          return cached || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
@@ -91,7 +119,8 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return new Response(JSON.stringify({ 
             error: 'Offline', 
-            message: 'You appear to be offline. Please check your connection.' 
+            message: 'You appear to be offline. Changes will sync when you reconnect.',
+            offline: true
           }), {
             status: 503,
             headers: { 'Content-Type': 'application/json' }
@@ -132,7 +161,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(request).then((cached) => {
-            return cached || caches.match('/offline.html');
+            return cached || caches.match('/') || caches.match('/offline.html');
           });
         })
     );
@@ -153,7 +182,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       }).catch(() => {
         if (request.destination === 'document') {
-          return caches.match('/offline.html');
+          return caches.match('/') || caches.match('/offline.html');
         }
       });
     })
@@ -164,4 +193,74 @@ self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }
+  if (event.data === 'cacheAppShell') {
+    event.waitUntil(
+      caches.open(APP_SHELL_CACHE).then(async (cache) => {
+        const response = await fetch('/');
+        const html = await response.text();
+        const assetUrls = [];
+        const scriptMatches = html.matchAll(/src="([^"]+\.(js|css))"/g);
+        const linkMatches = html.matchAll(/href="([^"]+\.css)"/g);
+        for (const match of scriptMatches) assetUrls.push(match[1]);
+        for (const match of linkMatches) assetUrls.push(match[1]);
+        await cache.addAll(assetUrls.filter(u => u.startsWith('/'))).catch(() => {});
+      })
+    );
+  }
 });
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-projects') {
+    event.waitUntil(syncOfflineProjects());
+  }
+});
+
+async function syncOfflineProjects() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_QUEUE, 'readonly');
+    const store = tx.objectStore(STORE_QUEUE);
+    const request = store.getAll();
+    const items = await promisifyRequest(request);
+    
+    for (const item of items) {
+      try {
+        await fetch(item.url, {
+          method: item.method,
+          headers: item.headers,
+          body: item.body,
+          credentials: 'include'
+        });
+        const deleteTx = db.transaction(STORE_QUEUE, 'readwrite');
+        deleteTx.objectStore(STORE_QUEUE).delete(item.id);
+      } catch {
+        break;
+      }
+    }
+    db.close();
+  } catch {}
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_PROJECTS)) {
+        db.createObjectStore(STORE_PROJECTS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_QUEUE)) {
+        db.createObjectStore(STORE_QUEUE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function promisifyRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}

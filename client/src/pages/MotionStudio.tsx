@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { 
   ArrowLeft, Play, Pause, SkipBack, SkipForward, Repeat,
   Plus, Trash2, Copy, Save, Download, Upload,
-  Wand2, ChevronLeft, ChevronRight,
+  Wand2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ZoomIn, ZoomOut, Maximize2,
   Sparkles, Film, Music,
   Eye, EyeOff, Lock, Unlock,
@@ -13,7 +13,10 @@ import {
   BookOpen, Layers, MonitorPlay, Check,
   Blend, Droplets, Zap, Move, RotateCcw, FlipHorizontal,
   Diamond, Clock, TrendingUp, Sliders, GitBranch, Aperture,
-  Volume2, VolumeX, Grid3X3, Focus, Lightbulb, Wind, Flame
+  Volume2, VolumeX, Grid3X3, Focus, Lightbulb, Wind, Flame,
+  Pipette, PaintBucket, Star, Pentagon, Lasso, SquareDashed, CircleDashed,
+  Scissors, Clipboard, ClipboardPaste,
+  FileVideo, Settings2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
@@ -53,7 +56,7 @@ const BLEND_MODES = [
 
 // Drawing Types
 type DrawingMode = "raster" | "vector";
-type RasterTool = "pen" | "eraser" | "select";
+type RasterTool = "pen" | "eraser" | "select" | "rect-select" | "ellipse-select" | "lasso-select" | "shape-rect" | "shape-ellipse" | "shape-line" | "shape-arrow" | "shape-polygon" | "shape-star" | "fill" | "eyedropper";
 type VectorTool = "pen" | "pencil" | "select" | "line" | "rectangle" | "ellipse" | "arrow";
 
 interface VectorPath {
@@ -80,11 +83,22 @@ interface ImageLayer {
   name: string;
 }
 
+interface DrawingLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+  blendMode: string;
+  imageData: string;
+}
+
 interface Frame {
   id: string;
   imageData: string;
   vectorPaths: VectorPath[];
   imageLayers: ImageLayer[];
+  drawingLayers?: DrawingLayer[];
   duration: number;
   effects?: string[];
   opacity?: number;
@@ -143,10 +157,12 @@ const mapBlendMode = (mode: string): GlobalCompositeOperation => {
 // Composite frame with effects and image layers applied (for export/output)
 const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
   return new Promise((resolve) => {
+    const drawingLayers = frame.drawingLayers?.filter(l => l.visible) || [];
+    const hasDrawingLayers = drawingLayers.length > 0;
     const hasRaster = !!frame.imageData;
-    const layers = frame.imageLayers?.filter(l => l.visible) || [];
+    const imgLayers = frame.imageLayers?.filter(l => l.visible) || [];
     
-    if (!hasRaster && layers.length === 0) {
+    if (!hasRaster && !hasDrawingLayers && imgLayers.length === 0) {
       resolve("");
       return;
     }
@@ -162,46 +178,62 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
     
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
-    
-    const drawLayers = () => {
-      if (layers.length === 0) {
-        applyEffectsAndResolve();
-        return;
-      }
-      let loaded = 0;
-      const total = layers.length;
-      const loadedLayers: { img: HTMLImageElement; layer: ImageLayer; idx: number }[] = [];
-      
-      layers.forEach((layer, idx) => {
-        const lImg = new Image();
-        lImg.crossOrigin = 'anonymous';
-        lImg.onload = () => {
-          loadedLayers.push({ img: lImg, layer, idx });
-          loaded++;
-          if (loaded === total) {
-            loadedLayers.sort((a, b) => a.idx - b.idx);
-            loadedLayers.forEach(({ img: li, layer: l }) => {
-              ctx.save();
-              ctx.globalAlpha = l.opacity / 100;
-              if (l.rotation) {
-                const cx = l.x + l.width / 2;
-                const cy = l.y + l.height / 2;
-                ctx.translate(cx, cy);
-                ctx.rotate((l.rotation * Math.PI) / 180);
-                ctx.drawImage(li, -l.width / 2, -l.height / 2, l.width, l.height);
-              } else {
-                ctx.drawImage(li, l.x, l.y, l.width, l.height);
-              }
-              ctx.restore();
-            });
-            applyEffectsAndResolve();
+
+    const loadImg = (src: string): Promise<HTMLImageElement | null> => {
+      if (!src || !src.startsWith('data:')) return Promise.resolve(null);
+      return new Promise(res => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => res(img);
+        img.onerror = () => res(null);
+        img.src = src;
+      });
+    };
+
+    const drawDrawingLayers = async () => {
+      if (hasDrawingLayers) {
+        for (const dl of drawingLayers) {
+          const dlImg = await loadImg(dl.imageData);
+          if (dlImg) {
+            ctx.save();
+            ctx.globalAlpha = (dl.opacity ?? 100) / 100;
+            ctx.globalCompositeOperation = mapBlendMode(dl.blendMode || 'normal');
+            ctx.drawImage(dlImg, 0, 0);
+            ctx.restore();
           }
-        };
-        lImg.onerror = () => {
-          loaded++;
-          if (loaded === total) applyEffectsAndResolve();
-        };
-        lImg.src = layer.src;
+        }
+      } else if (hasRaster) {
+        const rasterImg = await loadImg(frame.imageData);
+        if (rasterImg) {
+          ctx.globalAlpha = (frame.opacity ?? 100) / 100;
+          ctx.globalCompositeOperation = mapBlendMode(frame.blendMode || 'normal');
+          ctx.drawImage(rasterImg, 0, 0);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
+    };
+    
+    const drawImageLayers = async () => {
+      if (imgLayers.length === 0) return;
+      const loaded = await Promise.all(imgLayers.map(async (layer) => {
+        const lImg = await loadImg(layer.src);
+        return { img: lImg, layer };
+      }));
+      loaded.forEach(({ img: li, layer: l }) => {
+        if (!li) return;
+        ctx.save();
+        ctx.globalAlpha = l.opacity / 100;
+        if (l.rotation) {
+          const cx = l.x + l.width / 2;
+          const cy = l.y + l.height / 2;
+          ctx.translate(cx, cy);
+          ctx.rotate((l.rotation * Math.PI) / 180);
+          ctx.drawImage(li, -l.width / 2, -l.height / 2, l.width, l.height);
+        } else {
+          ctx.drawImage(li, l.x, l.y, l.width, l.height);
+        }
+        ctx.restore();
       });
     };
     
@@ -225,25 +257,181 @@ const compositeFrameWithEffects = (frame: Frame): Promise<string> => {
       resolve(offscreen.toDataURL('image/png'));
     };
     
-    if (hasRaster) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.globalAlpha = (frame.opacity ?? 100) / 100;
-        ctx.globalCompositeOperation = mapBlendMode(frame.blendMode || 'normal');
-        ctx.drawImage(img, 0, 0);
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
-        drawLayers();
-      };
-      img.onerror = () => {
-        drawLayers();
-      };
-      img.src = frame.imageData;
-    } else {
-      drawLayers();
-    }
+    (async () => {
+      await drawDrawingLayers();
+      await drawImageLayers();
+      applyEffectsAndResolve();
+    })();
   });
 };
+
+function encodeGIF(
+  frameDataArrays: Uint8ClampedArray[],
+  width: number,
+  height: number,
+  delayMs: number,
+  onProgress?: (progress: number) => void
+): Uint8Array {
+  const maxColors = 256;
+  const delayCentiseconds = Math.max(2, Math.round(delayMs / 10));
+
+  const buildPalette = (pixels: Uint8ClampedArray): number[][] => {
+    const colorMap = new Map<string, { r: number; g: number; b: number; count: number }>();
+    const step = Math.max(1, Math.floor(pixels.length / 4 / 10000));
+    for (let i = 0; i < pixels.length; i += 4 * step) {
+      const r = pixels[i] & 0xF8;
+      const g = pixels[i + 1] & 0xF8;
+      const b = pixels[i + 2] & 0xF8;
+      const key = `${r},${g},${b}`;
+      const existing = colorMap.get(key);
+      if (existing) existing.count++;
+      else colorMap.set(key, { r, g, b, count: 1 });
+    }
+    const sorted = Array.from(colorMap.values()).sort((a, b) => b.count - a.count);
+    const palette: number[][] = [];
+    for (let i = 0; i < Math.min(maxColors, sorted.length); i++) {
+      palette.push([sorted[i].r, sorted[i].g, sorted[i].b]);
+    }
+    while (palette.length < maxColors) palette.push([0, 0, 0]);
+    return palette;
+  };
+
+  const findClosest = (palette: number[][], r: number, g: number, b: number): number => {
+    let minDist = Infinity;
+    let idx = 0;
+    for (let i = 0; i < palette.length; i++) {
+      const dr = r - palette[i][0];
+      const dg = g - palette[i][1];
+      const db = b - palette[i][2];
+      const dist = dr * dr + dg * dg + db * db;
+      if (dist < minDist) { minDist = dist; idx = i; }
+    }
+    return idx;
+  };
+
+  const indexFrame = (pixels: Uint8ClampedArray, palette: number[][]): Uint8Array => {
+    const count = width * height;
+    const indexed = new Uint8Array(count);
+    for (let i = 0; i < count; i++) {
+      const off = i * 4;
+      indexed[i] = findClosest(palette, pixels[off], pixels[off + 1], pixels[off + 2]);
+    }
+    return indexed;
+  };
+
+  const lzwEncode = (indexed: Uint8Array, colorBits: number): Uint8Array => {
+    const minCodeSize = Math.max(2, colorBits);
+    const clearCode = 1 << minCodeSize;
+    const eoiCode = clearCode + 1;
+    let codeSize = minCodeSize + 1;
+    let nextCode = eoiCode + 1;
+    const maxCode = 4096;
+
+    const output: number[] = [];
+    let bitBuffer = 0;
+    let bitCount = 0;
+
+    const writeBits = (code: number, size: number) => {
+      bitBuffer |= code << bitCount;
+      bitCount += size;
+      while (bitCount >= 8) {
+        output.push(bitBuffer & 0xFF);
+        bitBuffer >>= 8;
+        bitCount -= 8;
+      }
+    };
+
+    const table = new Map<string, number>();
+    const initTable = () => {
+      table.clear();
+      for (let i = 0; i < clearCode; i++) table.set(String(i), i);
+      codeSize = minCodeSize + 1;
+      nextCode = eoiCode + 1;
+    };
+
+    initTable();
+    writeBits(clearCode, codeSize);
+
+    let current = String(indexed[0]);
+    for (let i = 1; i < indexed.length; i++) {
+      const next = current + ',' + indexed[i];
+      if (table.has(next)) {
+        current = next;
+      } else {
+        writeBits(table.get(current)!, codeSize);
+        if (nextCode < maxCode) {
+          table.set(next, nextCode++);
+          if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+        } else {
+          writeBits(clearCode, codeSize);
+          initTable();
+        }
+        current = String(indexed[i]);
+      }
+    }
+    writeBits(table.get(current)!, codeSize);
+    writeBits(eoiCode, codeSize);
+    if (bitCount > 0) output.push(bitBuffer & 0xFF);
+
+    const result: number[] = [minCodeSize];
+    for (let pos = 0; pos < output.length;) {
+      const chunkSize = Math.min(255, output.length - pos);
+      result.push(chunkSize);
+      for (let j = 0; j < chunkSize; j++) result.push(output[pos + j]);
+      pos += chunkSize;
+    }
+    result.push(0);
+    return new Uint8Array(result);
+  };
+
+  const allBytes: number[] = [];
+  const writeByte = (b: number) => allBytes.push(b & 0xFF);
+  const writeShort = (s: number) => { writeByte(s & 0xFF); writeByte((s >> 8) & 0xFF); };
+  const writeBytes = (arr: Uint8Array | number[]) => { for (let i = 0; i < arr.length; i++) allBytes.push(arr[i]); };
+
+  writeByte(0x47); writeByte(0x49); writeByte(0x46);
+  writeByte(0x38); writeByte(0x39); writeByte(0x61);
+
+  const palette = buildPalette(frameDataArrays[0]);
+  const colorBits = 8;
+
+  writeShort(width);
+  writeShort(height);
+  writeByte(0x87);
+  writeByte(0);
+  writeByte(0);
+
+  for (let i = 0; i < 256; i++) {
+    writeByte(palette[i][0]); writeByte(palette[i][1]); writeByte(palette[i][2]);
+  }
+
+  writeByte(0x21); writeByte(0xFF); writeByte(11);
+  const netscape = [0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30];
+  writeBytes(netscape);
+  writeByte(3); writeByte(1); writeShort(0); writeByte(0);
+
+  for (let f = 0; f < frameDataArrays.length; f++) {
+    onProgress?.(f / frameDataArrays.length);
+
+    writeByte(0x21); writeByte(0xF9); writeByte(4);
+    writeByte(0x00);
+    writeShort(delayCentiseconds);
+    writeByte(0); writeByte(0);
+
+    writeByte(0x2C);
+    writeShort(0); writeShort(0);
+    writeShort(width); writeShort(height);
+    writeByte(0);
+
+    const indexed = indexFrame(frameDataArrays[f], palette);
+    const lzwData = lzwEncode(indexed, colorBits);
+    writeBytes(lzwData);
+  }
+
+  writeByte(0x3B);
+  onProgress?.(1);
+  return new Uint8Array(allBytes);
+}
 
 export default function MotionStudio() {
   const [location, navigate] = useLocation();
@@ -269,7 +457,7 @@ export default function MotionStudio() {
   
   // Frame state
   const [frames, setFrames] = useState<Frame[]>([
-    { id: "frame_1", imageData: "", vectorPaths: [], imageLayers: [], duration: 1000 }
+    { id: "frame_1", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_1", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 }
   ]);
   
   // Image Layer state
@@ -308,6 +496,27 @@ export default function MotionStudio() {
   const [isPenCreating, setIsPenCreating] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   
+  // Selection state
+  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [selectionPath, setSelectionPath] = useState<{ x: number; y: number }[]>([]);
+  const [selectionImageData, setSelectionImageData] = useState<ImageData | null>(null);
+  const [clipboardImageData, setClipboardImageData] = useState<ImageData | null>(null);
+  const [clipboardRect, setClipboardRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [isMovingSelection, setIsMovingSelection] = useState(false);
+  const [selectionMoveStart, setSelectionMoveStart] = useState<{ x: number; y: number } | null>(null);
+  const selectionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const marchingAntsRef = useRef<number>(0);
+  const marchingAntsAnimRef = useRef<number | null>(null);
+
+  // Shape drawing state
+  const [shapeStart, setShapeStart] = useState<{ x: number; y: number } | null>(null);
+  const [shapePreview, setShapePreview] = useState<{ tool: string; start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
+
+  // Drawing Layers state
+  const [activeDrawingLayerId, setActiveDrawingLayerId] = useState<string>("dl_1");
+  const activeDrawingLayerRef = useRef<string>("dl_1");
+  activeDrawingLayerRef.current = activeDrawingLayerId;
+
   // History
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -349,6 +558,16 @@ export default function MotionStudio() {
   const [importingFxId, setImportingFxId] = useState<string | null>(null);
   const { addAsset } = useAssetLibrary();
   
+  // Video/GIF Export Dialog
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"gif" | "webm">("gif");
+  const [exportFps, setExportFps] = useState(12);
+  const [exportQuality, setExportQuality] = useState(80);
+  const [exportResolution, setExportResolution] = useState<"1920x1080" | "1280x720" | "960x540" | "640x360">("1280x720");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportStatusText, setExportStatusText] = useState("");
+
   // Timeline zoom and scrubbing
   const [timelineZoom, setTimelineZoom] = useState(100);
   const [isDraggingScrubber, setIsDraggingScrubber] = useState(false);
@@ -570,7 +789,24 @@ export default function MotionStudio() {
     if (!canvas || !context) return;
     
     const currentFrame = frames[currentFrameIndex];
-    if (currentFrame?.imageData) {
+    
+    const dlayers = currentFrame?.drawingLayers;
+    if (dlayers && dlayers.length > 0) {
+      const activeLayer = dlayers.find(l => l.id === activeDrawingLayerRef.current) || dlayers[0];
+      if (activeLayer.id !== activeDrawingLayerRef.current) {
+        setActiveDrawingLayerId(activeLayer.id);
+      }
+      if (activeLayer.imageData && activeLayer.imageData.startsWith('data:')) {
+        const img = new Image();
+        img.onload = () => {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(img, 0, 0);
+        };
+        img.src = activeLayer.imageData;
+      } else {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    } else if (currentFrame?.imageData) {
       const img = new Image();
       img.onload = () => {
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -578,8 +814,7 @@ export default function MotionStudio() {
       };
       img.src = currentFrame.imageData;
     } else {
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.clearRect(0, 0, canvas.width, canvas.height);
     }
     
     // Load vector paths for this frame
@@ -685,6 +920,258 @@ export default function MotionStudio() {
     toast.success("Canvas cleared");
   }, [saveToHistory]);
 
+  // Marching ants animation for selection
+  const drawMarchingAnts = useCallback(() => {
+    const selCanvas = selectionCanvasRef.current;
+    if (!selCanvas) return;
+    const sCtx = selCanvas.getContext('2d');
+    if (!sCtx) return;
+    sCtx.clearRect(0, 0, selCanvas.width, selCanvas.height);
+
+    const offset = marchingAntsRef.current;
+    marchingAntsRef.current = (offset + 1) % 16;
+
+    sCtx.setLineDash([6, 4]);
+    sCtx.lineDashOffset = -offset;
+    sCtx.strokeStyle = '#000';
+    sCtx.lineWidth = 1.5;
+
+    if (selectionRect) {
+      sCtx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+      sCtx.strokeStyle = '#fff';
+      sCtx.lineDashOffset = -(offset + 5);
+      sCtx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+    }
+
+    if (selectionPath.length > 2) {
+      sCtx.beginPath();
+      sCtx.moveTo(selectionPath[0].x, selectionPath[0].y);
+      for (let i = 1; i < selectionPath.length; i++) {
+        sCtx.lineTo(selectionPath[i].x, selectionPath[i].y);
+      }
+      sCtx.closePath();
+      sCtx.strokeStyle = '#000';
+      sCtx.lineDashOffset = -offset;
+      sCtx.stroke();
+      sCtx.strokeStyle = '#fff';
+      sCtx.lineDashOffset = -(offset + 5);
+      sCtx.stroke();
+    }
+
+    marchingAntsAnimRef.current = requestAnimationFrame(drawMarchingAnts);
+  }, [selectionRect, selectionPath]);
+
+  useEffect(() => {
+    if (selectionRect || selectionPath.length > 2) {
+      marchingAntsAnimRef.current = requestAnimationFrame(drawMarchingAnts);
+    }
+    return () => {
+      if (marchingAntsAnimRef.current) cancelAnimationFrame(marchingAntsAnimRef.current);
+    };
+  }, [selectionRect, selectionPath, drawMarchingAnts]);
+
+  // Flood fill algorithm
+  const floodFill = useCallback((startX: number, startY: number, fillColorHex: string) => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const r = parseInt(fillColorHex.slice(1, 3), 16);
+    const g = parseInt(fillColorHex.slice(3, 5), 16);
+    const b = parseInt(fillColorHex.slice(5, 7), 16);
+
+    const idx = (Math.floor(startY) * w + Math.floor(startX)) * 4;
+    const targetR = data[idx], targetG = data[idx + 1], targetB = data[idx + 2], targetA = data[idx + 3];
+
+    if (r === targetR && g === targetG && b === targetB && targetA === 255) return;
+
+    const tolerance = 32;
+    const matchesTarget = (i: number) => {
+      return Math.abs(data[i] - targetR) <= tolerance &&
+             Math.abs(data[i + 1] - targetG) <= tolerance &&
+             Math.abs(data[i + 2] - targetB) <= tolerance &&
+             Math.abs(data[i + 3] - targetA) <= tolerance;
+    };
+
+    const stack: [number, number][] = [[Math.floor(startX), Math.floor(startY)]];
+    const visited = new Uint8Array(w * h);
+
+    while (stack.length > 0) {
+      const [cx, cy] = stack.pop()!;
+      if (cx < 0 || cx >= w || cy < 0 || cy >= h) continue;
+      const pi = cy * w + cx;
+      if (visited[pi]) continue;
+      const ci = pi * 4;
+      if (!matchesTarget(ci)) continue;
+      visited[pi] = 1;
+      data[ci] = r;
+      data[ci + 1] = g;
+      data[ci + 2] = b;
+      data[ci + 3] = 255;
+      stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    saveToHistory();
+  }, [saveToHistory]);
+
+  // Eyedropper
+  const pickColor = useCallback((x: number, y: number) => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+    const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+    const hex = '#' + [pixel[0], pixel[1], pixel[2]].map(c => c.toString(16).padStart(2, '0')).join('');
+    setBrushColor(hex);
+    toast.success(`Color picked: ${hex}`);
+  }, []);
+
+  // Draw shape on raster canvas
+  const drawShapeOnCanvas = useCallback((tool: string, start: { x: number; y: number }, end: { x: number; y: number }, preview = false) => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+
+    if (preview) {
+      const selCanvas = selectionCanvasRef.current;
+      if (!selCanvas) return;
+      const sCtx = selCanvas.getContext('2d');
+      if (!sCtx) return;
+      sCtx.clearRect(0, 0, selCanvas.width, selCanvas.height);
+      sCtx.strokeStyle = brushColor;
+      sCtx.fillStyle = fillColor === 'transparent' ? 'transparent' : fillColor;
+      sCtx.lineWidth = brushSize;
+      sCtx.lineCap = 'round';
+      sCtx.lineJoin = 'round';
+      drawShapePath(sCtx, tool, start, end, fillColor !== 'transparent');
+      return;
+    }
+
+    ctx.strokeStyle = brushColor;
+    ctx.fillStyle = fillColor === 'transparent' ? 'transparent' : fillColor;
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    drawShapePath(ctx, tool, start, end, fillColor !== 'transparent');
+    saveToHistory();
+  }, [brushColor, fillColor, brushSize, saveToHistory]);
+
+  const drawShapePath = (ctx: CanvasRenderingContext2D, tool: string, start: { x: number; y: number }, end: { x: number; y: number }, doFill: boolean) => {
+    const x = Math.min(start.x, end.x);
+    const y = Math.min(start.y, end.y);
+    const w = Math.abs(end.x - start.x);
+    const h = Math.abs(end.y - start.y);
+    const cx = (start.x + end.x) / 2;
+    const cy = (start.y + end.y) / 2;
+
+    ctx.beginPath();
+    if (tool === 'shape-rect') {
+      ctx.rect(x, y, w, h);
+    } else if (tool === 'shape-ellipse') {
+      ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+    } else if (tool === 'shape-line') {
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+    } else if (tool === 'shape-arrow') {
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      const angle = Math.atan2(end.y - start.y, end.x - start.x);
+      const headLen = 20;
+      ctx.lineTo(end.x - headLen * Math.cos(angle - Math.PI / 6), end.y - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(end.x, end.y);
+      ctx.lineTo(end.x - headLen * Math.cos(angle + Math.PI / 6), end.y - headLen * Math.sin(angle + Math.PI / 6));
+    } else if (tool === 'shape-polygon') {
+      const sides = 6;
+      const radius = Math.sqrt(w * w + h * h) / 2;
+      for (let i = 0; i < sides; i++) {
+        const a = (Math.PI * 2 * i) / sides - Math.PI / 2;
+        const px = cx + radius * Math.cos(a);
+        const py = cy + radius * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    } else if (tool === 'shape-star') {
+      const spikes = 5;
+      const outerRadius = Math.sqrt(w * w + h * h) / 2;
+      const innerRadius = outerRadius * 0.4;
+      for (let i = 0; i < spikes * 2; i++) {
+        const a = (Math.PI * i) / spikes - Math.PI / 2;
+        const r = i % 2 === 0 ? outerRadius : innerRadius;
+        const px = cx + r * Math.cos(a);
+        const py = cy + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+    if (doFill && tool !== 'shape-line' && tool !== 'shape-arrow') ctx.fill();
+    ctx.stroke();
+  };
+
+  // Selection operations
+  const copySelection = useCallback(() => {
+    if (!selectionRect) return;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const { x, y, w, h } = selectionRect;
+    const data = ctx.getImageData(Math.max(0, x), Math.max(0, y), Math.abs(w), Math.abs(h));
+    setClipboardImageData(data);
+    setClipboardRect({ x, y, w, h });
+    toast.success("Selection copied");
+  }, [selectionRect]);
+
+  const cutSelection = useCallback(() => {
+    if (!selectionRect) return;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const { x, y, w, h } = selectionRect;
+    const data = ctx.getImageData(Math.max(0, x), Math.max(0, y), Math.abs(w), Math.abs(h));
+    setClipboardImageData(data);
+    setClipboardRect({ x, y, w, h });
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, w, h);
+    setSelectionRect(null);
+    saveToHistory();
+    toast.success("Selection cut");
+  }, [selectionRect, saveToHistory]);
+
+  const pasteSelection = useCallback(() => {
+    if (!clipboardImageData || !clipboardRect) return;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    ctx.putImageData(clipboardImageData, clipboardRect.x, clipboardRect.y);
+    setSelectionRect({ ...clipboardRect });
+    saveToHistory();
+    toast.success("Pasted");
+  }, [clipboardImageData, clipboardRect, saveToHistory]);
+
+  const deleteSelection = useCallback(() => {
+    if (!selectionRect) return;
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
+    setSelectionRect(null);
+    saveToHistory();
+    toast.success("Selection deleted");
+  }, [selectionRect, saveToHistory]);
+
+  const clearSelection = useCallback(() => {
+    setSelectionRect(null);
+    setSelectionPath([]);
+    const selCanvas = selectionCanvasRef.current;
+    if (selCanvas) {
+      const sCtx = selCanvas.getContext('2d');
+      if (sCtx) sCtx.clearRect(0, 0, selCanvas.width, selCanvas.height);
+    }
+  }, []);
+
   const saveCurrentFrame = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -692,19 +1179,28 @@ export default function MotionStudio() {
     const imageData = canvas.toDataURL('image/png');
     const frameId = frames[currentFrameIndex]?.id;
     const currentKeyframe = frameId ? keyframes[frameId] : undefined;
+    const activeId = activeDrawingLayerRef.current;
     
-    setFrames(prev => prev.map((f, i) => 
-      i === currentFrameIndex ? { 
+    setFrames(prev => prev.map((f, i) => {
+      if (i !== currentFrameIndex) return f;
+      const existingLayers = f.drawingLayers && f.drawingLayers.length > 0
+        ? f.drawingLayers
+        : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: f.imageData }];
+      const updatedLayers = existingLayers.map(l =>
+        l.id === activeId ? { ...l, imageData } : l
+      );
+      return {
         ...f, 
         imageData, 
         vectorPaths,
+        drawingLayers: updatedLayers,
         effects: activeEffects,
         opacity: frameOpacity,
         blendMode,
         easing: selectedEasing,
         keyframe: currentKeyframe
-      } : f
-    ));
+      };
+    }));
   }, [currentFrameIndex, vectorPaths, activeEffects, frameOpacity, blendMode, selectedEasing, keyframes, frames]);
 
   const handleSave = async () => {
@@ -833,15 +1329,18 @@ export default function MotionStudio() {
 
   const addFrame = () => {
     saveCurrentFrame();
+    const newLayerId = `dl_${Date.now()}`;
     const newFrame: Frame = {
       id: `frame_${Date.now()}`,
       imageData: "",
       vectorPaths: [],
       imageLayers: [],
+      drawingLayers: [{ id: newLayerId, name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }],
       duration: 1000
     };
     setFrames(prev => [...prev, newFrame]);
     setCurrentFrameIndex(frames.length);
+    setActiveDrawingLayerId(newLayerId);
     toast.success("Frame added");
   };
 
@@ -858,18 +1357,25 @@ export default function MotionStudio() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
+    saveCanvasToActiveLayer();
     const currentFrame = frames[currentFrameIndex];
+    const dlayers = currentFrame?.drawingLayers?.map(l => ({
+      ...l,
+      id: `dl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    })) || [{ id: `dl_${Date.now()}`, name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: canvas.toDataURL('image/png') }];
     const newFrame: Frame = {
       id: `frame_${Date.now()}`,
       imageData: canvas.toDataURL('image/png'),
       vectorPaths: [...vectorPaths],
       imageLayers: currentFrame?.imageLayers?.map(l => ({ ...l, id: `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })) || [],
+      drawingLayers: dlayers,
       duration: 1000
     };
     const newFrames = [...frames];
     newFrames.splice(currentFrameIndex + 1, 0, newFrame);
     setFrames(newFrames);
     setCurrentFrameIndex(currentFrameIndex + 1);
+    setActiveDrawingLayerId(dlayers[0].id);
     toast.success("Frame duplicated");
   };
   
@@ -957,6 +1463,214 @@ export default function MotionStudio() {
   const currentImageLayers = frames[currentFrameIndex]?.imageLayers || [];
   const selectedLayer = currentImageLayers.find(l => l.id === selectedLayerId);
 
+  const getDrawingLayers = useCallback((): DrawingLayer[] => {
+    const frame = frames[currentFrameIndex];
+    if (!frame) return [];
+    if (frame.drawingLayers && frame.drawingLayers.length > 0) return frame.drawingLayers;
+    return [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: frame.imageData }];
+  }, [frames, currentFrameIndex]);
+
+  const currentDrawingLayers = getDrawingLayers();
+  const activeDrawingLayer = currentDrawingLayers.find(l => l.id === activeDrawingLayerId) || currentDrawingLayers[0];
+
+  const saveCanvasToActiveLayer = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const layerData = canvas.toDataURL('image/png');
+    const activeId = activeDrawingLayerRef.current;
+    setFrames(prev => prev.map((f, i) => {
+      if (i !== currentFrameIndex) return f;
+      const layers = f.drawingLayers && f.drawingLayers.length > 0
+        ? f.drawingLayers
+        : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: f.imageData }];
+      return {
+        ...f,
+        drawingLayers: layers.map(l => l.id === activeId ? { ...l, imageData: layerData } : l),
+        imageData: layerData
+      };
+    }));
+  }, [currentFrameIndex]);
+
+  const loadDrawingLayerToCanvas = useCallback((layerImageData: string) => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+    if (layerImageData && layerImageData.startsWith('data:')) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = layerImageData;
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, []);
+
+  const switchDrawingLayer = useCallback((newLayerId: string) => {
+    if (newLayerId === activeDrawingLayerRef.current) return;
+    saveCanvasToActiveLayer();
+    const frame = frames[currentFrameIndex];
+    const layers = frame?.drawingLayers && frame.drawingLayers.length > 0
+      ? frame.drawingLayers
+      : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: frame?.imageData || "" }];
+    const newLayer = layers.find(l => l.id === newLayerId);
+    if (newLayer) {
+      setActiveDrawingLayerId(newLayerId);
+      loadDrawingLayerToCanvas(newLayer.imageData);
+    }
+  }, [frames, currentFrameIndex, saveCanvasToActiveLayer, loadDrawingLayerToCanvas]);
+
+  const addDrawingLayer = useCallback(() => {
+    saveCanvasToActiveLayer();
+    const frame = frames[currentFrameIndex];
+    const layers = frame?.drawingLayers && frame.drawingLayers.length > 0
+      ? frame.drawingLayers
+      : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: frame?.imageData || "" }];
+    const newLayer: DrawingLayer = {
+      id: `dl_${Date.now()}`,
+      name: `Layer ${layers.length + 1}`,
+      visible: true,
+      opacity: 100,
+      locked: false,
+      blendMode: "normal",
+      imageData: ""
+    };
+    setFrames(prev => prev.map((f, i) => {
+      if (i !== currentFrameIndex) return f;
+      const existingLayers = f.drawingLayers && f.drawingLayers.length > 0
+        ? f.drawingLayers
+        : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: f.imageData }];
+      return { ...f, drawingLayers: [...existingLayers, newLayer] };
+    }));
+    setActiveDrawingLayerId(newLayer.id);
+    loadDrawingLayerToCanvas("");
+    toast.success("Drawing layer added");
+  }, [currentFrameIndex, frames, saveCanvasToActiveLayer, loadDrawingLayerToCanvas]);
+
+  const deleteDrawingLayer = useCallback((layerId: string) => {
+    const layers = getDrawingLayers();
+    if (layers.length <= 1) {
+      toast.error("Need at least one drawing layer");
+      return;
+    }
+    const newLayers = layers.filter(l => l.id !== layerId);
+    if (activeDrawingLayerRef.current === layerId) {
+      setActiveDrawingLayerId(newLayers[0].id);
+      loadDrawingLayerToCanvas(newLayers[0].imageData);
+    }
+    setFrames(prev => prev.map((f, i) =>
+      i === currentFrameIndex ? { ...f, drawingLayers: newLayers } : f
+    ));
+    toast.success("Drawing layer deleted");
+  }, [currentFrameIndex, getDrawingLayers, loadDrawingLayerToCanvas]);
+
+  const duplicateDrawingLayer = useCallback((layerId: string) => {
+    saveCanvasToActiveLayer();
+    const layers = getDrawingLayers();
+    const source = layers.find(l => l.id === layerId);
+    if (!source) return;
+    const newLayer: DrawingLayer = {
+      ...source,
+      id: `dl_${Date.now()}`,
+      name: `${source.name} copy`
+    };
+    const idx = layers.findIndex(l => l.id === layerId);
+    const newLayers = [...layers];
+    newLayers.splice(idx + 1, 0, newLayer);
+    setFrames(prev => prev.map((f, i) =>
+      i === currentFrameIndex ? { ...f, drawingLayers: newLayers } : f
+    ));
+    setActiveDrawingLayerId(newLayer.id);
+    loadDrawingLayerToCanvas(newLayer.imageData);
+    toast.success("Drawing layer duplicated");
+  }, [currentFrameIndex, saveCanvasToActiveLayer, getDrawingLayers, loadDrawingLayerToCanvas]);
+
+  const mergeDownDrawingLayer = useCallback((layerId: string) => {
+    const layers = getDrawingLayers();
+    const idx = layers.findIndex(l => l.id === layerId);
+    if (idx <= 0) {
+      toast.error("No layer below to merge into");
+      return;
+    }
+    saveCanvasToActiveLayer();
+    const topLayer = layers[idx];
+    const bottomLayer = layers[idx - 1];
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = 1920;
+    offscreen.height = 1080;
+    const offCtx = offscreen.getContext('2d');
+    if (!offCtx) return;
+
+    const loadImg = (src: string): Promise<HTMLImageElement | null> => {
+      if (!src || !src.startsWith('data:')) return Promise.resolve(null);
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    };
+
+    Promise.all([loadImg(bottomLayer.imageData), loadImg(topLayer.imageData)]).then(([bottomImg, topImg]) => {
+      if (bottomImg) {
+        offCtx.globalAlpha = bottomLayer.opacity / 100;
+        offCtx.globalCompositeOperation = mapBlendMode(bottomLayer.blendMode);
+        offCtx.drawImage(bottomImg, 0, 0);
+      }
+      if (topImg) {
+        offCtx.globalAlpha = topLayer.opacity / 100;
+        offCtx.globalCompositeOperation = mapBlendMode(topLayer.blendMode);
+        offCtx.drawImage(topImg, 0, 0);
+      }
+      offCtx.globalAlpha = 1;
+      offCtx.globalCompositeOperation = 'source-over';
+
+      const mergedData = offscreen.toDataURL('image/png');
+      const newLayers = layers.filter(l => l.id !== layerId);
+      const bottomIdx = newLayers.findIndex(l => l.id === bottomLayer.id);
+      newLayers[bottomIdx] = { ...bottomLayer, imageData: mergedData };
+
+      setFrames(prev => prev.map((f, i) =>
+        i === currentFrameIndex ? { ...f, drawingLayers: newLayers } : f
+      ));
+      if (activeDrawingLayerRef.current === layerId) {
+        setActiveDrawingLayerId(bottomLayer.id);
+        loadDrawingLayerToCanvas(mergedData);
+      }
+      toast.success("Layers merged");
+    });
+  }, [currentFrameIndex, saveCanvasToActiveLayer, getDrawingLayers, loadDrawingLayerToCanvas]);
+
+  const reorderDrawingLayer = useCallback((layerId: string, direction: "up" | "down") => {
+    saveCanvasToActiveLayer();
+    const layers = getDrawingLayers();
+    const idx = layers.findIndex(l => l.id === layerId);
+    if (idx < 0) return;
+    if (direction === "up" && idx >= layers.length - 1) return;
+    if (direction === "down" && idx <= 0) return;
+    const newLayers = [...layers];
+    const swapIdx = direction === "up" ? idx + 1 : idx - 1;
+    [newLayers[idx], newLayers[swapIdx]] = [newLayers[swapIdx], newLayers[idx]];
+    setFrames(prev => prev.map((f, i) =>
+      i === currentFrameIndex ? { ...f, drawingLayers: newLayers } : f
+    ));
+  }, [currentFrameIndex, saveCanvasToActiveLayer, getDrawingLayers]);
+
+  const updateDrawingLayer = useCallback((layerId: string, updates: Partial<DrawingLayer>) => {
+    setFrames(prev => prev.map((f, i) => {
+      if (i !== currentFrameIndex) return f;
+      const layers = f.drawingLayers && f.drawingLayers.length > 0
+        ? f.drawingLayers
+        : [{ id: "dl_default", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: f.imageData }];
+      return {
+        ...f,
+        drawingLayers: layers.map(l => l.id === layerId ? { ...l, ...updates } : l)
+      };
+    }));
+  }, [currentFrameIndex]);
+
   const handleExport = async () => {
     toast.info("Compositing frames with effects...");
     
@@ -1004,6 +1718,182 @@ export default function MotionStudio() {
     toast.success("Exported with effects applied!");
   };
 
+  const handleVideoExport = async () => {
+    if (frames.length === 0) {
+      toast.error("No frames to export");
+      return;
+    }
+
+    setIsExporting(true);
+    setExportProgress(0);
+    setExportStatusText("Preparing frames...");
+
+    try {
+      const canvas = canvasRef.current;
+      const rasterImageData = canvas ? canvas.toDataURL('image/png') : frames[currentFrameIndex]?.imageData || "";
+
+      const updatedFrames = frames.map((f, i) =>
+        i === currentFrameIndex ? { ...f, imageData: rasterImageData, vectorPaths } : f
+      );
+
+      const [resW, resH] = exportResolution.split('x').map(Number);
+
+      setExportStatusText("Compositing frames...");
+      const compositedImages: string[] = [];
+      for (let i = 0; i < updatedFrames.length; i++) {
+        setExportProgress(Math.round((i / updatedFrames.length) * 30));
+        const composited = await compositeFrameWithEffects(updatedFrames[i]);
+        compositedImages.push(composited || "");
+      }
+
+      const renderCanvas = document.createElement('canvas');
+      renderCanvas.width = resW;
+      renderCanvas.height = resH;
+      const renderCtx = renderCanvas.getContext('2d')!;
+
+      if (exportFormat === "webm") {
+        setExportStatusText("Encoding WebM video...");
+        const stream = renderCanvas.captureStream(0);
+        const videoTrack = stream.getVideoTracks()[0];
+
+        let mimeType = 'video/webm;codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm;codecs=vp8';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+          }
+        }
+
+        const videoBitsPerSecond = Math.round((exportQuality / 100) * 10_000_000);
+        const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+        const recorderDone = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
+        recorder.start();
+
+        const frameDurationMs = 1000 / exportFps;
+
+        for (let i = 0; i < compositedImages.length; i++) {
+          setExportProgress(30 + Math.round((i / compositedImages.length) * 60));
+          setExportStatusText(`Rendering frame ${i + 1}/${compositedImages.length}...`);
+
+          await new Promise<void>((resolve) => {
+            if (!compositedImages[i]) {
+              renderCtx.fillStyle = '#ffffff';
+              renderCtx.fillRect(0, 0, resW, resH);
+              (videoTrack as any).requestFrame?.();
+              setTimeout(resolve, frameDurationMs);
+              return;
+            }
+            const img = new Image();
+            img.onload = () => {
+              renderCtx.clearRect(0, 0, resW, resH);
+              renderCtx.fillStyle = '#ffffff';
+              renderCtx.fillRect(0, 0, resW, resH);
+              renderCtx.drawImage(img, 0, 0, resW, resH);
+              (videoTrack as any).requestFrame?.();
+              setTimeout(resolve, frameDurationMs);
+            };
+            img.onerror = () => {
+              renderCtx.fillStyle = '#ffffff';
+              renderCtx.fillRect(0, 0, resW, resH);
+              (videoTrack as any).requestFrame?.();
+              setTimeout(resolve, frameDurationMs);
+            };
+            img.src = compositedImages[i];
+          });
+        }
+
+        recorder.stop();
+        await recorderDone;
+        setExportProgress(95);
+        setExportStatusText("Saving file...");
+
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/\s+/g, '_')}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        setExportStatusText("Building GIF...");
+
+        const loadedImages: HTMLImageElement[] = [];
+        for (let i = 0; i < compositedImages.length; i++) {
+          setExportProgress(30 + Math.round((i / compositedImages.length) * 20));
+          await new Promise<void>((resolve) => {
+            if (!compositedImages[i]) {
+              const placeholder = new Image();
+              placeholder.width = resW;
+              placeholder.height = resH;
+              loadedImages.push(placeholder);
+              resolve();
+              return;
+            }
+            const img = new Image();
+            img.onload = () => { loadedImages.push(img); resolve(); };
+            img.onerror = () => { loadedImages.push(img); resolve(); };
+            img.src = compositedImages[i];
+          });
+        }
+
+        const delayMs = Math.round(1000 / exportFps);
+        const gifWidth = resW;
+        const gifHeight = resH;
+
+        setExportStatusText("Quantizing colors...");
+        setExportProgress(55);
+
+        const frameDataArrays: Uint8ClampedArray[] = [];
+        for (let i = 0; i < loadedImages.length; i++) {
+          renderCtx.clearRect(0, 0, gifWidth, gifHeight);
+          renderCtx.fillStyle = '#ffffff';
+          renderCtx.fillRect(0, 0, gifWidth, gifHeight);
+          if (loadedImages[i].src) {
+            renderCtx.drawImage(loadedImages[i], 0, 0, gifWidth, gifHeight);
+          }
+          frameDataArrays.push(renderCtx.getImageData(0, 0, gifWidth, gifHeight).data);
+        }
+
+        setExportStatusText("Encoding GIF frames...");
+        setExportProgress(65);
+
+        const gifBytes = encodeGIF(frameDataArrays, gifWidth, gifHeight, delayMs, (p: number) => {
+          setExportProgress(65 + Math.round(p * 30));
+        });
+
+        setExportProgress(95);
+        setExportStatusText("Saving file...");
+
+        const blob = new Blob([gifBytes], { type: 'image/gif' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/\s+/g, '_')}.gif`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      setExportProgress(100);
+      setExportStatusText("Done!");
+      toast.success(`Exported as ${exportFormat.toUpperCase()} successfully!`);
+      setTimeout(() => {
+        setShowExportDialog(false);
+        setIsExporting(false);
+        setExportProgress(0);
+        setExportStatusText("");
+      }, 1000);
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsExporting(false);
+      setExportProgress(0);
+      setExportStatusText("");
+    }
+  };
+
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1046,10 +1936,42 @@ export default function MotionStudio() {
 
   // Raster drawing handlers
   const handleRasterPointerDown = (e: React.PointerEvent) => {
+    const { x, y } = getCoordinates(e);
+
     if (rasterTool === "select") return;
+
+    if (rasterTool === "eyedropper") {
+      pickColor(x, y);
+      return;
+    }
+
+    if (rasterTool === "fill") {
+      floodFill(x, y, brushColor);
+      setTimeout(() => saveCurrentFrame(), 0);
+      return;
+    }
+
+    if (rasterTool === "rect-select" || rasterTool === "ellipse-select") {
+      clearSelection();
+      setIsDrawing(true);
+      setShapeStart({ x, y });
+      return;
+    }
+
+    if (rasterTool === "lasso-select") {
+      clearSelection();
+      setIsDrawing(true);
+      setSelectionPath([{ x, y }]);
+      return;
+    }
+
+    if (rasterTool.startsWith("shape-")) {
+      setIsDrawing(true);
+      setShapeStart({ x, y });
+      return;
+    }
     
     setIsDrawing(true);
-    const { x, y } = getCoordinates(e);
     lastPointRef.current = { x, y };
     
     const ctx = ctxRef.current;
@@ -1062,12 +1984,38 @@ export default function MotionStudio() {
   };
 
   const handleRasterPointerMove = (e: React.PointerEvent) => {
-    if (!isDrawing || !lastPointRef.current || rasterTool === "select") return;
+    if (!isDrawing) return;
+    const { x, y } = getCoordinates(e);
+
+    if (rasterTool === "rect-select" || rasterTool === "ellipse-select") {
+      if (shapeStart) {
+        const rect = {
+          x: Math.min(shapeStart.x, x),
+          y: Math.min(shapeStart.y, y),
+          w: Math.abs(x - shapeStart.x),
+          h: Math.abs(y - shapeStart.y)
+        };
+        setSelectionRect(rect);
+      }
+      return;
+    }
+
+    if (rasterTool === "lasso-select") {
+      setSelectionPath(prev => [...prev, { x, y }]);
+      return;
+    }
+
+    if (rasterTool.startsWith("shape-") && shapeStart) {
+      setShapePreview({ tool: rasterTool, start: shapeStart, end: { x, y } });
+      drawShapeOnCanvas(rasterTool, shapeStart, { x, y }, true);
+      return;
+    }
+
+    if (!lastPointRef.current || rasterTool === "select") return;
     
     const ctx = ctxRef.current;
     if (!ctx) return;
     
-    const { x, y } = getCoordinates(e);
     const pressure = e.pressure > 0 ? e.pressure : 0.5;
     const currentLineWidth = rasterTool === "eraser" 
       ? brushSize * 5 * pressure 
@@ -1093,6 +2041,31 @@ export default function MotionStudio() {
   };
 
   const handleRasterPointerUp = () => {
+    if (rasterTool === "rect-select" || rasterTool === "ellipse-select") {
+      setIsDrawing(false);
+      setShapeStart(null);
+      return;
+    }
+
+    if (rasterTool === "lasso-select") {
+      setIsDrawing(false);
+      return;
+    }
+
+    if (rasterTool.startsWith("shape-") && shapeStart && shapePreview) {
+      const selCanvas = selectionCanvasRef.current;
+      if (selCanvas) {
+        const sCtx = selCanvas.getContext('2d');
+        if (sCtx) sCtx.clearRect(0, 0, selCanvas.width, selCanvas.height);
+      }
+      drawShapeOnCanvas(rasterTool, shapePreview.start, shapePreview.end, false);
+      setShapeStart(null);
+      setShapePreview(null);
+      setIsDrawing(false);
+      setTimeout(() => saveCurrentFrame(), 0);
+      return;
+    }
+
     if (isDrawing) {
       saveToHistory();
       saveCurrentFrame();
@@ -1240,9 +2213,27 @@ export default function MotionStudio() {
         if (e.shiftKey) redo();
         else undo();
       }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectionRect) {
+        e.preventDefault();
+        copySelection();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "x" && selectionRect) {
+        e.preventDefault();
+        cutSelection();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && clipboardImageData) {
+        e.preventDefault();
+        pasteSelection();
+      }
       
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (drawingMode === "vector" && selectedPathId) {
+        if (selectionRect && drawingMode === "raster") {
+          e.preventDefault();
+          deleteSelection();
+        } else if (drawingMode === "vector" && selectedPathId) {
           e.preventDefault();
           deleteSelectedPath();
         }
@@ -1259,12 +2250,13 @@ export default function MotionStudio() {
           setIsPenCreating(false);
         }
         setSelectedPathId(null);
+        clearSelection();
       }
     };
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [drawingMode, selectedPathId, isPenCreating, undo, redo, deleteSelectedPath, finishPenPath]);
+  }, [drawingMode, selectedPathId, isPenCreating, undo, redo, deleteSelectedPath, finishPenPath, selectionRect, clipboardImageData, copySelection, cutSelection, pasteSelection, deleteSelection, clearSelection]);
 
   // Render vector path
   const renderVectorPath = (path: VectorPath, isPreview = false) => {
@@ -1764,10 +2756,16 @@ export default function MotionStudio() {
             {isSaving ? "..." : "Save"}
           </button>
           <button onClick={handleExport}
-            className="px-3 py-1.5 text-xs font-medium bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2"
             data-testid="button-export">
             <Download className="w-3.5 h-3.5" />
-            Export
+            PSDCF
+          </button>
+          <button onClick={() => setShowExportDialog(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors flex items-center gap-2"
+            data-testid="button-export-video">
+            <FileVideo className="w-3.5 h-3.5" />
+            Export Video
           </button>
         </div>
       </header>
@@ -1813,16 +2811,74 @@ export default function MotionStudio() {
                   {drawingMode === "raster" ? (
                     <>
                       <button onClick={() => setRasterTool("select")} title="Select"
-                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "select" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "select" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-select">
                         <MousePointer className="w-4 h-4 mx-auto" />
                       </button>
                       <button onClick={() => setRasterTool("pen")} title="Brush"
-                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "pen" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "pen" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-pen">
                         <Pen className="w-4 h-4 mx-auto" />
                       </button>
                       <button onClick={() => setRasterTool("eraser")} title="Eraser"
-                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "eraser" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "eraser" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-eraser">
                         <Eraser className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("fill")} title="Paint Bucket (Fill)"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "fill" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-fill">
+                        <PaintBucket className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("eyedropper")} title="Eyedropper (Color Picker)"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "eyedropper" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-eyedropper">
+                        <Pipette className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("rect-select")} title="Rectangular Selection"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "rect-select" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-rect-select">
+                        <SquareDashed className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("ellipse-select")} title="Elliptical Selection"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "ellipse-select" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-ellipse-select">
+                        <CircleDashed className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("lasso-select")} title="Lasso Selection"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "lasso-select" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-lasso-select">
+                        <Lasso className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-rect")} title="Rectangle Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-rect" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-rect">
+                        <Square className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-ellipse")} title="Ellipse Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-ellipse" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-ellipse">
+                        <Circle className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-line")} title="Line Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-line" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-line">
+                        <Minus className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-arrow")} title="Arrow Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-arrow" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-arrow">
+                        <ArrowRight className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-polygon")} title="Polygon Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-polygon" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-polygon">
+                        <Pentagon className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setRasterTool("shape-star")} title="Star Shape"
+                        className={`p-2.5 rounded-lg transition-colors ${rasterTool === "shape-star" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="tool-shape-star">
+                        <Star className="w-4 h-4 mx-auto" />
                       </button>
                     </>
                   ) : (
@@ -1882,7 +2938,7 @@ export default function MotionStudio() {
                         className="w-6 h-6 cursor-pointer border-0 bg-transparent" />
                     </div>
                   </div>
-                  {drawingMode === "vector" && (
+                  {(drawingMode === "vector" || (drawingMode === "raster" && rasterTool.startsWith("shape-"))) && (
                     <div>
                       <label className="text-xs text-zinc-400 block mb-1">Fill Color</label>
                       <div className="flex items-center gap-2">
@@ -1917,6 +2973,41 @@ export default function MotionStudio() {
                   </button>
                 </div>
               </div>
+
+              {/* Selection Actions */}
+              {selectionRect && drawingMode === "raster" && (
+                <div>
+                  <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-2">Selection</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    <button onClick={copySelection} title="Copy (Ctrl+C)"
+                      className="p-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors"
+                      data-testid="button-copy-selection">
+                      <Copy className="w-4 h-4 mx-auto text-zinc-400" />
+                    </button>
+                    <button onClick={cutSelection} title="Cut (Ctrl+X)"
+                      className="p-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors"
+                      data-testid="button-cut-selection">
+                      <Scissors className="w-4 h-4 mx-auto text-zinc-400" />
+                    </button>
+                    <button onClick={pasteSelection} title="Paste (Ctrl+V)"
+                      className="p-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors"
+                      disabled={!clipboardImageData}
+                      data-testid="button-paste-selection">
+                      <ClipboardPaste className="w-4 h-4 mx-auto text-zinc-400" />
+                    </button>
+                    <button onClick={deleteSelection} title="Delete (Del)"
+                      className="p-2 bg-[#1a1a1a] hover:bg-red-900/50 rounded-lg transition-colors"
+                      data-testid="button-delete-selection">
+                      <Trash2 className="w-4 h-4 mx-auto text-zinc-400" />
+                    </button>
+                  </div>
+                  <button onClick={clearSelection}
+                    className="w-full mt-1 p-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 hover:bg-[#1a1a1a] rounded transition-colors"
+                    data-testid="button-deselect">
+                    Deselect (Esc)
+                  </button>
+                </div>
+              )}
               
               {/* Import */}
               <div>
@@ -2027,18 +3118,57 @@ export default function MotionStudio() {
                 );
               })}
               
+              {/* Drawing Layers Below Active Layer */}
+              {currentDrawingLayers.map((dl, dlIdx) => {
+                if (dl.id === activeDrawingLayerId || !dl.visible || !dl.imageData || !dl.imageData.startsWith('data:')) return null;
+                const activeIdx = currentDrawingLayers.findIndex(l => l.id === activeDrawingLayerId);
+                if (dlIdx >= activeIdx) return null;
+                return (
+                  <img key={`dl-below-${dl.id}`}
+                    src={dl.imageData}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    style={{
+                      opacity: dl.opacity / 100,
+                      mixBlendMode: dl.blendMode as any,
+                      zIndex: 3 + dlIdx
+                    }}
+                    alt="" />
+                );
+              })}
+              
               {/* Raster Canvas */}
               <canvas ref={canvasRef} width={1920} height={1080}
                 className={`absolute inset-0 w-full h-full ${drawingMode === "raster" ? "z-10" : "z-0"}`}
                 style={{ 
-                  cursor: currentTool === "select" ? "default" : "crosshair",
-                  opacity: frameOpacity / 100,
-                  mixBlendMode: blendMode as any
+                  cursor: currentTool === "select" ? "default" 
+                    : rasterTool === "eyedropper" ? "crosshair" 
+                    : rasterTool === "fill" ? "cell"
+                    : "crosshair",
+                  opacity: (activeDrawingLayer?.opacity ?? 100) / 100,
+                  mixBlendMode: (activeDrawingLayer?.blendMode || blendMode) as any
                 }}
                 onPointerDown={drawingMode === "raster" ? handlePointerDown : undefined}
                 onPointerMove={drawingMode === "raster" ? handlePointerMove : undefined}
                 onPointerUp={drawingMode === "raster" ? handlePointerUp : undefined}
                 onPointerLeave={drawingMode === "raster" ? handlePointerUp : undefined} />
+              
+              {/* Drawing Layers Above Active Layer */}
+              {currentDrawingLayers.map((dl, dlIdx) => {
+                if (dl.id === activeDrawingLayerId || !dl.visible || !dl.imageData || !dl.imageData.startsWith('data:')) return null;
+                const activeIdx = currentDrawingLayers.findIndex(l => l.id === activeDrawingLayerId);
+                if (dlIdx < activeIdx) return null;
+                return (
+                  <img key={`dl-above-${dl.id}`}
+                    src={dl.imageData}
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                    style={{
+                      opacity: dl.opacity / 100,
+                      mixBlendMode: dl.blendMode as any,
+                      zIndex: 11 + dlIdx
+                    }}
+                    alt="" />
+                );
+              })}
               
               {/* Vector SVG Overlay */}
               <svg ref={svgRef} viewBox="0 0 1920 1080"
@@ -2051,6 +3181,15 @@ export default function MotionStudio() {
                 {vectorPaths.map(path => renderVectorPath(path))}
                 {currentPath && renderVectorPath(currentPath, true)}
               </svg>
+              
+              {/* Selection / Shape Preview Overlay Canvas */}
+              <canvas
+                ref={selectionCanvasRef}
+                width={1920}
+                height={1080}
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                style={{ zIndex: 15 }}
+              />
               
               {/* Image Layers Overlay */}
               <div 
@@ -2507,10 +3646,135 @@ export default function MotionStudio() {
                 </div>
               )}
               
+              {/* Drawing Layers */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Drawing Layers ({currentDrawingLayers.length})</span>
+                  <button
+                    onClick={addDrawingLayer}
+                    className="p-1 hover:bg-[#252525] rounded"
+                    title="Add Drawing Layer"
+                    data-testid="btn-add-drawing-layer">
+                    <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="drawing-layers-list">
+                  {[...currentDrawingLayers].reverse().map((dl, idx) => {
+                    const isActive = dl.id === activeDrawingLayerId || (dl.id === currentDrawingLayers[0]?.id && !currentDrawingLayers.find(l => l.id === activeDrawingLayerId));
+                    return (
+                      <div
+                        key={dl.id}
+                        onClick={() => { if (!dl.locked) switchDrawingLayer(dl.id); }}
+                        className={`p-2 rounded text-xs cursor-pointer flex items-center gap-1.5 ${
+                          isActive ? 'bg-violet-900/40 border border-violet-500/50' : 'bg-zinc-900 hover:bg-zinc-800 border border-transparent'
+                        }`}
+                        data-testid={`drawing-layer-${dl.id}`}
+                      >
+                        <div className="w-6 h-4 bg-[#252525] rounded overflow-hidden flex-shrink-0 border border-white/10">
+                          {dl.imageData && dl.imageData.startsWith('data:') && (
+                            <img src={dl.imageData} alt="" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <span className="text-zinc-300 flex-1 truncate text-[11px]">{dl.name}</span>
+                        <span className="text-[9px] text-zinc-600 font-mono">{dl.opacity}%</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateDrawingLayer(dl.id, { visible: !dl.visible }); }}
+                          className="p-0.5 hover:bg-zinc-700 rounded"
+                          data-testid={`drawing-layer-visibility-${dl.id}`}>
+                          {dl.visible ? <Eye className="w-3 h-3 text-zinc-400" /> : <EyeOff className="w-3 h-3 text-zinc-600" />}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateDrawingLayer(dl.id, { locked: !dl.locked }); }}
+                          className="p-0.5 hover:bg-zinc-700 rounded"
+                          data-testid={`drawing-layer-lock-${dl.id}`}>
+                          {dl.locked ? <Lock className="w-3 h-3 text-zinc-600" /> : <Unlock className="w-3 h-3 text-zinc-400" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {currentDrawingLayers.find(l => l.id === activeDrawingLayerId) && (
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Layer Opacity</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={activeDrawingLayer?.opacity ?? 100}
+                        onChange={(e) => updateDrawingLayer(activeDrawingLayerId, { opacity: parseInt(e.target.value) })}
+                        className="w-full h-1 accent-violet-500"
+                        data-testid="drawing-layer-opacity-slider"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Blend Mode</label>
+                      <select
+                        value={activeDrawingLayer?.blendMode || "normal"}
+                        onChange={(e) => updateDrawingLayer(activeDrawingLayerId, { blendMode: e.target.value })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1 text-[10px] outline-none focus:border-violet-500"
+                        data-testid="drawing-layer-blend-mode"
+                      >
+                        {BLEND_MODES.map(mode => (
+                          <option key={mode} value={mode}>{mode}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => reorderDrawingLayer(activeDrawingLayerId, "up")}
+                        className="flex-1 p-1.5 bg-zinc-900 hover:bg-zinc-800 rounded text-[10px] flex items-center justify-center gap-1"
+                        title="Move Up"
+                        data-testid="drawing-layer-move-up">
+                        <ChevronUp className="w-3 h-3 text-zinc-400" />
+                      </button>
+                      <button
+                        onClick={() => reorderDrawingLayer(activeDrawingLayerId, "down")}
+                        className="flex-1 p-1.5 bg-zinc-900 hover:bg-zinc-800 rounded text-[10px] flex items-center justify-center gap-1"
+                        title="Move Down"
+                        data-testid="drawing-layer-move-down">
+                        <ChevronDown className="w-3 h-3 text-zinc-400" />
+                      </button>
+                      <button
+                        onClick={() => duplicateDrawingLayer(activeDrawingLayerId)}
+                        className="flex-1 p-1.5 bg-zinc-900 hover:bg-zinc-800 rounded text-[10px] flex items-center justify-center gap-1"
+                        title="Duplicate"
+                        data-testid="drawing-layer-duplicate">
+                        <Copy className="w-3 h-3 text-zinc-400" />
+                      </button>
+                      <button
+                        onClick={() => mergeDownDrawingLayer(activeDrawingLayerId)}
+                        className="flex-1 p-1.5 bg-zinc-900 hover:bg-zinc-800 rounded text-[10px] flex items-center justify-center gap-1"
+                        title="Merge Down"
+                        data-testid="drawing-layer-merge-down">
+                        <GitBranch className="w-3 h-3 text-zinc-400" />
+                      </button>
+                      <button
+                        onClick={() => deleteDrawingLayer(activeDrawingLayerId)}
+                        className="flex-1 p-1.5 bg-zinc-900 hover:bg-red-900/50 rounded text-[10px] flex items-center justify-center gap-1"
+                        title="Delete"
+                        data-testid="drawing-layer-delete">
+                        <Trash2 className="w-3 h-3 text-zinc-400" />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-zinc-500 block mb-1">Layer Name</label>
+                      <input
+                        type="text"
+                        value={activeDrawingLayer?.name || ""}
+                        onChange={(e) => updateDrawingLayer(activeDrawingLayerId, { name: e.target.value })}
+                        className="w-full bg-zinc-900 border border-white/20 rounded px-2 py-1 text-[10px] outline-none focus:border-violet-500"
+                        data-testid="drawing-layer-name-input"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               {/* Image Layers */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Layers ({currentImageLayers.length})</span>
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase">Image Layers ({currentImageLayers.length})</span>
                   <button 
                     onClick={() => imageLayerInputRef.current?.click()}
                     className="p-1 hover:bg-[#252525] rounded" 
@@ -3076,6 +4340,147 @@ export default function MotionStudio() {
         onSelectAsset={handleAssetSelect}
         mode="insert"
       />
+
+      {showExportDialog && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center" data-testid="dialog-export-video">
+          <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl shadow-2xl w-[420px] overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileVideo className="w-5 h-5 text-white" />
+                <span className="text-sm font-semibold">Export Animation</span>
+              </div>
+              <button onClick={() => { if (!isExporting) setShowExportDialog(false); }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                disabled={isExporting}
+                data-testid="button-close-export">
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs text-zinc-400 font-medium mb-2 block">Format</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExportFormat("gif")}
+                    disabled={isExporting}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all border ${
+                      exportFormat === "gif"
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"
+                    }`}
+                    data-testid="button-format-gif">
+                    GIF
+                  </button>
+                  <button
+                    onClick={() => setExportFormat("webm")}
+                    disabled={isExporting}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all border ${
+                      exportFormat === "webm"
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500"
+                    }`}
+                    data-testid="button-format-webm">
+                    WebM Video
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-400 font-medium mb-2 block">Resolution</label>
+                <select
+                  value={exportResolution}
+                  onChange={(e) => setExportResolution(e.target.value as any)}
+                  disabled={isExporting}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/40"
+                  data-testid="select-resolution">
+                  <option value="1920x1080">1920 × 1080 (Full HD)</option>
+                  <option value="1280x720">1280 × 720 (HD)</option>
+                  <option value="960x540">960 × 540 (qHD)</option>
+                  <option value="640x360">640 × 360 (SD)</option>
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-zinc-400 font-medium">Frame Rate</label>
+                  <span className="text-xs text-white font-mono">{exportFps} fps</span>
+                </div>
+                <input
+                  type="range" min="4" max="30" value={exportFps}
+                  onChange={(e) => setExportFps(Number(e.target.value))}
+                  disabled={isExporting}
+                  className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-white"
+                  data-testid="slider-fps" />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-zinc-400 font-medium">Quality</label>
+                  <span className="text-xs text-white font-mono">{exportQuality}%</span>
+                </div>
+                <input
+                  type="range" min="20" max="100" value={exportQuality}
+                  onChange={(e) => setExportQuality(Number(e.target.value))}
+                  disabled={isExporting}
+                  className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer accent-white"
+                  data-testid="slider-quality" />
+              </div>
+
+              <div className="bg-zinc-900 rounded-lg p-3 text-[11px] text-zinc-500">
+                <div className="flex justify-between mb-1">
+                  <span>Frames</span>
+                  <span className="text-white">{frames.length}</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                  <span>Est. Duration</span>
+                  <span className="text-white">{(frames.length / exportFps).toFixed(1)}s</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Format</span>
+                  <span className="text-white">{exportFormat.toUpperCase()}</span>
+                </div>
+              </div>
+
+              {isExporting && (
+                <div className="space-y-2" data-testid="export-progress">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <span className="text-xs text-zinc-300">{exportStatusText}</span>
+                  </div>
+                  <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all duration-300"
+                      style={{ width: `${exportProgress}%` }} />
+                  </div>
+                  <span className="text-[10px] text-zinc-500 text-right block">{exportProgress}%</span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex justify-end gap-2">
+              <button
+                onClick={() => setShowExportDialog(false)}
+                disabled={isExporting}
+                className="px-4 py-2 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-50"
+                data-testid="button-cancel-export">
+                Cancel
+              </button>
+              <button
+                onClick={handleVideoExport}
+                disabled={isExporting || frames.length === 0}
+                className="px-4 py-2 text-xs font-medium bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                data-testid="button-start-export">
+                {isExporting ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Exporting...</>
+                ) : (
+                  <><Download className="w-3.5 h-3.5" /> Export {exportFormat.toUpperCase()}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

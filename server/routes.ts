@@ -2851,6 +2851,59 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/imports/file", isAuthenticated, async (req, res) => {
+    try {
+      const { format, images, projectData, title } = req.body;
+      if (!format) {
+        return res.status(400).json({ message: "Format is required" });
+      }
+
+      if (format === "json") {
+        if (!projectData) {
+          return res.status(400).json({ message: "Project data is required for JSON import" });
+        }
+        const project = await storage.createProject({
+          userId: req.user!.id,
+          title: projectData.title || title || "Imported Project",
+          type: projectData.type || "comic",
+          status: "draft",
+          data: projectData.data || projectData,
+          thumbnail: projectData.thumbnail || null,
+        });
+        return res.json({ project, importedCount: 1 });
+      }
+
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        return res.status(400).json({ message: "No images provided" });
+      }
+
+      const pages = images.map((img: string, index: number) => ({
+        id: `page-${index + 1}`,
+        panels: [{
+          id: `panel-${index + 1}-1`,
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+          content: [{ type: "image", url: img }],
+        }],
+      }));
+
+      const project = await storage.createProject({
+        userId: req.user!.id,
+        title: title || "Imported Comic",
+        type: "comic",
+        status: "draft",
+        data: { pages, format: "imported", sourceFormat: format },
+        thumbnail: images[0] || null,
+      });
+
+      res.json({ project, importedCount: images.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ============================================
   // PORTFOLIO ROUTES
   // ============================================
@@ -5000,6 +5053,124 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       res.json({ success: true, message: "Liked" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/robots.txt", (_req, res) => {
+    res.type("text/plain").send(
+`User-agent: *
+Allow: /
+Allow: /community
+Allow: /community/read/
+Allow: /portfolio/
+Allow: /marketplace
+Allow: /marketplace/listing/
+Disallow: /api/
+Disallow: /creator/
+Disallow: /tools/
+Disallow: /social/
+Disallow: /admin/
+Disallow: /library
+Sitemap: https://pressstart.space/sitemap.xml`
+    );
+  });
+
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const baseUrl = "https://pressstart.space";
+      const staticPages = [
+        { loc: "/", priority: "1.0", changefreq: "daily" },
+        { loc: "/community", priority: "0.9", changefreq: "daily" },
+        { loc: "/marketplace", priority: "0.8", changefreq: "daily" },
+        { loc: "/pricing", priority: "0.7", changefreq: "weekly" },
+        { loc: "/auth", priority: "0.6", changefreq: "monthly" },
+      ];
+
+      const communityComics = await storage.getCommunityComics({ sort: "newest", limit: 200 });
+      const listings = await storage.getMarketplaceListings({ status: "active", limit: 200 });
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+      for (const page of staticPages) {
+        xml += `
+  <url>
+    <loc>${baseUrl}${page.loc}</loc>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`;
+      }
+
+      for (const comic of communityComics.comics) {
+        xml += `
+  <url>
+    <loc>${baseUrl}/community/read/${comic.id}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`;
+      }
+
+      for (const listing of listings) {
+        xml += `
+  <url>
+    <loc>${baseUrl}/marketplace/listing/${listing.id}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`;
+      }
+
+      xml += `
+</urlset>`;
+
+      res.type("application/xml").send(xml);
+    } catch (error) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  app.get("/og/community/:id", async (req, res) => {
+    try {
+      const comic = await storage.getCommunityComic(req.params.id);
+      if (!comic) return res.status(404).json({ message: "Not found" });
+      res.json({
+        title: `${comic.title} | Press Start CoMixx`,
+        description: `Read "${comic.title}" by ${(comic as any).creator?.name || "a creator"} on Press Start CoMixx`,
+        image: comic.thumbnail || "https://pressstart.space/og-image.png",
+        type: "article",
+      });
+    } catch {
+      res.status(500).json({ message: "Error" });
+    }
+  });
+
+  app.get("/og/portfolio/:userId", async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) return res.status(404).json({ message: "Not found" });
+      res.json({
+        title: `${user.name}'s Portfolio | Press Start CoMixx`,
+        description: `Check out ${user.name}'s creative portfolio on Press Start CoMixx`,
+        image: user.avatar || "https://pressstart.space/og-image.png",
+        type: "profile",
+      });
+    } catch {
+      res.status(500).json({ message: "Error" });
+    }
+  });
+
+  app.get("/og/marketplace/:id", async (req, res) => {
+    try {
+      const listing = await storage.getMarketplaceListing(req.params.id);
+      if (!listing) return res.status(404).json({ message: "Not found" });
+      const price = Number(listing.price) === 0 ? "Free" : `$${listing.price}`;
+      res.json({
+        title: `${listing.title} (${price}) | Press Start CoMixx Marketplace`,
+        description: listing.description || `Get "${listing.title}" on Press Start CoMixx Marketplace`,
+        image: listing.coverImage || "https://pressstart.space/og-image.png",
+        type: "product",
+      });
+    } catch {
+      res.status(500).json({ message: "Error" });
     }
   });
 

@@ -388,6 +388,12 @@ export default function ComicCreator() {
   const [showCoverPrompt, setShowCoverPrompt] = useState(false);
   const [coverDismissed, setCoverDismissed] = useState(false);
   
+  const [inlineDrawingPanelId, setInlineDrawingPanelId] = useState<string | null>(null);
+  const [inlineDrawingPage, setInlineDrawingPage] = useState<"left" | "right">("left");
+  const [isInlineDrawing, setIsInlineDrawing] = useState(false);
+  const [inlineEraserMode, setInlineEraserMode] = useState(false);
+  const inlineCanvasRef = useRef<HTMLCanvasElement>(null);
+  const inlineDrawingRef = useRef<{ lastX: number; lastY: number } | null>(null);
 
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
@@ -1044,6 +1050,10 @@ export default function ComicCreator() {
     if (!contentAddingTools.includes(activeTool)) {
       setActiveTool("select");
     }
+    
+    if ((activeTool === "draw" || activeTool === "erase") && inlineDrawingPanelId !== panelId) {
+      startInlineDrawing(page, panelId);
+    }
   };
 
   const handlePanelDoubleClick = (e: React.MouseEvent, panelId: string, page: "left" | "right") => {
@@ -1077,21 +1087,7 @@ export default function ComicCreator() {
     } else if (activeTool === "bubble") {
       addBubbleToPanel(page, panelId);
     } else if (activeTool === "draw" || activeTool === "erase") {
-      if (effectiveProjectId) {
-        (async () => {
-          try {
-            await updateProject.mutateAsync({
-              id: effectiveProjectId,
-              data: { title, data: { spreads } },
-            });
-            navigate(`/creator/motion`);
-          } catch {
-            toast.error("Save before opening Motion Studio failed");
-          }
-        })();
-      } else {
-        toast.error("Please wait for project to be created first");
-      }
+      startInlineDrawing(page, panelId);
     } else {
       fileInputRef.current?.click();
     }
@@ -1320,6 +1316,143 @@ export default function ComicCreator() {
     });
     toast.success(`${asset.name} added`);
   };
+
+  const startInlineDrawing = (page: "left" | "right", panelId: string) => {
+    setInlineDrawingPanelId(panelId);
+    setInlineDrawingPage(page);
+    setSelectedPanelId(panelId);
+    setSelectedPage(page);
+    setInlineEraserMode(false);
+  };
+
+  const finishInlineDrawing = useCallback(() => {
+    const canvas = inlineCanvasRef.current;
+    if (!canvas || !inlineDrawingPanelId) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const hasContent = imageData.data.some((val, i) => i % 4 === 3 && val > 0);
+    
+    if (hasContent) {
+      const dataUrl = canvas.toDataURL('image/png');
+      addContentToPanel(inlineDrawingPage, inlineDrawingPanelId, {
+        type: "drawing",
+        transform: { x: 0, y: 0, width: canvas.width, height: canvas.height, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: { drawingData: dataUrl },
+        locked: false,
+      });
+      toast.success("Drawing saved to panel");
+    }
+    
+    setInlineDrawingPanelId(null);
+    setIsInlineDrawing(false);
+    inlineDrawingRef.current = null;
+    setActiveTool("select");
+  }, [inlineDrawingPanelId, inlineDrawingPage]);
+
+  const clearInlineDrawing = useCallback(() => {
+    const canvas = inlineCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const handleInlineDrawStart = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = inlineCanvasRef.current;
+    if (!canvas) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    setIsInlineDrawing(true);
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX: number, clientY: number;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    inlineDrawingRef.current = { lastX: x, lastY: y };
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, (inlineEraserMode ? brushSize * 3 : brushSize) / 2, 0, Math.PI * 2);
+    if (inlineEraserMode) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = brushColor;
+    }
+    ctx.fill();
+  }, [brushSize, brushColor, inlineEraserMode]);
+
+  const handleInlineDrawMove = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isInlineDrawing || !inlineDrawingRef.current) return;
+    const canvas = inlineCanvasRef.current;
+    if (!canvas) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX: number, clientY: number;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.lineWidth = inlineEraserMode ? brushSize * 3 : brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    if (inlineEraserMode) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = brushColor;
+    }
+    
+    ctx.beginPath();
+    ctx.moveTo(inlineDrawingRef.current.lastX, inlineDrawingRef.current.lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    
+    inlineDrawingRef.current = { lastX: x, lastY: y };
+  }, [isInlineDrawing, brushSize, brushColor, inlineEraserMode]);
+
+  const handleInlineDrawEnd = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsInlineDrawing(false);
+    inlineDrawingRef.current = null;
+  }, []);
 
   const updatePanelStyle = (page: "left" | "right", panelId: string, style: Partial<Panel>) => {
     setSpreads(prev => prev.map((spread, i) => {
@@ -1597,13 +1730,101 @@ export default function ComicCreator() {
             </TransformableElement>
           ))}
 
-          {isSelected && panel.contents.length === 0 && (
+          {isSelected && panel.contents.length === 0 && !inlineDrawingPanelId && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
               <div className="text-center">
                 <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-xs font-mono">Double-click to add content</p>
               </div>
             </div>
+          )}
+
+          {inlineDrawingPanelId === panel.id && (
+            <>
+              <canvas
+                ref={inlineCanvasRef}
+                width={800}
+                height={800}
+                className="absolute inset-0 w-full h-full z-30"
+                style={{ cursor: inlineEraserMode ? 'cell' : 'crosshair', touchAction: 'none' }}
+                onMouseDown={handleInlineDrawStart}
+                onMouseMove={handleInlineDrawMove}
+                onMouseUp={handleInlineDrawEnd}
+                onMouseLeave={handleInlineDrawEnd}
+                onTouchStart={handleInlineDrawStart}
+                onTouchMove={handleInlineDrawMove}
+                onTouchEnd={handleInlineDrawEnd}
+                data-testid="inline-drawing-canvas"
+              />
+              <div
+                className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-40 flex items-center gap-1 bg-zinc-900 border border-zinc-600 px-2 py-1 rounded-t shadow-lg"
+                style={{ pointerEvents: 'auto' }}
+                onClick={(e) => e.stopPropagation()}
+                data-testid="inline-drawing-toolbar"
+              >
+                <button
+                  onClick={(e) => { e.stopPropagation(); setInlineEraserMode(false); }}
+                  className={`p-1.5 rounded ${!inlineEraserMode ? 'bg-white text-black' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                  title="Pen"
+                  data-testid="inline-draw-pen"
+                >
+                  <Pen className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setInlineEraserMode(true); }}
+                  className={`p-1.5 rounded ${inlineEraserMode ? 'bg-white text-black' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                  title="Eraser"
+                  data-testid="inline-draw-eraser"
+                >
+                  <Eraser className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+                <input
+                  type="color"
+                  value={brushColor}
+                  onChange={(e) => { e.stopPropagation(); setBrushColor(e.target.value); }}
+                  className="w-6 h-6 cursor-pointer bg-transparent border border-zinc-600 rounded"
+                  title="Color"
+                  data-testid="inline-draw-color"
+                />
+                <input
+                  type="range"
+                  min="1"
+                  max="30"
+                  value={brushSize}
+                  onChange={(e) => { e.stopPropagation(); setBrushSize(Number(e.target.value)); }}
+                  className="w-16 h-2 accent-cyan-500"
+                  title={`Size: ${brushSize}px`}
+                  data-testid="inline-draw-size"
+                />
+                <span className="text-[10px] text-zinc-400 w-6 text-center">{brushSize}px</span>
+                <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); clearInlineDrawing(); }}
+                  className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded"
+                  title="Clear"
+                  data-testid="inline-draw-clear"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setInlineDrawingPanelId(null); setIsInlineDrawing(false); inlineDrawingRef.current = null; }}
+                  className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded"
+                  title="Cancel"
+                  data-testid="inline-draw-cancel"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); finishInlineDrawing(); }}
+                  className="px-2 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold rounded"
+                  title="Save Drawing"
+                  data-testid="inline-draw-save"
+                >
+                  Done
+                </button>
+              </div>
+            </>
           )}
         </div>
         
