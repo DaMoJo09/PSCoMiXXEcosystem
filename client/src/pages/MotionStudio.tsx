@@ -3226,16 +3226,20 @@ export default function MotionStudio() {
                         const startY = (e.clientY - containerRect.top) * scaleY;
                         const startLayerX = layer.x;
                         const startLayerY = layer.y;
+                        const MOTION_GRID = 20;
                         const handleMove = (moveE: MouseEvent) => {
                           const rect = container.getBoundingClientRect();
                           const sx = 1920 / rect.width;
                           const sy = 1080 / rect.height;
                           const cx = (moveE.clientX - rect.left) * sx;
                           const cy = (moveE.clientY - rect.top) * sy;
-                          updateImageLayer(layer.id, {
-                            x: startLayerX + (cx - startX),
-                            y: startLayerY + (cy - startY)
-                          });
+                          let newX = startLayerX + (cx - startX);
+                          let newY = startLayerY + (cy - startY);
+                          if (moveE.shiftKey) {
+                            newX = Math.round(newX / MOTION_GRID) * MOTION_GRID;
+                            newY = Math.round(newY / MOTION_GRID) * MOTION_GRID;
+                          }
+                          updateImageLayer(layer.id, { x: newX, y: newY });
                         };
                         const handleUp = () => {
                           document.removeEventListener('mousemove', handleMove);
@@ -3271,6 +3275,7 @@ export default function MotionStudio() {
                                   layerY: layer.height
                                 });
                               }
+                              const RESIZE_GRID = 20;
                               const handleMove = (moveE: MouseEvent) => {
                                 const container = document.querySelector('[data-layer-container]') as HTMLElement;
                                 if (!container) return;
@@ -3279,8 +3284,14 @@ export default function MotionStudio() {
                                 const scaleY = 1080 / rect.height;
                                 const currentX = (moveE.clientX - rect.left) * scaleX;
                                 const currentY = (moveE.clientY - rect.top) * scaleY;
-                                const newWidth = Math.max(50, currentX - layer.x);
-                                const newHeight = Math.max(50, currentY - layer.y);
+                                let newWidth = currentX - layer.x;
+                                let newHeight = currentY - layer.y;
+                                if (moveE.shiftKey) {
+                                  newWidth = Math.round(newWidth / RESIZE_GRID) * RESIZE_GRID;
+                                  newHeight = Math.round(newHeight / RESIZE_GRID) * RESIZE_GRID;
+                                }
+                                newWidth = Math.max(50, newWidth);
+                                newHeight = Math.max(50, newHeight);
                                 updateImageLayer(layer.id, { width: newWidth, height: newHeight });
                               };
                               const handleUp = () => {
@@ -3301,6 +3312,7 @@ export default function MotionStudio() {
                               const origY = layer.y;
                               const origWidth = layer.width;
                               const origHeight = layer.height;
+                              const NW_GRID = 20;
                               const handleMove = (moveE: MouseEvent) => {
                                 const container = document.querySelector('[data-layer-container]') as HTMLElement;
                                 if (!container) return;
@@ -3311,10 +3323,20 @@ export default function MotionStudio() {
                                 const currentY = (moveE.clientY - rect.top) * scaleY;
                                 const dx = currentX - origX;
                                 const dy = currentY - origY;
-                                const newWidth = Math.max(50, origWidth - dx);
-                                const newHeight = Math.max(50, origHeight - dy);
-                                const newX = origX + (origWidth - newWidth);
-                                const newY = origY + (origHeight - newHeight);
+                                let newWidth = origWidth - dx;
+                                let newHeight = origHeight - dy;
+                                if (moveE.shiftKey) {
+                                  newWidth = Math.round(newWidth / NW_GRID) * NW_GRID;
+                                  newHeight = Math.round(newHeight / NW_GRID) * NW_GRID;
+                                }
+                                newWidth = Math.max(50, newWidth);
+                                newHeight = Math.max(50, newHeight);
+                                let newX = origX + (origWidth - newWidth);
+                                let newY = origY + (origHeight - newHeight);
+                                if (moveE.shiftKey) {
+                                  newX = Math.round(newX / NW_GRID) * NW_GRID;
+                                  newY = Math.round(newY / NW_GRID) * NW_GRID;
+                                }
                                 updateImageLayer(layer.id, { x: newX, y: newY, width: newWidth, height: newHeight });
                               };
                               const handleUp = () => {
@@ -3334,6 +3356,7 @@ export default function MotionStudio() {
                               const origY = layer.y;
                               const origWidth = layer.width;
                               const origHeight = layer.height;
+                              const NE_GRID = 20;
                               const handleMove = (moveE: MouseEvent) => {
                                 const container = document.querySelector('[data-layer-container]') as HTMLElement;
                                 if (!container) return;
@@ -3342,10 +3365,19 @@ export default function MotionStudio() {
                                 const scaleY = 1080 / rect.height;
                                 const currentX = (moveE.clientX - rect.left) * scaleX;
                                 const currentY = (moveE.clientY - rect.top) * scaleY;
-                                const newWidth = Math.max(50, currentX - layer.x);
+                                let newWidth = currentX - layer.x;
                                 const dy = currentY - origY;
-                                const newHeight = Math.max(50, origHeight - dy);
-                                const newY = origY + (origHeight - newHeight);
+                                let newHeight = origHeight - dy;
+                                if (moveE.shiftKey) {
+                                  newWidth = Math.round(newWidth / NE_GRID) * NE_GRID;
+                                  newHeight = Math.round(newHeight / NE_GRID) * NE_GRID;
+                                }
+                                newWidth = Math.max(50, newWidth);
+                                newHeight = Math.max(50, newHeight);
+                                let newY = origY + (origHeight - newHeight);
+                                if (moveE.shiftKey) {
+                                  newY = Math.round(newY / NE_GRID) * NE_GRID;
+                                }
                                 updateImageLayer(layer.id, { y: newY, width: newWidth, height: newHeight });
                               };
                               const handleUp = () => {
@@ -3364,6 +3396,7 @@ export default function MotionStudio() {
                               setIsResizingLayer('sw');
                               const origX = layer.x;
                               const origWidth = layer.width;
+                              const SW_GRID = 20;
                               const handleMove = (moveE: MouseEvent) => {
                                 const container = document.querySelector('[data-layer-container]') as HTMLElement;
                                 if (!container) return;
@@ -3373,9 +3406,18 @@ export default function MotionStudio() {
                                 const currentX = (moveE.clientX - rect.left) * scaleX;
                                 const currentY = (moveE.clientY - rect.top) * scaleY;
                                 const dx = currentX - origX;
-                                const newWidth = Math.max(50, origWidth - dx);
-                                const newX = origX + (origWidth - newWidth);
-                                const newHeight = Math.max(50, currentY - layer.y);
+                                let newWidth = origWidth - dx;
+                                let newHeight = currentY - layer.y;
+                                if (moveE.shiftKey) {
+                                  newWidth = Math.round(newWidth / SW_GRID) * SW_GRID;
+                                  newHeight = Math.round(newHeight / SW_GRID) * SW_GRID;
+                                }
+                                newWidth = Math.max(50, newWidth);
+                                newHeight = Math.max(50, newHeight);
+                                let newX = origX + (origWidth - newWidth);
+                                if (moveE.shiftKey) {
+                                  newX = Math.round(newX / SW_GRID) * SW_GRID;
+                                }
                                 updateImageLayer(layer.id, { x: newX, width: newWidth, height: newHeight });
                               };
                               const handleUp = () => {

@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect, useCallback, ReactNode } from "react";
-import { Move, RotateCcw, Trash2, Copy, Lock, Unlock } from "lucide-react";
+import { Move, RotateCcw, Trash2, Copy, Lock, Unlock, Grid3X3 } from "lucide-react";
+
+const GRID_SIZE = 20;
+
+function snapToGrid(value: number, gridSize: number = GRID_SIZE): number {
+  return Math.round(value / gridSize) * gridSize;
+}
 
 interface TransformState {
   x: number;
@@ -58,6 +64,7 @@ export function TransformableElement({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const [isRotating, setIsRotating] = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0, startX: 0, startY: 0 });
   const rotateStart = useRef({ angle: 0, startAngle: 0 });
@@ -135,10 +142,21 @@ export function TransformableElement({
         const dx = (e.clientX - offset.x) - dragStart.current.x;
         const dy = (e.clientY - offset.y) - dragStart.current.y;
         
+        let newX = dragStart.current.startX + dx;
+        let newY = dragStart.current.startY + dy;
+        
+        if (e.shiftKey) {
+          newX = snapToGrid(newX);
+          newY = snapToGrid(newY);
+          setIsSnapping(true);
+        } else {
+          setIsSnapping(false);
+        }
+        
         const newTransform = {
           ...transform,
-          x: dragStart.current.startX + dx,
-          y: dragStart.current.startY + dy,
+          x: newX,
+          y: newY,
         };
         setTransform(newTransform);
         onTransformChange?.(id, newTransform);
@@ -212,6 +230,7 @@ export function TransformableElement({
       setIsDragging(false);
       setIsResizing(null);
       setIsRotating(false);
+      setIsSnapping(false);
     };
 
     if (isDragging || isResizing || isRotating) {
@@ -295,6 +314,14 @@ export function TransformableElement({
       <div className="w-full h-full overflow-hidden">
         {children}
       </div>
+
+      {isSnapping && isDragging && (
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
+             data-testid="snap-indicator">
+          <Grid3X3 className="w-2.5 h-2.5" />
+          SNAP {GRID_SIZE}px
+        </div>
+      )}
 
       {isSelected && (
         <>

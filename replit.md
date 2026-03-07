@@ -61,7 +61,7 @@ Each user has an editable portfolio website for displaying published works and a
 The comic creator supports direct drawing within panels with a dedicated toolbar (pen, eraser, color picker, brush size), CSS filters for visual effects, and advanced text formatting options. Auto-save functionality is built-in. Full undo/redo system with 50-level history (Ctrl+Z / Ctrl+Shift+Z). Offline save with IndexedDB fallback.
 
 ### Cover Creator
-The cover creator features transformable text elements (title, subtitle, author, back blurb, banner, price box, issue number) with extensive editing controls including text effects and arching. It integrates with the asset library for adding transformable image layers and supports print-ready export at 300 DPI.
+The cover creator features transformable text elements (title, subtitle, author, back blurb, banner, price box, issue number) with extensive editing controls including text effects and arching. It integrates with the asset library for adding transformable image layers and supports print-ready export at 300 DPI. Snap-to-grid alignment (20px grid) is available by holding Shift while dragging elements. Shift+resize locks aspect ratio. Shift+rotate snaps to 15-degree increments. Arrow keys for pixel-perfect positioning (1px, or 10px with Shift).
 
 ### Card Creator
 The card creator supports TCG and Sports modes, offering specific card types and fields for each. Sports mode includes 16 sports with various templates and stat fields. It features name arching and print-ready export at 300 DPI for both single cards and packs.
@@ -79,7 +79,7 @@ A public storefront allows browsing, searching, and filtering content. Creators 
 A Webtoons-style community library provides a browse page with search, sorting, and a comic reader for vertical scrolling. Only approved and published comics are listed, and users can like comics.
 
 ### Motion Studio Features
-The motion studio supports video/GIF export in various formats and resolutions, with progress tracking. GIF encoding runs in a Web Worker to prevent UI freezing. It includes drawing layers (multiple per frame with visibility, opacity, blend mode, reorder), selection tools (rect, ellipse, lasso), shape tools (rect, ellipse, line, arrow, polygon, star), a fill tool, and an eyedropper. Audio clips can be uploaded, played, and synchronized with the timeline. Canvas drawing is throttled with requestAnimationFrame. Frame list virtualized for 50+ frames.
+The motion studio supports video/GIF export in various formats and resolutions, with progress tracking. GIF encoding runs in a Web Worker to prevent UI freezing. It includes drawing layers (multiple per frame with visibility, opacity, blend mode, reorder), selection tools (rect, ellipse, lasso), shape tools (rect, ellipse, line, arrow, polygon, star), a fill tool, and an eyedropper. Audio clips can be uploaded, played, and synchronized with the timeline. Canvas drawing is throttled with requestAnimationFrame. Frame list virtualized for 50+ frames. Shift+drag snaps image layers to 20px grid. Shift+resize snaps dimensions to 20px grid.
 
 ### FX Studio Integration
 Integration with FX Studio (pressplays.site) allows importing effects into the Motion Studio through a server-proxied API, enabling users to browse, import, and apply effects to their frames.
