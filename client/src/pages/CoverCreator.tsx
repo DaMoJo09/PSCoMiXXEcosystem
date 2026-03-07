@@ -204,6 +204,9 @@ interface CoverData {
   subtitleTransform?: TransformState;
   authorTransform?: TransformState;
   backBlurbTransform?: TransformState;
+  bannerTransform?: TransformState;
+  priceBoxTransform?: TransformState;
+  issueNumberTransform?: TransformState;
 }
 
 const defaultCover: CoverData = {
@@ -606,27 +609,57 @@ export default function CoverCreator() {
         {view === "front" && (
           <>
             {coverData.bannerBgColor && coverData.bannerBgColor !== "transparent" && (
-              <div 
-                className="absolute top-0 left-0 right-0 h-8 flex items-center justify-between px-2 z-20 text-white"
-                style={{ backgroundColor: coverData.bannerBgColor }}
+              <TransformableElement
+                id="master-banner"
+                initialTransform={coverData.bannerTransform || { x: 0, y: 0, width: 500, height: 32, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerId === "master-banner"}
+                onSelect={setSelectedLayerId}
+                onTransformChange={(_, transform) => updateCover({ bannerTransform: transform })}
+                locked={false}
+                containerRef={canvasRef}
               >
-                <span className="text-xs font-bold">{coverData.publisherName}</span>
-                <span className="text-xs">{coverData.tagline}</span>
-              </div>
+                <div 
+                  className="w-full h-full flex items-center justify-between px-2 text-white"
+                  style={{ backgroundColor: coverData.bannerBgColor }}
+                >
+                  <span className="text-xs font-bold">{coverData.publisherName}</span>
+                  <span className="text-xs">{coverData.tagline}</span>
+                </div>
+              </TransformableElement>
             )}
             
             {coverData.showPriceBox && (
-              <div className="absolute top-2 right-2 w-10 h-10 bg-white border-2 border-black flex items-center justify-center z-20">
-                <span className="text-xs font-bold text-black">{coverData.priceText}</span>
-              </div>
+              <TransformableElement
+                id="master-price"
+                initialTransform={coverData.priceBoxTransform || { x: 440, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerId === "master-price"}
+                onSelect={setSelectedLayerId}
+                onTransformChange={(_, transform) => updateCover({ priceBoxTransform: transform })}
+                locked={false}
+                containerRef={canvasRef}
+              >
+                <div className="w-full h-full bg-white border-2 border-black flex items-center justify-center">
+                  <span className="text-xs font-bold text-black">{coverData.priceText}</span>
+                </div>
+              </TransformableElement>
             )}
             
             {coverData.issueNumber && (
-              <div className="absolute top-2 left-2 z-20">
-                <span className="text-2xl font-bold" style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }}>
-                  {coverData.issueNumber}
-                </span>
-              </div>
+              <TransformableElement
+                id="master-issue"
+                initialTransform={coverData.issueNumberTransform || { x: 4, y: 4, width: 60, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerId === "master-issue"}
+                onSelect={setSelectedLayerId}
+                onTransformChange={(_, transform) => updateCover({ issueNumberTransform: transform })}
+                locked={false}
+                containerRef={canvasRef}
+              >
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-2xl font-bold" style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }}>
+                    {coverData.issueNumber}
+                  </span>
+                </div>
+              </TransformableElement>
             )}
             
             <TransformableElement

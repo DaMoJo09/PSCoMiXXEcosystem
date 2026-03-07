@@ -73,7 +73,7 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Save:** Debounced 3-second auto-save functionality.
 
 ### Cover Creator
-- **Transformable Master Text:** Title, subtitle, author, and back blurb are `TransformableElement` components with drag/resize/rotate. Transform states stored as `titleTransform`, `subtitleTransform`, `authorTransform`, `backBlurbTransform` in CoverData.
+- **Transformable Master Text:** Title, subtitle, author, and back blurb are `TransformableElement` components with drag/resize/rotate. Transform states stored as `titleTransform`, `subtitleTransform`, `authorTransform`, `backBlurbTransform` in CoverData. Banner, price box, and issue number are also transformable with `bannerTransform`, `priceBoxTransform`, `issueNumberTransform`.
 - **Text Layer Editing Panel:** Sidebar shows full editing controls for selected text layers: text content, font, color, fontSize, bold/italic/uppercase, text effect (none/comic/outline/3d/retro/glow/neon/fire/ice), stroke color/width, and text arch slider.
 - **Text Arch:** `textArch` property on TextLayer (-100 to 100) renders arched text via SVG `<textPath>`.
 - **Asset Library Integration:** Assets from the Asset Library can be added to covers as transformable image layers via the Assets button in the header toolbar, the sidebar Image Layers section, or right-click context menu. Image layers support drag/resize/rotate via `TransformableElement` and per-layer opacity control.
