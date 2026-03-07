@@ -9,6 +9,16 @@ export default function LandingPage() {
   const [glitchOffset, setGlitchOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        navigate("/login");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate]);
+
+  useEffect(() => {
     const glitchInterval = setInterval(() => {
       setGlitchText(true);
       setGlitchOffset({ 
@@ -185,6 +195,7 @@ export default function LandingPage() {
         </div>
 
         <button
+          data-testid="button-enter-studio"
           onClick={() => navigate("/login")}
           className="group px-6 sm:px-10 py-3 sm:py-4 bg-white text-black font-bold text-base sm:text-xl uppercase tracking-wider flex items-center gap-2 sm:gap-3 hover:bg-zinc-200 transition-all relative"
           style={{
@@ -233,12 +244,14 @@ export default function LandingPage() {
 
       <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-2 sm:gap-4">
         <button 
+          data-testid="button-login"
           onClick={() => navigate("/login")}
           className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors"
         >
           Login
         </button>
         <button 
+          data-testid="button-signup"
           onClick={() => navigate("/login")}
           className="text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 uppercase tracking-wider font-mono transition-colors"
         >
@@ -246,12 +259,16 @@ export default function LandingPage() {
         </button>
       </div>
       
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+      <button 
+        onClick={() => navigate("/login")}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 bg-transparent border-none cursor-pointer"
+        data-testid="button-press-enter"
+      >
         <div className="w-px h-16 bg-gradient-to-b from-transparent to-white/50" />
         <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest animate-pulse">
-          Press Enter
+          Click or Press Enter
         </span>
-      </div>
+      </button>
     </div>
   );
 }
