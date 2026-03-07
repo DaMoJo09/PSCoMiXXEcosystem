@@ -117,10 +117,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Auth routes
   app.post("/api/auth/signup", async (req, res, next) => {
     try {
-      const { dateOfBirth, ...rest } = req.body;
+      const { dateOfBirth, parentalConsent, ...rest } = req.body;
 
       if (!dateOfBirth) {
         return res.status(400).json({ message: "Date of birth is required" });
+      }
+
+      const password = rest.password || "";
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+      if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ message: "Password must contain at least one letter and one number" });
       }
 
       const dob = new Date(dateOfBirth);
@@ -136,6 +144,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const accountType = age >= 18 ? "creator" : "student";
+
+      if (accountType === "student" && !parentalConsent) {
+        return res.status(400).json({ message: "Parental or guardian consent is required for students under 18" });
+      }
 
       const result = insertUserSchema.safeParse({
         ...rest,

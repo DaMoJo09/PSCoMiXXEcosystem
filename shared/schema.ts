@@ -1991,3 +1991,30 @@ export const tierEntitlements = {
 } as const;
 
 export type TierName = keyof typeof tierEntitlements;
+
+export const marketplaceReviews = pgTable("marketplace_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listingId: varchar("listing_id").notNull().references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  reviewText: text("review_text"),
+  verifiedPurchase: boolean("verified_purchase").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMarketplaceReviewSchema = createInsertSchema(marketplaceReviews).omit({
+  id: true,
+  createdAt: true,
+  verifiedPurchase: true,
+});
+
+export type InsertMarketplaceReview = z.infer<typeof insertMarketplaceReviewSchema>;
+export type MarketplaceReview = typeof marketplaceReviews.$inferSelect;
+
+export const creatorAnalytics = pgTable("creator_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listingId: varchar("listing_id").notNull().references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  userId: varchar("user_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

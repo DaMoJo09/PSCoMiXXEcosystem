@@ -41,7 +41,7 @@ export function setupAuth(app: Express) {
   const isProduction = process.env.NODE_ENV === "production";
   
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || process.env.REPL_ID || "pressstart-comixx-secret",
+    secret: process.env.SESSION_SECRET || process.env.REPL_ID || require("crypto").randomBytes(32).toString("hex"),
     resave: false,
     saveUninitialized: false,
     cookie: {
