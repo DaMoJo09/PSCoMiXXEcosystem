@@ -2066,12 +2066,7 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => {
-                    if (skipFxConfirm) {
-                      setAssetLibraryTab("fx-studio");
-                      setShowAssetLibrary(true);
-                    } else {
-                      setShowFxConfirm(true);
-                    }
+                    window.open("https://pressplays.site", "_blank", "noopener,noreferrer");
                   }}
                   className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
                   data-testid="tool-fx-studio"
@@ -3493,8 +3488,7 @@ export default function ComicCreator() {
               <button
                 onClick={() => {
                   setShowFxConfirm(false);
-                  setAssetLibraryTab("fx-studio");
-                  setShowAssetLibrary(true);
+                  window.open("https://pressplays.site", "_blank", "noopener,noreferrer");
                 }}
                 className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold border border-purple-500 transition-colors"
                 data-testid="fx-confirm-open"
