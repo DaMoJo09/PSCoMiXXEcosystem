@@ -13,6 +13,7 @@ import path from "path";
 
 const app = express();
 
+const isDev = process.env.NODE_ENV !== "production";
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -21,14 +22,16 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://image.pollinations.ai", "https://*.supabase.co"],
-      connectSrc: ["'self'", "https://text.pollinations.ai", "https://image.pollinations.ai", "https://*.supabase.co", "https://*.stripe.com"],
+      connectSrc: ["'self'", "https://text.pollinations.ai", "https://image.pollinations.ai", "https://*.supabase.co", "https://*.stripe.com", ...(isDev ? ["ws:", "wss:"] : [])],
       frameSrc: ["'self'", "https://*.stripe.com"],
+      frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app", "https://*.repl.co", "https://replit.com"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
+  frameguard: false,
 }));
 
 app.use((req, res, next) => {
