@@ -29,6 +29,11 @@ import {
   platformSettings,
   adminLogs,
   contentReports,
+  auditLogs,
+  ssoConfigs,
+  classroomAssignments,
+  assignmentSubmissions,
+  tosAcceptances,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -390,6 +395,34 @@ export interface IStorage {
 
   getUsageCount(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number>;
   incrementUsage(userId: string, actionType: string, periodType: string, periodKey: string): Promise<number>;
+
+  // Audit log operations
+  getAuditLogs(filters?: { userId?: string; action?: string; startDate?: Date; endDate?: Date; limit?: number; offset?: number }): Promise<any[]>;
+  getAuditLogCount(filters?: { userId?: string; action?: string; startDate?: Date; endDate?: Date }): Promise<number>;
+
+  // Account deletion
+  deleteUserAccount(userId: string): Promise<boolean>;
+  exportUserData(userId: string): Promise<Record<string, any>>;
+
+  // Teacher/classroom operations
+  getTeacherAssignments(teacherId: string, schoolId: string): Promise<any[]>;
+  createAssignment(data: { schoolId: string; teacherId: string; title: string; description?: string; projectType: string; dueDate?: Date; settings?: any }): Promise<any>;
+  updateAssignment(id: string, updates: Record<string, any>): Promise<any>;
+  deleteAssignment(id: string): Promise<boolean>;
+  getAssignmentSubmissions(assignmentId: string): Promise<any[]>;
+  submitAssignment(data: { assignmentId: string; studentId: string; projectId?: string }): Promise<any>;
+  gradeSubmission(id: string, grade: string, feedback?: string): Promise<any>;
+  getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]>;
+
+  // SSO operations
+  getSsoConfigByDomain(domain: string): Promise<any | undefined>;
+  createSsoConfig(config: any): Promise<any>;
+  updateSsoConfig(id: string, updates: any): Promise<any>;
+  getAllSsoConfigs(): Promise<any[]>;
+
+  // TOS operations
+  recordTosAcceptance(userId: string, version: string, ipAddress?: string): Promise<any>;
+  getLatestTosAcceptance(userId: string): Promise<any | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2628,6 +2661,192 @@ export class DatabaseStorage implements IStorage {
       count: 1,
     }).returning();
     return created.count;
+  }
+
+  async getAuditLogs(filters?: { userId?: string; action?: string; startDate?: Date; endDate?: Date; limit?: number; offset?: number }): Promise<any[]> {
+    const conditions = [];
+    if (filters?.userId) conditions.push(eq(auditLogs.userId, filters.userId));
+    if (filters?.action) conditions.push(eq(auditLogs.action, filters.action));
+    if (filters?.startDate) conditions.push(gt(auditLogs.createdAt, filters.startDate));
+    if (filters?.endDate) conditions.push(sql`${auditLogs.createdAt} < ${filters.endDate}`);
+
+    const query = db.select().from(auditLogs);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(desc(auditLogs.createdAt)).limit(filters?.limit || 100).offset(filters?.offset || 0);
+    }
+    return query.orderBy(desc(auditLogs.createdAt)).limit(filters?.limit || 100).offset(filters?.offset || 0);
+  }
+
+  async getAuditLogCount(filters?: { userId?: string; action?: string; startDate?: Date; endDate?: Date }): Promise<number> {
+    const conditions = [];
+    if (filters?.userId) conditions.push(eq(auditLogs.userId, filters.userId));
+    if (filters?.action) conditions.push(eq(auditLogs.action, filters.action));
+    if (filters?.startDate) conditions.push(gt(auditLogs.createdAt, filters.startDate));
+    if (filters?.endDate) conditions.push(sql`${auditLogs.createdAt} < ${filters.endDate}`);
+
+    const query = db.select({ count: count() }).from(auditLogs);
+    if (conditions.length > 0) {
+      const [result] = await query.where(and(...conditions));
+      return result?.count || 0;
+    }
+    const [result] = await query;
+    return result?.count || 0;
+  }
+
+  async deleteUserAccount(userId: string): Promise<boolean> {
+    try {
+      await db.delete(dmMessages).where(eq(dmMessages.senderId, userId));
+      await db.delete(dmParticipants).where(eq(dmParticipants.userId, userId));
+      await db.delete(socialPostComments).where(eq(socialPostComments.userId, userId));
+      await db.delete(socialPostLikes).where(eq(socialPostLikes.userId, userId));
+      await db.delete(socialPosts).where(eq(socialPosts.userId, userId));
+      await db.delete(userFollows).where(eq(userFollows.followerId, userId));
+      await db.delete(userFollows).where(eq(userFollows.followingId, userId));
+      await db.delete(notifications).where(eq(notifications.userId, userId));
+      await db.delete(assets).where(eq(assets.userId, userId));
+      await db.delete(projects).where(eq(projects.userId, userId));
+      await db.delete(schoolMemberships).where(eq(schoolMemberships.userId, userId));
+      await db.delete(portfolioArtworks).where(eq(portfolioArtworks.userId, userId));
+      await db.delete(tosAcceptances).where(eq(tosAcceptances.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
+      return true;
+    } catch (err) {
+      console.error("[storage] deleteUserAccount error:", err);
+      return false;
+    }
+  }
+
+  async exportUserData(userId: string): Promise<Record<string, any>> {
+    const user = await this.getUser(userId);
+    if (!user) return {};
+
+    const userProjects = await this.getUserProjects(userId);
+    const userAssets = await this.getUserAssets(userId);
+    const userPosts = await this.getUserPosts(userId);
+    const followers = await this.getFollowers(userId);
+    const following = await this.getFollowing(userId);
+
+    const { password, ...safeUser } = user as any;
+
+    return {
+      user: safeUser,
+      projects: userProjects,
+      assets: userAssets,
+      socialPosts: userPosts,
+      followers,
+      following,
+      exportedAt: new Date().toISOString(),
+      format: "PSCoMiXX Data Export v1.0",
+    };
+  }
+
+  async getTeacherAssignments(teacherId: string, schoolId: string): Promise<any[]> {
+    return db.select().from(classroomAssignments)
+      .where(and(eq(classroomAssignments.teacherId, teacherId), eq(classroomAssignments.schoolId, schoolId)))
+      .orderBy(desc(classroomAssignments.createdAt));
+  }
+
+  async createAssignment(data: { schoolId: string; teacherId: string; title: string; description?: string; projectType: string; dueDate?: Date; settings?: any }): Promise<any> {
+    const [assignment] = await db.insert(classroomAssignments).values({
+      schoolId: data.schoolId,
+      teacherId: data.teacherId,
+      title: data.title,
+      description: data.description || null,
+      projectType: data.projectType,
+      dueDate: data.dueDate || null,
+      settings: data.settings || null,
+    }).returning();
+    return assignment;
+  }
+
+  async updateAssignment(id: string, updates: Record<string, any>): Promise<any> {
+    const [assignment] = await db.update(classroomAssignments)
+      .set(updates)
+      .where(eq(classroomAssignments.id, id))
+      .returning();
+    return assignment || undefined;
+  }
+
+  async deleteAssignment(id: string): Promise<boolean> {
+    const result = await db.delete(classroomAssignments).where(eq(classroomAssignments.id, id));
+    return true;
+  }
+
+  async getAssignmentSubmissions(assignmentId: string): Promise<any[]> {
+    return db.select({
+      submission: assignmentSubmissions,
+      student: { id: users.id, name: users.name, email: users.email, avatar: users.avatar },
+    })
+    .from(assignmentSubmissions)
+    .leftJoin(users, eq(assignmentSubmissions.studentId, users.id))
+    .where(eq(assignmentSubmissions.assignmentId, assignmentId))
+    .orderBy(desc(assignmentSubmissions.createdAt));
+  }
+
+  async submitAssignment(data: { assignmentId: string; studentId: string; projectId?: string }): Promise<any> {
+    const [submission] = await db.insert(assignmentSubmissions).values({
+      assignmentId: data.assignmentId,
+      studentId: data.studentId,
+      projectId: data.projectId || null,
+      status: "submitted",
+      submittedAt: new Date(),
+    }).returning();
+    return submission;
+  }
+
+  async gradeSubmission(id: string, grade: string, feedback?: string): Promise<any> {
+    const [submission] = await db.update(assignmentSubmissions)
+      .set({ grade, feedback: feedback || null, status: "graded", gradedAt: new Date() })
+      .where(eq(assignmentSubmissions.id, id))
+      .returning();
+    return submission || undefined;
+  }
+
+  async getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]> {
+    const memberships = await db.select({
+      membership: schoolMemberships,
+      user: { id: users.id, name: users.name, email: users.email, avatar: users.avatar, accountType: users.accountType, xp: users.xp, level: users.level },
+    })
+    .from(schoolMemberships)
+    .leftJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.role, "student")));
+    return memberships;
+  }
+
+  async getSsoConfigByDomain(domain: string): Promise<any | undefined> {
+    const [config] = await db.select().from(ssoConfigs).where(eq(ssoConfigs.domain, domain));
+    return config || undefined;
+  }
+
+  async createSsoConfig(config: any): Promise<any> {
+    const [result] = await db.insert(ssoConfigs).values(config).returning();
+    return result;
+  }
+
+  async updateSsoConfig(id: string, updates: any): Promise<any> {
+    const [result] = await db.update(ssoConfigs).set({ ...updates, updatedAt: new Date() }).where(eq(ssoConfigs.id, id)).returning();
+    return result || undefined;
+  }
+
+  async getAllSsoConfigs(): Promise<any[]> {
+    return db.select().from(ssoConfigs).orderBy(desc(ssoConfigs.createdAt));
+  }
+
+  async recordTosAcceptance(userId: string, version: string, ipAddress?: string): Promise<any> {
+    const [result] = await db.insert(tosAcceptances).values({
+      userId,
+      version,
+      ipAddress: ipAddress || null,
+    }).returning();
+    return result;
+  }
+
+  async getLatestTosAcceptance(userId: string): Promise<any | undefined> {
+    const [result] = await db.select().from(tosAcceptances)
+      .where(eq(tosAcceptances.userId, userId))
+      .orderBy(desc(tosAcceptances.acceptedAt))
+      .limit(1);
+    return result || undefined;
   }
 }
 

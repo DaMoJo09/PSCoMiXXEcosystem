@@ -7,9 +7,34 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import crypto from "crypto";
 import path from "path";
 
 const app = express();
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://image.pollinations.ai", "https://*.supabase.co"],
+      connectSrc: ["'self'", "https://text.pollinations.ai", "https://image.pollinations.ai", "https://*.supabase.co", "https://*.stripe.com"],
+      frameSrc: ["'self'", "https://*.stripe.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+
+app.use((req, res, next) => {
+  res.setHeader("X-Request-ID", crypto.randomUUID());
+  next();
+});
 
 app.use('/assets', express.static(path.join(process.cwd(), 'client/public/assets')));
 app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
@@ -132,6 +157,49 @@ const aiLimiter = rateLimit({
 });
 app.use("/api/ai/", aiLimiter);
 
+const startTime = Date.now();
+
+app.get("/health", async (_req, res) => {
+  try {
+    const { pool } = await import("./db");
+    await pool.query("SELECT 1");
+    res.json({
+      status: "healthy",
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      version: process.env.npm_package_version || "1.0.0",
+      environment: process.env.NODE_ENV || "development",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: "degraded",
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      database: "disconnected",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+app.get("/api/status", async (_req, res) => {
+  const services: Record<string, string> = {};
+  try {
+    const { pool } = await import("./db");
+    await pool.query("SELECT 1");
+    services.database = "operational";
+  } catch { services.database = "down"; }
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    await fetch("https://text.pollinations.ai/", { method: "HEAD", signal: ctrl.signal }).catch(() => null);
+    clearTimeout(t);
+    services.ai = "operational";
+  } catch { services.ai = "degraded"; }
+  services.stripe = process.env.STRIPE_SECRET_KEY ? "configured" : "not_configured";
+  const allOperational = Object.values(services).every(s => s === "operational" || s === "configured");
+  res.json({ status: allOperational ? "operational" : "degraded", services, timestamp: new Date().toISOString() });
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -202,4 +270,18 @@ app.use((req, res, next) => {
       logInfo("Server started", { port, env: process.env.NODE_ENV || "development" });
     },
   );
+
+  const gracefulShutdown = (signal: string) => {
+    log(`${signal} received. Shutting down gracefully...`);
+    httpServer.close(() => {
+      log("HTTP server closed");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      log("Forceful shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 })();

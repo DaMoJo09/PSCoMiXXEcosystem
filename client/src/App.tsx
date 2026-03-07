@@ -65,6 +65,12 @@ import ComicReader from "@/pages/ComicReader";
 import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
 import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
 import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
+import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
+import TeacherDashboard from "@/pages/TeacherDashboard";
+import CompliancePage from "@/pages/CompliancePage";
+import AccessibilityPage from "@/pages/AccessibilityPage";
+import SecurityPage from "@/pages/SecurityPage";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 
@@ -98,10 +104,18 @@ function ProtectedRouter() {
     return <ResetPassword />;
   }
 
-  if (location.startsWith("/portfolio/") && !isAuthenticated) {
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security"];
+  const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
+
+  if (isPublicPage && !isAuthenticated) {
     return (
       <Switch>
         <Route path="/portfolio/:userId" component={PortfolioPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/compliance" component={CompliancePage} />
+        <Route path="/accessibility-statement" component={AccessibilityPage} />
+        <Route path="/security" component={SecurityPage} />
         <Route component={NotFound} />
       </Switch>
     );
@@ -167,6 +181,12 @@ function ProtectedRouter() {
         <Route path="/marketplace/sell" component={MarketplaceSellPage} />
         <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />
         <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/teacher" component={TeacherDashboard} />
+        <Route path="/compliance" component={CompliancePage} />
+        <Route path="/accessibility-statement" component={AccessibilityPage} />
+        <Route path="/security" component={SecurityPage} />
         <Route component={NotFound} />
       </Switch>
       </ErrorBoundary>

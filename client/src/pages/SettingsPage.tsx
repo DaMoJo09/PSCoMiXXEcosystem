@@ -68,6 +68,7 @@ export default function SettingsPage() {
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
   const [showNewKey, setShowNewKey] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("pressstart_settings");
@@ -619,9 +620,99 @@ export default function SettingsPage() {
             </section>
           )}
 
+          <section className="space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <Settings className="w-5 h-5" /> DATA & PRIVACY
+            </h3>
+
+            <div className="p-4 bg-zinc-900 border-4 border-zinc-700 space-y-4">
+              <div>
+                <h4 className="font-bold mb-2">Export Your Data</h4>
+                <p className="text-sm text-zinc-400 mb-3">Download a copy of all your data including projects, assets, posts, and profile information.</p>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/auth/export-data", { credentials: "include" });
+                      if (!response.ok) throw new Error("Export failed");
+                      const blob = await response.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `pscomixx-data-export-${Date.now()}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success("Data exported successfully");
+                    } catch {
+                      toast.error("Failed to export data");
+                    }
+                  }}
+                  className="px-4 py-2 bg-white text-black font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-all"
+                  data-testid="button-export-data"
+                >
+                  EXPORT MY DATA
+                </button>
+              </div>
+
+              <div className="border-t border-zinc-700 pt-4">
+                <h4 className="font-bold mb-2 text-red-400">Delete Account</h4>
+                <p className="text-sm text-zinc-400 mb-3">Permanently delete your account and all associated data. This action cannot be undone.</p>
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-4 py-2 bg-red-600 text-white font-bold border-4 border-red-800 shadow-[4px_4px_0px_0px_rgba(127,0,0,1)] hover:shadow-none transition-all"
+                    data-testid="button-delete-account"
+                  >
+                    DELETE MY ACCOUNT
+                  </button>
+                ) : (
+                  <div className="p-3 bg-red-900/30 border-2 border-red-600 space-y-3">
+                    <p className="text-sm text-red-300 font-bold">Are you absolutely sure? This will permanently delete:</p>
+                    <ul className="text-sm text-red-300 list-disc list-inside">
+                      <li>All your projects and assets</li>
+                      <li>Your social posts and messages</li>
+                      <li>Your marketplace listings and reviews</li>
+                      <li>Your profile and account data</li>
+                    </ul>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch("/api/auth/account", { method: "DELETE", credentials: "include" });
+                            if (!response.ok) throw new Error("Deletion failed");
+                            toast.success("Account deleted. Redirecting...");
+                            setTimeout(() => window.location.href = "/", 2000);
+                          } catch {
+                            toast.error("Failed to delete account");
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white font-bold border-2 border-red-800 hover:bg-red-700"
+                        data-testid="button-confirm-delete"
+                      >
+                        YES, DELETE EVERYTHING
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-4 py-2 bg-zinc-700 text-white font-bold border-2 border-zinc-600 hover:bg-zinc-600"
+                        data-testid="button-cancel-delete"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           <section className="p-4 bg-zinc-900 border-4 border-zinc-700 text-sm text-zinc-400">
             <p><strong className="text-white">Note:</strong> Settings are stored locally in your browser. To sync settings across devices, sign in with your Press Start CoMixx account.</p>
             <p className="mt-2">Logged in as: <strong className="text-white">{user?.email || "Guest"}</strong></p>
+            <div className="mt-3 flex gap-4 text-xs">
+              <a href="/privacy" className="text-zinc-300 hover:text-white underline" data-testid="link-privacy">Privacy Policy</a>
+              <a href="/terms" className="text-zinc-300 hover:text-white underline" data-testid="link-terms">Terms of Service</a>
+              <a href="/compliance" className="text-zinc-300 hover:text-white underline" data-testid="link-compliance">Compliance</a>
+              <a href="/accessibility-statement" className="text-zinc-300 hover:text-white underline" data-testid="link-accessibility">Accessibility</a>
+            </div>
           </section>
         </div>
       </div>

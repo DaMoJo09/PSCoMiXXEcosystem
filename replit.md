@@ -16,16 +16,22 @@ An Express.js server built with Node.js handles API requests. Authentication is 
 
 ### Security
 - **Rate Limiting:** Global API limiter (200 req/min), auth limiter (10 attempts/15 min), AI limiter (10 req/min).
+- **Security Headers:** Helmet.js with CSP, X-Frame-Options, HSTS, X-Content-Type-Options, Referrer-Policy. X-Request-ID on all responses.
 - **Password Policy:** Minimum 8 characters, at least one letter and one number.
 - **Session Secret:** Uses `SESSION_SECRET` env var or `REPL_ID`, never hardcoded.
 - **COPPA Compliance:** Parental consent checkbox for student accounts, `parentalConsentAt` timestamp stored in DB.
-- **Content Safety:** Student accounts get safety-filtered AI prompts ("safe for children, family friendly"), mature marketplace content blocked.
-- **Content Moderation:** `blockStudents` middleware, content reporting system, admin review queue.
+- **FERPA Compliance:** Account deletion (DELETE /api/auth/account), data export (GET /api/auth/export-data), DPA template (GET /api/legal/dpa).
+- **Content Safety:** Student accounts get safety-filtered AI prompts, mature marketplace content blocked, profanity filter on social posts and DMs for students.
+- **Content Moderation:** `blockStudents` middleware, content reporting system, admin review queue, CIPA-compliant content filtering via `contentFilter.ts`.
 - **Prompt Sanitization:** HTML tags and script injection stripped from AI prompts, 2000 char limit.
 - **AI Resilience:** Retry with exponential backoff (3 attempts), 15s timeout, graceful error messages.
+- **Audit Logging:** Comprehensive append-only audit trail (`audit_logs` table) tracking login, signup, logout, account deletion, data export, AI generations, social posts, DMs, admin actions, content moderation.
+- **SSO Infrastructure:** `sso_configs` table for SAML/OIDC per-organization SSO. Login/callback endpoints, auto-provisioning.
+- **Graceful Shutdown:** SIGTERM/SIGINT handlers drain connections before exit.
+- **Health Monitoring:** `/health` and `/api/status` endpoints for DB, AI, Stripe health checks.
 
 ### Data Storage
-PostgreSQL, hosted via Neon serverless, is the primary database, accessed using Drizzle ORM for type-safe operations. The schema includes `users`, `projects` (polymorphic), `assets`, `project_versions`, `publish_jobs`, `engagement_events`, `marketplace_reviews`, `creator_analytics`, `usage_tracking`, leveraging JSONB for flexible project data and UUID primary keys. Drizzle Kit manages database migrations.
+PostgreSQL, hosted via Neon serverless, is the primary database, accessed using Drizzle ORM for type-safe operations. The schema includes `users`, `projects` (polymorphic), `assets`, `project_versions`, `publish_jobs`, `engagement_events`, `marketplace_reviews`, `creator_analytics`, `usage_tracking`, `audit_logs`, `sso_configs`, `classroom_assignments`, `assignment_submissions`, `tos_acceptances`, leveraging JSONB for flexible project data and UUID primary keys. Drizzle Kit manages database migrations.
 
 ### Subscription & Usage Tracking
 - **Tier Entitlements:** Free, Creator, Pro, Studio, Lifetime tiers with limits on AI generations/day, exports/month, max projects, and storage.

@@ -121,6 +121,29 @@ export default function AuthPage() {
             </TabsList>
 
             <TabsContent value="login" className="space-y-4 pt-4">
+              <div className="mb-4 p-3 bg-zinc-900 border border-zinc-700 rounded">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const domain = prompt("Enter your school or organization email domain (e.g., school.edu):");
+                    if (domain) {
+                      window.location.href = `/api/auth/sso/login?domain=${encodeURIComponent(domain)}`;
+                    }
+                  }}
+                  className="w-full py-2 px-4 bg-zinc-800 border-2 border-zinc-600 text-white font-bold hover:border-white transition-colors flex items-center justify-center gap-2"
+                  data-testid="button-sso-login"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  SIGN IN WITH SSO
+                </button>
+                <p className="text-xs text-zinc-500 mt-1 text-center">For schools and organizations with SSO configured</p>
+              </div>
+
+              <div className="relative mb-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-zinc-700" /></div>
+                <div className="relative flex justify-center text-xs"><span className="bg-zinc-950 px-2 text-zinc-500">OR</span></div>
+              </div>
+
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="login-email" className="text-white">

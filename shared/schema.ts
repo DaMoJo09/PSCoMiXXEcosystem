@@ -2049,3 +2049,73 @@ export const creatorAnalytics = pgTable("creator_analytics", {
   userId: varchar("user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),
+  action: text("action").notNull(),
+  resourceType: text("resource_type"),
+  resourceId: varchar("resource_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+export const ssoConfigs = pgTable("sso_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationName: text("organization_name").notNull(),
+  domain: text("domain").notNull().unique(),
+  provider: text("provider").notNull().default("saml"),
+  idpEntityId: text("idp_entity_id"),
+  idpSsoUrl: text("idp_sso_url"),
+  idpCertificate: text("idp_certificate"),
+  spEntityId: text("sp_entity_id"),
+  enabled: boolean("enabled").notNull().default(false),
+  autoProvision: boolean("auto_provision").notNull().default(true),
+  defaultRole: text("default_role").notNull().default("student"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SsoConfig = typeof ssoConfigs.$inferSelect;
+
+export const classroomAssignments = pgTable("classroom_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  projectType: text("project_type").notNull(),
+  dueDate: timestamp("due_date"),
+  status: text("status").notNull().default("active"),
+  settings: jsonb("settings"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ClassroomAssignment = typeof classroomAssignments.$inferSelect;
+
+export const assignmentSubmissions = pgTable("assignment_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assignmentId: varchar("assignment_id").notNull().references(() => classroomAssignments.id, { onDelete: "cascade" }),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id),
+  status: text("status").notNull().default("pending"),
+  feedback: text("feedback"),
+  grade: text("grade"),
+  submittedAt: timestamp("submitted_at"),
+  gradedAt: timestamp("graded_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;
+
+export const tosAcceptances = pgTable("tos_acceptances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  version: text("version").notNull(),
+  acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+  ipAddress: text("ip_address"),
+});
