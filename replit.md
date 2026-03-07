@@ -76,6 +76,8 @@ Preferred communication style: Simple, everyday language.
 - **Transformable Master Text:** Title, subtitle, author, and back blurb are `TransformableElement` components with drag/resize/rotate. Transform states stored as `titleTransform`, `subtitleTransform`, `authorTransform`, `backBlurbTransform` in CoverData.
 - **Text Layer Editing Panel:** Sidebar shows full editing controls for selected text layers: text content, font, color, fontSize, bold/italic/uppercase, text effect (none/comic/outline/3d/retro/glow/neon/fire/ice), stroke color/width, and text arch slider.
 - **Text Arch:** `textArch` property on TextLayer (-100 to 100) renders arched text via SVG `<textPath>`.
+- **Asset Library Integration:** Assets from the Asset Library can be added to covers as transformable image layers via the Assets button in the header toolbar, the sidebar Image Layers section, or right-click context menu. Image layers support drag/resize/rotate via `TransformableElement` and per-layer opacity control.
+- **Image Layers:** `ImageLayer` interface with `url`, `name`, `transform`, `opacity`, `locked`. Stored as `frontImageLayers`, `backImageLayers`, `spineImageLayers` in CoverData. Rendered below text layers, above background.
 
 ### Card Creator
 - **Card Modes:** TCG mode (trading card game) and Sports mode toggled via sidebar buttons.

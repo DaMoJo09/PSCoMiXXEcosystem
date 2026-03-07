@@ -10,6 +10,8 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
+import { AssetBrowser, AssetBrowserTrigger } from "@/components/tools/AssetBrowser";
+import type { AssetItem } from "@/components/tools/AssetBrowser";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 import {
@@ -148,6 +150,15 @@ interface TextLayer {
   textTransform?: string;
 }
 
+interface ImageLayer {
+  id: string;
+  url: string;
+  name: string;
+  transform: TransformState;
+  opacity: number;
+  locked: boolean;
+}
+
 interface CoverData {
   title: string;
   subtitle: string;
@@ -177,6 +188,9 @@ interface CoverData {
   frontLayers: TextLayer[];
   backLayers: TextLayer[];
   spineLayers: TextLayer[];
+  frontImageLayers: ImageLayer[];
+  backImageLayers: ImageLayer[];
+  spineImageLayers: ImageLayer[];
   templateId: string;
   bannerText: string;
   bannerBgColor: string;
@@ -221,6 +235,9 @@ const defaultCover: CoverData = {
   frontLayers: [],
   backLayers: [],
   spineLayers: [],
+  frontImageLayers: [],
+  backImageLayers: [],
+  spineImageLayers: [],
   templateId: "marvel-classic",
   bannerText: "COMICS GROUP",
   bannerBgColor: "#000000",
@@ -254,6 +271,7 @@ export default function CoverCreator() {
   const creationAttempted = useRef(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [showAssetBrowser, setShowAssetBrowser] = useState(false);
 
   const coverContentRef = useRef<HTMLDivElement>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -469,6 +487,40 @@ export default function CoverCreator() {
     updateCover({ [layerKey]: layers.filter(l => l.id !== layerId) });
   };
 
+  const addImageLayer = (view: "front" | "back" | "spine", asset: AssetItem) => {
+    const newLayer: ImageLayer = {
+      id: `img_${Date.now()}`,
+      url: asset.url,
+      name: asset.name,
+      transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      locked: false,
+    };
+    const layerKey = `${view}ImageLayers` as keyof CoverData;
+    const existing = (coverData[layerKey] as ImageLayer[]) || [];
+    updateCover({ [layerKey]: [...existing, newLayer] });
+    setSelectedLayerId(newLayer.id);
+    toast.success(`"${asset.name}" added to ${view} cover`);
+  };
+
+  const updateImageLayer = (view: "front" | "back" | "spine", layerId: string, updates: Partial<ImageLayer>) => {
+    const layerKey = `${view}ImageLayers` as keyof CoverData;
+    const layers = (coverData[layerKey] as ImageLayer[]) || [];
+    updateCover({ [layerKey]: layers.map(l => l.id === layerId ? { ...l, ...updates } : l) });
+  };
+
+  const deleteImageLayer = (view: "front" | "back" | "spine", layerId: string) => {
+    const layerKey = `${view}ImageLayers` as keyof CoverData;
+    const layers = (coverData[layerKey] as ImageLayer[]) || [];
+    updateCover({ [layerKey]: layers.filter(l => l.id !== layerId) });
+  };
+
+  const handleAssetSelected = (asset: AssetItem) => {
+    const view = activeView === "spread" ? "front" : activeView;
+    addImageLayer(view, asset);
+    setShowAssetBrowser(false);
+  };
+
   const applyTemplate = (templateId: string) => {
     const template = COVER_TEMPLATES.find(t => t.id === templateId);
     if (!template) return;
@@ -509,6 +561,7 @@ export default function CoverCreator() {
     const bgColor = view === "front" ? coverData.frontBgColor : view === "back" ? coverData.backBgColor : coverData.spineBgColor;
     const bgImage = view === "front" ? coverData.frontImage : view === "back" ? coverData.backImage : coverData.spineImage;
     const layers = coverData[`${view}Layers` as keyof CoverData] as TextLayer[];
+    const imageLayers = (coverData[`${view}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
 
     return (
       <div 
@@ -666,6 +719,28 @@ export default function CoverCreator() {
           </div>
         )}
 
+        {imageLayers.map(imgLayer => (
+          <TransformableElement
+            key={imgLayer.id}
+            id={imgLayer.id}
+            initialTransform={imgLayer.transform}
+            isSelected={selectedLayerId === imgLayer.id}
+            onSelect={setSelectedLayerId}
+            onTransformChange={(id, transform) => updateImageLayer(view, id, { transform })}
+            onDelete={(id) => deleteImageLayer(view, id)}
+            locked={imgLayer.locked}
+            containerRef={canvasRef}
+          >
+            <img
+              src={imgLayer.url}
+              alt={imgLayer.name}
+              className="w-full h-full object-contain pointer-events-none select-none"
+              style={{ opacity: imgLayer.opacity }}
+              draggable={false}
+            />
+          </TransformableElement>
+        ))}
+
         {layers.map(layer => (
           <TransformableElement
             key={layer.id}
@@ -740,6 +815,13 @@ export default function CoverCreator() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowAssetBrowser(true)}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 border border-violet-500 text-sm font-bold flex items-center gap-2"
+              data-testid="button-open-assets"
+            >
+              <Layers className="w-4 h-4" /> Assets
+            </button>
             <button 
               onClick={handleSave}
               disabled={isSaving}
@@ -1164,6 +1246,66 @@ export default function CoverCreator() {
                     );
                   })()}
                 </div>
+
+                <div className="pt-4 border-t border-zinc-700">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold uppercase text-zinc-400">Image Layers</label>
+                    <button 
+                      onClick={() => setShowAssetBrowser(true)}
+                      className="p-1 bg-violet-600 text-white text-xs flex items-center gap-1"
+                      data-testid="button-add-image-layer"
+                    >
+                      <Plus className="w-3 h-3" /> Add
+                    </button>
+                  </div>
+                  {(() => {
+                    const viewKey = activeView === "spread" ? "front" : activeView;
+                    const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+                    return imgLayers.length > 0 && (
+                      <div className="space-y-2">
+                        {imgLayers.map((imgLayer) => (
+                          <div 
+                            key={imgLayer.id}
+                            onClick={() => setSelectedLayerId(imgLayer.id)}
+                            className={`p-2 border cursor-pointer ${selectedLayerId === imgLayer.id ? "border-violet-500 bg-zinc-800" : "border-zinc-700 hover:border-zinc-500"}`}
+                            data-testid={`image-layer-item-${imgLayer.id}`}
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <img src={imgLayer.url} alt={imgLayer.name} className="w-6 h-6 object-contain bg-zinc-900 border border-zinc-700" />
+                                <span className="text-xs font-medium truncate">{imgLayer.name}</span>
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteImageLayer(viewKey, imgLayer.id); }}
+                                className="p-0.5 hover:text-red-500"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                            {selectedLayerId === imgLayer.id && (
+                              <div className="space-y-2 pt-2 border-t border-zinc-700" onClick={(e) => e.stopPropagation()}>
+                                <div>
+                                  <label className="text-[10px] text-zinc-500 flex justify-between">
+                                    <span>Opacity</span>
+                                    <span className="text-zinc-600">{Math.round((imgLayer.opacity ?? 1) * 100)}%</span>
+                                  </label>
+                                  <input
+                                    type="range"
+                                    min="0" max="1" step="0.05"
+                                    value={imgLayer.opacity ?? 1}
+                                    onChange={(e) => updateImageLayer(viewKey, imgLayer.id, { opacity: Number(e.target.value) })}
+                                    className="w-full h-1.5 accent-violet-500"
+                                    data-testid="input-image-opacity"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
 
@@ -1376,6 +1518,9 @@ export default function CoverCreator() {
               <ContextMenuItem onClick={() => addTextLayer(activeView === "spread" ? "front" : activeView)} className="hover:bg-zinc-800 cursor-pointer">
                 <Type className="w-4 h-4 mr-2" /> Add Text Layer
               </ContextMenuItem>
+              <ContextMenuItem onClick={() => setShowAssetBrowser(true)} className="hover:bg-zinc-800 cursor-pointer">
+                <Layers className="w-4 h-4 mr-2" /> Add Asset from Library
+              </ContextMenuItem>
               <ContextMenuSeparator className="bg-zinc-700" />
               <ContextMenuSub>
                 <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -1464,6 +1609,13 @@ export default function CoverCreator() {
             />
           </div>
         )}
+
+        <AssetBrowser
+          isOpen={showAssetBrowser}
+          onClose={() => setShowAssetBrowser(false)}
+          onSelectAsset={handleAssetSelected}
+          mode="insert"
+        />
       </div>
     </Layout>
   );
