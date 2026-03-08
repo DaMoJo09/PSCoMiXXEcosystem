@@ -2437,96 +2437,117 @@ export default function MotionStudio() {
     };
   }, [isPlaying, audioMuted, currentFrameIndex, audioClips, audioVolume]);
 
-  // Apply drawing to comic panel
+  const [isApplying, setIsApplying] = useState(false);
+
   const applyToPanel = async () => {
     if (!selectedComicId || !selectedPanelId) {
       toast.error("Please select a comic and panel");
       return;
     }
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const currentFrame = frames[currentFrameIndex];
-    const rasterData = canvas.toDataURL('image/png');
-    const frameForComposite = { ...currentFrame, imageData: rasterData };
-    const imageData = await compositeFrameWithEffects(frameForComposite);
-    
+
+    if (!selectedComic) {
+      toast.error("Comic project is still loading. Please wait and try again.");
+      return;
+    }
+
+    setIsApplying(true);
+
     try {
-      const comicData = selectedComic?.data as any;
-      if (!comicData?.spreads) {
-        toast.error("Invalid comic data");
+      const currentFrame = frames[currentFrameIndex];
+      let rasterData = "";
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        try {
+          rasterData = canvas.toDataURL('image/png');
+        } catch {
+          rasterData = "";
+        }
+      }
+
+      const isBlankCanvas = !rasterData || rasterData === "data:,";
+      const fallbackImageData = currentFrame.imageData || "";
+      const hasDrawingLayers = currentFrame.drawingLayers?.some(l => l.visible && l.imageData) || false;
+      const hasImageLayers = currentFrame.imageLayers?.some(l => l.visible) || false;
+
+      if (isBlankCanvas && !fallbackImageData && !hasDrawingLayers && !hasImageLayers) {
+        toast.error("No content to apply. Draw or add an image first.");
+        setIsApplying(false);
         return;
       }
-      
-      // Find and update the panel
+
+      const frameForComposite = {
+        ...currentFrame,
+        imageData: isBlankCanvas ? fallbackImageData : rasterData
+      };
+      const composited = await compositeFrameWithEffects(frameForComposite);
+
+      if (!composited) {
+        toast.error("Failed to composite frame. Please ensure the canvas has content.");
+        setIsApplying(false);
+        return;
+      }
+
+      const comicData = selectedComic?.data as any;
+      if (!comicData?.spreads) {
+        toast.error("Invalid comic data — no spreads found");
+        setIsApplying(false);
+        return;
+      }
+
+      const updatePanelInList = (panels: any[] | undefined) => {
+        if (!panels || !Array.isArray(panels)) return panels;
+        return panels.map((panel: any) => {
+          if (panel.id === selectedPanelId) {
+            return {
+              ...panel,
+              contents: [
+                ...(panel.contents || []),
+                {
+                  id: `content_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                  type: "drawing",
+                  transform: { x: 0, y: 0, width: panel.width || 400, height: panel.height || 400, rotation: 0, scaleX: 1, scaleY: 1 },
+                  data: {
+                    drawingData: composited,
+                    vectorData: vectorPaths,
+                    motionFrames: frames,
+                    isMotion: true
+                  },
+                  zIndex: (panel.contents || []).length,
+                  locked: false
+                }
+              ]
+            };
+          }
+          return panel;
+        });
+      };
+
       const updatedSpreads = comicData.spreads.map((spread: any) => ({
         ...spread,
-        leftPage: spread.leftPage.map((panel: any) => {
-          if (panel.id === selectedPanelId) {
-            return {
-              ...panel,
-              contents: [
-                ...panel.contents,
-                {
-                  id: `content_${Date.now()}`,
-                  type: "drawing",
-                  transform: { x: 0, y: 0, width: panel.width, height: panel.height, rotation: 0, scaleX: 1, scaleY: 1 },
-                  data: { 
-                    drawingData: imageData,
-                    vectorData: vectorPaths,
-                    motionFrames: frames,
-                    isMotion: true
-                  },
-                  zIndex: panel.contents.length,
-                  locked: false
-                }
-              ]
-            };
-          }
-          return panel;
-        }),
-        rightPage: spread.rightPage.map((panel: any) => {
-          if (panel.id === selectedPanelId) {
-            return {
-              ...panel,
-              contents: [
-                ...panel.contents,
-                {
-                  id: `content_${Date.now()}`,
-                  type: "drawing",
-                  transform: { x: 0, y: 0, width: panel.width, height: panel.height, rotation: 0, scaleX: 1, scaleY: 1 },
-                  data: { 
-                    drawingData: imageData,
-                    vectorData: vectorPaths,
-                    motionFrames: frames,
-                    isMotion: true
-                  },
-                  zIndex: panel.contents.length,
-                  locked: false
-                }
-              ]
-            };
-          }
-          return panel;
-        })
+        leftPage: updatePanelInList(spread.leftPage),
+        rightPage: updatePanelInList(spread.rightPage),
+        ...(spread.coverPage ? { coverPage: updatePanelInList(spread.coverPage) } : {}),
+        ...(spread.panels ? { panels: updatePanelInList(spread.panels) } : {}),
       }));
-      
+
       await updateProject.mutateAsync({
         id: selectedComicId,
         data: { data: { ...comicData, spreads: updatedSpreads } }
       });
-      
+
       toast.success("Applied to panel!");
       setShowApplyPanel(false);
       setSelectedComicId(null);
       setSelectedPanelId(null);
     } catch (err) {
-      toast.error("Failed to apply to panel");
+      console.error("Apply to panel failed:", err);
+      toast.error("Failed to apply to panel. Please try again.");
+    } finally {
+      setIsApplying(false);
     }
   };
 
-  // Get panels from selected comic
   const getComicPanels = () => {
     if (!selectedComic?.data) return [];
     const data = selectedComic.data as any;
@@ -2534,11 +2555,17 @@ export default function MotionStudio() {
     
     const panels: { id: string; label: string }[] = [];
     data.spreads.forEach((spread: any, sIdx: number) => {
+      spread.coverPage?.forEach((panel: any, pIdx: number) => {
+        panels.push({ id: panel.id, label: `Spread ${sIdx + 1} Cover - Panel ${pIdx + 1}` });
+      });
       spread.leftPage?.forEach((panel: any, pIdx: number) => {
         panels.push({ id: panel.id, label: `Spread ${sIdx + 1} Left - Panel ${pIdx + 1}` });
       });
       spread.rightPage?.forEach((panel: any, pIdx: number) => {
         panels.push({ id: panel.id, label: `Spread ${sIdx + 1} Right - Panel ${pIdx + 1}` });
+      });
+      spread.panels?.forEach((panel: any, pIdx: number) => {
+        panels.push({ id: panel.id, label: `Spread ${sIdx + 1} - Panel ${pIdx + 1}` });
       });
     });
     return panels;
@@ -4061,7 +4088,13 @@ export default function MotionStudio() {
                 <div>
                   <label className="text-xs text-zinc-400 block mb-2">Select Panel</label>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {getComicPanels().map(panel => (
+                    {!selectedComic && (
+                      <div className="p-4 text-center text-zinc-500 text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Loading comic data...
+                      </div>
+                    )}
+                    {selectedComic && getComicPanels().map(panel => (
                       <button key={panel.id}
                         onClick={() => setSelectedPanelId(panel.id)}
                         className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
@@ -4074,7 +4107,7 @@ export default function MotionStudio() {
                         {selectedPanelId === panel.id && <Check className="w-4 h-4 text-white ml-auto" />}
                       </button>
                     ))}
-                    {getComicPanels().length === 0 && (
+                    {selectedComic && getComicPanels().length === 0 && (
                       <div className="p-4 text-center text-zinc-500 text-xs">
                         No panels found. Make sure you've added panels and saved your comic project.
                       </div>
@@ -4090,10 +4123,10 @@ export default function MotionStudio() {
                 Cancel
               </button>
               <button onClick={applyToPanel}
-                disabled={!selectedComicId || !selectedPanelId}
+                disabled={!selectedComicId || !selectedPanelId || isApplying}
                 className="px-4 py-2 text-sm bg-white text-black hover:bg-zinc-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                Apply to Panel
+                {isApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {isApplying ? "Applying..." : "Apply to Panel"}
               </button>
             </div>
           </div>

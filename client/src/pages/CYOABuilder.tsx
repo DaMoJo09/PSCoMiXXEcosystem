@@ -62,6 +62,10 @@ export default function CYOABuilder() {
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const autoSaveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingSaveRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  const latestDataRef = useRef({ title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId });
+  latestDataRef.current = { title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId };
 
   const fireXpAction = (action: string) => {
     fetch("/api/xp/action", {
@@ -75,9 +79,12 @@ export default function CYOABuilder() {
   useEffect(() => {
     if (projectId && nodes.length > 0) {
       autoSaveInterval.current = setInterval(() => {
+        if (!pendingSaveRef.current) return;
         updateProject.mutateAsync({
           id: projectId,
           data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
+        }).then(() => {
+          pendingSaveRef.current = false;
         }).catch(() => {});
       }, 30000);
     }
@@ -201,8 +208,45 @@ export default function CYOABuilder() {
       if (data?.nodes) setNodes(data.nodes);
       if (data?.storyText) setStoryText(data.storyText);
       if (data?.backgrounds) setBackgrounds(data.backgrounds);
+      initialLoadDoneRef.current = true;
     }
   }, [project]);
+
+  useEffect(() => {
+    if (!initialLoadDoneRef.current || !projectId) return;
+    pendingSaveRef.current = true;
+  }, [title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        const d = latestDataRef.current;
+        if (d.projectId) {
+          navigator.sendBeacon(
+            `/api/projects/${d.projectId}/autosave`,
+            new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds } })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        const d = latestDataRef.current;
+        if (d.projectId) {
+          navigator.sendBeacon(
+            `/api/projects/${d.projectId}/autosave`,
+            new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds } })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -213,6 +257,7 @@ export default function CYOABuilder() {
           data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
         });
       }
+      pendingSaveRef.current = false;
       fireXpAction("save");
       toast.success("Project saved");
     } catch (error: any) {

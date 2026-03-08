@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
@@ -391,6 +391,53 @@ export default function CardCreator() {
     }
   }, [project]);
 
+  const pendingSaveRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  const latestDataRef = useRef({ cardData, projectId });
+  latestDataRef.current = { cardData, projectId };
+
+  useEffect(() => {
+    if (project && !initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    if (!projectId || !initialLoadDoneRef.current) return;
+    pendingSaveRef.current = true;
+  }, [cardData, projectId]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, cardData: cd } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: cd.name, data: cd })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, cardData: cd } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: cd.name, data: cd })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   const updateCard = (updates: Partial<CardData>) => {
     setCardData(prev => ({ ...prev, ...updates }));
   };
@@ -404,6 +451,7 @@ export default function CardCreator() {
           data: { title: cardData.name, data: cardData },
         });
       }
+      pendingSaveRef.current = false;
       toast.success("Card saved");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
     } catch (error: any) {

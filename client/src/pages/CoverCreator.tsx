@@ -18,6 +18,7 @@ import { AssetBrowser, AssetBrowserTrigger } from "@/components/tools/AssetBrows
 import type { AssetItem } from "@/components/tools/AssetBrowser";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -370,6 +371,76 @@ export default function CoverCreator() {
       })
       .catch(() => {});
   }, [comicId, projectId]);
+
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userEditCountRef = useRef(0);
+  const initialLoadDoneRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const latestDataRef = useRef({ coverData, projectId });
+  latestDataRef.current = { coverData, projectId };
+
+  const flushSave = useCallback(async () => {
+    const { projectId: pid, coverData: cd } = latestDataRef.current;
+    if (!pid || !pendingSaveRef.current) return;
+    pendingSaveRef.current = false;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    await saveProjectWithOfflineFallback(pid, { title: cd.title, data: cd }, 'cover');
+  }, []);
+
+  useEffect(() => {
+    if (project && !initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+      userEditCountRef.current = 0;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    if (!projectId || !initialLoadDoneRef.current) return;
+    userEditCountRef.current += 1;
+    if (userEditCountRef.current <= 1) return;
+    pendingSaveRef.current = true;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      await flushSave();
+    }, 3000);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [coverData, projectId, flushSave]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, coverData: cd } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: cd.title, data: cd })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, coverData: cd } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: cd.title, data: cd })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const pushHistory = useCallback((data: CoverData) => {
     if (isUndoRedoRef.current) return;

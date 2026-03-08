@@ -170,18 +170,67 @@ export default function VNCreator() {
     });
   }, []);
 
+  const pendingSaveRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  const latestDataRef = useRef({ title, scenes, characters, backgrounds, projectId });
+  latestDataRef.current = { title, scenes, characters, backgrounds, projectId };
+
+  useEffect(() => {
+    if (project && !initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+    }
+  }, [project]);
+
+  useEffect(() => {
+    if (!projectId || !initialLoadDoneRef.current) return;
+    pendingSaveRef.current = true;
+  }, [scenes, characters, backgrounds, title, projectId]);
+
   useEffect(() => {
     if (!projectId || scenes.length === 0) return;
     const interval = setInterval(async () => {
+      if (!pendingSaveRef.current) return;
       try {
         await updateProject.mutateAsync({
           id: projectId,
           data: { title, data: { scenes, characters, backgrounds } },
         });
+        pendingSaveRef.current = false;
       } catch {}
     }, 30000);
     return () => clearInterval(interval);
   }, [projectId, scenes, characters, backgrounds, title]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" })
+          );
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingSaveRef.current) {
+        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
+        if (pid) {
+          navigator.sendBeacon(
+            `/api/projects/${pid}/autosave`,
+            new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" })
+          );
+        }
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const handleExportJSON = () => {
     const data = { title, scenes, characters, backgrounds };
@@ -215,6 +264,7 @@ export default function VNCreator() {
           data: { title, data: { scenes, characters, backgrounds } },
         });
       }
+      pendingSaveRef.current = false;
       fireXpAction("save");
       toast.success("Project saved");
     } catch (error: any) {
