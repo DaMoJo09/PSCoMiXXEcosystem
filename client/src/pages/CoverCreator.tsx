@@ -279,8 +279,10 @@ export default function CoverCreator() {
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const comicId = searchParams.get('comicId');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const effectiveProjectId = projectId || createdProjectId;
   
-  const { data: project } = useProject(projectId || '');
+  const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
 
@@ -292,7 +294,7 @@ export default function CoverCreator() {
   const [drawingTarget, setDrawingTarget] = useState<"front" | "back" | "spine">("front");
   const [aiTarget, setAiTarget] = useState<"front" | "back" | "spine">("front");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(!projectId);
+  const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const selectedLayerId = selectedLayerIds[0] || null;
@@ -347,6 +349,7 @@ export default function CoverCreator() {
           });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
+          setCreatedProjectId(existing[0].id);
           setIsCreating(false);
           navigate(`/creator/cover?id=${existing[0].id}`, { replace: true });
           return;
@@ -359,6 +362,7 @@ export default function CoverCreator() {
         }).then((newProject) => {
           if (cancelled) return;
           clearTimeout(timeoutId);
+          setCreatedProjectId(newProject.id);
           setIsCreating(false);
           navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
         });
@@ -388,7 +392,7 @@ export default function CoverCreator() {
     fetch(`/api/projects/${comicId}`, { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(comic => {
-        if (comic && !projectId) {
+        if (comic && !effectiveProjectId) {
           setCoverData(prev => ({
             ...prev,
             title: comic.title || prev.title,
@@ -405,8 +409,8 @@ export default function CoverCreator() {
   const userEditCountRef = useRef(0);
   const initialLoadDoneRef = useRef(false);
   const pendingSaveRef = useRef(false);
-  const latestDataRef = useRef({ coverData, projectId });
-  latestDataRef.current = { coverData, projectId };
+  const latestDataRef = useRef({ coverData, projectId: effectiveProjectId });
+  latestDataRef.current = { coverData, projectId: effectiveProjectId };
 
   const flushSave = useCallback(async () => {
     const { projectId: pid, coverData: cd } = latestDataRef.current;
@@ -427,7 +431,7 @@ export default function CoverCreator() {
   }, [project]);
 
   useEffect(() => {
-    if (!projectId || !initialLoadDoneRef.current) return;
+    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
     userEditCountRef.current += 1;
     if (userEditCountRef.current <= 1) return;
     pendingSaveRef.current = true;
@@ -729,9 +733,9 @@ export default function CoverCreator() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (projectId) {
+      if (effectiveProjectId) {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title: coverData.title, data: coverData },
         });
         toast.success("Cover saved");
@@ -757,10 +761,10 @@ export default function CoverCreator() {
   const handleSaveAndReturnToComic = async () => {
     setIsSaving(true);
     try {
-      let savedProjectId = projectId;
-      if (projectId) {
+      let savedProjectId = effectiveProjectId;
+      if (effectiveProjectId) {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title: coverData.title, data: coverData },
         });
       } else {

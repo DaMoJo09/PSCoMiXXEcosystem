@@ -38,14 +38,16 @@ export default function CYOABuilder() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const effectiveProjectId = projectId || createdProjectId;
   
-  const { data: project } = useProject(projectId || '');
+  const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
 
   const [title, setTitle] = useState("Untitled CYOA");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(!projectId);
+  const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [storyText, setStoryText] = useState("");
   const [branchPoints, setBranchPoints] = useState(5);
@@ -65,8 +67,8 @@ export default function CYOABuilder() {
   const autoSaveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const latestDataRef = useRef({ title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId });
-  latestDataRef.current = { title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId };
+  const latestDataRef = useRef({ title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId: effectiveProjectId });
+  latestDataRef.current = { title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, projectId: effectiveProjectId };
 
   const fireXpAction = (action: string) => {
     fetch("/api/xp/action", {
@@ -78,11 +80,11 @@ export default function CYOABuilder() {
   };
 
   useEffect(() => {
-    if (projectId && nodes.length > 0) {
+    if (effectiveProjectId && nodes.length > 0) {
       autoSaveInterval.current = setInterval(() => {
         if (!pendingSaveRef.current) return;
         updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
         }).then(() => {
           pendingSaveRef.current = false;
@@ -92,7 +94,7 @@ export default function CYOABuilder() {
     return () => {
       if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
     };
-  }, [projectId, nodes, title, storyText, branchPoints, optionsPerBranch, backgrounds]);
+  }, [effectiveProjectId, nodes, title, storyText, branchPoints, optionsPerBranch, backgrounds]);
 
   useEffect(() => {
     if (projectId) {
@@ -126,6 +128,7 @@ export default function CYOABuilder() {
           });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
+          setCreatedProjectId(existing[0].id);
           setIsCreating(false);
           navigate(`/creator/cyoa?id=${existing[0].id}`, { replace: true });
           return;
@@ -138,6 +141,7 @@ export default function CYOABuilder() {
         }).then((newProject) => {
           if (cancelled) return;
           clearTimeout(timeoutId);
+          setCreatedProjectId(newProject.id);
           setIsCreating(false);
           navigate(`/creator/cyoa?id=${newProject.id}`, { replace: true });
         });
@@ -242,7 +246,7 @@ export default function CYOABuilder() {
   }, [project]);
 
   useEffect(() => {
-    if (!initialLoadDoneRef.current || !projectId) return;
+    if (!initialLoadDoneRef.current || !effectiveProjectId) return;
     pendingSaveRef.current = true;
   }, [title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds]);
 
@@ -280,9 +284,9 @@ export default function CYOABuilder() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (projectId) {
+      if (effectiveProjectId) {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
         });
       }

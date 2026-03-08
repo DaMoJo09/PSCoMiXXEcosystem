@@ -365,8 +365,10 @@ export default function MotionStudio() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const effectiveProjectId = projectId || createdProjectId;
   
-  const { data: project } = useProject(projectId || '');
+  const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { hasFeature, isAdmin } = useSubscription();
@@ -561,6 +563,7 @@ export default function MotionStudio() {
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           });
         if (existing.length > 0) {
+          setCreatedProjectId(existing[0].id);
           navigate(`/creator/motion?id=${existing[0].id}`, { replace: true });
           return;
         }
@@ -571,6 +574,7 @@ export default function MotionStudio() {
           data: { frames: [], tracks: [] },
         }).then((newProject) => {
           if (cancelled) return;
+          setCreatedProjectId(newProject.id);
           navigate(`/creator/motion?id=${newProject.id}`, { replace: true });
         });
       }).catch(() => {
@@ -654,8 +658,8 @@ export default function MotionStudio() {
   const msEditCountRef = useRef(0);
   const msInitialLoadRef = useRef(false);
   const msPendingSaveRef = useRef(false);
-  const msLatestDataRef = useRef({ title, frames, tracks, projectId, audioClips });
-  msLatestDataRef.current = { title, frames, tracks, projectId, audioClips };
+  const msLatestDataRef = useRef({ title, frames, tracks, projectId: effectiveProjectId, audioClips });
+  msLatestDataRef.current = { title, frames, tracks, projectId: effectiveProjectId, audioClips };
 
   useEffect(() => {
     if (project && !msInitialLoadRef.current) {
@@ -665,19 +669,19 @@ export default function MotionStudio() {
   }, [project]);
 
   useEffect(() => {
-    if (!projectId || !msInitialLoadRef.current) return;
+    if (!effectiveProjectId || !msInitialLoadRef.current) return;
     msEditCountRef.current += 1;
     if (msEditCountRef.current <= 1) return;
     msPendingSaveRef.current = true;
     if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
     msAutoSaveTimerRef.current = setTimeout(async () => {
       msPendingSaveRef.current = false;
-      await saveProjectWithOfflineFallback(projectId, { title, data: { frames, tracks, audioClips } }, 'motion');
+      await saveProjectWithOfflineFallback(effectiveProjectId, { title, data: { frames, tracks, audioClips } }, 'motion');
     }, 3000);
     return () => {
       if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
     };
-  }, [frames, title, projectId, audioClips]);
+  }, [frames, title, effectiveProjectId, audioClips]);
 
   useEffect(() => {
     return () => {
@@ -1154,7 +1158,7 @@ export default function MotionStudio() {
   }, [currentFrameIndex, vectorPaths, activeEffects, frameOpacity, blendMode, selectedEasing, keyframes, frames]);
 
   const handleSave = async () => {
-    if (!projectId) return;
+    if (!effectiveProjectId) return;
     setIsSaving(true);
     
     try {
@@ -1179,7 +1183,7 @@ export default function MotionStudio() {
       setFrames(updatedFrames);
       
       await updateProject.mutateAsync({
-        id: projectId,
+        id: effectiveProjectId,
         data: { title, data: { frames: updatedFrames, tracks, audioClips } },
       });
       toast.success("Project saved");

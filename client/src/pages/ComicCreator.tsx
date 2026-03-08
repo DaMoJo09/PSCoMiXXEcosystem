@@ -481,6 +481,7 @@ export default function ComicCreator() {
           });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
+          setCreatedProjectId(existing[0].id);
           setIsCreating(false);
           navigate(`/creator/comic?id=${existing[0].id}`, { replace: true });
           return;

@@ -243,8 +243,10 @@ export default function CardCreator() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const effectiveProjectId = projectId || createdProjectId;
   
-  const { data: project } = useProject(projectId || '');
+  const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile } = useAssetLibrary();
@@ -254,7 +256,7 @@ export default function CardCreator() {
   const [showAIGen, setShowAIGen] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(!projectId);
+  const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
   const [cardMode, setCardMode] = useState<"tcg" | "sports">("tcg");
@@ -384,6 +386,7 @@ export default function CardCreator() {
           });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
+          setCreatedProjectId(existing[0].id);
           setIsCreating(false);
           navigate(`/creator/card?id=${existing[0].id}`, { replace: true });
           return;
@@ -396,6 +399,7 @@ export default function CardCreator() {
         }).then((newProject) => {
           if (cancelled) return;
           clearTimeout(timeoutId);
+          setCreatedProjectId(newProject.id);
           setIsCreating(false);
           navigate(`/creator/card?id=${newProject.id}`, { replace: true });
         });
@@ -422,8 +426,8 @@ export default function CardCreator() {
 
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const latestDataRef = useRef({ cardData, projectId });
-  latestDataRef.current = { cardData, projectId };
+  const latestDataRef = useRef({ cardData, projectId: effectiveProjectId });
+  latestDataRef.current = { cardData, projectId: effectiveProjectId };
 
   useEffect(() => {
     if (project && !initialLoadDoneRef.current) {
@@ -432,9 +436,9 @@ export default function CardCreator() {
   }, [project]);
 
   useEffect(() => {
-    if (!projectId || !initialLoadDoneRef.current) return;
+    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
     pendingSaveRef.current = true;
-  }, [cardData, projectId]);
+  }, [cardData, effectiveProjectId]);
 
   useEffect(() => {
     return () => {
@@ -474,9 +478,9 @@ export default function CardCreator() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (projectId) {
+      if (effectiveProjectId) {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title: cardData.name, data: cardData },
         });
       }
@@ -853,9 +857,9 @@ export default function CardCreator() {
                 <Printer className="w-4 h-4" /> Print Team Sheet
               </button>
             )}
-            {projectId && (
+            {effectiveProjectId && (
               <PostComposer
-                projectId={projectId}
+                projectId={effectiveProjectId}
                 projectType="card"
                 projectTitle={cardData.name || "Trading Card"}
                 trigger={

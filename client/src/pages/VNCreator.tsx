@@ -56,15 +56,17 @@ export default function VNCreator() {
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
+  const effectiveProjectId = projectId || createdProjectId;
   
-  const { data: project } = useProject(projectId || '');
+  const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile } = useAssetLibrary();
 
   const [title, setTitle] = useState("Untitled Visual Novel");
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(!projectId);
+  const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
@@ -130,6 +132,7 @@ export default function VNCreator() {
           });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
+          setCreatedProjectId(existing[0].id);
           setIsCreating(false);
           navigate(`/creator/vn?id=${existing[0].id}`, { replace: true });
           return;
@@ -142,6 +145,7 @@ export default function VNCreator() {
         }).then((newProject) => {
           if (cancelled) return;
           clearTimeout(timeoutId);
+          setCreatedProjectId(newProject.id);
           setIsCreating(false);
           navigate(`/creator/vn?id=${newProject.id}`, { replace: true });
         });
@@ -201,8 +205,8 @@ export default function VNCreator() {
 
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const latestDataRef = useRef({ title, scenes, characters, backgrounds, projectId });
-  latestDataRef.current = { title, scenes, characters, backgrounds, projectId };
+  const latestDataRef = useRef({ title, scenes, characters, backgrounds, projectId: effectiveProjectId });
+  latestDataRef.current = { title, scenes, characters, backgrounds, projectId: effectiveProjectId };
 
   useEffect(() => {
     if (project && !initialLoadDoneRef.current) {
@@ -211,24 +215,24 @@ export default function VNCreator() {
   }, [project]);
 
   useEffect(() => {
-    if (!projectId || !initialLoadDoneRef.current) return;
+    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
     pendingSaveRef.current = true;
-  }, [scenes, characters, backgrounds, title, projectId]);
+  }, [scenes, characters, backgrounds, title, effectiveProjectId]);
 
   useEffect(() => {
-    if (!projectId || scenes.length === 0) return;
+    if (!effectiveProjectId || scenes.length === 0) return;
     const interval = setInterval(async () => {
       if (!pendingSaveRef.current) return;
       try {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title, data: { scenes, characters, backgrounds } },
         });
         pendingSaveRef.current = false;
       } catch {}
     }, 30000);
     return () => clearInterval(interval);
-  }, [projectId, scenes, characters, backgrounds, title]);
+  }, [effectiveProjectId, scenes, characters, backgrounds, title]);
 
   useEffect(() => {
     return () => {
@@ -287,9 +291,9 @@ export default function VNCreator() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (projectId) {
+      if (effectiveProjectId) {
         await updateProject.mutateAsync({
-          id: projectId,
+          id: effectiveProjectId,
           data: { title, data: { scenes, characters, backgrounds } },
         });
       }
