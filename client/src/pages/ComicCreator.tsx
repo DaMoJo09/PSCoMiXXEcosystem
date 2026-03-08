@@ -337,7 +337,7 @@ export default function ComicCreator() {
   const projectId = searchParams.get('id');
   
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const { data: project } = useProject(projectId || createdProjectId || '');
+  const { data: project, isError: projectFetchError } = useProject(projectId || createdProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
@@ -449,16 +449,23 @@ export default function ComicCreator() {
   const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
 
+  const projectNotFound = projectId && projectFetchError && !createdProjectId;
+
   useEffect(() => {
-    if (projectId) {
-      setIsCreating(false);
+    if (projectNotFound) {
+      toast.error("Project not found — loading your most recent comic...");
+      creationAttempted.current = false;
+      navigate("/creator/comic", { replace: true });
       return;
     }
+  }, [projectNotFound]);
+
+  const findOrCreateProject = useCallback(() => {
     if (createdProjectId || creationAttempted.current) return;
-    
+
     creationAttempted.current = true;
     setIsCreating(true);
-    
+
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
@@ -510,6 +517,14 @@ export default function ComicCreator() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
+  }, [createdProjectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      setIsCreating(false);
+      return;
+    }
+    return findOrCreateProject();
   }, [projectId]);
 
   useEffect(() => {
@@ -538,9 +553,17 @@ export default function ComicCreator() {
   const latestDataRef = useRef({ title, spreads, comicMeta, projectId: effectiveProjectId });
   latestDataRef.current = { title, spreads, comicMeta, projectId: effectiveProjectId };
 
+  const projectConfirmedRef = useRef(false);
+  useEffect(() => {
+    projectConfirmedRef.current = !!project;
+  }, [project]);
+  useEffect(() => {
+    projectConfirmedRef.current = false;
+  }, [projectId]);
+
   const flushSave = useCallback(async () => {
     const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
-    if (!projectId || !pendingSaveRef.current) return;
+    if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current) return;
     pendingSaveRef.current = false;
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -557,7 +580,7 @@ export default function ComicCreator() {
   }, [project]);
 
   useEffect(() => {
-    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
+    if (!effectiveProjectId || !initialLoadDoneRef.current || !projectConfirmedRef.current) return;
     userEditCountRef.current += 1;
     if (userEditCountRef.current <= 1) return;
     pendingSaveRef.current = true;
@@ -570,10 +593,9 @@ export default function ComicCreator() {
     };
   }, [spreads, title, effectiveProjectId, flushSave]);
 
-  // Save on unmount (navigating away)
   useEffect(() => {
     return () => {
-      if (pendingSaveRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
         if (projectId) {
           navigator.sendBeacon(
@@ -585,10 +607,9 @@ export default function ComicCreator() {
     };
   }, []);
 
-  // Save on browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (pendingSaveRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
         if (projectId) {
           navigator.sendBeacon(
