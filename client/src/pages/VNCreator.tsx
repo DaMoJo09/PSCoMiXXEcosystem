@@ -6,7 +6,7 @@ import {
   Download, ArrowUp, ArrowDown
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
@@ -52,8 +52,9 @@ const defaultBackgrounds: VNBackground[] = [
 ];
 
 export default function VNCreator() {
-  const [location, navigate] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   
   const { data: project } = useProject(projectId || '');

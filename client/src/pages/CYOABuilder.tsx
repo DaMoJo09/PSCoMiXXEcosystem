@@ -5,7 +5,7 @@ import {
   Upload, Wand2, X, Edit, Eye, Layers, Settings
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
@@ -34,8 +34,9 @@ interface CYOABackground {
 }
 
 export default function CYOABuilder() {
-  const [location, navigate] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   
   const { data: project } = useProject(projectId || '');

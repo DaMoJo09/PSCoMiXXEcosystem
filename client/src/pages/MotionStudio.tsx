@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { 
   ArrowLeft, Play, Pause, SkipBack, SkipForward, Repeat,
   Plus, Trash2, Copy, Save, Download, Upload,
@@ -361,8 +361,9 @@ function VirtualizedFrameList({
 }
 
 export default function MotionStudio() {
-  const [location, navigate] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   
   const { data: project } = useProject(projectId || '');

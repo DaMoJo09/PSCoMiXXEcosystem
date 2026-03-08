@@ -8,7 +8,7 @@ import {
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
@@ -239,8 +239,9 @@ interface PackData {
 }
 
 export default function CardCreator() {
-  const [location, navigate] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   
   const { data: project } = useProject(projectId || '');

@@ -9,7 +9,7 @@ import {
   ChevronsUp, ChevronsDown, ChevronUp, ChevronDown
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
@@ -274,8 +274,9 @@ const defaultCover: CoverData = {
 };
 
 export default function CoverCreator() {
-  const [location, navigate] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const comicId = searchParams.get('comicId');
   
