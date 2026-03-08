@@ -537,6 +537,7 @@ export default function CoverCreator() {
         const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
         updates[`${viewKey}Layers` as keyof CoverData] = textLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
         updates[`${viewKey}ImageLayers` as keyof CoverData] = imgLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
+        updates.elementZOrder = (coverData.elementZOrder || []).filter(id => !selectedLayerIds.includes(id));
         updateCover(updates);
         setSelectedLayerIds([]);
       }
@@ -889,7 +890,8 @@ export default function CoverCreator() {
       locked: false,
     };
     const layerKey = `${view}Layers` as keyof CoverData;
-    updateCover({ [layerKey]: [...(coverData[layerKey] as TextLayer[]), newLayer] });
+    const newOrder = [...(coverData.elementZOrder || []), newLayer.id];
+    updateCover({ [layerKey]: [...(coverData[layerKey] as TextLayer[]), newLayer], elementZOrder: newOrder });
     toast.success("Text layer added");
   };
 
@@ -902,7 +904,8 @@ export default function CoverCreator() {
   const deleteTextLayer = (view: "front" | "back" | "spine", layerId: string) => {
     const layerKey = `${view}Layers` as keyof CoverData;
     const layers = coverData[layerKey] as TextLayer[];
-    updateCover({ [layerKey]: layers.filter(l => l.id !== layerId) });
+    const newOrder = (coverData.elementZOrder || []).filter(id => id !== layerId);
+    updateCover({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder });
   };
 
   const addImageLayer = (view: "front" | "back" | "spine", asset: AssetItem) => {
@@ -916,7 +919,8 @@ export default function CoverCreator() {
     };
     const layerKey = `${view}ImageLayers` as keyof CoverData;
     const existing = (coverData[layerKey] as ImageLayer[]) || [];
-    updateCover({ [layerKey]: [...existing, newLayer] });
+    const newOrder = [...(coverData.elementZOrder || []), newLayer.id];
+    updateCover({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
     setSelectedLayerId(newLayer.id);
     toast.success(`"${asset.name}" added to ${view} cover`);
   };
@@ -930,7 +934,8 @@ export default function CoverCreator() {
   const deleteImageLayer = (view: "front" | "back" | "spine", layerId: string) => {
     const layerKey = `${view}ImageLayers` as keyof CoverData;
     const layers = (coverData[layerKey] as ImageLayer[]) || [];
-    updateCover({ [layerKey]: layers.filter(l => l.id !== layerId) });
+    const newOrder = (coverData.elementZOrder || []).filter(id => id !== layerId);
+    updateCover({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder });
   };
 
   const handleAssetSelected = (asset: AssetItem) => {
@@ -1313,61 +1318,82 @@ export default function CoverCreator() {
           </div>
         )}
 
-        {imageLayers.map(imgLayer => (
-          <TransformableElement
-            key={imgLayer.id}
-            id={imgLayer.id}
-            initialTransform={imgLayer.transform}
-            isSelected={selectedLayerIds.includes(imgLayer.id)}
-            onSelect={(id) => handleShiftSelect(id)}
-            onTransformChange={(id, transform) => updateImageLayer(view, id, { transform })}
-            onDelete={(id) => deleteImageLayer(view, id)}
-            locked={imgLayer.locked}
-            containerRef={canvasRef}
-          >
-            <img
-              src={imgLayer.url}
-              alt={imgLayer.name}
-              className="w-full h-full object-contain pointer-events-none select-none"
-              style={{ opacity: imgLayer.opacity }}
-              draggable={false}
-            />
-          </TransformableElement>
-        ))}
+        {(() => {
+          const zOrder = coverData.elementZOrder || [];
+          const imgMap = new Map(imageLayers.map(il => [il.id, il]));
+          const txtMap = new Map(layers.map(tl => [tl.id, tl]));
+          const allIds = new Set([...imageLayers.map(il => il.id), ...layers.map(tl => tl.id)]);
+          const orderedIds = [...zOrder.filter(id => allIds.has(id))];
+          allIds.forEach(id => { if (!orderedIds.includes(id)) orderedIds.push(id); });
 
-        {layers.map(layer => (
-          <TransformableElement
-            key={layer.id}
-            id={layer.id}
-            initialTransform={layer.transform}
-            isSelected={selectedLayerIds.includes(layer.id)}
-            onSelect={(id) => handleShiftSelect(id)}
-            onTransformChange={(id, transform) => updateTextLayer(view, id, { transform })}
-            onDelete={(id) => deleteTextLayer(view, id)}
-            locked={layer.locked}
-            containerRef={canvasRef}
-          >
-            <TextElement
-              id={layer.id}
-              text={layer.text}
-              fontSize={layer.fontSize}
-              fontFamily={layer.fontFamily}
-              color={layer.color}
-              textArch={layer.textArch}
-              textEffect={layer.textEffect as any}
-              strokeColor={layer.strokeColor}
-              strokeWidth={layer.strokeWidth}
-              shadowColor={layer.shadowColor}
-              fontWeight={layer.fontWeight as any}
-              fontStyle={layer.fontStyle as any}
-              textTransform={layer.textTransform as any}
-              isEditing={editingTextId === layer.id}
-              onEditStart={() => setEditingTextId(layer.id)}
-              onEditEnd={() => setEditingTextId(null)}
-              onChange={(id, text) => updateTextLayer(view, id, { text })}
-            />
-          </TransformableElement>
-        ))}
+          return orderedIds.map((id) => {
+            const globalIdx = zOrder.indexOf(id);
+            const zIdx = (globalIdx >= 0 ? globalIdx : zOrder.length) + 10;
+            const imgLayer = imgMap.get(id);
+            if (imgLayer) {
+              return (
+                <TransformableElement
+                  key={imgLayer.id}
+                  id={imgLayer.id}
+                  initialTransform={imgLayer.transform}
+                  isSelected={selectedLayerIds.includes(imgLayer.id)}
+                  onSelect={(lid) => handleShiftSelect(lid)}
+                  onTransformChange={(lid, transform) => updateImageLayer(view, lid, { transform })}
+                  onDelete={(lid) => deleteImageLayer(view, lid)}
+                  locked={imgLayer.locked}
+                  containerRef={canvasRef}
+                  style={{ zIndex: zIdx }}
+                >
+                  <img
+                    src={imgLayer.url}
+                    alt={imgLayer.name}
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                    style={{ opacity: imgLayer.opacity }}
+                    draggable={false}
+                  />
+                </TransformableElement>
+              );
+            }
+            const layer = txtMap.get(id);
+            if (layer) {
+              return (
+                <TransformableElement
+                  key={layer.id}
+                  id={layer.id}
+                  initialTransform={layer.transform}
+                  isSelected={selectedLayerIds.includes(layer.id)}
+                  onSelect={(lid) => handleShiftSelect(lid)}
+                  onTransformChange={(lid, transform) => updateTextLayer(view, lid, { transform })}
+                  onDelete={(lid) => deleteTextLayer(view, lid)}
+                  locked={layer.locked}
+                  containerRef={canvasRef}
+                  style={{ zIndex: zIdx }}
+                >
+                  <TextElement
+                    id={layer.id}
+                    text={layer.text}
+                    fontSize={layer.fontSize}
+                    fontFamily={layer.fontFamily}
+                    color={layer.color}
+                    textArch={layer.textArch}
+                    textEffect={layer.textEffect as any}
+                    strokeColor={layer.strokeColor}
+                    strokeWidth={layer.strokeWidth}
+                    shadowColor={layer.shadowColor}
+                    fontWeight={layer.fontWeight as any}
+                    fontStyle={layer.fontStyle as any}
+                    textTransform={layer.textTransform as any}
+                    isEditing={editingTextId === layer.id}
+                    onEditStart={() => setEditingTextId(layer.id)}
+                    onEditEnd={() => setEditingTextId(null)}
+                    onChange={(lid, text) => updateTextLayer(view, lid, { text })}
+                  />
+                </TransformableElement>
+              );
+            }
+            return null;
+          });
+        })()}
 
         {showGuides && view !== "spine" && (
           <>
