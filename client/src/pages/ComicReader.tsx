@@ -16,6 +16,10 @@ interface PanelContentItem {
     imageUrl?: string;
     videoUrl?: string;
     audioUrl?: string;
+    audioName?: string;
+    autoplay?: boolean;
+    loop?: boolean;
+    muted?: boolean;
     bubbleStyle?: string;
     color?: string;
     fontSize?: number;
@@ -24,6 +28,18 @@ interface PanelContentItem {
     padding?: number;
     borderRadius?: number;
     src?: string;
+    textEffect?: string;
+    strokeColor?: string;
+    strokeWidth?: number;
+    shadowColor?: string;
+    shadowBlur?: number;
+    fontWeight?: string;
+    fontStyle?: string;
+    textAlign?: string;
+    textTransform?: string;
+    letterSpacing?: number;
+    lineHeight?: number;
+    textArch?: number;
   };
   src?: string;
   text?: string;
@@ -39,6 +55,7 @@ interface PanelContentItem {
     flipY?: boolean;
   };
   zIndex?: number;
+  locked?: boolean;
   [key: string]: any;
 }
 
@@ -671,11 +688,81 @@ function SpreadRenderer({ spread, index }: { spread: Spread; index: number }) {
   );
 }
 
+const READER_TEXT_EFFECTS: Record<string, (color: string, strokeColor?: string, strokeWidth?: number) => React.CSSProperties> = {
+  none: () => ({ textShadow: "none" }),
+  outline: (_c: string, sc = "#000000", sw = 2) => ({
+    textShadow: `
+      -${sw}px -${sw}px 0 ${sc}, ${sw}px -${sw}px 0 ${sc},
+      -${sw}px ${sw}px 0 ${sc}, ${sw}px ${sw}px 0 ${sc},
+      0 -${sw}px 0 ${sc}, 0 ${sw}px 0 ${sc},
+      -${sw}px 0 0 ${sc}, ${sw}px 0 0 ${sc}
+    `,
+  }),
+  shadow: (_c: string, sc = "rgba(0,0,0,0.8)", sb = 4) => ({
+    textShadow: `${sb}px ${sb}px ${(sb as number) * 2}px ${sc}`,
+  }),
+  glow: (_c: string, gc = "#ffffff") => ({
+    textShadow: `0 0 10px ${gc}, 0 0 20px ${gc}, 0 0 30px ${gc}, 0 0 40px ${gc}`,
+  }),
+  "3d": (_c: string, sc = "#000000") => ({
+    textShadow: `1px 1px 0 ${sc}, 2px 2px 0 ${sc}, 3px 3px 0 ${sc}, 4px 4px 0 ${sc}, 5px 5px 0 ${sc}, 6px 6px 8px rgba(0,0,0,0.5)`,
+  }),
+  emboss: () => ({
+    textShadow: "-1px -1px 1px rgba(255,255,255,0.5), 1px 1px 1px rgba(0,0,0,0.5)",
+  }),
+  neon: (_c: string, gc = "#00ffff") => ({
+    textShadow: `0 0 5px ${gc}, 0 0 10px ${gc}, 0 0 20px ${gc}, 0 0 40px ${gc}, 0 0 80px ${gc}`,
+  }),
+  comic: () => ({
+    textShadow: "3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 4px 4px 0 rgba(0,0,0,0.3)",
+    fontWeight: "900" as const,
+  }),
+  retro: () => ({
+    textShadow: "3px 3px 0 #ff6b6b, 6px 6px 0 #4ecdc4, 9px 9px 0 rgba(0,0,0,0.2)",
+  }),
+  fire: () => ({
+    textShadow: "0 0 10px #ff0, 0 0 20px #ff0, 0 0 30px #ff8c00, 0 0 40px #ff4500, 0 0 50px #ff0000, 0 0 60px #ff0000",
+  }),
+  ice: () => ({
+    textShadow: "0 0 10px #fff, 0 0 20px #00bfff, 0 0 30px #00bfff, 0 0 40px #1e90ff, 0 0 50px #1e90ff",
+  }),
+  gold: () => ({
+    background: "linear-gradient(180deg, #f9d423 0%, #ff4e00 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    filter: "drop-shadow(2px 2px 2px rgba(0,0,0,0.5))",
+  }),
+  chrome: () => ({
+    background: "linear-gradient(180deg, #fff 0%, #aaa 50%, #fff 51%, #ccc 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    filter: "drop-shadow(1px 1px 1px rgba(0,0,0,0.3))",
+  }),
+};
+
+const READER_BUBBLE_STYLES: Record<string, { bg: string; border: string; tail: boolean; clipPath?: string; textColor?: string; fontFamily?: string; boxShadow?: string; textShadow?: string; animation?: string }> = {
+  none: { bg: "transparent", border: "none", tail: false },
+  speech: { bg: "white", border: "2px solid black", tail: true, textColor: "#000" },
+  thought: { bg: "white", border: "2px solid black", tail: true, textColor: "#000" },
+  shout: { bg: "#ffeb3b", border: "3px solid #999", tail: true },
+  whisper: { bg: "rgba(200,200,200,0.7)", border: "2px dashed #999", tail: true },
+  burst: { bg: "#ff5722", border: "none", tail: false, clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" },
+  scream: { bg: "#ff1744", border: "4px solid #b71c1c", tail: true, textColor: "white" },
+  robot: { bg: "#263238", border: "2px solid #4fc3f7", tail: true, textColor: "#4fc3f7", fontFamily: "'Courier New', monospace" },
+  drip: { bg: "linear-gradient(180deg, #e040fb, #7c4dff)", border: "none", tail: true, textColor: "white" },
+  glitch: { bg: "#000", border: "2px solid #0f0", tail: true, textColor: "#0f0", fontFamily: "'Courier New', monospace" },
+  retro: { bg: "#f5e6d3", border: "3px solid #8d6e63", tail: true, textColor: "#5d4037", boxShadow: "4px 4px 0 #5d4037" },
+  neon: { bg: "#0a0a1a", border: "2px solid #00ffff", tail: true, textColor: "white", boxShadow: "0 0 10px #00ffff, inset 0 0 10px rgba(0,255,255,0.1)", textShadow: "0 0 10px #00ffff" },
+  graffiti: { bg: "linear-gradient(135deg, #ff6b35, #f7931e, #ffeb3b)", border: "3px solid #000", tail: false, textColor: "#000" },
+  caption: { bg: "#fef3c7", border: "2px solid #000", tail: false, textColor: "#000", fontFamily: "'Special Elite', cursive", boxShadow: "2px 2px 0 #000" },
+  starburst: { bg: "#ff9800", border: "none", tail: false, textColor: "#000", clipPath: "polygon(50% 0%, 61% 25%, 98% 15%, 75% 40%, 100% 50%, 75% 60%, 98% 85%, 61% 75%, 50% 100%, 39% 75%, 2% 85%, 25% 60%, 0% 50%, 25% 40%, 2% 15%, 39% 25%)" },
+};
+
 function PageRenderer({ panels, side }: { panels?: Panel[]; side: string }) {
   if (!panels || panels.length === 0) return null;
 
   return (
-    <div className="flex-1 relative bg-zinc-900 border border-zinc-800 min-h-[200px]" data-testid={`page-${side}`}>
+    <div className="flex-1 relative border border-zinc-300 min-h-[200px] bg-white shadow-md" data-testid={`page-${side}`}>
       <div className="relative w-full" style={{ paddingBottom: "141.4%" }}>
         {panels.map((panel) => (
           <PanelRenderer key={panel.id} panel={panel} />
@@ -686,32 +773,32 @@ function PageRenderer({ panels, side }: { panels?: Panel[]; side: string }) {
 }
 
 function PanelRenderer({ panel }: { panel: Panel }) {
-  const contentItems = panel.contents || panel.content || [];
-  const hasContent = contentItems.length > 0;
+  const contentItems = (panel.contents || panel.content || []).slice().sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const isCircle = panel.type === "circle";
 
   return (
     <div
-      className="absolute overflow-hidden"
+      className={`absolute overflow-hidden ${isCircle ? "rounded-full" : ""}`}
       style={{
         left: `${panel.x}%`,
         top: `${panel.y}%`,
         width: `${panel.width}%`,
         height: `${panel.height}%`,
-        backgroundColor: panel.backgroundColor || "#1a1a2e",
-        border: `${panel.borderWidth || 2}px solid ${panel.borderColor || "#444"}`,
+        borderWidth: `${panel.borderWidth || 2}px`,
+        borderStyle: "solid",
+        borderColor: panel.borderColor || "black",
         filter: panel.filter || undefined,
         transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+        transformOrigin: "center center",
         zIndex: panel.zIndex || 0,
       }}
       data-testid={`panel-${panel.id}`}
     >
-      {hasContent && (
-        <div className="w-full h-full relative">
-          {contentItems.map((item, idx) => (
-            <ContentRenderer key={item.id || idx} item={item} />
-          ))}
-        </div>
-      )}
+      <div className="absolute inset-0 overflow-hidden" style={{ backgroundColor: panel.backgroundColor || "white", filter: panel.filter || "none" }}>
+        {contentItems.map((item, idx) => (
+          <ContentRenderer key={item.id || idx} item={item} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -737,6 +824,7 @@ function ContentRenderer({ item }: { item: PanelContentItem }) {
   } : {
     width: "100%",
     height: "100%",
+    position: "relative" as const,
     zIndex: item.zIndex || 0,
   };
 
@@ -747,6 +835,7 @@ function ContentRenderer({ item }: { item: PanelContentItem }) {
         alt=""
         className="object-contain"
         style={{ ...positionStyle, objectFit: "contain" }}
+        draggable={false}
         data-testid={`img-content-${item.id}`}
       />
     );
@@ -759,46 +848,145 @@ function ContentRenderer({ item }: { item: PanelContentItem }) {
         alt=""
         className="object-contain"
         style={{ ...positionStyle, objectFit: "contain" }}
+        draggable={false}
         data-testid={`drawing-content-${item.id}`}
       />
     );
   }
 
+  if (item.type === "video" && item.data?.videoUrl) {
+    return (
+      <video
+        src={item.data.videoUrl}
+        className="object-contain"
+        style={{ ...positionStyle, objectFit: "contain" }}
+        autoPlay={item.data.autoplay ?? true}
+        loop={item.data.loop ?? true}
+        muted={item.data.muted ?? true}
+        playsInline
+        draggable={false}
+        data-testid={`video-content-${item.id}`}
+      />
+    );
+  }
+
   if (item.type === "text" || item.type === "bubble") {
-    const bubbleStyle = item.data?.bubbleStyle || "none";
-    const fontSize = item.data?.fontSize || 14;
-    const fontFamily = item.data?.fontFamily || "inherit";
+    const bStyle = item.data?.bubbleStyle || "none";
+    const fontSize = item.data?.fontSize || 16;
+    const fontFamily = item.data?.fontFamily || "'Bangers', cursive";
     const color = item.data?.color || "#ffffff";
-    const bgColor = item.data?.backgroundColor;
+    const bgColor = item.data?.backgroundColor || "transparent";
     const padding = item.data?.padding || 8;
     const borderRadius = item.data?.borderRadius || 0;
+    const textEffect = item.data?.textEffect || "comic";
+    const strokeColor = item.data?.strokeColor || "#000000";
+    const strokeWidth = item.data?.strokeWidth || 2;
+    const fontWeight = item.data?.fontWeight === "900" ? 900 : item.data?.fontWeight === "bold" ? 700 : 400;
+    const fontStyle = item.data?.fontStyle || "normal";
+    const textAlign = (item.data?.textAlign || "center") as React.CSSProperties["textAlign"];
+    const textTransform = (item.data?.textTransform || "none") as React.CSSProperties["textTransform"];
+    const letterSpacing = item.data?.letterSpacing || 0.02;
+    const lineHeight = item.data?.lineHeight || 1.3;
+    const textArch = item.data?.textArch || 0;
 
-    const bubbleClasses: Record<string, string> = {
-      none: "",
-      speech: "border-2 border-white rounded-xl",
-      thought: "border-2 border-white/60 rounded-full",
-      shout: "border-3 border-yellow-400 font-black",
-      whisper: "opacity-70 italic",
-      caption: "bg-black/80",
+    const effectFn = READER_TEXT_EFFECTS[textEffect] || READER_TEXT_EFFECTS.comic;
+    const effectStyles = effectFn(color, strokeColor, strokeWidth);
+
+    const bubbleConfig = READER_BUBBLE_STYLES[bStyle] || READER_BUBBLE_STYLES.none;
+    const bubbleBg = bubbleConfig.bg === "transparent" ? bgColor : bubbleConfig.bg;
+    const resolvedColor = bubbleConfig.textColor || color;
+    const resolvedFont = bubbleConfig.fontFamily || fontFamily;
+
+    const textStyles: React.CSSProperties = {
+      fontSize,
+      fontFamily: resolvedFont,
+      color: resolvedColor,
+      lineHeight,
+      letterSpacing: `${letterSpacing}em`,
+      fontWeight,
+      fontStyle,
+      textAlign,
+      textTransform,
+      ...effectStyles,
+    };
+
+    if (bubbleConfig.textShadow) {
+      textStyles.textShadow = bubbleConfig.textShadow;
+    }
+
+    const containerStyle: React.CSSProperties = {
+      ...positionStyle,
+      background: bubbleBg,
+      border: bubbleConfig.border,
+      borderRadius: bStyle === "thought" ? "50%" : borderRadius,
+      padding,
+      clipPath: bubbleConfig.clipPath || undefined,
+      boxShadow: bubbleConfig.boxShadow || undefined,
+    };
+
+    const renderArchedText = () => {
+      const displayText = textTransform === "uppercase" ? textContent.toUpperCase()
+        : textTransform === "lowercase" ? textContent.toLowerCase()
+        : textContent;
+      const svgW = 400;
+      const svgH = 200;
+      const absArch = Math.abs(textArch);
+      const curveDepth = absArch * 1.5;
+      const isInverted = textArch < 0;
+      const pathId = `reader-arch-${item.id || Math.random().toString(36).slice(2)}`;
+      let pathD: string;
+      if (isInverted) {
+        const startY = svgH * 0.3;
+        pathD = `M 10,${startY} Q ${svgW / 2},${startY + curveDepth} ${svgW - 10},${startY}`;
+      } else {
+        const startY = svgH * 0.7;
+        pathD = `M 10,${startY} Q ${svgW / 2},${startY - curveDepth} ${svgW - 10},${startY}`;
+      }
+      const textAnchor = textAlign === "left" ? "start" : textAlign === "right" ? "end" : "middle";
+      const startOffset = textAlign === "left" ? "0%" : textAlign === "right" ? "100%" : "50%";
+      const scaledFontSize = fontSize * 2.5;
+      const fWeight = fontWeight;
+      const effect = textEffect || "comic";
+      const needsOutline = ["outline", "comic", "3d", "retro"].includes(effect);
+
+      return (
+        <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+          <defs><path id={pathId} d={pathD} fill="none" /></defs>
+          {needsOutline && (
+            <text fontSize={scaledFontSize} fontFamily={resolvedFont} fontWeight={fWeight} fontStyle={fontStyle} fill="none" stroke={strokeColor} strokeWidth={strokeWidth * 2} strokeLinejoin="round" textAnchor={textAnchor} letterSpacing={`${(letterSpacing || 0.02) * scaledFontSize}px`}>
+              <textPath href={`#${pathId}`} startOffset={startOffset}>{displayText}</textPath>
+            </text>
+          )}
+          <text fontSize={scaledFontSize} fontFamily={resolvedFont} fontWeight={fWeight} fontStyle={fontStyle} fill={resolvedColor} textAnchor={textAnchor} letterSpacing={`${(letterSpacing || 0.02) * scaledFontSize}px`}>
+            <textPath href={`#${pathId}`} startOffset={startOffset}>{displayText}</textPath>
+          </text>
+        </svg>
+      );
     };
 
     return (
       <div
-        className={`flex items-center justify-center overflow-hidden ${bubbleClasses[bubbleStyle] || ""}`}
-        style={{
-          ...positionStyle,
-          fontSize: `${fontSize}px`,
-          fontFamily,
-          color,
-          backgroundColor: bgColor || (bubbleStyle !== "none" ? "rgba(0,0,0,0.7)" : "transparent"),
-          padding: `${padding}px`,
-          borderRadius: `${borderRadius}px`,
-          textAlign: "center",
-          wordBreak: "break-word",
-        }}
+        className={`flex items-center justify-center overflow-hidden ${bStyle === "whisper" ? "opacity-80 italic" : ""} ${bStyle === "scream" ? "font-black uppercase" : ""}`}
+        style={containerStyle}
         data-testid={`text-content-${item.id}`}
       >
-        {textContent}
+        {textArch !== 0 ? renderArchedText() : (
+          <p className="w-full whitespace-pre-wrap break-words" style={textStyles}>
+            {textContent}
+          </p>
+        )}
+        {bubbleConfig.tail && bStyle === "speech" && (
+          <>
+            <div className="absolute -bottom-4 left-1/4 w-0 h-0" style={{ borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "16px solid black" }} />
+            <div className="absolute -bottom-3 left-1/4 w-0 h-0" style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "14px solid white", marginLeft: "2px" }} />
+          </>
+        )}
+        {bubbleConfig.tail && bStyle === "thought" && (
+          <>
+            <div className="absolute -bottom-2 left-1/4 w-3 h-3 bg-white border-2 border-black rounded-full" />
+            <div className="absolute -bottom-5 left-1/5 w-2 h-2 bg-white border-2 border-black rounded-full" />
+          </>
+        )}
       </div>
     );
   }
