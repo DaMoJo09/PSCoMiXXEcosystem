@@ -914,7 +914,7 @@ export default function CoverCreator() {
             {coverData.bannerBgColor && coverData.bannerBgColor !== "transparent" && (
               <TransformableElement
                 id="master-banner"
-                initialTransform={coverData.bannerTransform || { x: 0, y: 0, width: 500, height: 32, rotation: 0, scaleX: 1, scaleY: 1 }}
+                initialTransform={coverData.bannerTransform || { x: 0, y: 0, width: 600, height: 32, rotation: 0, scaleX: 1, scaleY: 1 }}
                 isSelected={selectedLayerIds.includes("master-banner")}
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ bannerTransform: transform })}
@@ -956,7 +956,7 @@ export default function CoverCreator() {
             {coverData.showPriceBox && (
               <TransformableElement
                 id="master-price"
-                initialTransform={coverData.priceBoxTransform || { x: 440, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
+                initialTransform={coverData.priceBoxTransform || { x: 540, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
                 isSelected={selectedLayerIds.includes("master-price")}
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ priceBoxTransform: transform })}
@@ -1012,7 +1012,7 @@ export default function CoverCreator() {
             
             <TransformableElement
               id="master-title"
-              initialTransform={coverData.titleTransform || { x: 30, y: 80, width: 280, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
+              initialTransform={coverData.titleTransform || { x: 100, y: 80, width: 400, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-title")}
               onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ titleTransform: transform })}
@@ -1055,7 +1055,7 @@ export default function CoverCreator() {
 
             <TransformableElement
               id="master-subtitle"
-              initialTransform={coverData.subtitleTransform || { x: 80, y: 170, width: 200, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+              initialTransform={coverData.subtitleTransform || { x: 150, y: 170, width: 300, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-subtitle")}
               onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ subtitleTransform: transform })}
@@ -1097,7 +1097,7 @@ export default function CoverCreator() {
 
             <TransformableElement
               id="master-author"
-              initialTransform={coverData.authorTransform || { x: 60, y: 440, width: 220, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+              initialTransform={coverData.authorTransform || { x: 100, y: 650, width: 400, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-author")}
               onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ authorTransform: transform })}
@@ -1144,7 +1144,7 @@ export default function CoverCreator() {
           <>
             <TransformableElement
               id="master-blurb"
-              initialTransform={coverData.backBlurbTransform || { x: 20, y: 60, width: 300, height: 350, rotation: 0, scaleX: 1, scaleY: 1 }}
+              initialTransform={coverData.backBlurbTransform || { x: 50, y: 100, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-blurb")}
               onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
