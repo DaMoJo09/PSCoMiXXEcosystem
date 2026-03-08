@@ -1,8 +1,10 @@
 import { Layout } from "@/components/layout/Layout";
-import { useRoute, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Heart, User, BookOpen, Eye, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useRoute, useSearch, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, Heart, User, BookOpen, Eye, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, MessageCircle, Send, Trash2, UserPlus, UserCheck, Clock } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 interface PanelContentItem {
   id?: string;
@@ -81,29 +83,186 @@ interface ComicData {
   creatorAvatar: string;
   userId: string;
   createdAt: string;
+  viewCount?: number;
+  seriesId?: string;
+  seriesOrder?: number;
 }
 
-export default function ComicReader() {
+interface Comment {
+  id: string;
+  comicId: string;
+  authorId: string;
+  text: string;
+  parentId?: string;
+  createdAt: string;
+  authorName: string;
+  authorAvatar?: string;
+}
+
+interface SeriesData {
+  id: string;
+  title: string;
+  description?: string;
+  coverImage?: string;
+  comics: Array<{
+    id: string;
+    title: string;
+    thumbnail?: string;
+    seriesOrder?: number;
+  }>;
+}
+
+export default function ComicReader({ isPreview = false }: { isPreview?: boolean; params?: any } = {}) {
   const [match, params] = useRoute("/community/read/:id");
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const previewId = searchParams.get("id");
+  const comicId = isPreview ? previewId : params?.id;
   const [liked, setLiked] = useState(false);
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"scroll" | "page">("scroll");
+  const [commentText, setCommentText] = useState("");
+  const viewTracked = useRef(false);
+  const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: comic, isLoading, isError } = useQuery<ComicData>({
-    queryKey: ["community-comic", params?.id],
+    queryKey: [isPreview ? "preview-comic" : "community-comic", comicId],
     queryFn: async () => {
-      const res = await fetch(`/api/community/comic/${params?.id}`);
+      if (isPreview) {
+        const res = await fetch(`/api/projects/${comicId}/preview`, { credentials: "include" });
+        if (!res.ok) throw new Error("Comic not found");
+        const data = await res.json();
+        return {
+          id: data.id,
+          title: data.title,
+          thumbnail: data.thumbnail || "",
+          data: data.data,
+          creatorName: data.creator?.name || "You",
+          creatorAvatar: data.creator?.avatar || "",
+          userId: data.userId,
+          createdAt: data.createdAt,
+        } as ComicData;
+      }
+      const res = await fetch(`/api/community/comic/${comicId}`);
       if (!res.ok) throw new Error("Comic not found");
       return res.json();
     },
-    enabled: !!params?.id,
+    enabled: !!comicId,
+  });
+
+  useEffect(() => {
+    if (comicId && !viewTracked.current && !isPreview) {
+      viewTracked.current = true;
+      fetch(`/api/community/comic/${comicId}/view`, { method: "POST", credentials: "include" }).catch(() => {});
+    }
+  }, [comicId, isPreview]);
+
+  const { data: comments, isLoading: commentsLoading } = useQuery<{ comments: Comment[]; total: number }>({
+    queryKey: ["comic-comments", comicId],
+    queryFn: async () => {
+      const res = await fetch(`/api/community/comic/${comicId}/comments`);
+      if (!res.ok) throw new Error("Failed to load comments");
+      return res.json();
+    },
+    enabled: !!comicId && !isPreview,
+  });
+
+  const { data: bookmark } = useQuery<any>({
+    queryKey: ["bookmark", comicId],
+    queryFn: async () => {
+      const res = await fetch(`/api/bookmarks/${comicId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!comicId && isAuthenticated && !isPreview,
+  });
+
+  const { data: isFollowingData } = useQuery<{ isFollowing: boolean }>({
+    queryKey: ["is-following", comic?.userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${comic?.userId}/is-following`, { credentials: "include" });
+      if (!res.ok) return { isFollowing: false };
+      return res.json();
+    },
+    enabled: !!comic?.userId && isAuthenticated && comic?.userId !== user?.id,
+  });
+
+  const { data: seriesData } = useQuery<SeriesData>({
+    queryKey: ["community-series", comic?.seriesId],
+    queryFn: async () => {
+      const res = await fetch(`/api/community/series/${comic?.seriesId}`);
+      if (!res.ok) throw new Error("Series not found");
+      return res.json();
+    },
+    enabled: !!comic?.seriesId,
+  });
+
+  useEffect(() => {
+    if (bookmark?.lastSpreadIndex && bookmark.lastSpreadIndex > 0 && viewMode === "page") {
+      setCurrentSpreadIndex(bookmark.lastSpreadIndex);
+    }
+  }, [bookmark]);
+
+  const addCommentMutation = useMutation({
+    mutationFn: async (text: string) => {
+      await apiRequest("POST", `/api/community/comic/${comicId}/comments`, { text });
+    },
+    onSuccess: () => {
+      setCommentText("");
+      queryClient.invalidateQueries({ queryKey: ["comic-comments", comicId] });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      await apiRequest("DELETE", `/api/community/comic/${comicId}/comments/${commentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comic-comments", comicId] });
+    },
+  });
+
+  const bookmarkMutation = useMutation({
+    mutationFn: async () => {
+      if (bookmark) {
+        await apiRequest("DELETE", `/api/bookmarks/${comicId}`);
+      } else {
+        await apiRequest("POST", "/api/bookmarks", { projectId: comicId, lastSpreadIndex: currentSpreadIndex });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookmark", comicId] });
+    },
+  });
+
+  const saveProgressMutation = useMutation({
+    mutationFn: async (spreadIndex: number) => {
+      await apiRequest("POST", "/api/bookmarks", { projectId: comicId, lastSpreadIndex: spreadIndex });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookmark", comicId] });
+    },
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (isFollowingData?.isFollowing) {
+        await apiRequest("DELETE", `/api/users/${comic?.userId}/follow`);
+      } else {
+        await apiRequest("POST", `/api/users/${comic?.userId}/follow`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["is-following", comic?.userId] });
+    },
   });
 
   const handleLike = async () => {
-    if (!params?.id) return;
+    if (!comicId || isPreview) return;
     setLiked(!liked);
     try {
-      await fetch(`/api/community/comic/${params.id}/like`, { method: "POST", credentials: "include" });
+      await fetch(`/api/community/comic/${comicId}/like`, { method: "POST", credentials: "include" });
     } catch {}
   };
 
@@ -113,7 +272,31 @@ export default function ComicReader() {
     if (index >= 0 && index < spreads.length) {
       setCurrentSpreadIndex(index);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (isAuthenticated && bookmark) {
+        saveProgressMutation.mutate(index);
+      }
     }
+  };
+
+  const handleSubmitComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (commentText.trim()) {
+      addCommentMutation.mutate(commentText.trim());
+    }
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return date.toLocaleDateString();
   };
 
   if (isLoading) {
@@ -149,17 +332,32 @@ export default function ComicReader() {
         <div className="fixed top-0 left-0 right-0 z-40 bg-zinc-900/95 backdrop-blur-sm border-b-2 border-cyan-500" style={{ paddingLeft: "3rem" }}>
           <div className="max-w-4xl mx-auto flex items-center justify-between h-14 px-4">
             <div className="flex items-center gap-3">
-              <Link href="/community" data-testid="link-back">
-                <span className="text-zinc-400 hover:text-white transition-colors cursor-pointer">
+              {isPreview ? (
+                <button onClick={() => window.close()} className="text-zinc-400 hover:text-white transition-colors cursor-pointer" data-testid="link-back">
                   <ArrowLeft className="w-5 h-5" />
-                </span>
-              </Link>
+                </button>
+              ) : (
+                <Link href="/community" data-testid="link-back">
+                  <span className="text-zinc-400 hover:text-white transition-colors cursor-pointer">
+                    <ArrowLeft className="w-5 h-5" />
+                  </span>
+                </Link>
+              )}
               <div>
-                <h1 className="text-white font-bold text-sm truncate max-w-[200px] sm:max-w-none" data-testid="text-comic-title">{comic.title}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-white font-bold text-sm truncate max-w-[200px] sm:max-w-none" data-testid="text-comic-title">{comic.title}</h1>
+                  {isPreview && (
+                    <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 text-[10px] font-bold uppercase tracking-wider" data-testid="badge-preview">Preview</span>
+                  )}
+                </div>
                 <p className="text-zinc-400 text-xs" data-testid="text-creator-name">by {comic.creatorName}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 text-zinc-500 text-xs mr-2">
+                <Eye className="w-3.5 h-3.5" />
+                <span data-testid="text-view-count">{comic.viewCount || 0}</span>
+              </div>
               <div className="hidden sm:flex border border-zinc-700 overflow-hidden">
                 <button
                   onClick={() => setViewMode("scroll")}
@@ -176,6 +374,17 @@ export default function ComicReader() {
                   Page
                 </button>
               </div>
+              {isAuthenticated && (
+                <button
+                  onClick={() => bookmarkMutation.mutate()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border-2 text-sm font-bold transition-colors ${
+                    bookmark ? "bg-yellow-500/20 text-yellow-400 border-yellow-500" : "border-zinc-700 text-zinc-400 hover:text-yellow-400 hover:border-yellow-500"
+                  }`}
+                  data-testid="button-bookmark"
+                >
+                  {bookmark ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                </button>
+              )}
               <button
                 onClick={handleLike}
                 className={`flex items-center gap-1.5 px-3 py-1.5 border-2 text-sm font-bold transition-colors ${
@@ -191,6 +400,57 @@ export default function ComicReader() {
         </div>
 
         <div className="pt-20 pb-16 px-4 max-w-4xl mx-auto">
+          {bookmark && bookmark.lastSpreadIndex > 0 && viewMode === "page" && currentSpreadIndex === 0 && (
+            <div className="mb-6 p-4 bg-cyan-500/10 border-2 border-cyan-500/30 flex items-center justify-between" data-testid="continue-reading-banner">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-cyan-400" />
+                <span className="text-cyan-300 text-sm font-bold">Continue where you left off (Page {bookmark.lastSpreadIndex + 1})</span>
+              </div>
+              <button
+                onClick={() => goToSpread(bookmark.lastSpreadIndex)}
+                className="px-4 py-1.5 bg-cyan-500 text-black text-sm font-bold hover:bg-cyan-400 transition-colors"
+                data-testid="button-continue-reading"
+              >
+                Continue Reading
+              </button>
+            </div>
+          )}
+
+          {seriesData && (
+            <div className="mb-6 p-4 bg-zinc-900 border-2 border-zinc-800" data-testid="series-info-card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-bold text-sm">
+                  Part of series: <span className="text-cyan-400">{seriesData.title}</span>
+                </h3>
+                <Link href={`/community/series/${seriesData.id}`} data-testid="link-view-series">
+                  <span className="text-cyan-400 hover:text-cyan-300 text-xs font-bold cursor-pointer">View Series</span>
+                </Link>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {seriesData.comics
+                  .sort((a, b) => (a.seriesOrder || 0) - (b.seriesOrder || 0))
+                  .map((seriesComic) => (
+                    <Link key={seriesComic.id} href={`/community/read/${seriesComic.id}`} data-testid={`link-series-comic-${seriesComic.id}`}>
+                      <div
+                        className={`flex-shrink-0 w-20 cursor-pointer transition-all ${
+                          seriesComic.id === comic.id ? "ring-2 ring-cyan-500" : "opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        {seriesComic.thumbnail ? (
+                          <img src={seriesComic.thumbnail} alt={seriesComic.title} className="w-20 h-28 object-cover bg-zinc-800" />
+                        ) : (
+                          <div className="w-20 h-28 bg-zinc-800 flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-zinc-600" />
+                          </div>
+                        )}
+                        <p className="text-zinc-400 text-[10px] mt-1 truncate">{seriesComic.title}</p>
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {comic.data?.coverFront && (
             <div className="mb-8 overflow-hidden border-2 border-zinc-800" data-testid="img-cover-front">
               <img src={comic.data.coverFront} alt="Front Cover" className="w-full object-contain" />
@@ -254,13 +514,123 @@ export default function ComicReader() {
                 <p className="text-white font-bold" data-testid="text-creator-card-name">{comic.creatorName}</p>
                 <p className="text-zinc-400 text-sm">Comic Creator</p>
               </div>
-              <Link href={`/portfolio/${comic.userId}`} data-testid="link-view-portfolio">
-                <span className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer">
-                  <Eye className="w-4 h-4" />
-                  View Portfolio
-                </span>
-              </Link>
+              <div className="flex items-center gap-2">
+                {isAuthenticated && comic.userId !== user?.id && (
+                  <button
+                    onClick={() => followMutation.mutate()}
+                    disabled={followMutation.isPending}
+                    className={`px-4 py-2 text-sm font-bold transition-colors flex items-center gap-2 ${
+                      isFollowingData?.isFollowing
+                        ? "bg-zinc-700 text-zinc-300 hover:bg-red-500/20 hover:text-red-400"
+                        : "bg-purple-500 hover:bg-purple-400 text-white"
+                    }`}
+                    data-testid="button-follow-creator"
+                  >
+                    {isFollowingData?.isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        Follow
+                      </>
+                    )}
+                  </button>
+                )}
+                <Link href={`/portfolio/${comic.userId}`} data-testid="link-view-portfolio">
+                  <span className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-black text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer">
+                    <Eye className="w-4 h-4" />
+                    View Portfolio
+                  </span>
+                </Link>
+              </div>
             </div>
+          </div>
+
+          <div className="mt-8" data-testid="comments-section">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageCircle className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-white font-bold text-lg" data-testid="text-comments-title">
+                Comments {comments?.total ? `(${comments.total})` : ""}
+              </h3>
+            </div>
+
+            {isAuthenticated ? (
+              <form onSubmit={handleSubmitComment} className="mb-6 flex gap-2" data-testid="form-add-comment">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-zinc-900 border-2 border-zinc-700 text-white px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors placeholder-zinc-500"
+                  data-testid="input-comment"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim() || addCommentMutation.isPending}
+                  className="px-4 py-2 bg-cyan-500 text-black font-bold text-sm hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  data-testid="button-submit-comment"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            ) : (
+              <div className="mb-6 p-4 bg-zinc-900 border-2 border-zinc-800 text-center" data-testid="comment-auth-gate">
+                <p className="text-zinc-400 text-sm">
+                  <Link href="/auth" data-testid="link-login-to-comment">
+                    <span className="text-cyan-400 hover:text-cyan-300 cursor-pointer font-bold">Sign in</span>
+                  </Link>
+                  {" "}to leave a comment
+                </p>
+              </div>
+            )}
+
+            {commentsLoading ? (
+              <div className="text-zinc-500 text-sm text-center py-8" data-testid="comments-loading">Loading comments...</div>
+            ) : comments?.comments && comments.comments.length > 0 ? (
+              <div className="space-y-4" data-testid="comments-list">
+                {comments.comments.map((comment) => (
+                  <div key={comment.id} className="p-4 bg-zinc-900 border border-zinc-800" data-testid={`comment-${comment.id}`}>
+                    <div className="flex items-start gap-3">
+                      {comment.authorAvatar ? (
+                        <img
+                          src={comment.authorAvatar}
+                          alt={comment.authorName}
+                          className="w-8 h-8 rounded-full object-cover border border-zinc-700 flex-shrink-0"
+                          data-testid={`img-comment-avatar-${comment.id}`}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 flex-shrink-0">
+                          <User className="w-4 h-4 text-zinc-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-bold" data-testid={`text-comment-author-${comment.id}`}>{comment.authorName}</span>
+                          <span className="text-zinc-600 text-xs" data-testid={`text-comment-time-${comment.id}`}>{formatTimeAgo(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-zinc-300 text-sm mt-1" data-testid={`text-comment-body-${comment.id}`}>{comment.text}</p>
+                      </div>
+                      {user?.id === comment.authorId && (
+                        <button
+                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                          className="text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"
+                          data-testid={`button-delete-comment-${comment.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-zinc-500 text-sm text-center py-8" data-testid="text-no-comments">
+                No comments yet. Be the first to comment!
+              </div>
+            )}
           </div>
         </div>
       </div>

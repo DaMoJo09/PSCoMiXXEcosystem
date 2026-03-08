@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import {
   BookOpen, Layers, Search, Clock, ChevronRight,
   FileText, Film, Gamepad2, BookMarked, Pencil, Plus,
-  Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles
+  Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles,
+  X, Trash2, GripVertical, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface Project {
   id: string;
@@ -18,6 +20,18 @@ interface Project {
   status: string;
   data: any;
   thumbnail: string | null;
+  seriesId: string | null;
+  seriesOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Series {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  coverImage: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +52,12 @@ export default function LibraryPage() {
   const [, navigate] = useLocation();
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSeriesPanel, setShowSeriesPanel] = useState(false);
+  const [editingSeries, setEditingSeries] = useState<Series | null>(null);
+  const [seriesForm, setSeriesForm] = useState({ title: "", description: "" });
+  const [managingSeries, setManagingSeries] = useState<Series | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -47,6 +67,101 @@ export default function LibraryPage() {
       return res.json();
     },
     enabled: !!user,
+  });
+
+  const { data: seriesList = [] } = useQuery<Series[]>({
+    queryKey: ["/api/series"],
+    queryFn: async () => {
+      const res = await fetch("/api/series", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const createSeriesMutation = useMutation({
+    mutationFn: async (body: { title: string; description?: string }) => {
+      const res = await fetch("/api/series", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed to create series");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/series"] });
+      setSeriesForm({ title: "", description: "" });
+      toast({ title: "Series created" });
+    },
+  });
+
+  const updateSeriesMutation = useMutation({
+    mutationFn: async ({ id, ...body }: { id: string; title?: string; description?: string }) => {
+      const res = await fetch(`/api/series/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed to update series");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/series"] });
+      setEditingSeries(null);
+      setSeriesForm({ title: "", description: "" });
+      toast({ title: "Series updated" });
+    },
+  });
+
+  const deleteSeriesMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/series/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete series");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/series"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Series deleted" });
+    },
+  });
+
+  const addToSeriesMutation = useMutation({
+    mutationFn: async ({ seriesId, projectId, order }: { seriesId: string; projectId: string; order: number }) => {
+      const res = await fetch(`/api/series/${seriesId}/comics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ projectId, order }),
+      });
+      if (!res.ok) throw new Error("Failed to add comic to series");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Comic added to series" });
+    },
+  });
+
+  const removeFromSeriesMutation = useMutation({
+    mutationFn: async ({ seriesId, projectId }: { seriesId: string; projectId: string }) => {
+      const res = await fetch(`/api/series/${seriesId}/comics/${projectId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to remove comic from series");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Comic removed from series" });
+    },
   });
 
   const filteredProjects = useMemo(() => {
@@ -70,6 +185,12 @@ export default function LibraryPage() {
 
   const wipCount = projects.filter(p => p.status === "draft" || p.status === "review" || p.status === "rejected").length;
   const completedCount = projects.filter(p => p.status === "published" || p.status === "approved").length;
+
+  const getComicsInSeries = (seriesId: string) =>
+    projects.filter(p => p.seriesId === seriesId).sort((a, b) => (a.seriesOrder ?? 0) - (b.seriesOrder ?? 0));
+
+  const getUnassignedComics = () =>
+    projects.filter(p => p.type === "comic" && !p.seriesId);
 
   const getTypeConfig = (type: string) =>
     PROJECT_TYPE_CONFIG[type] || { label: type, icon: FileText, color: "text-zinc-400 border-zinc-400", editorPath: "/" };
@@ -112,6 +233,28 @@ export default function LibraryPage() {
     return d.toLocaleDateString();
   };
 
+  const handleCreateSeries = () => {
+    if (!seriesForm.title.trim()) return;
+    createSeriesMutation.mutate({
+      title: seriesForm.title.trim(),
+      description: seriesForm.description.trim() || undefined,
+    });
+  };
+
+  const handleUpdateSeries = () => {
+    if (!editingSeries || !seriesForm.title.trim()) return;
+    updateSeriesMutation.mutate({
+      id: editingSeries.id,
+      title: seriesForm.title.trim(),
+      description: seriesForm.description.trim() || undefined,
+    });
+  };
+
+  const startEditSeries = (s: Series) => {
+    setEditingSeries(s);
+    setSeriesForm({ title: s.title, description: s.description || "" });
+  };
+
   if (!user) {
     return (
       <Layout>
@@ -139,14 +282,202 @@ export default function LibraryPage() {
                 {projects.length} project{projects.length !== 1 ? "s" : ""} — {wipCount} in progress, {completedCount} completed
               </p>
             </div>
-            <Button
-              onClick={() => navigate("/")}
-              className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
-              data-testid="btn-new-project"
-            >
-              <Plus className="w-4 h-4 mr-2" /> NEW PROJECT
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowSeriesPanel(!showSeriesPanel)}
+                className="font-bold"
+                data-testid="btn-manage-series"
+              >
+                <GitBranch className="w-4 h-4 mr-2" /> SERIES ({seriesList.length})
+              </Button>
+              <Button
+                onClick={() => navigate("/")}
+                className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
+                data-testid="btn-new-project"
+              >
+                <Plus className="w-4 h-4 mr-2" /> NEW PROJECT
+              </Button>
+            </div>
           </div>
+
+          {showSeriesPanel && (
+            <div className="mb-8 border-2 border-border bg-card p-6" data-testid="series-management-panel">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-black" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  COMIC SERIES
+                </h2>
+                <button onClick={() => setShowSeriesPanel(false)} className="text-muted-foreground hover:text-foreground" data-testid="btn-close-series-panel">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex gap-3 mb-6">
+                <input
+                  type="text"
+                  placeholder="Series title..."
+                  value={seriesForm.title}
+                  onChange={e => setSeriesForm(f => ({ ...f, title: e.target.value }))}
+                  className="flex-1 px-3 py-2 bg-background border border-border text-sm text-foreground focus:border-cyan-500 outline-none"
+                  data-testid="input-series-title"
+                />
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={seriesForm.description}
+                  onChange={e => setSeriesForm(f => ({ ...f, description: e.target.value }))}
+                  className="flex-1 px-3 py-2 bg-background border border-border text-sm text-foreground focus:border-cyan-500 outline-none"
+                  data-testid="input-series-description"
+                />
+                {editingSeries ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleUpdateSeries}
+                      disabled={!seriesForm.title.trim() || updateSeriesMutation.isPending}
+                      className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
+                      data-testid="btn-update-series"
+                    >
+                      <Check className="w-4 h-4 mr-1" /> SAVE
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setEditingSeries(null); setSeriesForm({ title: "", description: "" }); }}
+                      data-testid="btn-cancel-edit-series"
+                    >
+                      CANCEL
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleCreateSeries}
+                    disabled={!seriesForm.title.trim() || createSeriesMutation.isPending}
+                    className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
+                    data-testid="btn-create-series"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> CREATE
+                  </Button>
+                )}
+              </div>
+
+              {seriesList.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-6">
+                  No series yet. Create one to organize your comics into chapters.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {seriesList.map(s => {
+                    const comicsInSeries = getComicsInSeries(s.id);
+                    const isManaging = managingSeries?.id === s.id;
+
+                    return (
+                      <div key={s.id} className="border border-border bg-background" data-testid={`series-card-${s.id}`}>
+                        <div className="flex items-center gap-3 p-4">
+                          <div className="w-10 h-10 bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                            <GitBranch className="w-5 h-5 text-cyan-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-sm truncate" data-testid={`text-series-title-${s.id}`}>{s.title}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {comicsInSeries.length} comic{comicsInSeries.length !== 1 ? "s" : ""}
+                              {s.description && ` · ${s.description}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setManagingSeries(isManaging ? null : s)}
+                              className={`px-3 py-1.5 text-xs font-bold border transition-colors ${
+                                isManaging ? "bg-cyan-500 text-black border-cyan-500" : "border-border text-muted-foreground hover:border-cyan-500/50"
+                              }`}
+                              data-testid={`btn-manage-comics-${s.id}`}
+                            >
+                              {isManaging ? "DONE" : "MANAGE"}
+                            </button>
+                            <button
+                              onClick={() => startEditSeries(s)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                              data-testid={`btn-edit-series-${s.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete series "${s.title}"? Comics will not be deleted.`)) {
+                                  deleteSeriesMutation.mutate(s.id);
+                                  if (managingSeries?.id === s.id) setManagingSeries(null);
+                                }
+                              }}
+                              className="p-1.5 text-muted-foreground hover:text-red-400 transition-colors"
+                              data-testid={`btn-delete-series-${s.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {isManaging && (
+                          <div className="border-t border-border p-4 bg-muted/30">
+                            {comicsInSeries.length > 0 && (
+                              <div className="mb-4">
+                                <p className="text-xs font-bold text-muted-foreground mb-2">COMICS IN SERIES</p>
+                                <div className="space-y-1">
+                                  {comicsInSeries.map((comic, idx) => (
+                                    <div
+                                      key={comic.id}
+                                      className="flex items-center gap-3 px-3 py-2 bg-background border border-border"
+                                      data-testid={`series-comic-item-${comic.id}`}
+                                    >
+                                      <span className="text-xs text-muted-foreground w-6 text-center font-bold">{idx + 1}</span>
+                                      <GripVertical className="w-4 h-4 text-muted-foreground/50" />
+                                      <span className="text-sm flex-1 truncate">{comic.title}</span>
+                                      <button
+                                        onClick={() => removeFromSeriesMutation.mutate({ seriesId: s.id, projectId: comic.id })}
+                                        className="text-xs text-muted-foreground hover:text-red-400 font-bold"
+                                        data-testid={`btn-remove-from-series-${comic.id}`}
+                                      >
+                                        REMOVE
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <p className="text-xs font-bold text-muted-foreground mb-2">ADD COMICS</p>
+                              {getUnassignedComics().length === 0 ? (
+                                <p className="text-xs text-muted-foreground/60 py-2">All comics are assigned to series</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {getUnassignedComics().map(comic => (
+                                    <div
+                                      key={comic.id}
+                                      className="flex items-center gap-3 px-3 py-2 bg-background border border-dashed border-border hover:border-cyan-500/50 cursor-pointer transition-colors"
+                                      onClick={() => addToSeriesMutation.mutate({
+                                        seriesId: s.id,
+                                        projectId: comic.id,
+                                        order: comicsInSeries.length,
+                                      })}
+                                      data-testid={`btn-add-to-series-${comic.id}`}
+                                    >
+                                      <Plus className="w-4 h-4 text-cyan-400" />
+                                      <span className="text-sm flex-1 truncate">{comic.title}</span>
+                                      <span className={`text-xs px-1.5 py-0.5 border ${getStatusInfo(comic.status).style}`}>
+                                        {getStatusInfo(comic.status).label}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex items-center gap-2 flex-wrap">
@@ -241,6 +572,7 @@ export default function LibraryPage() {
                 const thumb = getThumbnail(project);
                 const statusInfo = getStatusInfo(project.status);
                 const isWip = project.status === "draft" || project.status === "review" || project.status === "rejected";
+                const projectSeries = project.seriesId ? seriesList.find(s => s.id === project.seriesId) : null;
 
                 return (
                   <div
@@ -301,6 +633,15 @@ export default function LibraryPage() {
                       <div className="flex items-center gap-2 text-muted-foreground text-xs">
                         <Clock className="w-3 h-3" />
                         <span>{formatDate(project.updatedAt)}</span>
+                        {projectSeries && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <GitBranch className="w-3 h-3 text-cyan-400" />
+                            <span className="text-cyan-400 truncate max-w-[100px]" data-testid={`text-series-badge-${project.id}`}>
+                              {projectSeries.title}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

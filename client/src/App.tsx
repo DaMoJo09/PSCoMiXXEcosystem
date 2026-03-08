@@ -62,6 +62,7 @@ import PricingPage from "@/pages/PricingPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import CommunityLibrary from "@/pages/CommunityLibrary";
 import ComicReader from "@/pages/ComicReader";
+import SeriesPage from "@/pages/SeriesPage";
 import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
 import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
 import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
@@ -141,7 +142,9 @@ function ProtectedRouter() {
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/assets" component={AssetBuilder} />
         <Route path="/tools/cyoa" component={CYOABuilder} />
+        <Route path="/creator/comic/preview">{() => <ComicReader isPreview={true} />}</Route>
         <Route path="/community/read/:id" component={ComicReader} />
+        <Route path="/community/series/:id" component={SeriesPage} />
         <Route path="/community" component={CommunityLibrary} />
         <Route path="/library" component={LibraryPage} />
         <Route path="/portfolio" component={PortfolioPage} />

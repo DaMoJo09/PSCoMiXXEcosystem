@@ -60,7 +60,20 @@ A public storefront for browsing, searching, and filtering content. Creators can
 A `marketplace_reviews` table stores ratings (1-5) and review text, with a "verified purchase" flag. API endpoints facilitate review submission and retrieval, and the UI displays reviews on listing pages. Analytics are tracked in `creator_analytics`.
 
 ### Community Library
-A Webtoons-style browse page with search, sorting, and a comic reader for vertical scrolling. Only approved and published comics are listed, and users can "like" comics.
+A Webtoons-style browse page with search, sorting, and a comic reader for vertical scrolling. Only approved and published comics are listed, and users can "like" comics. Features include:
+- **Comments**: Authenticated users can comment on comics (2000 char limit, threaded replies via parentId). Comments show author avatar/name/timestamp with delete for own comments.
+- **View Tracking**: `viewCount` column on projects, incremented on comic reader mount via POST `/api/community/comic/:id/view`. Displayed in reader header.
+- **Bookmarks / Continue Reading**: Users can bookmark comics with reading progress (spread index). "Continue Reading" section in community library shows bookmarked comics (filtered to published/approved only).
+- **Series & Chapters**: `comic_series` table groups comics. Projects have `seriesId`/`seriesOrder`. Series management in Library page (create/edit/delete, assign comics). Public series page at `/community/series/:id`. Community library shows public series section.
+- **Follower System**: Uses existing `user_follows` table. Follow/unfollow buttons on portfolio pages and comic reader creator cards. Follower/following counts on portfolio.
+- **Thumbnail Auto-Generation**: ComicCreator can generate thumbnails from first panel image or front cover. Auto-generated on publish/submit-for-review if none exists.
+- **Comic Preview**: "Preview as Reader" option in ComicCreator opens comic in reader mode at `/creator/comic/preview?id=X` using ComicReader with `isPreview` prop (disables views/comments/bookmarks).
+
+### Database Tables (Community Features)
+- `comic_comments`: id, comic_id, author_id, text, parent_id, created_at
+- `comic_bookmarks`: id, user_id, project_id, last_spread_index, created_at, updated_at
+- `comic_series`: id, user_id, title, description, cover_image, created_at, updated_at
+- Projects columns: `view_count`, `series_id`, `series_order`
 
 ### Motion Studio
 Supports video/GIF export with progress tracking, using a Web Worker for GIF encoding. Features drawing layers, selection tools, shape tools, fill tool, eyedropper, and audio clip integration synchronized with a timeline. Canvas drawing is throttled, and the frame list is virtualized.

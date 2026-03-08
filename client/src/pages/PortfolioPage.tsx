@@ -6,7 +6,7 @@ import {
   BookOpen, Palette, Clock, Award, Globe, Instagram,
   Twitter, Link2, ChevronRight, Layers, Sparkles, FileText,
   Image as ImageIcon, Film, Gamepad2, BookMarked, Pencil,
-  Share2, Copy, Check, CreditCard
+  Share2, Copy, Check, CreditCard, UserPlus, UserMinus, Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -168,6 +168,71 @@ export default function PortfolioPage() {
       return res.json();
     },
     enabled: isOwnerView,
+  });
+
+  const profileUserId = viewingUserId || user?.id || null;
+
+  const { data: followerData } = useQuery<{ followers: any[]; count: number }>({
+    queryKey: ["/api/users", profileUserId, "followers"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${profileUserId}/followers`);
+      if (!res.ok) return { followers: [], count: 0 };
+      return res.json();
+    },
+    enabled: !!profileUserId,
+  });
+
+  const { data: followingData } = useQuery<{ following: any[]; count: number }>({
+    queryKey: ["/api/users", profileUserId, "following"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${profileUserId}/following`);
+      if (!res.ok) return { following: [], count: 0 };
+      return res.json();
+    },
+    enabled: !!profileUserId,
+  });
+
+  const { data: isFollowingData } = useQuery<{ isFollowing: boolean }>({
+    queryKey: ["/api/users", profileUserId, "is-following"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${profileUserId}/is-following`, { credentials: "include" });
+      if (!res.ok) return { isFollowing: false };
+      return res.json();
+    },
+    enabled: !!user && !!profileUserId && !isOwner,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${profileUserId}/follow`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to follow");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", profileUserId, "followers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", profileUserId, "is-following"] });
+      toast.success("Following!");
+    },
+    onError: () => toast.error("Failed to follow"),
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${profileUserId}/follow`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to unfollow");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", profileUserId, "followers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", profileUserId, "is-following"] });
+      toast.success("Unfollowed");
+    },
+    onError: () => toast.error("Failed to unfollow"),
   });
 
   const profile: UserProfile | undefined = isOwner ? ownerProfile : publicData?.profile;
@@ -524,7 +589,7 @@ export default function PortfolioPage() {
               </div>
 
               <div className="pb-2 flex gap-2">
-                {isOwner && (
+                {isOwner ? (
                   <>
                     {editMode ? (
                       <>
@@ -546,7 +611,28 @@ export default function PortfolioPage() {
                       </>
                     )}
                   </>
-                )}
+                ) : user ? (
+                  isFollowingData?.isFollowing ? (
+                    <Button
+                      onClick={() => unfollowMutation.mutate()}
+                      disabled={unfollowMutation.isPending}
+                      variant="outline"
+                      className="border-zinc-600 text-zinc-400 hover:border-red-500 hover:text-red-400"
+                      data-testid="btn-unfollow"
+                    >
+                      <UserMinus className="w-4 h-4 mr-2" /> FOLLOWING
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => followMutation.mutate()}
+                      disabled={followMutation.isPending}
+                      className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
+                      data-testid="btn-follow"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" /> FOLLOW
+                    </Button>
+                  )
+                ) : null}
               </div>
             </div>
 
@@ -560,6 +646,16 @@ export default function PortfolioPage() {
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700">
                 <Sparkles className="w-4 h-4 text-cyan-400" />
                 <span className="text-sm font-bold">{profile?.creatorClass || "Rookie"}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700" data-testid="stat-followers">
+                <Users className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-bold">{followerData?.count ?? 0}</span>
+                <span className="text-xs text-zinc-500">Followers</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700" data-testid="stat-following">
+                <UserPlus className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-bold">{followingData?.count ?? 0}</span>
+                <span className="text-xs text-zinc-500">Following</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700">
                 <BookOpen className="w-4 h-4 text-green-400" />

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Link } from "wouter";
-import { Search, BookOpen, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, BookOpen, Users, ChevronLeft, ChevronRight, BookMarked, GitBranch } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CommunityComic {
   id: string;
@@ -23,11 +24,51 @@ interface CommunityLibraryResponse {
   totalPages: number;
 }
 
+interface Bookmark {
+  id: string;
+  projectId: string;
+  lastSpreadIndex: number;
+  comicTitle: string;
+  comicThumbnail: string | null;
+  comicStatus: string;
+  updatedAt: string;
+}
+
+interface CommunitySeries {
+  id: string;
+  title: string;
+  description: string | null;
+  coverImage: string | null;
+  creatorName: string;
+  creatorAvatar: string | null;
+  comicCount: number;
+}
+
 export default function CommunityLibrary() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "popular">("newest");
   const [page, setPage] = useState(1);
   const limit = 20;
+
+  const { data: bookmarks = [] } = useQuery<Bookmark[]>({
+    queryKey: ["bookmarks"],
+    queryFn: async () => {
+      const res = await fetch("/api/bookmarks", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const { data: seriesList = [] } = useQuery<CommunitySeries[]>({
+    queryKey: ["community-series-list"],
+    queryFn: async () => {
+      const res = await fetch("/api/community/series");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const { data, isLoading, isError } = useQuery<CommunityLibraryResponse>({
     queryKey: ["community-library", search, sort, page],
@@ -80,6 +121,134 @@ export default function CommunityLibrary() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          {user && bookmarks.filter(b => b.comicStatus === 'published' || b.comicStatus === 'approved').length > 0 && (
+            <div className="mb-8" data-testid="continue-reading-section">
+              <div className="flex items-center gap-2 mb-4">
+                <BookMarked className="w-5 h-5 text-cyan-400" />
+                <h2
+                  className="text-lg sm:text-xl font-black tracking-tight"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  CONTINUE READING
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                {bookmarks.filter(b => b.comicStatus === 'published' || b.comicStatus === 'approved').slice(0, 5).map((bm) => (
+                  <Link
+                    key={bm.id}
+                    href={`/community/read/${bm.projectId}`}
+                    data-testid={`bookmark-card-${bm.projectId}`}
+                  >
+                    <div className="group border-2 border-cyan-500/30 bg-zinc-900 hover:border-cyan-500 transition-all cursor-pointer">
+                      <div className="aspect-[2/3] relative overflow-hidden">
+                        {bm.comicThumbnail ? (
+                          <img
+                            src={bm.comicThumbnail}
+                            alt={bm.comicTitle}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/30 flex items-center justify-center">
+                            <BookOpen className="w-10 h-10 text-zinc-700" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                          <div className="flex items-center gap-1 mb-1">
+                            <div className="h-1 flex-1 bg-zinc-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-cyan-400 rounded-full"
+                                style={{ width: `${Math.min(100, Math.max(5, (bm.lastSpreadIndex + 1) * 10))}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-zinc-400">
+                            Page {bm.lastSpreadIndex + 1}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-2 border-t border-cyan-500/20">
+                        <h3
+                          className="font-bold text-white text-xs sm:text-sm truncate"
+                          data-testid={`bookmark-title-${bm.projectId}`}
+                        >
+                          {bm.comicTitle}
+                        </h3>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {seriesList.length > 0 && (
+            <div className="mb-8" data-testid="community-series-section">
+              <div className="flex items-center gap-2 mb-4">
+                <GitBranch className="w-5 h-5 text-purple-400" />
+                <h2
+                  className="text-lg sm:text-xl font-black tracking-tight"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  SERIES
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                {seriesList.map((series) => (
+                  <Link
+                    key={series.id}
+                    href={`/community/series/${series.id}`}
+                    data-testid={`community-series-card-${series.id}`}
+                  >
+                    <div className="group border-2 border-zinc-800 bg-zinc-900 hover:border-purple-500 transition-all cursor-pointer hover:shadow-lg hover:shadow-purple-500/10">
+                      <div className="aspect-[3/2] relative overflow-hidden">
+                        {series.coverImage ? (
+                          <img
+                            src={series.coverImage}
+                            alt={series.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-purple-900/30 via-zinc-900 to-cyan-900/30 flex items-center justify-center">
+                            <GitBranch className="w-10 h-10 text-zinc-700" />
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2">
+                          <span className="px-2 py-1 text-xs font-bold bg-purple-500/90 text-white border border-purple-400">
+                            {series.comicCount} ch
+                          </span>
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="p-3 border-t border-zinc-800">
+                        <h3
+                          className="font-bold text-white text-sm truncate mb-1"
+                          data-testid={`text-series-title-${series.id}`}
+                        >
+                          {series.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {series.creatorAvatar ? (
+                            <img
+                              src={series.creatorAvatar}
+                              alt={series.creatorName}
+                              className="w-4 h-4 rounded-full object-cover border border-zinc-700"
+                            />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center">
+                              <Users className="w-2.5 h-2.5 text-zinc-500" />
+                            </div>
+                          )}
+                          <span className="text-zinc-400 text-xs truncate">{series.creatorName}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
             <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Sort by:</span>
             <button

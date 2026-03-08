@@ -34,6 +34,10 @@ import {
   classroomAssignments,
   assignmentSubmissions,
   tosAcceptances,
+  comicComments,
+  comicBookmarks,
+  comicSeries,
+  engagementEvents,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -116,7 +120,39 @@ export interface IStorage {
   deleteProject(id: string): Promise<boolean>;
   getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number }): Promise<{ comics: any[]; total: number }>;
   getCommunityComic(id: string): Promise<any | undefined>;
-  
+  incrementViewCount(projectId: string): Promise<void>;
+
+  // Comic comments
+  getComicComments(comicId: string, limit?: number, offset?: number): Promise<{ comments: any[]; total: number }>;
+  addComicComment(comment: { comicId: string; authorId: string; text: string; parentId?: string }): Promise<any>;
+  deleteComicComment(id: string, authorId: string): Promise<boolean>;
+
+  // Comic bookmarks
+  getBookmark(userId: string, projectId: string): Promise<any | undefined>;
+  getUserBookmarks(userId: string): Promise<any[]>;
+  upsertBookmark(userId: string, projectId: string, lastSpreadIndex: number): Promise<any>;
+  deleteBookmark(userId: string, projectId: string): Promise<boolean>;
+
+  // Comic series
+  getUserSeries(userId: string): Promise<any[]>;
+  getSeries(id: string): Promise<any | undefined>;
+  createSeries(series: { userId: string; title: string; description?: string; coverImage?: string }): Promise<any>;
+  updateSeries(id: string, updates: { title?: string; description?: string; coverImage?: string }): Promise<any | undefined>;
+  deleteSeries(id: string): Promise<boolean>;
+  getSeriesComics(seriesId: string, publicOnly?: boolean): Promise<any[]>;
+  getPublicSeriesList(): Promise<any[]>;
+  addProjectToSeries(projectId: string, seriesId: string, order: number): Promise<void>;
+  removeProjectFromSeries(projectId: string): Promise<void>;
+
+  // Follow helpers
+  followUser(followerId: string, followingId: string): Promise<any>;
+  unfollowUser(followerId: string, followingId: string): Promise<boolean>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+  getFollowerCount(userId: string): Promise<number>;
+  getFollowingCount(userId: string): Promise<number>;
+  getUserFollowers(userId: string, limit?: number): Promise<any[]>;
+  getUserFollowing(userId: string, limit?: number): Promise<any[]>;
+
   // Asset operations
   getAsset(id: string): Promise<Asset | undefined>;
   getUserAssets(userId: string): Promise<Asset[]>;
@@ -515,6 +551,8 @@ export class DatabaseStorage implements IStorage {
       status: projects.status,
       thumbnail: projects.thumbnail,
       data: projects.data,
+      viewCount: projects.viewCount,
+      seriesId: projects.seriesId,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
       userId: projects.userId,
@@ -542,6 +580,9 @@ export class DatabaseStorage implements IStorage {
       status: projects.status,
       thumbnail: projects.thumbnail,
       data: projects.data,
+      viewCount: projects.viewCount,
+      seriesId: projects.seriesId,
+      seriesOrder: projects.seriesOrder,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
       userId: projects.userId,
@@ -2847,6 +2888,272 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tosAcceptances.acceptedAt))
       .limit(1);
     return result || undefined;
+  }
+
+  async incrementViewCount(projectId: string): Promise<void> {
+    await db.update(projects)
+      .set({ viewCount: sql`COALESCE(${projects.viewCount}, 0) + 1` })
+      .where(eq(projects.id, projectId));
+  }
+
+  async getComicComments(comicId: string, limit = 50, offset = 0): Promise<{ comments: any[]; total: number }> {
+    const rows = await db.select({
+      id: comicComments.id,
+      comicId: comicComments.comicId,
+      authorId: comicComments.authorId,
+      text: comicComments.text,
+      parentId: comicComments.parentId,
+      createdAt: comicComments.createdAt,
+      authorName: users.name,
+      authorAvatar: users.avatar,
+    }).from(comicComments)
+      .innerJoin(users, eq(comicComments.authorId, users.id))
+      .where(eq(comicComments.comicId, comicId))
+      .orderBy(desc(comicComments.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db.select({ count: count() })
+      .from(comicComments)
+      .where(eq(comicComments.comicId, comicId));
+
+    return { comments: rows, total: countResult?.count || 0 };
+  }
+
+  async addComicComment(comment: { comicId: string; authorId: string; text: string; parentId?: string }): Promise<any> {
+    const [result] = await db.insert(comicComments).values({
+      comicId: comment.comicId,
+      authorId: comment.authorId,
+      text: comment.text,
+      parentId: comment.parentId || null,
+    }).returning();
+    return result;
+  }
+
+  async deleteComicComment(id: string, authorId: string): Promise<boolean> {
+    const result = await db.delete(comicComments)
+      .where(and(eq(comicComments.id, id), eq(comicComments.authorId, authorId)));
+    return true;
+  }
+
+  async getBookmark(userId: string, projectId: string): Promise<any | undefined> {
+    const [result] = await db.select().from(comicBookmarks)
+      .where(and(eq(comicBookmarks.userId, userId), eq(comicBookmarks.projectId, projectId)));
+    return result || undefined;
+  }
+
+  async getUserBookmarks(userId: string): Promise<any[]> {
+    return db.select({
+      id: comicBookmarks.id,
+      userId: comicBookmarks.userId,
+      projectId: comicBookmarks.projectId,
+      lastSpreadIndex: comicBookmarks.lastSpreadIndex,
+      createdAt: comicBookmarks.createdAt,
+      updatedAt: comicBookmarks.updatedAt,
+      comicTitle: projects.title,
+      comicThumbnail: projects.thumbnail,
+      comicStatus: projects.status,
+    }).from(comicBookmarks)
+      .innerJoin(projects, eq(comicBookmarks.projectId, projects.id))
+      .where(eq(comicBookmarks.userId, userId))
+      .orderBy(desc(comicBookmarks.updatedAt));
+  }
+
+  async upsertBookmark(userId: string, projectId: string, lastSpreadIndex: number): Promise<any> {
+    const existing = await this.getBookmark(userId, projectId);
+    if (existing) {
+      const [result] = await db.update(comicBookmarks)
+        .set({ lastSpreadIndex, updatedAt: new Date() })
+        .where(eq(comicBookmarks.id, existing.id))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(comicBookmarks).values({
+      userId, projectId, lastSpreadIndex,
+    }).returning();
+    return result;
+  }
+
+  async deleteBookmark(userId: string, projectId: string): Promise<boolean> {
+    await db.delete(comicBookmarks)
+      .where(and(eq(comicBookmarks.userId, userId), eq(comicBookmarks.projectId, projectId)));
+    return true;
+  }
+
+  async getUserSeries(userId: string): Promise<any[]> {
+    const seriesList = await db.select().from(comicSeries)
+      .where(eq(comicSeries.userId, userId))
+      .orderBy(desc(comicSeries.updatedAt));
+    const result = [];
+    for (const s of seriesList) {
+      const comics = await db.select({ id: projects.id }).from(projects)
+        .where(eq(projects.seriesId, s.id));
+      result.push({ ...s, comicCount: comics.length });
+    }
+    return result;
+  }
+
+  async getSeries(id: string): Promise<any | undefined> {
+    const [result] = await db.select({
+      id: comicSeries.id,
+      userId: comicSeries.userId,
+      title: comicSeries.title,
+      description: comicSeries.description,
+      coverImage: comicSeries.coverImage,
+      createdAt: comicSeries.createdAt,
+      updatedAt: comicSeries.updatedAt,
+      creatorName: users.name,
+      creatorAvatar: users.avatar,
+    }).from(comicSeries)
+      .innerJoin(users, eq(comicSeries.userId, users.id))
+      .where(eq(comicSeries.id, id));
+    return result || undefined;
+  }
+
+  async createSeries(series: { userId: string; title: string; description?: string; coverImage?: string }): Promise<any> {
+    const [result] = await db.insert(comicSeries).values({
+      userId: series.userId,
+      title: series.title,
+      description: series.description || null,
+      coverImage: series.coverImage || null,
+    }).returning();
+    return result;
+  }
+
+  async updateSeries(id: string, updates: { title?: string; description?: string; coverImage?: string }): Promise<any | undefined> {
+    const [result] = await db.update(comicSeries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(comicSeries.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSeries(id: string): Promise<boolean> {
+    await db.update(projects).set({ seriesId: null, seriesOrder: null }).where(eq(projects.seriesId, id));
+    await db.delete(comicSeries).where(eq(comicSeries.id, id));
+    return true;
+  }
+
+  async getSeriesComics(seriesId: string, publicOnly = false): Promise<any[]> {
+    const conditions: any[] = [eq(projects.seriesId, seriesId)];
+    if (publicOnly) {
+      conditions.push(sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`);
+    }
+    return db.select({
+      id: projects.id,
+      title: projects.title,
+      thumbnail: projects.thumbnail,
+      status: projects.status,
+      viewCount: projects.viewCount,
+      seriesOrder: projects.seriesOrder,
+      data: projects.data,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+    }).from(projects)
+      .where(and(...conditions))
+      .orderBy(projects.seriesOrder);
+  }
+
+  async getPublicSeriesList(): Promise<any[]> {
+    const seriesRows = await db.select({
+      id: comicSeries.id,
+      title: comicSeries.title,
+      description: comicSeries.description,
+      coverImage: comicSeries.coverImage,
+      userId: comicSeries.userId,
+      createdAt: comicSeries.createdAt,
+      updatedAt: comicSeries.updatedAt,
+      creatorName: users.name,
+      creatorAvatar: users.avatar,
+    }).from(comicSeries)
+      .innerJoin(users, eq(comicSeries.userId, users.id))
+      .orderBy(desc(comicSeries.updatedAt))
+      .limit(20);
+
+    const result = [];
+    for (const s of seriesRows) {
+      const comicCount = await db.select({ count: count() })
+        .from(projects)
+        .where(and(
+          eq(projects.seriesId, s.id),
+          sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`,
+        ));
+      const ct = comicCount[0]?.count ?? 0;
+      if (ct > 0) {
+        result.push({ ...s, comicCount: ct });
+      }
+    }
+    return result;
+  }
+
+  async addProjectToSeries(projectId: string, seriesId: string, order: number): Promise<void> {
+    await db.update(projects)
+      .set({ seriesId, seriesOrder: order, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+  }
+
+  async removeProjectFromSeries(projectId: string): Promise<void> {
+    await db.update(projects)
+      .set({ seriesId: null, seriesOrder: null, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+  }
+
+  async followUser(followerId: string, followingId: string): Promise<any> {
+    const existing = await db.select().from(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    if (existing.length > 0) return existing[0];
+    const [result] = await db.insert(userFollows).values({ followerId, followingId }).returning();
+    return result;
+  }
+
+  async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
+    await db.delete(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    return true;
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const result = await db.select().from(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    return result.length > 0;
+  }
+
+  async getFollowerCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+    return result?.count || 0;
+  }
+
+  async getFollowingCount(userId: string): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    return result?.count || 0;
+  }
+
+  async getUserFollowers(userId: string, limit = 50): Promise<any[]> {
+    return db.select({
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+      followedAt: userFollows.createdAt,
+    }).from(userFollows)
+      .innerJoin(users, eq(userFollows.followerId, users.id))
+      .where(eq(userFollows.followingId, userId))
+      .orderBy(desc(userFollows.createdAt))
+      .limit(limit);
+  }
+
+  async getUserFollowing(userId: string, limit = 50): Promise<any[]> {
+    return db.select({
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+      followedAt: userFollows.createdAt,
+    }).from(userFollows)
+      .innerJoin(users, eq(userFollows.followingId, users.id))
+      .where(eq(userFollows.followerId, userId))
+      .orderBy(desc(userFollows.createdAt))
+      .limit(limit);
   }
 }
 

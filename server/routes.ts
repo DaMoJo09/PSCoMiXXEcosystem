@@ -4201,6 +4201,27 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (project.status !== "draft" && project.status !== "rejected") {
         return res.status(400).json({ message: `Cannot submit for review from "${project.status}" status` });
       }
+      if (!project.thumbnail) {
+        const data = project.data as any;
+        let thumbnailUrl: string | null = null;
+        const spreadPages = [
+          ...(data?.spreads?.[0]?.leftPage || []),
+          ...(data?.spreads?.[0]?.rightPage || []),
+        ];
+        for (const panel of spreadPages) {
+          const imageItem = (panel.contents || []).find((c: any) => c.type === "image" && c.data?.url);
+          if (imageItem) {
+            thumbnailUrl = imageItem.data.url;
+            break;
+          }
+        }
+        if (!thumbnailUrl && data?.comicMeta?.frontCover) {
+          thumbnailUrl = data.comicMeta.frontCover;
+        }
+        if (thumbnailUrl) {
+          await storage.updateProject(project.id, { thumbnail: thumbnailUrl } as any);
+        }
+      }
       const updated = await storage.updateProject(project.id, { status: "review" } as any);
       res.json(updated);
     } catch (error: any) {
@@ -4278,6 +4299,27 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!project) return res.status(404).json({ message: "Project not found" });
       if (project.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
         return res.status(403).json({ message: "Not authorized" });
+      }
+      if (!project.thumbnail) {
+        const data = project.data as any;
+        let thumbnailUrl: string | null = null;
+        const spreadPages = [
+          ...(data?.spreads?.[0]?.leftPage || []),
+          ...(data?.spreads?.[0]?.rightPage || []),
+        ];
+        for (const panel of spreadPages) {
+          const imageItem = (panel.contents || []).find((c: any) => c.type === "image" && c.data?.url);
+          if (imageItem) {
+            thumbnailUrl = imageItem.data.url;
+            break;
+          }
+        }
+        if (!thumbnailUrl && data?.comicMeta?.frontCover) {
+          thumbnailUrl = data.comicMeta.frontCover;
+        }
+        if (thumbnailUrl) {
+          await storage.updateProject(project.id, { thumbnail: thumbnailUrl } as any);
+        }
       }
       const { visibility, tags, ageRating } = req.body;
       const result = await runPublishPipeline(project.id, req.user!.id, { visibility, tags, ageRating });
@@ -5391,6 +5433,328 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(404).json({ message: "Comic not found" });
       }
       res.json({ success: true, message: "Liked" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== COMIC COMMENTS ====================
+  app.get("/api/community/comic/:id/comments", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getComicComments(req.params.id, limit, offset);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/community/comic/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const { text, parentId } = req.body;
+      if (!text || typeof text !== "string" || text.trim().length === 0) {
+        return res.status(400).json({ message: "Comment text is required" });
+      }
+      if (text.length > 2000) {
+        return res.status(400).json({ message: "Comment must be under 2000 characters" });
+      }
+      const comment = await storage.addComicComment({
+        comicId: req.params.id,
+        authorId: (req.user as any).id,
+        text: text.trim(),
+        parentId: parentId || undefined,
+      });
+      res.json(comment);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/community/comic/:id/comments/:commentId", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteComicComment(req.params.commentId, (req.user as any).id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== VIEW TRACKING ====================
+  app.post("/api/community/comic/:id/view", async (req, res) => {
+    try {
+      await storage.incrementViewCount(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== BOOKMARKS ====================
+  app.get("/api/bookmarks", isAuthenticated, async (req, res) => {
+    try {
+      const bookmarks = await storage.getUserBookmarks((req.user as any).id);
+      res.json(bookmarks);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/bookmarks/:projectId", isAuthenticated, async (req, res) => {
+    try {
+      const bookmark = await storage.getBookmark((req.user as any).id, req.params.projectId);
+      res.json(bookmark || null);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/bookmarks", isAuthenticated, async (req, res) => {
+    try {
+      const { projectId, lastSpreadIndex } = req.body;
+      if (!projectId) {
+        return res.status(400).json({ message: "projectId is required" });
+      }
+      const bookmark = await storage.upsertBookmark((req.user as any).id, projectId, lastSpreadIndex || 0);
+      res.json(bookmark);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/bookmarks/:projectId", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteBookmark((req.user as any).id, req.params.projectId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== COMIC SERIES ====================
+  app.get("/api/series", isAuthenticated, async (req, res) => {
+    try {
+      const series = await storage.getUserSeries((req.user as any).id);
+      res.json(series);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/series", isAuthenticated, async (req, res) => {
+    try {
+      const { title, description, coverImage } = req.body;
+      if (!title || typeof title !== "string" || title.trim().length === 0) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+      const series = await storage.createSeries({
+        userId: (req.user as any).id,
+        title: title.trim(),
+        description: description || undefined,
+        coverImage: coverImage || undefined,
+      });
+      res.json(series);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/series/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getSeries(req.params.id);
+      if (!existing || existing.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      const { title, description, coverImage } = req.body;
+      const result = await storage.updateSeries(req.params.id, {
+        title: title || undefined,
+        description: description !== undefined ? description : undefined,
+        coverImage: coverImage !== undefined ? coverImage : undefined,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/series/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getSeries(req.params.id);
+      if (!existing || existing.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      await storage.deleteSeries(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/series/:id/comics", async (req, res) => {
+    try {
+      const comics = await storage.getSeriesComics(req.params.id);
+      res.json(comics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/series/:id/comics", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getSeries(req.params.id);
+      if (!existing || existing.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      const { projectId, order } = req.body;
+      if (!projectId) {
+        return res.status(400).json({ message: "projectId is required" });
+      }
+      await storage.addProjectToSeries(projectId, req.params.id, order || 0);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/series/:id/comics/:projectId", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getSeries(req.params.id);
+      if (!existing || existing.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      await storage.removeProjectFromSeries(req.params.projectId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/series", async (req, res) => {
+    try {
+      const seriesList = await storage.getPublicSeriesList();
+      res.json(seriesList);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/series/:id", async (req, res) => {
+    try {
+      const series = await storage.getSeries(req.params.id);
+      if (!series) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      const comics = await storage.getSeriesComics(req.params.id, true);
+      res.json({ ...series, comics });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== FOLLOW SYSTEM ====================
+  app.post("/api/users/:id/follow", isAuthenticated, async (req, res) => {
+    try {
+      const followerId = (req.user as any).id;
+      const followingId = req.params.id;
+      if (followerId === followingId) {
+        return res.status(400).json({ message: "Cannot follow yourself" });
+      }
+      const result = await storage.followUser(followerId, followingId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/users/:id/follow", isAuthenticated, async (req, res) => {
+    try {
+      await storage.unfollowUser((req.user as any).id, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/:id/followers", async (req, res) => {
+    try {
+      const followers = await storage.getUserFollowers(req.params.id);
+      const count = await storage.getFollowerCount(req.params.id);
+      res.json({ followers, count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/:id/following", async (req, res) => {
+    try {
+      const following = await storage.getUserFollowing(req.params.id);
+      const count = await storage.getFollowingCount(req.params.id);
+      res.json({ following, count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/:id/is-following", isAuthenticated, async (req, res) => {
+    try {
+      const isFollowing = await storage.isFollowing((req.user as any).id, req.params.id);
+      res.json({ isFollowing });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== THUMBNAIL + PREVIEW ====================
+  app.post("/api/projects/:id/generate-thumbnail", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const data = project.data as any;
+      let thumbnailUrl: string | null = null;
+      if (data?.spreads?.[0]) {
+        const spreadPages = [
+          ...(data.spreads[0].leftPage || []),
+          ...(data.spreads[0].rightPage || []),
+          ...(data.spreads[0].panels || []),
+        ];
+        for (const panel of spreadPages) {
+          const imageItem = (panel.contents || []).find((c: any) => c.type === "image" && c.data?.url);
+          if (imageItem) {
+            thumbnailUrl = imageItem.data.url;
+            break;
+          }
+        }
+      }
+      if (!thumbnailUrl && data?.comicMeta?.frontCover) {
+        thumbnailUrl = data.comicMeta.frontCover;
+      }
+      if (req.body.thumbnail) {
+        thumbnailUrl = req.body.thumbnail;
+      }
+      if (thumbnailUrl) {
+        await storage.updateProject(req.params.id, { thumbnail: thumbnailUrl } as any);
+        res.json({ success: true, thumbnail: thumbnailUrl });
+      } else {
+        res.status(400).json({ message: "No suitable image found for thumbnail" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/projects/:id/preview", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project || project.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const user = await storage.getUser(project.userId);
+      res.json({
+        ...project,
+        creator: user ? { id: user.id, name: user.name, avatar: user.avatar } : null,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

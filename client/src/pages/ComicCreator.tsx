@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
@@ -700,6 +700,101 @@ export default function ComicCreator() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleGenerateThumbnail = async () => {
+    if (!effectiveProjectId) return;
+    try {
+      const firstSpread = spreads[0];
+      if (!firstSpread) {
+        toast.error("No spreads to generate thumbnail from");
+        return;
+      }
+      const panels = [...(firstSpread.leftPage || []), ...(firstSpread.rightPage || [])];
+
+      if (comicMeta.frontCover) {
+        const res = await fetch(`/api/projects/${effectiveProjectId}/generate-thumbnail`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ thumbnail: comicMeta.frontCover }),
+        });
+        if (res.ok) {
+          qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+          toast.success("Thumbnail generated from front cover!");
+          return;
+        }
+      }
+
+      const thumbWidth = 600;
+      const thumbHeight = 900;
+      const canvas = document.createElement("canvas");
+      canvas.width = thumbWidth;
+      canvas.height = thumbHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { toast.error("Could not create canvas"); return; }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, thumbWidth, thumbHeight);
+
+      const loadImg = (src: string): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+
+      for (const panel of panels.sort((a, b) => a.zIndex - b.zIndex)) {
+        const px = (panel.x / 100) * thumbWidth;
+        const py = (panel.y / 100) * thumbHeight;
+        const pw = (panel.width / 100) * thumbWidth;
+        const ph = (panel.height / 100) * thumbHeight;
+        ctx.save();
+        ctx.fillStyle = panel.backgroundColor || "#ffffff";
+        ctx.fillRect(px, py, pw, ph);
+        for (const content of (panel.contents || []).sort((a, b) => a.zIndex - b.zIndex)) {
+          if (content.type === "image" && content.data?.url) {
+            try {
+              const img = await loadImg(content.data.url);
+              const cx = px + content.transform.x;
+              const cy = py + content.transform.y;
+              ctx.drawImage(img, cx, cy, content.transform.width, content.transform.height);
+            } catch {}
+          }
+        }
+        ctx.strokeStyle = panel.borderColor || "#000000";
+        ctx.lineWidth = panel.borderWidth || 2;
+        ctx.strokeRect(px, py, pw, ph);
+        ctx.restore();
+      }
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const res = await fetch(`/api/projects/${effectiveProjectId}/generate-thumbnail`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ thumbnail: dataUrl }),
+      });
+      if (res.ok) {
+        qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+        toast.success("Thumbnail generated from first page!");
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to generate thumbnail");
+      }
+    } catch (error: any) {
+      toast.error("Failed to generate thumbnail");
+    }
+  };
+
+  const handleOpenReaderPreview = () => {
+    if (!effectiveProjectId) {
+      toast.error("Save the project first to preview as reader");
+      return;
+    }
+    window.open(`/creator/comic/preview?id=${effectiveProjectId}`, "_blank");
   };
 
   const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number): Promise<HTMLCanvasElement> => {
@@ -2361,13 +2456,28 @@ export default function ComicCreator() {
             >
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
             </button>
-            <button 
-              onClick={() => { setPreviewPage(0); setShowPreview(true); }}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
-              data-testid="button-preview"
-            >
-              <Eye className="w-4 h-4" /> Preview
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+                  data-testid="button-preview"
+                >
+                  <Eye className="w-4 h-4" /> Preview
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
+                <DropdownMenuItem onClick={() => { setPreviewPage(0); setShowPreview(true); }} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-inline">
+                  <Eye className="w-4 h-4 mr-2" /> Quick Preview (Ctrl+R)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenReaderPreview} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-reader">
+                  <BookOpen className="w-4 h-4 mr-2" /> Preview as Reader
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem onClick={handleGenerateThumbnail} disabled={!effectiveProjectId} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-generate-thumbnail">
+                  <ImageIcon className="w-4 h-4 mr-2" /> Generate Thumbnail
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">

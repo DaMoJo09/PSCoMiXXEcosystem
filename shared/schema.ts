@@ -70,6 +70,9 @@ export const projects = pgTable("projects", {
   status: text("status").notNull().default("draft"), // draft | review | approved | rejected | published
   data: jsonb("data").notNull(), // Flexible JSON for each project type's specific data
   thumbnail: text("thumbnail"), // URL to preview image
+  viewCount: integer("view_count").notNull().default(0),
+  seriesId: varchar("series_id"),
+  seriesOrder: integer("series_order"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2111,6 +2114,63 @@ export const assignmentSubmissions = pgTable("assignment_submissions", {
 });
 
 export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;
+
+// Comic Comments - comments on community comics
+export const comicComments = pgTable("comic_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  comicId: varchar("comic_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  text: text("text").notNull(),
+  parentId: varchar("parent_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertComicCommentSchema = createInsertSchema(comicComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertComicComment = z.infer<typeof insertComicCommentSchema>;
+export type ComicComment = typeof comicComments.$inferSelect;
+
+// Comic Bookmarks - reader progress tracking
+export const comicBookmarks = pgTable("comic_bookmarks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  lastSpreadIndex: integer("last_spread_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertComicBookmarkSchema = createInsertSchema(comicBookmarks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertComicBookmark = z.infer<typeof insertComicBookmarkSchema>;
+export type ComicBookmark = typeof comicBookmarks.$inferSelect;
+
+// Comic Series - group comics into series
+export const comicSeries = pgTable("comic_series", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  coverImage: text("cover_image"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertComicSeriesSchema = createInsertSchema(comicSeries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertComicSeries = z.infer<typeof insertComicSeriesSchema>;
+export type ComicSeriesType = typeof comicSeries.$inferSelect;
 
 export const tosAcceptances = pgTable("tos_acceptances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
