@@ -1243,12 +1243,10 @@ export default function ComicCreator() {
     setSelectedPage(page);
     setSelectedPanelId(panelId);
     
-    // Check if user double-clicked directly on an image element
     const target = e.target as HTMLElement;
-    const clickedOnImage = target.tagName === 'IMG';
+    const contentTools = ["text", "bubble", "draw", "erase"];
     
-    if (clickedOnImage && activeTool !== "text" && activeTool !== "bubble" && activeTool !== "draw" && activeTool !== "erase") {
-      // Find the content ID from the parent transformable element (data-testid="transformable-{id}")
+    if (!contentTools.includes(activeTool)) {
       const transformableWrapper = target.closest('[data-testid^="transformable-"]');
       if (transformableWrapper) {
         const testId = transformableWrapper.getAttribute('data-testid');
@@ -1259,10 +1257,16 @@ export default function ComicCreator() {
           return;
         }
       }
+
+      const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+      const panel = panels.find(p => p.id === panelId);
+      if (panel && panel.contents.length > 0) {
+        const topContent = panel.contents.reduce((top, c) => c.zIndex > top.zIndex ? c : top, panel.contents[0]);
+        setSelectedContentId(topContent.id);
+        setActiveTool("select");
+        return;
+      }
     }
-    
-    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-    const panel = panels.find(p => p.id === panelId);
     
     if (activeTool === "text") {
       addTextToPanel(page, panelId);
