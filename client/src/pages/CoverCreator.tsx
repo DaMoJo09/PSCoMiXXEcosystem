@@ -274,6 +274,7 @@ export default function CoverCreator() {
   const creationAttempted = useRef(false);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
 
   const coverContentRef = useRef<HTMLDivElement>(null);
@@ -578,7 +579,7 @@ export default function CoverCreator() {
       <div 
         className="relative overflow-hidden border-2 border-black shadow-xl"
         style={{ width, height, backgroundColor: bgColor }}
-        onClick={() => { setSelectedLayerId(null); setActiveView(view); }}
+        onClick={() => { setSelectedLayerId(null); setEditingMasterId(null); setActiveView(view); }}
       >
         {bgImage && (
           <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" style={getFilterStyle()} />
@@ -622,8 +623,30 @@ export default function CoverCreator() {
                   className="w-full h-full flex items-center justify-between px-2 text-white"
                   style={{ backgroundColor: coverData.bannerBgColor }}
                 >
-                  <span className="text-xs font-bold">{coverData.publisherName}</span>
-                  <span className="text-xs">{coverData.tagline}</span>
+                  {editingMasterId === "master-publisher" ? (
+                    <input
+                      autoFocus
+                      className="text-xs font-bold bg-transparent outline-none border-b border-white/50 text-white w-1/2"
+                      value={coverData.publisherName}
+                      onChange={(e) => updateCover({ publisherName: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)}
+                      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                    />
+                  ) : (
+                    <span className="text-xs font-bold cursor-text" onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-publisher"); }}>{coverData.publisherName}</span>
+                  )}
+                  {editingMasterId === "master-tagline" ? (
+                    <input
+                      autoFocus
+                      className="text-xs bg-transparent outline-none border-b border-white/50 text-white w-1/2 text-right"
+                      value={coverData.tagline}
+                      onChange={(e) => updateCover({ tagline: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)}
+                      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                    />
+                  ) : (
+                    <span className="text-xs cursor-text" onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-tagline"); }}>{coverData.tagline}</span>
+                  )}
                 </div>
               </TransformableElement>
             )}
@@ -639,7 +662,18 @@ export default function CoverCreator() {
                 containerRef={canvasRef}
               >
                 <div className="w-full h-full bg-white border-2 border-black flex items-center justify-center">
-                  <span className="text-xs font-bold text-black">{coverData.priceText}</span>
+                  {editingMasterId === "master-price" ? (
+                    <input
+                      autoFocus
+                      className="text-xs font-bold text-black bg-transparent outline-none border-b border-black/50 w-full text-center"
+                      value={coverData.priceText}
+                      onChange={(e) => updateCover({ priceText: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)}
+                      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                    />
+                  ) : (
+                    <span className="text-xs font-bold text-black cursor-text" onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-price"); }}>{coverData.priceText}</span>
+                  )}
                 </div>
               </TransformableElement>
             )}
@@ -655,9 +689,21 @@ export default function CoverCreator() {
                 containerRef={canvasRef}
               >
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-2xl font-bold" style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }}>
-                    {coverData.issueNumber}
-                  </span>
+                  {editingMasterId === "master-issue" ? (
+                    <input
+                      autoFocus
+                      className="text-2xl font-bold bg-transparent outline-none border-b border-white/50 w-full text-center"
+                      style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }}
+                      value={coverData.issueNumber}
+                      onChange={(e) => updateCover({ issueNumber: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)}
+                      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold cursor-text" style={{ color: coverData.titleColor, fontFamily: coverData.titleFont }} onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-issue"); }}>
+                      {coverData.issueNumber}
+                    </span>
+                  )}
                 </div>
               </TransformableElement>
             )}
@@ -672,12 +718,25 @@ export default function CoverCreator() {
               containerRef={canvasRef}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
-                <h1 
-                  style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
-                  className="font-bold uppercase tracking-tight leading-none"
-                >
-                  {coverData.title}
-                </h1>
+                {editingMasterId === "master-title" ? (
+                  <input
+                    autoFocus
+                    className="font-bold uppercase tracking-tight leading-none bg-transparent outline-none border-b-2 border-white/50 w-full text-center"
+                    style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
+                    value={coverData.title}
+                    onChange={(e) => updateCover({ title: e.target.value })}
+                    onBlur={() => setEditingMasterId(null)}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                  />
+                ) : (
+                  <h1 
+                    style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
+                    className="font-bold uppercase tracking-tight leading-none cursor-text"
+                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-title"); }}
+                  >
+                    {coverData.title}
+                  </h1>
+                )}
               </div>
             </TransformableElement>
 
@@ -691,12 +750,25 @@ export default function CoverCreator() {
               containerRef={canvasRef}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
-                <p 
-                  style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
-                  className="italic"
-                >
-                  {coverData.subtitle}
-                </p>
+                {editingMasterId === "master-subtitle" ? (
+                  <input
+                    autoFocus
+                    className="italic bg-transparent outline-none border-b border-white/50 w-full text-center"
+                    style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
+                    value={coverData.subtitle}
+                    onChange={(e) => updateCover({ subtitle: e.target.value })}
+                    onBlur={() => setEditingMasterId(null)}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                  />
+                ) : (
+                  <p 
+                    style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
+                    className="italic cursor-text"
+                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-subtitle"); }}
+                  >
+                    {coverData.subtitle}
+                  </p>
+                )}
               </div>
             </TransformableElement>
 
@@ -710,12 +782,25 @@ export default function CoverCreator() {
               containerRef={canvasRef}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
-                <p 
-                  style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
-                  className="font-medium tracking-widest uppercase"
-                >
-                  {coverData.author}
-                </p>
+                {editingMasterId === "master-author" ? (
+                  <input
+                    autoFocus
+                    className="font-medium tracking-widest uppercase bg-transparent outline-none border-b border-white/50 w-full text-center"
+                    style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                    value={coverData.author}
+                    onChange={(e) => updateCover({ author: e.target.value })}
+                    onBlur={() => setEditingMasterId(null)}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                  />
+                ) : (
+                  <p 
+                    style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                    className="font-medium tracking-widest uppercase cursor-text"
+                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-author"); }}
+                  >
+                    {coverData.author}
+                  </p>
+                )}
               </div>
             </TransformableElement>
           </>
@@ -733,12 +818,25 @@ export default function CoverCreator() {
               containerRef={canvasRef}
             >
               <div className="w-full h-full flex items-center justify-center text-center p-4">
-                <p 
-                  style={{ fontFamily: coverData.backBlurbFont, color: coverData.backBlurbColor, fontSize: `${coverData.backBlurbSize}px` }}
-                  className="leading-relaxed"
-                >
-                  {coverData.backBlurb}
-                </p>
+                {editingMasterId === "master-blurb" ? (
+                  <textarea
+                    autoFocus
+                    className="leading-relaxed bg-transparent outline-none border border-white/30 w-full h-full resize-none p-2 text-center"
+                    style={{ fontFamily: coverData.backBlurbFont, color: coverData.backBlurbColor, fontSize: `${coverData.backBlurbSize}px` }}
+                    value={coverData.backBlurb}
+                    onChange={(e) => updateCover({ backBlurb: e.target.value })}
+                    onBlur={() => setEditingMasterId(null)}
+                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape") setEditingMasterId(null); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setEditingMasterId(null); } }}
+                  />
+                ) : (
+                  <p 
+                    style={{ fontFamily: coverData.backBlurbFont, color: coverData.backBlurbColor, fontSize: `${coverData.backBlurbSize}px` }}
+                    className="leading-relaxed cursor-text"
+                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-blurb"); }}
+                  >
+                    {coverData.backBlurb}
+                  </p>
+                )}
               </div>
             </TransformableElement>
             <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
@@ -751,12 +849,25 @@ export default function CoverCreator() {
 
         {view === "spine" && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
-            <p 
-              style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
-              className="text-lg font-bold tracking-widest uppercase"
-            >
-              {coverData.spineText} — {coverData.author}
-            </p>
+            {editingMasterId === "master-spine" ? (
+              <input
+                autoFocus
+                className="text-lg font-bold tracking-widest uppercase bg-transparent outline-none border border-white/30 text-center"
+                style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
+                value={coverData.spineText}
+                onChange={(e) => updateCover({ spineText: e.target.value })}
+                onBlur={() => setEditingMasterId(null)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+              />
+            ) : (
+              <p 
+                style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
+                className="text-lg font-bold tracking-widest uppercase cursor-text"
+                onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-spine"); }}
+              >
+                {coverData.spineText} — {coverData.author}
+              </p>
+            )}
           </div>
         )}
 
