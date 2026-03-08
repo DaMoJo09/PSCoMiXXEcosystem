@@ -75,8 +75,11 @@ interface ComicData {
     coverFront?: string;
     coverBack?: string;
     comicMeta?: {
+      frontCover?: string;
+      backCover?: string;
       genre?: string;
       description?: string;
+      credits?: string;
     };
   };
   creatorName: string;
@@ -451,9 +454,9 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
             </div>
           )}
 
-          {comic.data?.coverFront && (
+          {(comic.data?.coverFront || comic.data?.comicMeta?.frontCover) && (
             <div className="mb-8 overflow-hidden border-2 border-zinc-800" data-testid="img-cover-front">
-              <img src={comic.data.coverFront} alt="Front Cover" className="w-full object-contain" />
+              <img src={comic.data.coverFront || comic.data.comicMeta?.frontCover} alt="Front Cover" className="w-full object-contain" />
             </div>
           )}
 
@@ -490,9 +493,9 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
             </>
           )}
 
-          {comic.data?.coverBack && (
+          {(comic.data?.coverBack || comic.data?.comicMeta?.backCover) && (
             <div className="mb-8 overflow-hidden border-2 border-zinc-800" data-testid="img-cover-back">
-              <img src={comic.data.coverBack} alt="Back Cover" className="w-full object-contain" />
+              <img src={comic.data.coverBack || comic.data.comicMeta?.backCover} alt="Back Cover" className="w-full object-contain" />
             </div>
           )}
 
@@ -639,6 +642,10 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
 }
 
 function SpreadRenderer({ spread, index }: { spread: Spread; index: number }) {
+  const hasLeft = spread.leftPage && spread.leftPage.length > 0;
+  const hasRight = spread.rightPage && spread.rightPage.length > 0;
+  const isTwoPage = hasLeft && hasRight;
+
   return (
     <div className="mb-10" data-testid={`spread-section-${index}`}>
       <div className="flex items-center gap-3 mb-4">
@@ -649,10 +656,17 @@ function SpreadRenderer({ spread, index }: { spread: Spread; index: number }) {
         <div className="h-px flex-1 bg-zinc-800" />
       </div>
 
-      <div className="flex gap-2">
-        <PageRenderer panels={spread.leftPage} side="left" />
-        <PageRenderer panels={spread.rightPage} side="right" />
-      </div>
+      {isTwoPage ? (
+        <div className="flex gap-2">
+          <PageRenderer panels={spread.leftPage} side="left" />
+          <PageRenderer panels={spread.rightPage} side="right" />
+        </div>
+      ) : (
+        <div className="max-w-lg mx-auto">
+          {hasLeft && <PageRenderer panels={spread.leftPage} side="left" />}
+          {hasRight && <PageRenderer panels={spread.rightPage} side="right" />}
+        </div>
+      )}
     </div>
   );
 }
@@ -691,15 +705,11 @@ function PanelRenderer({ panel }: { panel: Panel }) {
       }}
       data-testid={`panel-${panel.id}`}
     >
-      {hasContent ? (
+      {hasContent && (
         <div className="w-full h-full relative">
           {contentItems.map((item, idx) => (
             <ContentRenderer key={item.id || idx} item={item} />
           ))}
-        </div>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="w-full h-full bg-zinc-800/50" />
         </div>
       )}
     </div>
