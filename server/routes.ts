@@ -375,7 +375,30 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // XP Heartbeat - tracks time spent in app and awards XP
   // Each heartbeat = 1 minute of activity = 10 XP
   const XP_PER_MINUTE = 10;
-  const XP_PER_LEVEL = 1000;
+
+  function xpThresholdForLevel(level: number): number {
+    return (level * (level - 1)) / 2 * 1000;
+  }
+
+  function getLevelFromXp(xp: number): number {
+    let level = 1;
+    while (xpThresholdForLevel(level + 1) <= xp) {
+      level++;
+    }
+    return level;
+  }
+
+  function xpNeededForNextLevel(level: number): number {
+    return level * 1000;
+  }
+
+  const ACTION_XP: Record<string, number> = {
+    save: 25,
+    export: 50,
+    generate: 15,
+    publish: 100,
+  };
+  const actionCooldowns = new Map<string, number>();
   
   app.post("/api/xp/heartbeat", isAuthenticated, async (req, res) => {
     try {
@@ -395,7 +418,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const xpGained = minutesToCredit * XP_PER_MINUTE;
       const newXp = (user.xp || 0) + xpGained;
       const newTotalMinutes = (user.totalMinutes || 0) + minutesToCredit;
-      const newLevel = Math.floor(newXp / XP_PER_LEVEL) + 1;
+      const newLevel = getLevelFromXp(newXp);
 
       await storage.updateUserProfile(userId, {
         xp: newXp,
@@ -410,18 +433,55 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/xp/action", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { action } = req.body;
+      if (!action || !ACTION_XP[action]) {
+        return res.status(400).json({ message: "Invalid action type" });
+      }
+
+      const cooldownKey = `${userId}:${action}`;
+      const lastAction = actionCooldowns.get(cooldownKey) || 0;
+      const now = Date.now();
+      if (now - lastAction < 10000) {
+        return res.json({ xpGained: 0, message: "Action cooldown active" });
+      }
+      actionCooldowns.set(cooldownKey, now);
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const xpGained = ACTION_XP[action];
+      const newXp = (user.xp || 0) + xpGained;
+      const newLevel = getLevelFromXp(newXp);
+
+      await storage.updateUserProfile(userId, {
+        xp: newXp,
+        level: newLevel,
+      } as any);
+
+      res.json({ xp: newXp, level: newLevel, xpGained, action });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/xp/status", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUser(req.user!.id);
       if (!user) return res.status(404).json({ message: "User not found" });
-      const xpForNextLevel = ((user.level || 1)) * XP_PER_LEVEL;
-      const xpInCurrentLevel = (user.xp || 0) - ((user.level || 1) - 1) * XP_PER_LEVEL;
+      const xp = user.xp || 0;
+      const level = getLevelFromXp(xp);
+      const currentLevelThreshold = xpThresholdForLevel(level);
+      const needed = xpNeededForNextLevel(level);
+      const xpInCurrentLevel = xp - currentLevelThreshold;
       res.json({
-        xp: user.xp || 0,
-        level: user.level || 1,
+        xp,
+        level,
         totalMinutes: user.totalMinutes || 0,
         accountType: user.accountType,
-        xpForNextLevel: XP_PER_LEVEL,
+        xpForNextLevel: needed,
         xpInCurrentLevel,
       });
     } catch (error: any) {

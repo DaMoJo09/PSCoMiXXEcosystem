@@ -664,6 +664,7 @@ export default function ComicCreator() {
         data: { title, data: { spreads } },
       });
       toast.success("Comic saved");
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -805,6 +806,7 @@ export default function ComicCreator() {
       link.click();
       
       toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       toast.error("Failed to export page");
     }
@@ -871,6 +873,7 @@ export default function ComicCreator() {
       }
       
       toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       toast.error("Failed to export pages");
     }
@@ -970,6 +973,7 @@ export default function ComicCreator() {
         + spreads.reduce((n, s) => n + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)
         + (comicMeta.backCover ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Failed to export PDF");
@@ -993,6 +997,7 @@ export default function ComicCreator() {
       link.click();
       
       toast.success("Project data exported!");
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       toast.error("Failed to export project data");
     }

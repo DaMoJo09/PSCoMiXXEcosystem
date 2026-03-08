@@ -405,6 +405,7 @@ export default function CardCreator() {
         });
       }
       toast.success("Card saved");
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -439,6 +440,7 @@ export default function CardCreator() {
       link.click();
       
       toast.success(`Exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export card");

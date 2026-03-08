@@ -61,6 +61,30 @@ export default function CYOABuilder() {
   const [activeTab, setActiveTab] = useState<"story" | "nodes" | "assets">("story");
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fireXpAction = (action: string) => {
+    fetch("/api/xp/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+      credentials: "include",
+    });
+  };
+
+  useEffect(() => {
+    if (projectId && nodes.length > 0) {
+      autoSaveInterval.current = setInterval(() => {
+        updateProject.mutateAsync({
+          id: projectId,
+          data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
+        }).catch(() => {});
+      }, 30000);
+    }
+    return () => {
+      if (autoSaveInterval.current) clearInterval(autoSaveInterval.current);
+    };
+  }, [projectId, nodes, title, storyText, branchPoints, optionsPerBranch, backgrounds]);
 
   useEffect(() => {
     if (projectId) {
@@ -189,11 +213,66 @@ export default function CYOABuilder() {
           data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds } },
         });
       }
+      fireXpAction("save");
       toast.success("Project saved");
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const validateCYOA = () => {
+    if (nodes.length === 0) {
+      toast.error("No nodes to validate");
+      return;
+    }
+
+    const issues: string[] = [];
+    const nodeIds = new Set(nodes.map(n => n.id));
+
+    nodes.forEach(node => {
+      node.choices.forEach(choice => {
+        if (!nodeIds.has(choice.target)) {
+          issues.push(`Broken link: "${choice.label}" in ${node.id} points to non-existent node "${choice.target}"`);
+        }
+      });
+    });
+
+    if (nodes.length > 0) {
+      const reachable = new Set<string>();
+      const queue = [nodes[0].id];
+      reachable.add(nodes[0].id);
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const currentNode = nodes.find(n => n.id === current);
+        if (currentNode) {
+          currentNode.choices.forEach(choice => {
+            if (nodeIds.has(choice.target) && !reachable.has(choice.target)) {
+              reachable.add(choice.target);
+              queue.push(choice.target);
+            }
+          });
+        }
+      }
+      nodes.forEach(node => {
+        if (!reachable.has(node.id)) {
+          issues.push(`Orphan node: "${node.id}" is not reachable from the start node`);
+        }
+      });
+    }
+
+    nodes.forEach(node => {
+      if (!node.isEnding && node.choices.length === 0) {
+        issues.push(`Dead end: "${node.id}" has no choices and is not marked as an ending`);
+      }
+    });
+
+    if (issues.length === 0) {
+      toast.success("Validation passed! No issues found.");
+    } else {
+      issues.forEach(issue => toast.error(issue, { duration: 5000 }));
+      toast.warning(`Found ${issues.length} issue(s)`);
     }
   };
 
@@ -236,7 +315,7 @@ export default function CYOABuilder() {
       
       generatedNodes.push({
         id: nodeId,
-        text: segment.substring(0, 500) + (segment.length > 500 ? "..." : ""),
+        text: segment.substring(0, 2000) + (segment.length > 2000 ? "..." : ""),
         choices,
         isEnding: i === branchPoints - 1,
         endingType: i === branchPoints - 1 ? "good" : undefined,
@@ -258,6 +337,7 @@ export default function CYOABuilder() {
     setNodes(generatedNodes);
     setIsGenerating(false);
     setActiveTab("nodes");
+    fireXpAction("generate");
     toast.success("CYOA structure generated!");
   };
 
@@ -360,18 +440,76 @@ export default function CYOABuilder() {
     setPathHistory([]);
   };
 
-  const exportCYOA = (format: "cyoa" | "json" | "txt") => {
-    const data = format === "txt" 
-      ? nodes.map(n => `[${n.id}]\n${n.text}\n${n.choices.map(c => `> ${c.label} -> ${c.target}`).join("\n")}`).join("\n\n---\n\n")
-      : JSON.stringify({ title, nodes, metadata: { branchPoints, optionsPerBranch } }, null, 2);
+  const exportCYOA = (format: "cyoa" | "json" | "txt" | "html") => {
+    let data: string;
+    let mimeType = "text/plain";
+
+    if (format === "html") {
+      mimeType = "text/html";
+      data = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:640px;width:100%;padding:2rem}
+h1{font-size:1.5rem;margin-bottom:2rem;text-align:center}
+.node-text{background:#18181b;border:2px solid #3f3f46;padding:1.5rem;margin-bottom:1.5rem;white-space:pre-wrap;line-height:1.6;font-size:0.9rem}
+.ending{text-transform:uppercase;font-weight:bold;font-size:0.75rem;margin-bottom:1rem}
+.ending.good{color:#22c55e;border-color:#22c55e}.ending.bad{color:#ef4444;border-color:#ef4444}.ending.neutral{color:#eab308;border-color:#eab308}
+.choice{display:block;width:100%;padding:1rem;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.2);color:#fff;text-align:left;cursor:pointer;margin-bottom:0.5rem;font-size:0.9rem}
+.choice:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.4)}
+.restart{display:block;width:100%;padding:1rem;background:#fff;color:#000;border:none;font-weight:bold;text-transform:uppercase;cursor:pointer;font-size:1rem;margin-top:1rem}
+.path{text-align:center;font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:2rem;font-family:monospace}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>${title}</h1>
+<div id="story"></div>
+<div id="path" class="path"></div>
+</div>
+<script>
+const nodes = ${JSON.stringify(nodes)};
+const startId = nodes.length > 0 ? nodes[0].id : null;
+let history = [];
+function showNode(id) {
+  const node = nodes.find(n => n.id === id);
+  if (!node) { document.getElementById('story').innerHTML = '<p>Node not found.</p>'; return; }
+  history.push(id);
+  let html = '';
+  if (node.isEnding) { html += '<div class="ending ' + (node.endingType||'neutral') + '">' + (node.endingType||'neutral').toUpperCase() + ' ENDING</div>'; }
+  html += '<div class="node-text">' + node.text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+  if (node.choices && node.choices.length > 0) {
+    html += '<div><div style="font-size:0.7rem;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:0.5rem;font-weight:bold">Choose your path:</div>';
+    node.choices.forEach(function(c) { html += '<button class="choice" onclick="showNode(\\''+c.target+'\\')">'+c.label.replace(/</g,'&lt;')+'</button>'; });
+    html += '</div>';
+  }
+  if (node.isEnding) { html += '<button class="restart" onclick="history=[];showNode(\\''+startId+'\\')">Restart Story</button>'; }
+  document.getElementById('story').innerHTML = html;
+  document.getElementById('path').textContent = 'Path: ' + history.join(' → ');
+}
+if (startId) showNode(startId);
+</script>
+</body>
+</html>`;
+    } else if (format === "txt") {
+      data = nodes.map(n => `[${n.id}]\n${n.text}\n${n.choices.map(c => `> ${c.label} -> ${c.target}`).join("\n")}`).join("\n\n---\n\n");
+    } else {
+      data = JSON.stringify({ title, nodes, metadata: { branchPoints, optionsPerBranch } }, null, 2);
+    }
     
-    const blob = new Blob([data], { type: "text/plain" });
+    const blob = new Blob([data], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `${title}.${format}`;
     a.click();
     URL.revokeObjectURL(url);
+    fireXpAction("export");
     toast.success(`Exported as .${format}`);
   };
 
@@ -422,7 +560,7 @@ export default function CYOABuilder() {
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
             <button 
-              onClick={() => nodes.length > 0 && toast.success("Logic validated!")}
+              onClick={validateCYOA}
               className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" 
               data-testid="button-validate"
             >
@@ -614,7 +752,7 @@ export default function CYOABuilder() {
                     {nodes.filter(n => !n.id.startsWith("ending")).map((node, idx) => (
                       <div
                         key={node.id}
-                        onClick={() => setSelectedNodeId(node.id)}
+                        onClick={() => { setSelectedNodeId(node.id); setEditingNode(node.id); }}
                         className={`p-3 border cursor-pointer group ${
                           selectedNodeId === node.id 
                             ? "bg-white text-black border-white" 
@@ -688,8 +826,8 @@ export default function CYOABuilder() {
 
               {nodes.length > 0 && (
                 <div className="border-t border-zinc-800 p-4 space-y-2">
-                  <div className="grid grid-cols-4 gap-1">
-                    {["cyoa", "json", "txt"].map(format => (
+                  <div className="grid grid-cols-5 gap-1">
+                    {["cyoa", "json", "txt", "html"].map(format => (
                       <button
                         key={format}
                         onClick={() => exportCYOA(format as any)}

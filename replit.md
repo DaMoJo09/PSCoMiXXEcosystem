@@ -43,7 +43,7 @@ PostgreSQL, hosted via Neon serverless, is the primary database, accessed using 
 Projects progress through draft, review, and publication stages. Content adheres to the PS Content Bundle v1, a Zod-validated format. The pipeline validates, bundles, saves, and syncs content to the Emergent streaming platform. Version tracking and job tracking are implemented, and an admin review queue manages project approvals.
 
 ### XP & Account System
-The platform supports Student (6-17) and Creator (18+) account types, with students having restricted monetization access. An XP system tracks user progression based on active usage, displayed through level badges and progress bars.
+The platform supports Student (6-17) and Creator (18+) account types, with students having restricted monetization access. An XP system uses scaled leveling: level N requires N×1000 XP to advance (level 1→2 = 1000 XP, 2→3 = 2000 XP, etc.). XP is earned via time-based heartbeats (10 XP/min) and action-based rewards (`POST /api/xp/action`: save=25, export=50, generate=15, publish=100 XP) with 10s cooldown per action type. All 5 creators (Comic, Card, Cover, CYOA, VN) fire XP actions on save/export. Level is derived from total XP using `getLevelFromXp()` helper (both server and client).
 
 ### PSLMS Integration
 Integration with Press Start LMS allows students to submit creations to their portfolios and enables PSLMS to fetch student comics via API, authenticated using a shared secret API key and user matching via email.

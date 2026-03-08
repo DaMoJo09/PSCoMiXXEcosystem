@@ -107,7 +107,21 @@ const socialTools = [
   { icon: Search, label: "Find Creators", href: "/social/search" },
 ];
 
-const XP_PER_LEVEL = 1000;
+function xpForLevel(level: number): number {
+  return level * 1000;
+}
+
+function totalXpForLevel(level: number): number {
+  return (level * (level - 1)) / 2 * 1000;
+}
+
+function getLevel(xp: number): number {
+  let level = 1;
+  while (totalXpForLevel(level + 1) <= xp) {
+    level++;
+  }
+  return level;
+}
 
 function useInstallPrompt() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -202,9 +216,10 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { canInstall, isInstalled, install } = useInstallPrompt();
   const { online, pendingSync, lastSyncTime, isSyncing, conflicts, handleResolveConflict } = useOnlineStatus();
   const xp = user?.xp || 0;
-  const level = user?.level || 1;
-  const xpInLevel = xp - (level - 1) * XP_PER_LEVEL;
-  const xpProgress = Math.min((xpInLevel / XP_PER_LEVEL) * 100, 100);
+  const level = getLevel(xp);
+  const xpNeeded = xpForLevel(level);
+  const xpInLevel = xp - totalXpForLevel(level);
+  const xpProgress = xpNeeded > 0 ? Math.min((xpInLevel / xpNeeded) * 100, 100) : 0;
 
   const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean }, matchPrefix = false) => {
     const isExternal = (item as any).external;
@@ -383,7 +398,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
                 <Star className="w-3.5 h-3.5 text-yellow-400" />
                 <span className="text-xs font-bold">LVL {level}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground font-mono">{xpInLevel}/{XP_PER_LEVEL} XP</span>
+              <span className="text-[10px] text-muted-foreground font-mono">{xpInLevel}/{xpNeeded} XP</span>
             </div>
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border">
               <div 

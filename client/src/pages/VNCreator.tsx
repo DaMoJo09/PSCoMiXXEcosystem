@@ -2,9 +2,10 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Play, Plus, Settings, ArrowLeft, Save, Trash2, Image as ImageIcon, 
   MessageSquare, GitBranch, User, Mountain, Upload, Wand2, X, Move,
-  ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Layers, Type
+  ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Layers, Type,
+  Download, ArrowUp, ArrowDown
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
@@ -160,6 +161,51 @@ export default function VNCreator() {
     }
   }, []);
 
+  const fireXpAction = useCallback((action: string) => {
+    fetch("/api/xp/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+      credentials: "include",
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!projectId || scenes.length === 0) return;
+    const interval = setInterval(async () => {
+      try {
+        await updateProject.mutateAsync({
+          id: projectId,
+          data: { title, data: { scenes, characters, backgrounds } },
+        });
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [projectId, scenes, characters, backgrounds, title]);
+
+  const handleExportJSON = () => {
+    const data = { title, scenes, characters, backgrounds };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Project exported as JSON");
+    fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+  };
+
+  const moveDialogue = (sceneId: string, index: number, direction: "up" | "down") => {
+    const scene = scenes.find(s => s.id === sceneId);
+    if (!scene) return;
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= scene.dialogue.length) return;
+    const newDialogue = [...scene.dialogue];
+    [newDialogue[index], newDialogue[newIndex]] = [newDialogue[newIndex], newDialogue[index]];
+    updateScene(sceneId, { dialogue: newDialogue });
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -169,6 +215,7 @@ export default function VNCreator() {
           data: { title, data: { scenes, characters, backgrounds } },
         });
       }
+      fireXpAction("save");
       toast.success("Project saved");
     } catch (error: any) {
       toast.error(error.message || "Save failed");
@@ -327,6 +374,7 @@ export default function VNCreator() {
   };
 
   const handleAIGenerated = (url: string) => {
+    fireXpAction("generate");
     if (aiTarget === "background") {
       const newBg: VNBackground = {
         id: `bg_${Date.now()}`,
@@ -364,6 +412,7 @@ export default function VNCreator() {
 
   const currentScene = scenes.find(s => s.id === selectedScene);
   const currentBackground = backgrounds.find(b => b.id === currentScene?.background);
+  const currentBackgroundUrl = currentScene?.backgroundUrl || currentBackground?.url || vnBg;
   const currentDialogue = currentScene?.dialogue[playIndex];
 
   if (isCreating) {
@@ -399,6 +448,13 @@ export default function VNCreator() {
             <span className="text-xs font-mono text-zinc-500">Visual Novel Engine</span>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={handleExportJSON}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+              data-testid="button-export-json"
+            >
+              <Download className="w-4 h-4" /> Export
+            </button>
             <button 
               onClick={handleSave}
               disabled={isSaving}
@@ -580,7 +636,7 @@ export default function VNCreator() {
                   onClick={isPlaying ? advanceDialogue : undefined}
                 >
                   <img 
-                    src={currentBackground?.url || vnBg} 
+                    src={currentBackgroundUrl} 
                     className="w-full h-full object-cover"
                   />
                   
@@ -621,7 +677,7 @@ export default function VNCreator() {
                             {currentDialogue.choices.map((choice, i) => (
                               <button
                                 key={i}
-                                onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); }}
                                 className="px-4 py-2 bg-white text-black text-sm font-medium hover:bg-zinc-200"
                               >
                                 {choice.label}
@@ -742,6 +798,22 @@ export default function VNCreator() {
                       className="flex-1 p-1 border border-zinc-700 bg-zinc-800 text-sm font-mono"
                       placeholder="Enter dialogue..."
                     />
+                    <button
+                      onClick={() => moveDialogue(currentScene.id, index, "up")}
+                      disabled={index === 0}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30"
+                      title="Move up"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => moveDialogue(currentScene.id, index, "down")}
+                      disabled={index === currentScene.dialogue.length - 1}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30"
+                      title="Move down"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => addChoice(currentScene.id, index)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-blue-400"

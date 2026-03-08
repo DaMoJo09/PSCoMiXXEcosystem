@@ -526,6 +526,7 @@ export default function CoverCreator() {
       pdf.addImage(imgData, "PNG", 0, 0, inchW, inchH);
       pdf.save(`${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.pdf`);
       toast.success("PDF exported successfully!");
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Failed to export PDF");
@@ -634,6 +635,7 @@ export default function CoverCreator() {
           data: { title: coverData.title, data: coverData },
         });
         toast.success("Cover saved");
+        fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
       } else {
         const newProject = await createProject.mutateAsync({
           title: coverData.title || "Untitled Cover",
@@ -643,6 +645,7 @@ export default function CoverCreator() {
         });
         navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
         toast.success("Cover created and saved");
+        fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
       }
     } catch (error: any) {
       toast.error(error.message || "Save failed");
@@ -740,6 +743,7 @@ export default function CoverCreator() {
       link.click();
       
       toast.success(`Cover exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export cover");
