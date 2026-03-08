@@ -458,7 +458,7 @@ export default function MotionStudio() {
   
   // Apply to Panel
   const [showApplyPanel, setShowApplyPanel] = useState(false);
-  const { data: comicProjects } = useProjects();
+  const { data: comicProjects, isLoading: comicProjectsLoading, error: comicProjectsError, refetch: refetchComicProjects } = useProjects();
   const [selectedComicId, setSelectedComicId] = useState<string | null>(null);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const { data: selectedComic } = useProject(selectedComicId || '');
@@ -539,20 +539,35 @@ export default function MotionStudio() {
     };
   }, []);
 
-  // Initialize project
+  const msCreationAttempted = useRef(false);
   useEffect(() => {
-    if (!projectId && !createProject.isPending) {
-      createProject.mutateAsync({
-        title: "Untitled Project",
-        type: "motion",
-        status: "draft",
-        data: { frames: [], tracks: [] },
-      }).then((newProject) => {
-        navigate(`/creator/motion?id=${newProject.id}`, { replace: true });
+    if (projectId) return;
+    if (msCreationAttempted.current || createProject.isPending) return;
+    msCreationAttempted.current = true;
+
+    fetch("/api/projects", { credentials: "include" })
+      .then(res => res.ok ? res.json() : [])
+      .then((allProjects: any[]) => {
+        const existing = allProjects
+          .filter((p: any) => p.type === "motion")
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        if (existing.length > 0) {
+          msCreationAttempted.current = false;
+          navigate(`/creator/motion?id=${existing[0].id}`, { replace: true });
+          return;
+        }
+        return createProject.mutateAsync({
+          title: "Untitled Project",
+          type: "motion",
+          status: "draft",
+          data: { frames: [], tracks: [] },
+        }).then((newProject) => {
+          navigate(`/creator/motion?id=${newProject.id}`, { replace: true });
+        });
       }).catch(() => {
         toast.error("Failed to create project");
+        msCreationAttempted.current = false;
       });
-    }
   }, [projectId]);
 
   // Track whether we imported from comic panel so project load doesn't overwrite
@@ -4062,7 +4077,19 @@ export default function MotionStudio() {
               <div>
                 <label className="text-xs text-zinc-400 block mb-2">Select Comic Project</label>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {comicProjects?.filter(p => p.type === 'comic').map(comic => (
+                  {comicProjectsLoading && (
+                    <div className="p-4 text-center text-zinc-500 text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Loading projects...
+                    </div>
+                  )}
+                  {comicProjectsError && (
+                    <div className="p-4 text-center text-xs space-y-2">
+                      <p className="text-red-400">Failed to load projects</p>
+                      <button onClick={() => refetchComicProjects()} className="text-zinc-400 hover:text-white underline">Retry</button>
+                    </div>
+                  )}
+                  {!comicProjectsLoading && !comicProjectsError && comicProjects?.filter(p => p.type === 'comic').map(comic => (
                     <button key={comic.id}
                       onClick={() => { setSelectedComicId(comic.id); setSelectedPanelId(null); }}
                       className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
@@ -4075,7 +4102,7 @@ export default function MotionStudio() {
                       {selectedComicId === comic.id && <Check className="w-4 h-4 text-white ml-auto" />}
                     </button>
                   ))}
-                  {(!comicProjects || comicProjects.filter(p => p.type === 'comic').length === 0) && (
+                  {!comicProjectsLoading && !comicProjectsError && (!comicProjects || comicProjects.filter(p => p.type === 'comic').length === 0) && (
                     <div className="p-4 text-center text-zinc-500 text-xs">
                       No comic projects found. Create a comic first.
                     </div>

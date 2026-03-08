@@ -109,21 +109,35 @@ export default function CYOABuilder() {
       toast.error("Project creation timed out - please try again");
     }, 15000);
 
-    createProject.mutateAsync({
-      title: "Untitled CYOA",
-      type: "cyoa",
-      status: "draft",
-      data: { nodes: [], storyText: "", backgrounds: [] },
-    }).then((newProject) => {
-      clearTimeout(timeoutId);
-      setIsCreating(false);
-      navigate(`/creator/cyoa?id=${newProject.id}`, { replace: true });
-    }).catch((err) => {
-      clearTimeout(timeoutId);
-      toast.error(err?.message || "Failed to create project - please try again");
-      setIsCreating(false);
-      creationAttempted.current = false;
-    });
+    fetch("/api/projects", { credentials: "include" })
+      .then(res => res.ok ? res.json() : [])
+      .then((allProjects: any[]) => {
+        const existing = allProjects
+          .filter((p: any) => p.type === "cyoa")
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        if (existing.length > 0) {
+          clearTimeout(timeoutId);
+          setIsCreating(false);
+          creationAttempted.current = false;
+          navigate(`/creator/cyoa?id=${existing[0].id}`, { replace: true });
+          return;
+        }
+        return createProject.mutateAsync({
+          title: "Untitled CYOA",
+          type: "cyoa",
+          status: "draft",
+          data: { nodes: [], storyText: "", backgrounds: [] },
+        }).then((newProject) => {
+          clearTimeout(timeoutId);
+          setIsCreating(false);
+          navigate(`/creator/cyoa?id=${newProject.id}`, { replace: true });
+        });
+      }).catch((err) => {
+        clearTimeout(timeoutId);
+        toast.error(err?.message || "Failed to create project - please try again");
+        setIsCreating(false);
+        creationAttempted.current = false;
+      });
   }, [projectId]);
 
   useEffect(() => {
