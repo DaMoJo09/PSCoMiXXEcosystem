@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 interface TextElementProps {
   id: string;
@@ -289,7 +289,7 @@ export function TextElement({
   onEditEnd,
 }: TextElementProps) {
   const [localText, setLocalText] = useState(text);
-  const [styles, setStyles] = useState<TextStyles>({
+  const styles = useMemo<TextStyles>(() => ({
     fontSize,
     fontFamily,
     color,
@@ -309,36 +309,12 @@ export function TextElement({
     letterSpacing,
     lineHeight,
     textArch,
-  });
+  }), [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur, fontWeight, fontStyle, textAlign, textTransform, letterSpacing, lineHeight, textArch]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setLocalText(text);
   }, [text]);
-
-  useEffect(() => {
-    setStyles({
-      fontSize,
-      fontFamily,
-      color,
-      backgroundColor,
-      padding,
-      borderRadius,
-      bubbleStyle,
-      textEffect,
-      strokeColor,
-      strokeWidth,
-      shadowColor,
-      shadowBlur,
-      fontWeight,
-      fontStyle,
-      textAlign,
-      textTransform,
-      letterSpacing,
-      lineHeight,
-      textArch,
-    });
-  }, [fontSize, fontFamily, color, backgroundColor, padding, borderRadius, bubbleStyle, textEffect, strokeColor, strokeWidth, shadowColor, shadowBlur, fontWeight, fontStyle, textAlign, textTransform, letterSpacing, lineHeight, textArch]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
