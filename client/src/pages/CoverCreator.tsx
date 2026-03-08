@@ -334,15 +334,15 @@ export default function CoverCreator() {
       toast.error("Project creation timed out - please try again");
     }, 15000);
 
-    fetch("/api/projects", { credentials: "include" })
+    fetch("/api/projects?fields=meta", { credentials: "include" })
       .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
         if (cancelled) return;
         const existing = allProjects
           .filter((p: any) => p.type === "cover")
           .sort((a: any, b: any) => {
-            const aHasData = a.data && Object.keys(a.data).length > 0 && a.updatedAt !== a.createdAt;
-            const bHasData = b.data && Object.keys(b.data).length > 0 && b.updatedAt !== b.createdAt;
+            const aHasData = a.updatedAt !== a.createdAt;
+            const bHasData = b.updatedAt !== b.createdAt;
             if (aHasData && !bHasData) return -1;
             if (!aHasData && bHasData) return 1;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();

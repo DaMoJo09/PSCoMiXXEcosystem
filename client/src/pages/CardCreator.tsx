@@ -371,7 +371,7 @@ export default function CardCreator() {
       toast.error("Project creation timed out - please try again");
     }, 15000);
 
-    fetch("/api/projects", { credentials: "include" })
+    fetch("/api/projects?fields=meta", { credentials: "include" })
       .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
         if (cancelled) return;

@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "@/lib/api";
 import type { Project, InsertProject } from "@shared/schema";
 
-export function useProjects() {
+export function useProjects(lightweight = true) {
   return useQuery<Project[]>({
-    queryKey: ["projects"],
-    queryFn: () => projectsApi.getAll(),
+    queryKey: ["projects", lightweight ? "meta" : "full"],
+    queryFn: () => projectsApi.getAll(lightweight),
   });
 }
 

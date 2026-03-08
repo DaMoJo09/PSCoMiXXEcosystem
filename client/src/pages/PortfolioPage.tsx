@@ -153,7 +153,7 @@ export default function PortfolioPage() {
   const { data: ownerProjects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     queryFn: async () => {
-      const res = await fetch("/api/projects", { credentials: "include" });
+      const res = await fetch("/api/projects?fields=meta", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

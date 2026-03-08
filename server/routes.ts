@@ -627,8 +627,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {
-      const projects = await storage.getUserProjects(req.user!.id);
-      res.json(projects);
+      const allProjects = await storage.getUserProjects(req.user!.id);
+      if (req.query.fields === "meta") {
+        const lightweight = allProjects.map(({ data, ...rest }) => rest);
+        return res.json(lightweight);
+      }
+      res.json(allProjects);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

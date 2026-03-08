@@ -92,8 +92,9 @@ export const authApi = {
 };
 
 export const projectsApi = {
-  getAll: async () => {
-    const response = await fetch(`${API_BASE}/projects`, {
+  getAll: async (lightweight = false) => {
+    const url = lightweight ? `${API_BASE}/projects?fields=meta` : `${API_BASE}/projects`;
+    const response = await fetch(url, {
       credentials: "include",
     });
     return handleResponse<Project[]>(response);

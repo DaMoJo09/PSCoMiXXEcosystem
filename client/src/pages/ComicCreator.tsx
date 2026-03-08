@@ -471,17 +471,17 @@ export default function ComicCreator() {
       if (cancelled) return;
       setIsCreating(false);
       toast.error("Project creation timed out - please try again");
-    }, 15000);
+    }, 30000);
 
-    fetch("/api/projects", { credentials: "include" })
+    fetch("/api/projects?fields=meta", { credentials: "include" })
       .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
         if (cancelled) return;
         const existing = allProjects
           .filter((p: any) => p.type === "comic")
           .sort((a: any, b: any) => {
-            const aHasData = a.data?.spreads?.length > 0;
-            const bHasData = b.data?.spreads?.length > 0;
+            const aHasData = a.updatedAt !== a.createdAt;
+            const bHasData = b.updatedAt !== b.createdAt;
             if (aHasData && !bHasData) return -1;
             if (!aHasData && bHasData) return 1;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();

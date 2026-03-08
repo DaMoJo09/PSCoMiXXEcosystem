@@ -549,7 +549,7 @@ export default function MotionStudio() {
     msCreationAttempted.current = true;
 
     let cancelled = false;
-    fetch("/api/projects", { credentials: "include" })
+    fetch("/api/projects?fields=meta", { credentials: "include" })
       .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
         if (cancelled) return;
