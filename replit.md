@@ -36,7 +36,7 @@ Integration with Press Start LMS allows students to submit creations to their po
 The UI/UX employs a brutalist aesthetic with a dark theme, neon accents, card-style containers, and gradient accents. Typography includes Space Grotesk, Inter, and JetBrains Mono. A dynamic auto-hide sidebar provides navigation and PWA installation options.
 
 ### Project Persistence & Navigation
-All creator tools implement smart project resumption, redirecting to the most recently updated project of a specific type. New projects are only created when none exist. Auto-save-on-unmount functionality uses `navigator.sendBeacon` and `beforeunload` handlers, with the autosave endpoint merging data fields to prevent data loss.
+All creator tools implement smart project resumption, redirecting to the most recently updated project of a specific type. Projects with actual saved data are prioritized over empty/never-updated ones in the redirect sort. Server-side dedup on `POST /api/projects` prevents duplicate project creation by returning existing projects of the same type. All creator effects use `cancelled` flags and cleanup returns to prevent race conditions. New projects are only created when none exist. If the project fetch fails, it rejects (no silent empty-array fallback) so the creation guard stays active. Auto-save-on-unmount functionality uses `navigator.sendBeacon` and `beforeunload` handlers, with the autosave endpoint merging data fields to prevent data loss.
 
 ### My Library (Private)
 A private workspace displays all user projects with filtering and search capabilities, showing key project information and using loading skeletons.

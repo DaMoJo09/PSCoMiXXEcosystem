@@ -324,22 +324,29 @@ export default function CoverCreator() {
     creationAttempted.current = true;
     setIsCreating(true);
 
+    let cancelled = false;
     const timeoutId = setTimeout(() => {
+      if (cancelled) return;
       setIsCreating(false);
-      creationAttempted.current = false;
       toast.error("Project creation timed out - please try again");
     }, 15000);
 
     fetch("/api/projects", { credentials: "include" })
-      .then(res => res.ok ? res.json() : [])
+      .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
+        if (cancelled) return;
         const existing = allProjects
           .filter((p: any) => p.type === "cover")
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+          .sort((a: any, b: any) => {
+            const aHasData = a.data && Object.keys(a.data).length > 0 && a.updatedAt !== a.createdAt;
+            const bHasData = b.data && Object.keys(b.data).length > 0 && b.updatedAt !== b.createdAt;
+            if (aHasData && !bHasData) return -1;
+            if (!aHasData && bHasData) return 1;
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          });
         if (existing.length > 0) {
           clearTimeout(timeoutId);
           setIsCreating(false);
-          creationAttempted.current = false;
           navigate(`/creator/cover?id=${existing[0].id}`, { replace: true });
           return;
         }
@@ -349,16 +356,23 @@ export default function CoverCreator() {
           status: "draft",
           data: defaultCover,
         }).then((newProject) => {
+          if (cancelled) return;
           clearTimeout(timeoutId);
           setIsCreating(false);
           navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
         });
       }).catch((err) => {
+        if (cancelled) return;
         clearTimeout(timeoutId);
         toast.error(err?.message || "Failed to create project - please try again");
         setIsCreating(false);
         creationAttempted.current = false;
       });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [projectId]);
 
   useEffect(() => {

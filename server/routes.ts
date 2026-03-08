@@ -669,6 +669,22 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
       }
 
+      if (req.body.type) {
+        const userProjects = await storage.getUserProjects(req.user!.id);
+        const existing = userProjects
+          .filter((p: any) => p.type === req.body.type)
+          .sort((a: any, b: any) => {
+            const aUpdated = new Date(a.updatedAt).getTime() !== new Date(a.createdAt).getTime();
+            const bUpdated = new Date(b.updatedAt).getTime() !== new Date(b.createdAt).getTime();
+            if (aUpdated && !bUpdated) return -1;
+            if (!aUpdated && bUpdated) return 1;
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          });
+        if (existing.length > 0) {
+          return res.status(200).json(existing[0]);
+        }
+      }
+
       const result = insertProjectSchema.safeParse({
         ...req.body,
         userId: req.user!.id,

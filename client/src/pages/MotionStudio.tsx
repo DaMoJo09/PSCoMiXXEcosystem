@@ -545,14 +545,21 @@ export default function MotionStudio() {
     if (msCreationAttempted.current || createProject.isPending) return;
     msCreationAttempted.current = true;
 
+    let cancelled = false;
     fetch("/api/projects", { credentials: "include" })
-      .then(res => res.ok ? res.json() : [])
+      .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
       .then((allProjects: any[]) => {
+        if (cancelled) return;
         const existing = allProjects
           .filter((p: any) => p.type === "motion")
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+          .sort((a: any, b: any) => {
+            const aHasData = a.updatedAt !== a.createdAt;
+            const bHasData = b.updatedAt !== b.createdAt;
+            if (aHasData && !bHasData) return -1;
+            if (!aHasData && bHasData) return 1;
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          });
         if (existing.length > 0) {
-          msCreationAttempted.current = false;
           navigate(`/creator/motion?id=${existing[0].id}`, { replace: true });
           return;
         }
@@ -562,12 +569,16 @@ export default function MotionStudio() {
           status: "draft",
           data: { frames: [], tracks: [] },
         }).then((newProject) => {
+          if (cancelled) return;
           navigate(`/creator/motion?id=${newProject.id}`, { replace: true });
         });
       }).catch(() => {
+        if (cancelled) return;
         toast.error("Failed to create project");
         msCreationAttempted.current = false;
       });
+
+    return () => { cancelled = true; };
   }, [projectId]);
 
   // Track whether we imported from comic panel so project load doesn't overwrite
