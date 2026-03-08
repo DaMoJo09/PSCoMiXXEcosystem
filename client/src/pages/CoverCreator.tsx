@@ -2,9 +2,13 @@ import { Layout } from "@/components/layout/Layout";
 import html2canvas from "html2canvas";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
-  RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen
+  RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen,
+  Undo2, Redo2, Ruler, FileText,
+  AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
+  AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
+  ChevronsUp, ChevronsDown, ChevronUp, ChevronDown
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
@@ -172,12 +176,24 @@ interface CoverData {
   titleFont: string;
   titleColor: string;
   titleSize: number;
+  titleEffect?: string;
+  titleArch?: number;
+  titleStrokeColor?: string;
+  titleStrokeWidth?: number;
   subtitleFont: string;
   subtitleColor: string;
   subtitleSize: number;
+  subtitleEffect?: string;
+  subtitleArch?: number;
+  subtitleStrokeColor?: string;
+  subtitleStrokeWidth?: number;
   authorFont: string;
   authorColor: string;
   authorSize: number;
+  authorEffect?: string;
+  authorArch?: number;
+  authorStrokeColor?: string;
+  authorStrokeWidth?: number;
   backBlurb: string;
   backBlurbFont: string;
   backBlurbColor: string;
@@ -199,6 +215,7 @@ interface CoverData {
   issueNumber: string;
   publisherName: string;
   tagline: string;
+  isbn: string;
   filters: typeof FILTER_PRESETS;
   titleTransform?: TransformState;
   subtitleTransform?: TransformState;
@@ -207,6 +224,7 @@ interface CoverData {
   bannerTransform?: TransformState;
   priceBoxTransform?: TransformState;
   issueNumberTransform?: TransformState;
+  elementZOrder: string[];
 }
 
 const defaultCover: CoverData = {
@@ -249,7 +267,9 @@ const defaultCover: CoverData = {
   issueNumber: "#1",
   publisherName: "PUBLISHER",
   tagline: "COLLECT THEM ALL!",
+  isbn: "",
   filters: { ...FILTER_PRESETS },
+  elementZOrder: ["master-banner", "master-issue", "master-title", "master-subtitle", "master-author", "master-price"],
 };
 
 export default function CoverCreator() {
@@ -272,10 +292,20 @@ export default function CoverCreator() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(!projectId);
   const creationAttempted = useRef(false);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const selectedLayerId = selectedLayerIds[0] || null;
+  const setSelectedLayerId = useCallback((id: string | null) => {
+    setSelectedLayerIds(id ? [id] : []);
+  }, []);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
+  const [selectedMasterElement, setSelectedMasterElement] = useState<string | null>(null);
+
+  const historyRef = useRef<CoverData[]>([]);
+  const historyIndexRef = useRef(-1);
+  const isUndoRedoRef = useRef(false);
 
   const coverContentRef = useRef<HTMLDivElement>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -323,9 +353,277 @@ export default function CoverCreator() {
     }
   }, [project]);
 
-  const updateCover = (updates: Partial<CoverData>) => {
-    setCoverData(prev => ({ ...prev, ...updates }));
+  useEffect(() => {
+    if (!comicId) return;
+    fetch(`/api/projects/${comicId}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(comic => {
+        if (comic && !projectId) {
+          setCoverData(prev => ({
+            ...prev,
+            title: comic.title || prev.title,
+            spineText: comic.title || prev.spineText,
+            author: comic.data?.author || prev.author,
+          }));
+          toast.info("Auto-populated from comic project");
+        }
+      })
+      .catch(() => {});
+  }, [comicId, projectId]);
+
+  const pushHistory = useCallback((data: CoverData) => {
+    if (isUndoRedoRef.current) return;
+    const idx = historyIndexRef.current;
+    const newHistory = historyRef.current.slice(0, idx + 1);
+    newHistory.push(JSON.parse(JSON.stringify(data)));
+    if (newHistory.length > 50) newHistory.shift();
+    historyRef.current = newHistory;
+    historyIndexRef.current = newHistory.length - 1;
+  }, []);
+
+  const updateCover = useCallback((updates: Partial<CoverData>) => {
+    setCoverData(prev => {
+      const next = { ...prev, ...updates };
+      pushHistory(next);
+      return next;
+    });
+  }, [pushHistory]);
+
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    isUndoRedoRef.current = true;
+    historyIndexRef.current--;
+    setCoverData(JSON.parse(JSON.stringify(historyRef.current[historyIndexRef.current])));
+    isUndoRedoRef.current = false;
+  }, []);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    isUndoRedoRef.current = true;
+    historyIndexRef.current++;
+    setCoverData(JSON.parse(JSON.stringify(historyRef.current[historyIndexRef.current])));
+    isUndoRedoRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (historyRef.current.length === 0) {
+      historyRef.current = [JSON.parse(JSON.stringify(coverData))];
+      historyIndexRef.current = 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        redo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+      if (e.key === "Delete" && selectedLayerIds.length > 0 && !editingMasterId && !editingTextId) {
+        const viewKey = activeView === "spread" ? "front" : activeView;
+        const updates: Partial<CoverData> = {};
+        const textLayers = coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[];
+        const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+        updates[`${viewKey}Layers` as keyof CoverData] = textLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
+        updates[`${viewKey}ImageLayers` as keyof CoverData] = imgLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
+        updateCover(updates);
+        setSelectedLayerIds([]);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [undo, redo, selectedLayerIds, editingMasterId, editingTextId, activeView, coverData]);
+
+  const handleShiftSelect = useCallback((id: string, e?: React.MouseEvent) => {
+    if (e?.shiftKey) {
+      setSelectedLayerIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    } else {
+      setSelectedLayerIds([id]);
+    }
+  }, []);
+
+  const generateEAN13Barcode = useCallback((isbn: string): string => {
+    const digits = isbn.replace(/[^0-9]/g, "");
+    if (digits.length !== 13) return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 100;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, 200, 100);
+    ctx.fillStyle = "#000000";
+
+    const LEFT_ODD = [
+      "0001101","0011001","0010011","0111101","0100011","0110001","0101111","0111011","0110111","0001011"
+    ];
+    const LEFT_EVEN = [
+      "0100111","0110011","0011011","0100001","0011101","0111001","0000101","0010001","0001001","0010111"
+    ];
+    const RIGHT = [
+      "1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"
+    ];
+    const PARITY = [
+      "OOOOOO","OOEOEE","OOEEOE","OOEEEO","OEOOEE","OEEOOE","OEEEOO","OEOEOE","OEOEEO","OEEOEO"
+    ];
+    const d = digits.split("").map(Number);
+    const parity = PARITY[d[0]];
+    let bits = "101";
+    for (let i = 0; i < 6; i++) {
+      bits += parity[i] === "O" ? LEFT_ODD[d[i + 1]] : LEFT_EVEN[d[i + 1]];
+    }
+    bits += "01010";
+    for (let i = 7; i < 13; i++) {
+      bits += RIGHT[d[i]];
+    }
+    bits += "101";
+    const barWidth = 1.6;
+    const startX = 10;
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i] === "1") {
+        const isGuard = i < 3 || (i >= 45 && i < 50) || i >= 92;
+        ctx.fillRect(startX + i * barWidth, 5, barWidth, isGuard ? 75 : 65);
+      }
+    }
+    ctx.font = "10px monospace";
+    ctx.fillText(digits.substring(0, 1), 1, 90);
+    ctx.fillText(digits.substring(1, 7), startX + 8, 90);
+    ctx.fillText(digits.substring(7, 13), startX + 56 * barWidth, 90);
+    return canvas.toDataURL("image/png");
+  }, []);
+
+  const handlePDFExport = async () => {
+    if (!coverContentRef.current) return;
+    try {
+      toast.info("Generating print-ready PDF...");
+      const el = coverContentRef.current;
+      const targetDPI = 300;
+      const inchW = activeView === "spread" ? 13.95 : activeView === "spine" ? 0.7 : 6.625;
+      const inchH = activeView === "spread" ? 10.25 : activeView === "spine" ? 10.25 : 10.25;
+      const targetWidth = Math.round(inchW * targetDPI);
+      const printScale = targetWidth / el.offsetWidth;
+      const canvas = await html2canvas(el, {
+        scale: printScale,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
+      });
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({
+        orientation: inchW > inchH ? "landscape" : "portrait",
+        unit: "in",
+        format: [inchW, inchH],
+      });
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, "PNG", 0, 0, inchW, inchH);
+      pdf.save(`${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.pdf`);
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF");
+    }
   };
+
+  const alignElements = useCallback((direction: string) => {
+    if (!selectedLayerId) return;
+    const id = selectedLayerId;
+    const viewKey = activeView === "spread" ? "front" : activeView;
+    const isMaster = id.startsWith("master-");
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+    const getCanvasSize = () => {
+      if (activeView === "front" || activeView === "back") return { w: 600, h: 900 };
+      if (activeView === "spine") return { w: 80, h: 900 };
+      return { w: 1020, h: 720 };
+    };
+    const { w: cw, h: ch } = getCanvasSize();
+
+    if (isMaster) {
+      const transformKey = `${id.replace("master-", "")}Transform` as keyof CoverData;
+      const mapKey: Record<string, string> = {
+        "master-title": "titleTransform", "master-subtitle": "subtitleTransform",
+        "master-author": "authorTransform", "master-blurb": "backBlurbTransform",
+        "master-banner": "bannerTransform", "master-price": "priceBoxTransform",
+        "master-issue": "issueNumberTransform"
+      };
+      const key = mapKey[id] as keyof CoverData;
+      if (!key) return;
+      const t = (coverData[key] as TransformState) || { x: 0, y: 0, width: 200, height: 40, rotation: 0, scaleX: 1, scaleY: 1 };
+      let newT = { ...t };
+      if (direction === "left") newT.x = 0;
+      if (direction === "center-h") newT.x = (cw - t.width) / 2;
+      if (direction === "right") newT.x = cw - t.width;
+      if (direction === "top") newT.y = 0;
+      if (direction === "center-v") newT.y = (ch - t.height) / 2;
+      if (direction === "bottom") newT.y = ch - t.height;
+      updateCover({ [key]: newT });
+    } else {
+      const layers = coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[];
+      const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+      const tl = layers.find(l => l.id === id);
+      const il = imgLayers.find(l => l.id === id);
+      if (tl) {
+        let newT = { ...tl.transform };
+        if (direction === "left") newT.x = 0;
+        if (direction === "center-h") newT.x = (cw - newT.width) / 2;
+        if (direction === "right") newT.x = cw - newT.width;
+        if (direction === "top") newT.y = 0;
+        if (direction === "center-v") newT.y = (ch - newT.height) / 2;
+        if (direction === "bottom") newT.y = ch - newT.height;
+        updateCover({ [`${viewKey}Layers`]: layers.map(l => l.id === id ? { ...l, transform: newT } : l) });
+      }
+      if (il) {
+        let newT = { ...il.transform };
+        if (direction === "left") newT.x = 0;
+        if (direction === "center-h") newT.x = (cw - newT.width) / 2;
+        if (direction === "right") newT.x = cw - newT.width;
+        if (direction === "top") newT.y = 0;
+        if (direction === "center-v") newT.y = (ch - newT.height) / 2;
+        if (direction === "bottom") newT.y = ch - newT.height;
+        updateCover({ [`${viewKey}ImageLayers`]: imgLayers.map(l => l.id === id ? { ...l, transform: newT } : l) });
+      }
+    }
+  }, [selectedLayerId, activeView, coverData, updateCover]);
+
+  const moveLayerOrder = useCallback((id: string, direction: "front" | "back" | "forward" | "backward") => {
+    const order = [...(coverData.elementZOrder || [])];
+    const idx = order.indexOf(id);
+    if (idx === -1) {
+      order.push(id);
+      updateCover({ elementZOrder: order });
+      return;
+    }
+    let newOrder = [...order];
+    if (direction === "front") {
+      newOrder.splice(idx, 1);
+      newOrder.push(id);
+    } else if (direction === "back") {
+      newOrder.splice(idx, 1);
+      newOrder.unshift(id);
+    } else if (direction === "forward" && idx < order.length - 1) {
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+    } else if (direction === "backward" && idx > 0) {
+      [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
+    }
+    updateCover({ elementZOrder: newOrder });
+  }, [coverData.elementZOrder, updateCover]);
+
+  const getMasterElementInfo = useCallback((id: string) => {
+    const map: Record<string, { label: string; fontKey: string; colorKey: string; sizeKey: string; effectKey: string; archKey: string; strokeColorKey: string; strokeWidthKey: string }> = {
+      "master-title": { label: "Title", fontKey: "titleFont", colorKey: "titleColor", sizeKey: "titleSize", effectKey: "titleEffect", archKey: "titleArch", strokeColorKey: "titleStrokeColor", strokeWidthKey: "titleStrokeWidth" },
+      "master-subtitle": { label: "Subtitle", fontKey: "subtitleFont", colorKey: "subtitleColor", sizeKey: "subtitleSize", effectKey: "subtitleEffect", archKey: "subtitleArch", strokeColorKey: "subtitleStrokeColor", strokeWidthKey: "subtitleStrokeWidth" },
+      "master-author": { label: "Author", fontKey: "authorFont", colorKey: "authorColor", sizeKey: "authorSize", effectKey: "authorEffect", archKey: "authorArch", strokeColorKey: "authorStrokeColor", strokeWidthKey: "authorStrokeWidth" },
+    };
+    return map[id] || null;
+  }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -579,7 +877,7 @@ export default function CoverCreator() {
       <div 
         className="relative overflow-hidden border-2 border-black shadow-xl"
         style={{ width, height, backgroundColor: bgColor }}
-        onClick={() => { setSelectedLayerId(null); setEditingMasterId(null); setActiveView(view); }}
+        onClick={(e) => { if (!e.shiftKey) setSelectedLayerIds([]); setEditingMasterId(null); setActiveView(view); }}
       >
         {bgImage && (
           <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" style={getFilterStyle()} />
@@ -613,8 +911,8 @@ export default function CoverCreator() {
               <TransformableElement
                 id="master-banner"
                 initialTransform={coverData.bannerTransform || { x: 0, y: 0, width: 500, height: 32, rotation: 0, scaleX: 1, scaleY: 1 }}
-                isSelected={selectedLayerId === "master-banner"}
-                onSelect={setSelectedLayerId}
+                isSelected={selectedLayerIds.includes("master-banner")}
+                onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ bannerTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
@@ -655,8 +953,8 @@ export default function CoverCreator() {
               <TransformableElement
                 id="master-price"
                 initialTransform={coverData.priceBoxTransform || { x: 440, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
-                isSelected={selectedLayerId === "master-price"}
-                onSelect={setSelectedLayerId}
+                isSelected={selectedLayerIds.includes("master-price")}
+                onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ priceBoxTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
@@ -682,8 +980,8 @@ export default function CoverCreator() {
               <TransformableElement
                 id="master-issue"
                 initialTransform={coverData.issueNumberTransform || { x: 4, y: 4, width: 60, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
-                isSelected={selectedLayerId === "master-issue"}
-                onSelect={setSelectedLayerId}
+                isSelected={selectedLayerIds.includes("master-issue")}
+                onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ issueNumberTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
@@ -711,11 +1009,12 @@ export default function CoverCreator() {
             <TransformableElement
               id="master-title"
               initialTransform={coverData.titleTransform || { x: 30, y: 80, width: 280, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
-              isSelected={selectedLayerId === "master-title"}
-              onSelect={setSelectedLayerId}
+              isSelected={selectedLayerIds.includes("master-title")}
+              onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ titleTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-title") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
                 {editingMasterId === "master-title" ? (
@@ -729,13 +1028,23 @@ export default function CoverCreator() {
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
                   />
                 ) : (
-                  <h1 
-                    style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${coverData.titleSize}px` }}
-                    className="font-bold uppercase tracking-tight leading-none cursor-text"
-                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-title"); }}
-                  >
-                    {coverData.title}
-                  </h1>
+                  <TextElement
+                    id="master-title-text"
+                    text={coverData.title}
+                    fontSize={coverData.titleSize}
+                    fontFamily={coverData.titleFont}
+                    color={coverData.titleColor}
+                    textEffect={coverData.titleEffect as any}
+                    textArch={coverData.titleArch}
+                    strokeColor={coverData.titleStrokeColor}
+                    strokeWidth={coverData.titleStrokeWidth}
+                    fontWeight="bold"
+                    textTransform="uppercase"
+                    isEditing={false}
+                    onEditStart={() => setEditingMasterId("master-title")}
+                    onEditEnd={() => {}}
+                    onChange={() => {}}
+                  />
                 )}
               </div>
             </TransformableElement>
@@ -743,11 +1052,12 @@ export default function CoverCreator() {
             <TransformableElement
               id="master-subtitle"
               initialTransform={coverData.subtitleTransform || { x: 80, y: 170, width: 200, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
-              isSelected={selectedLayerId === "master-subtitle"}
-              onSelect={setSelectedLayerId}
+              isSelected={selectedLayerIds.includes("master-subtitle")}
+              onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ subtitleTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-subtitle") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
                 {editingMasterId === "master-subtitle" ? (
@@ -761,13 +1071,22 @@ export default function CoverCreator() {
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
                   />
                 ) : (
-                  <p 
-                    style={{ fontFamily: coverData.subtitleFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize}px` }}
-                    className="italic cursor-text"
-                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-subtitle"); }}
-                  >
-                    {coverData.subtitle}
-                  </p>
+                  <TextElement
+                    id="master-subtitle-text"
+                    text={coverData.subtitle}
+                    fontSize={coverData.subtitleSize}
+                    fontFamily={coverData.subtitleFont}
+                    color={coverData.subtitleColor}
+                    textEffect={coverData.subtitleEffect as any}
+                    textArch={coverData.subtitleArch}
+                    strokeColor={coverData.subtitleStrokeColor}
+                    strokeWidth={coverData.subtitleStrokeWidth}
+                    fontStyle="italic"
+                    isEditing={false}
+                    onEditStart={() => setEditingMasterId("master-subtitle")}
+                    onEditEnd={() => {}}
+                    onChange={() => {}}
+                  />
                 )}
               </div>
             </TransformableElement>
@@ -775,11 +1094,12 @@ export default function CoverCreator() {
             <TransformableElement
               id="master-author"
               initialTransform={coverData.authorTransform || { x: 60, y: 440, width: 220, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
-              isSelected={selectedLayerId === "master-author"}
-              onSelect={setSelectedLayerId}
+              isSelected={selectedLayerIds.includes("master-author")}
+              onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ authorTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-author") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
                 {editingMasterId === "master-author" ? (
@@ -793,13 +1113,23 @@ export default function CoverCreator() {
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
                   />
                 ) : (
-                  <p 
-                    style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
-                    className="font-medium tracking-widest uppercase cursor-text"
-                    onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-author"); }}
-                  >
-                    {coverData.author}
-                  </p>
+                  <TextElement
+                    id="master-author-text"
+                    text={coverData.author}
+                    fontSize={coverData.authorSize}
+                    fontFamily={coverData.authorFont}
+                    color={coverData.authorColor}
+                    textEffect={coverData.authorEffect as any}
+                    textArch={coverData.authorArch}
+                    strokeColor={coverData.authorStrokeColor}
+                    strokeWidth={coverData.authorStrokeWidth}
+                    fontWeight="bold"
+                    textTransform="uppercase"
+                    isEditing={false}
+                    onEditStart={() => setEditingMasterId("master-author")}
+                    onEditEnd={() => {}}
+                    onChange={() => {}}
+                  />
                 )}
               </div>
             </TransformableElement>
@@ -811,8 +1141,8 @@ export default function CoverCreator() {
             <TransformableElement
               id="master-blurb"
               initialTransform={coverData.backBlurbTransform || { x: 20, y: 60, width: 300, height: 350, rotation: 0, scaleX: 1, scaleY: 1 }}
-              isSelected={selectedLayerId === "master-blurb"}
-              onSelect={setSelectedLayerId}
+              isSelected={selectedLayerIds.includes("master-blurb")}
+              onSelect={(id) => handleShiftSelect(id)}
               onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
               locked={false}
               containerRef={canvasRef}
@@ -840,9 +1170,13 @@ export default function CoverCreator() {
               </div>
             </TransformableElement>
             <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
-              <div className="w-32 h-10 bg-white/10 flex items-center justify-center text-xs text-white/50 font-mono">
-                ISBN
-              </div>
+              {coverData.isbn && generateEAN13Barcode(coverData.isbn) ? (
+                <img src={generateEAN13Barcode(coverData.isbn)} alt="ISBN Barcode" className="h-16 object-contain" />
+              ) : (
+                <div className="w-32 h-10 bg-white/10 flex items-center justify-center text-xs text-white/50 font-mono">
+                  ISBN
+                </div>
+              )}
             </div>
           </>
         )}
@@ -876,8 +1210,8 @@ export default function CoverCreator() {
             key={imgLayer.id}
             id={imgLayer.id}
             initialTransform={imgLayer.transform}
-            isSelected={selectedLayerId === imgLayer.id}
-            onSelect={setSelectedLayerId}
+            isSelected={selectedLayerIds.includes(imgLayer.id)}
+            onSelect={(id) => handleShiftSelect(id)}
             onTransformChange={(id, transform) => updateImageLayer(view, id, { transform })}
             onDelete={(id) => deleteImageLayer(view, id)}
             locked={imgLayer.locked}
@@ -898,8 +1232,8 @@ export default function CoverCreator() {
             key={layer.id}
             id={layer.id}
             initialTransform={layer.transform}
-            isSelected={selectedLayerId === layer.id}
-            onSelect={setSelectedLayerId}
+            isSelected={selectedLayerIds.includes(layer.id)}
+            onSelect={(id) => handleShiftSelect(id)}
             onTransformChange={(id, transform) => updateTextLayer(view, id, { transform })}
             onDelete={(id) => deleteTextLayer(view, id)}
             locked={layer.locked}
@@ -912,13 +1246,13 @@ export default function CoverCreator() {
               fontFamily={layer.fontFamily}
               color={layer.color}
               textArch={layer.textArch}
-              textEffect={layer.textEffect}
+              textEffect={layer.textEffect as any}
               strokeColor={layer.strokeColor}
               strokeWidth={layer.strokeWidth}
               shadowColor={layer.shadowColor}
-              fontWeight={layer.fontWeight}
-              fontStyle={layer.fontStyle}
-              textTransform={layer.textTransform}
+              fontWeight={layer.fontWeight as any}
+              fontStyle={layer.fontStyle as any}
+              textTransform={layer.textTransform as any}
               isEditing={editingTextId === layer.id}
               onEditStart={() => setEditingTextId(layer.id)}
               onEditEnd={() => setEditingTextId(null)}
@@ -926,6 +1260,17 @@ export default function CoverCreator() {
             />
           </TransformableElement>
         ))}
+
+        {showGuides && view !== "spine" && (
+          <>
+            <div className="absolute inset-0 pointer-events-none z-[60]" style={{ border: "2px dashed rgba(255,0,0,0.6)", margin: "-9px" }} title="Bleed (0.125&quot;)" />
+            <div className="absolute inset-0 pointer-events-none z-[60]" style={{ border: "1px dashed rgba(0,120,255,0.7)" }} title="Trim Line" />
+            <div className="absolute pointer-events-none z-[60]" style={{ inset: "18px", border: "1px dashed rgba(0,200,80,0.6)" }} title="Safe Zone (0.25&quot;)" />
+            <div className="absolute top-0 left-0 text-[8px] text-red-400 bg-black/60 px-1 z-[61]">BLEED</div>
+            <div className="absolute top-0 right-0 text-[8px] text-blue-400 bg-black/60 px-1 z-[61]">TRIM</div>
+            <div className="absolute bottom-0 left-0 text-[8px] text-green-400 bg-black/60 px-1 z-[61]">SAFE</div>
+          </>
+        )}
       </div>
     );
   };
@@ -966,7 +1311,61 @@ export default function CoverCreator() {
               ))}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <div className="flex border border-zinc-700 mr-1">
+              <button onClick={undo} className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Undo (Ctrl+Z)" data-testid="button-undo">
+                <Undo2 className="w-4 h-4" />
+              </button>
+              <button onClick={redo} className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Redo (Ctrl+Shift+Z)" data-testid="button-redo">
+                <Redo2 className="w-4 h-4" />
+              </button>
+            </div>
+            {selectedLayerId && (
+              <div className="flex border border-zinc-700 mr-1">
+                <button onClick={() => alignElements("left")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Left">
+                  <AlignHorizontalJustifyStart className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => alignElements("center-h")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Center">
+                  <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => alignElements("right")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Right">
+                  <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => alignElements("top")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Top">
+                  <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => alignElements("center-v")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Middle">
+                  <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => alignElements("bottom")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Align Bottom">
+                  <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            {selectedLayerId && (
+              <div className="flex border border-zinc-700 mr-1">
+                <button onClick={() => moveLayerOrder(selectedLayerId, "front")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Bring to Front">
+                  <ChevronsUp className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => moveLayerOrder(selectedLayerId, "forward")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Bring Forward">
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => moveLayerOrder(selectedLayerId, "backward")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Send Backward">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => moveLayerOrder(selectedLayerId, "back")} className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white" title="Send to Back">
+                  <ChevronsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setShowGuides(!showGuides)}
+              className={`p-2 border ${showGuides ? "bg-cyan-600 border-cyan-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"}`}
+              title="Bleed/Trim/Safe Guides"
+              data-testid="button-toggle-guides"
+            >
+              <Ruler className="w-4 h-4" />
+            </button>
             <button
               onClick={() => setShowAssetBrowser(true)}
               className="px-4 py-2 bg-violet-600 hover:bg-violet-500 border border-violet-500 text-sm font-bold flex items-center gap-2"
@@ -993,9 +1392,16 @@ export default function CoverCreator() {
             )}
             <button 
               onClick={handleExport}
-              className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200"
+              className="px-3 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200"
             >
-              <Download className="w-4 h-4" /> Export
+              <Download className="w-4 h-4" /> PNG
+            </button>
+            <button 
+              onClick={handlePDFExport}
+              className="px-3 py-2 bg-amber-500 text-black text-sm font-bold flex items-center gap-2 hover:bg-amber-400"
+              data-testid="button-export-pdf"
+            >
+              <FileText className="w-4 h-4" /> PDF
             </button>
           </div>
         </header>
@@ -1108,6 +1514,14 @@ export default function CoverCreator() {
                         Show
                       </label>
                     </div>
+                    <input 
+                      type="text" 
+                      placeholder="ISBN (13 digits for barcode)"
+                      value={coverData.isbn}
+                      onChange={(e) => updateCover({ isbn: e.target.value })}
+                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                      data-testid="input-isbn"
+                    />
                   </div>
                 </div>
 
@@ -1210,6 +1624,43 @@ export default function CoverCreator() {
                       max="48"
                     />
                   </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700">
+                  <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Text Effects</label>
+                  {(["title", "subtitle", "author"] as const).map(field => {
+                    const effectKey = `${field}Effect` as keyof CoverData;
+                    const archKey = `${field}Arch` as keyof CoverData;
+                    const strokeColorKey = `${field}StrokeColor` as keyof CoverData;
+                    const strokeWidthKey = `${field}StrokeWidth` as keyof CoverData;
+                    const label = field.charAt(0).toUpperCase() + field.slice(1);
+                    return (
+                      <div key={field} className="space-y-1 mb-3">
+                        <span className="text-[10px] text-zinc-500">{label}</span>
+                        <select
+                          value={(coverData[effectKey] as string) || "none"}
+                          onChange={(e) => updateCover({ [effectKey]: e.target.value })}
+                          className="w-full bg-zinc-900 border border-zinc-600 p-1 text-xs"
+                          data-testid={`select-${field}-effect`}
+                        >
+                          {["none", "comic", "outline", "3d", "retro", "glow", "neon", "fire", "ice"].map(e => (
+                            <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>
+                          ))}
+                        </select>
+                        {["outline", "comic", "3d", "retro"].includes((coverData[effectKey] as string) || "none") && (
+                          <div className="flex gap-2">
+                            <input type="color" value={(coverData[strokeColorKey] as string) || "#000000"} onChange={(e) => updateCover({ [strokeColorKey]: e.target.value })} className="w-8 h-6 bg-zinc-900 border border-zinc-600 cursor-pointer" />
+                            <input type="number" value={(coverData[strokeWidthKey] as number) || 2} onChange={(e) => updateCover({ [strokeWidthKey]: Number(e.target.value) })} className="flex-1 bg-zinc-900 border border-zinc-600 p-1 text-xs text-center" min="0" max="10" step="0.5" />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-zinc-600">Arch</span>
+                          <input type="range" min="-100" max="100" step="5" value={(coverData[archKey] as number) || 0} onChange={(e) => updateCover({ [archKey]: Number(e.target.value) })} className="flex-1 h-1 accent-cyan-500" />
+                          <span className="text-[9px] text-zinc-600 w-6 text-right">{(coverData[archKey] as number) || 0}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="pt-4 border-t border-zinc-700">
@@ -1645,6 +2096,46 @@ export default function CoverCreator() {
                 <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
                      style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
                 
+                {selectedLayerId && getMasterElementInfo(selectedLayerId) && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[70] bg-zinc-900 border border-zinc-700 p-2 flex items-center gap-2 shadow-xl" data-testid="floating-toolbar">
+                    {(() => {
+                      const info = getMasterElementInfo(selectedLayerId)!;
+                      return (
+                        <>
+                          <select
+                            value={(coverData as any)[info.fontKey]}
+                            onChange={(e) => updateCover({ [info.fontKey]: e.target.value })}
+                            className="bg-zinc-800 border border-zinc-600 text-xs p-1 max-w-[120px]"
+                          >
+                            {FONT_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                          <input
+                            type="number"
+                            value={(coverData as any)[info.sizeKey]}
+                            onChange={(e) => updateCover({ [info.sizeKey]: Number(e.target.value) })}
+                            className="w-14 bg-zinc-800 border border-zinc-600 text-xs p-1 text-center"
+                            min="8" max="200"
+                          />
+                          <input
+                            type="color"
+                            value={(coverData as any)[info.colorKey]}
+                            onChange={(e) => updateCover({ [info.colorKey]: e.target.value })}
+                            className="w-7 h-7 bg-zinc-800 border border-zinc-600 cursor-pointer"
+                          />
+                          <select
+                            value={(coverData as any)[info.effectKey] || "none"}
+                            onChange={(e) => updateCover({ [info.effectKey]: e.target.value })}
+                            className="bg-zinc-800 border border-zinc-600 text-xs p-1"
+                          >
+                            {["none", "comic", "outline", "3d", "retro", "glow", "neon", "fire", "ice"].map(e => (
+                              <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>
+                            ))}
+                          </select>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
                 <div ref={coverContentRef}>
                 {activeView === "spread" ? (
                   <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
@@ -1703,6 +2194,24 @@ export default function CoverCreator() {
               >
                 <Pen className="w-4 h-4 mr-2" /> Draw on {activeView === "spread" ? "Front" : activeView}
               </ContextMenuItem>
+              <ContextMenuSeparator className="bg-zinc-700" />
+              {selectedLayerId && (
+                <>
+                  <ContextMenuSeparator className="bg-zinc-700" />
+                  <ContextMenuItem onClick={() => moveLayerOrder(selectedLayerId, "front")} className="hover:bg-zinc-800 cursor-pointer">
+                    <ChevronsUp className="w-4 h-4 mr-2" /> Bring to Front
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => moveLayerOrder(selectedLayerId, "forward")} className="hover:bg-zinc-800 cursor-pointer">
+                    <ChevronUp className="w-4 h-4 mr-2" /> Bring Forward
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => moveLayerOrder(selectedLayerId, "backward")} className="hover:bg-zinc-800 cursor-pointer">
+                    <ChevronDown className="w-4 h-4 mr-2" /> Send Backward
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => moveLayerOrder(selectedLayerId, "back")} className="hover:bg-zinc-800 cursor-pointer">
+                    <ChevronsDown className="w-4 h-4 mr-2" /> Send to Back
+                  </ContextMenuItem>
+                </>
+              )}
               <ContextMenuSeparator className="bg-zinc-700" />
               <ContextMenuItem onClick={() => setActiveView("front")} className="hover:bg-zinc-800 cursor-pointer">
                 <Eye className="w-4 h-4 mr-2" /> View Front

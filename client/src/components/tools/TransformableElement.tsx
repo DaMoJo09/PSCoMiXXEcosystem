@@ -31,6 +31,7 @@ interface TransformableElementProps {
   minWidth?: number;
   minHeight?: number;
   containerRef?: React.RefObject<HTMLElement | null>;
+  style?: React.CSSProperties;
 }
 
 const HANDLE_SIZE = 10;
@@ -49,6 +50,7 @@ export function TransformableElement({
   minWidth = 50,
   minHeight = 50,
   containerRef,
+  style: extraStyle,
 }: TransformableElementProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<TransformState>({
@@ -306,6 +308,7 @@ export function TransformableElement({
         height: transform.height,
         transform: `rotate(${transform.rotation}deg)`,
         cursor: locked ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+        ...extraStyle,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); onSelect?.(id); }}
