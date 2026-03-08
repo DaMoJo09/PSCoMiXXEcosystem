@@ -3,7 +3,7 @@ import html2canvas from "html2canvas";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
-  Copy, Layers, Eye, Pen, Share2
+  Copy, Layers, Eye, Pen, Share2, Printer, Users, Trophy, Grid3X3
 } from "lucide-react";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
@@ -104,6 +104,17 @@ const PACK_TEMPLATES = [
   { id: "collectors", name: "Collector's Box", cards: 15, guaranteed: ["Legendary"], distribution: { Rare: 5, Epic: 6, Legendary: 4 } },
   { id: "mega", name: "Mega Pack", cards: 20, guaranteed: ["Mythic"], distribution: { Common: 5, Uncommon: 5, Rare: 5, Epic: 3, Legendary: 1, Mythic: 1 } },
   { id: "custom", name: "Custom Pack", cards: 5, guaranteed: [], distribution: { Common: 2, Uncommon: 1, Rare: 1, Epic: 1 } },
+];
+
+const SPORTS_PACK_TEMPLATES = [
+  { id: "team-roster", name: "Team Roster", cards: 15, description: "Full team roster cards" },
+  { id: "starting-lineup", name: "Starting Lineup", cards: 5, description: "Starting 5 / First team" },
+  { id: "varsity-squad", name: "Varsity Squad", cards: 12, description: "Varsity team set" },
+  { id: "jv-squad", name: "JV Squad", cards: 12, description: "Junior varsity set" },
+  { id: "all-stars", name: "All-Stars Pack", cards: 10, description: "Best of the best" },
+  { id: "senior-night", name: "Senior Night", cards: 8, description: "Senior class tribute" },
+  { id: "championship", name: "Championship Set", cards: 20, description: "Full season roster" },
+  { id: "custom-team", name: "Custom Team", cards: 10, description: "Build your own set" },
 ];
 
 const RARITY_COLORS: { [key: string]: string } = {
@@ -217,6 +228,14 @@ interface PackData {
   totalInSet: number;
   guaranteedRarities: string[];
   price: string;
+  packMode: "tcg" | "sports";
+  teamName: string;
+  sport: string;
+  season: string;
+  school: string;
+  teamColors: { primary: string; secondary: string };
+  coachName: string;
+  mascot: string;
 }
 
 export default function CardCreator() {
@@ -312,7 +331,18 @@ export default function CardCreator() {
     totalInSet: 100,
     guaranteedRarities: ["Uncommon"],
     price: "$4.99",
+    packMode: "tcg",
+    teamName: "",
+    sport: "Basketball",
+    season: new Date().getFullYear().toString(),
+    school: "",
+    teamColors: { primary: "#1D1160", secondary: "#FF6B00" },
+    coachName: "",
+    mascot: "",
   });
+
+  const [showTeamPrint, setShowTeamPrint] = useState(false);
+  const teamPrintRef = useRef<HTMLDivElement>(null);
 
   const [selectedPackCard, setSelectedPackCard] = useState<string | null>(null);
   const [showPackOpening, setShowPackOpening] = useState(false);
@@ -459,12 +489,14 @@ export default function CardCreator() {
   };
 
   const addCardToPack = () => {
-    const types = cardMode === "sports" ? SPORTS_CARD_TYPES : CARD_TYPES;
+    const isSports = packData.packMode === "sports";
+    const types = isSports ? SPORTS_CARD_TYPES : CARD_TYPES;
+    const positions = isSports ? (SPORTS_POSITIONS[packData.sport] || ["Player"]) : [];
     const newCard: CardData = {
       id: `card_${Date.now()}`,
-      name: cardMode === "sports" ? `Player ${packData.cards.length + 1}` : `Card ${packData.cards.length + 1}`,
+      name: isSports ? `Player ${packData.cards.length + 1}` : `Card ${packData.cards.length + 1}`,
       type: types[Math.floor(Math.random() * types.length)],
-      rarity: RARITIES[Math.floor(Math.random() * 3)],
+      rarity: isSports ? "Common" : RARITIES[Math.floor(Math.random() * 3)],
       frontImage: cardArt,
       backImage: backCoverArt,
       attack: Math.floor(Math.random() * 10) + 1,
@@ -475,22 +507,22 @@ export default function CardCreator() {
       nameFont: "'Impact', sans-serif",
       statsFont: "'Courier New', monospace",
       loreFont: "Georgia, serif",
-      borderColor: cardData.borderColor,
-      accentColor: cardData.accentColor,
-      templateId: cardData.templateId,
+      borderColor: isSports ? packData.teamColors.primary : cardData.borderColor,
+      accentColor: isSports ? packData.teamColors.secondary : cardData.accentColor,
+      templateId: isSports ? "team-spirit" : cardData.templateId,
       filters: { ...CARD_FILTERS },
       nameArch: 0,
-      cardMode,
-      sport: cardData.sport,
-      position: "",
-      jerseyNumber: "",
-      teamName: cardData.teamName,
-      season: cardData.season,
-      school: cardData.school,
+      cardMode: isSports ? "sports" : "tcg",
+      sport: packData.sport,
+      position: isSports ? positions[packData.cards.length % positions.length] : "",
+      jerseyNumber: isSports ? String(packData.cards.length + 1) : "",
+      teamName: packData.teamName,
+      season: packData.season,
+      school: packData.school,
     };
     setPackData({ ...packData, cards: [...packData.cards, newCard] });
     setSelectedPackCard(newCard.id);
-    toast.success("Card added to pack");
+    toast.success(isSports ? "Player card added" : "Card added to pack");
   };
 
   const updatePackCard = (cardId: string, updates: Partial<CardData>) => {
@@ -596,6 +628,95 @@ export default function CardCreator() {
     return stats;
   };
 
+  const switchPackMode = (newMode: "tcg" | "sports") => {
+    if (newMode === "sports") {
+      setPackData(prev => ({
+        ...prev,
+        packMode: "sports",
+        name: prev.teamName ? `${prev.teamName} Team Cards` : "Team Cards",
+        templateId: "team-roster",
+        cardsPerPack: 15,
+        cards: prev.cards.map((c, i) => ({
+          ...c,
+          cardMode: "sports" as const,
+          type: c.type === "Character" || c.type === "Weapon" || c.type === "Spell" ? "Player" : c.type,
+          sport: prev.sport,
+          teamName: prev.teamName,
+          season: prev.season,
+          school: prev.school,
+          borderColor: prev.teamColors.primary,
+          accentColor: prev.teamColors.secondary,
+          jerseyNumber: c.jerseyNumber || String(i + 1),
+          position: c.position || (SPORTS_POSITIONS[prev.sport] || ["Player"])[i % (SPORTS_POSITIONS[prev.sport] || ["Player"]).length],
+        })),
+      }));
+    } else {
+      setPackData(prev => ({
+        ...prev,
+        packMode: "tcg",
+        name: "Cyber Legends Pack",
+        templateId: "booster",
+        cardsPerPack: 5,
+        cards: prev.cards.map(c => ({
+          ...c,
+          cardMode: "tcg" as const,
+          type: c.type === "Player" || c.type === "Coach" || c.type === "MVP" ? "Character" : c.type,
+        })),
+      }));
+    }
+  };
+
+  const applyPackSportsTemplate = (templateId: string) => {
+    const template = SPORTS_PACK_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    setPackData(prev => ({
+      ...prev,
+      templateId,
+      cardsPerPack: template.cards,
+      name: prev.teamName ? `${prev.teamName} - ${template.name}` : template.name,
+    }));
+    toast.success(`Applied ${template.name} template`);
+  };
+
+  const handleTeamPrintExport = async () => {
+    if (packData.cards.length === 0) {
+      toast.error("Add player cards to print!");
+      return;
+    }
+    setShowTeamPrint(true);
+    setTimeout(async () => {
+      if (!teamPrintRef.current) return;
+      try {
+        toast.info("Generating print-ready team sheet (300 DPI)...");
+        const el = teamPrintRef.current;
+        const targetDPI = 300;
+        const pageWidthInches = 8.5;
+        const targetWidth = Math.round(pageWidthInches * targetDPI);
+        const printScale = targetWidth / el.offsetWidth;
+
+        const canvas = await html2canvas(el, {
+          scale: printScale,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+
+        const link = document.createElement("a");
+        const teamLabel = packData.teamName ? packData.teamName.replace(/\s+/g, "_") : "team";
+        link.download = `${teamLabel}_cards_print_${targetDPI}dpi.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+
+        toast.success(`Team sheet exported at ${canvas.width}x${canvas.height}px (${targetDPI} DPI print-ready)`);
+      } catch (error) {
+        console.error("Team print error:", error);
+        toast.error("Failed to export team sheet");
+      }
+      setShowTeamPrint(false);
+    }, 200);
+  };
+
   const selectedCard = packData.cards.find(c => c.id === selectedPackCard);
 
   if (isCreating) {
@@ -648,6 +769,11 @@ export default function CardCreator() {
             <button onClick={handleExport} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export-card">
               <Download className="w-4 h-4" /> Export
             </button>
+            {mode === "pack" && packData.packMode === "sports" && (
+              <button onClick={handleTeamPrintExport} className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-sm font-bold flex items-center gap-2" data-testid="button-print-team-sheet">
+                <Printer className="w-4 h-4" /> Print Team Sheet
+              </button>
+            )}
             {projectId && (
               <PostComposer
                 projectId={projectId}
@@ -1132,24 +1258,41 @@ export default function CardCreator() {
           </div>
           ) : (
           <div className="w-80 overflow-auto border-r border-zinc-800 bg-zinc-900 flex flex-col">
+            <div className="flex bg-zinc-800 m-2 p-1 gap-1">
+              <button
+                onClick={() => switchPackMode("tcg")}
+                className={`flex-1 py-1.5 text-xs font-bold flex items-center justify-center gap-1 ${packData.packMode === "tcg" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                data-testid="button-pack-tcg-mode"
+              >
+                <Sparkles className="w-3 h-3" /> TCG
+              </button>
+              <button
+                onClick={() => switchPackMode("sports")}
+                className={`flex-1 py-1.5 text-xs font-bold flex items-center justify-center gap-1 ${packData.packMode === "sports" ? "bg-emerald-500 text-white" : "text-zinc-400 hover:text-white"}`}
+                data-testid="button-pack-sports-mode"
+              >
+                <Trophy className="w-3 h-3" /> Sports
+              </button>
+            </div>
+
             <div className="flex border-b border-zinc-800">
               <button
                 onClick={() => setPackSection("cards")}
                 className={`flex-1 py-2 text-xs font-bold uppercase ${packSection === "cards" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
               >
-                Cards
+                {packData.packMode === "sports" ? "Roster" : "Cards"}
               </button>
               <button
                 onClick={() => setPackSection("settings")}
                 className={`flex-1 py-2 text-xs font-bold uppercase ${packSection === "settings" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
               >
-                Settings
+                {packData.packMode === "sports" ? "Team" : "Settings"}
               </button>
               <button
                 onClick={() => setPackSection("simulate")}
                 className={`flex-1 py-2 text-xs font-bold uppercase ${packSection === "simulate" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
               >
-                Simulate
+                {packData.packMode === "sports" ? "Preview" : "Simulate"}
               </button>
             </div>
 
@@ -1158,15 +1301,21 @@ export default function CardCreator() {
                 <>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Cards in Pack</label>
-                      <span className="text-xs text-zinc-500">{packData.cards.length} cards</span>
+                      <label className="text-xs font-bold uppercase text-zinc-400">
+                        {packData.packMode === "sports" ? "Players on Roster" : "Cards in Pack"}
+                      </label>
+                      <span className="text-xs text-zinc-500">{packData.cards.length} {packData.packMode === "sports" ? "players" : "cards"}</span>
                     </div>
                     <button 
                       onClick={addCardToPack}
-                      className="w-full py-2 bg-white text-black text-sm font-bold flex items-center justify-center gap-2 hover:bg-zinc-200"
+                      className={`w-full py-2 text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 ${
+                        packData.packMode === "sports" 
+                          ? "bg-emerald-600 text-white hover:bg-emerald-500" 
+                          : "bg-white text-black hover:bg-zinc-200"
+                      }`}
                       data-testid="button-add-pack-card"
                     >
-                      <Plus className="w-4 h-4" /> Add Card
+                      <Plus className="w-4 h-4" /> {packData.packMode === "sports" ? "Add Player" : "Add Card"}
                     </button>
                   </div>
 
@@ -1202,66 +1351,196 @@ export default function CardCreator() {
 
                   {selectedCard && (
                     <div className="pt-4 border-t border-zinc-700 space-y-3">
-                      <h4 className="text-xs font-bold uppercase text-zinc-400">Edit Selected Card</h4>
+                      <h4 className="text-xs font-bold uppercase text-zinc-400">
+                        {packData.packMode === "sports" ? "Edit Player Card" : "Edit Selected Card"}
+                      </h4>
                       <div className="space-y-2">
                         <input 
                           type="text" 
                           value={selectedCard.name}
                           onChange={(e) => updatePackCard(selectedCard.id, { name: e.target.value })}
                           className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
-                          placeholder="Card name"
+                          placeholder={packData.packMode === "sports" ? "Player name" : "Card name"}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select 
-                          value={selectedCard.type}
-                          onChange={(e) => updatePackCard(selectedCard.id, { type: e.target.value })}
-                          className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
-                        >
-                          {CARD_TYPES.map(t => <option key={t}>{t}</option>)}
-                        </select>
-                        <select 
-                          value={selectedCard.rarity}
-                          onChange={(e) => updatePackCard(selectedCard.id, { rarity: e.target.value })}
-                          className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
-                        >
-                          {RARITIES.map(r => <option key={r}>{r}</option>)}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] text-zinc-500">ATK</label>
-                          <input 
-                            type="number" 
-                            value={selectedCard.attack}
-                            onChange={(e) => updatePackCard(selectedCard.id, { attack: Number(e.target.value) })}
-                            className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] text-zinc-500">DEF</label>
-                          <input 
-                            type="number" 
-                            value={selectedCard.defense}
-                            onChange={(e) => updatePackCard(selectedCard.id, { defense: Number(e.target.value) })}
-                            className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] text-zinc-500">Cost</label>
-                          <input 
-                            type="number" 
-                            value={selectedCard.cost}
-                            onChange={(e) => updatePackCard(selectedCard.id, { cost: Number(e.target.value) })}
-                            className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
-                          />
-                        </div>
-                      </div>
+
+                      {packData.packMode === "sports" ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={selectedCard.type}
+                              onChange={(e) => updatePackCard(selectedCard.id, { type: e.target.value })}
+                              className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                              data-testid="select-pack-card-type"
+                            >
+                              {SPORTS_CARD_TYPES.map(t => <option key={t}>{t}</option>)}
+                            </select>
+                            <select
+                              value={selectedCard.position || ""}
+                              onChange={(e) => updatePackCard(selectedCard.id, { position: e.target.value })}
+                              className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                              data-testid="select-pack-card-position"
+                            >
+                              <option value="">Position</option>
+                              {(SPORTS_POSITIONS[packData.sport] || []).map(p => <option key={p}>{p}</option>)}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">Jersey #</label>
+                              <input
+                                type="text"
+                                value={selectedCard.jerseyNumber || ""}
+                                onChange={(e) => updatePackCard(selectedCard.id, { jerseyNumber: e.target.value })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                                placeholder="#"
+                                data-testid="input-pack-card-jersey"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">Grade</label>
+                              <select
+                                value={selectedCard.grade || ""}
+                                onChange={(e) => updatePackCard(selectedCard.id, { grade: e.target.value })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs"
+                                data-testid="select-pack-card-grade"
+                              >
+                                <option value="">Grade</option>
+                                {["6th", "7th", "8th", "9th (Fr.)", "10th (So.)", "11th (Jr.)", "12th (Sr.)"].map(g => <option key={g}>{g}</option>)}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">Height</label>
+                              <input
+                                type="text"
+                                value={selectedCard.height || ""}
+                                onChange={(e) => updatePackCard(selectedCard.id, { height: e.target.value })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                                placeholder="5'10&quot;"
+                                data-testid="input-pack-card-height"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">Weight</label>
+                              <input
+                                type="text"
+                                value={selectedCard.weight || ""}
+                                onChange={(e) => updatePackCard(selectedCard.id, { weight: e.target.value })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                                placeholder="160 lbs"
+                                data-testid="input-pack-card-weight"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500">Stat Line</label>
+                            <input
+                              type="text"
+                              value={selectedCard.statLine || ""}
+                              onChange={(e) => updatePackCard(selectedCard.id, { statLine: e.target.value })}
+                              className="w-full bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                              placeholder="e.g., 15.2 PPG | 6.4 RPG | 3.1 APG"
+                              data-testid="input-pack-card-statline"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500">Player Bio</label>
+                            <textarea
+                              value={selectedCard.lore || ""}
+                              onChange={(e) => updatePackCard(selectedCard.id, { lore: e.target.value })}
+                              className="w-full bg-zinc-800 border border-zinc-700 p-2 text-xs resize-none"
+                              rows={2}
+                              placeholder="Fun facts, achievements..."
+                              data-testid="input-pack-card-bio"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500">Player Photo</label>
+                            <button
+                              onClick={() => {
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "image/*";
+                                input.onchange = (e: any) => {
+                                  const file = e.target?.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    updatePackCard(selectedCard.id, { frontImage: ev.target?.result as string });
+                                    toast.success("Player photo updated");
+                                  };
+                                  reader.readAsDataURL(file);
+                                };
+                                input.click();
+                              }}
+                              className="w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs flex items-center justify-center gap-2"
+                            >
+                              <Upload className="w-3 h-3" /> Upload Photo
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select 
+                              value={selectedCard.type}
+                              onChange={(e) => updatePackCard(selectedCard.id, { type: e.target.value })}
+                              className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                            >
+                              {CARD_TYPES.map(t => <option key={t}>{t}</option>)}
+                            </select>
+                            <select 
+                              value={selectedCard.rarity}
+                              onChange={(e) => updatePackCard(selectedCard.id, { rarity: e.target.value })}
+                              className="bg-zinc-800 border border-zinc-700 p-2 text-xs"
+                            >
+                              {RARITIES.map(r => <option key={r}>{r}</option>)}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">ATK</label>
+                              <input 
+                                type="number" 
+                                value={selectedCard.attack}
+                                onChange={(e) => updatePackCard(selectedCard.id, { attack: Number(e.target.value) })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">DEF</label>
+                              <input 
+                                type="number" 
+                                value={selectedCard.defense}
+                                onChange={(e) => updatePackCard(selectedCard.id, { defense: Number(e.target.value) })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-zinc-500">Cost</label>
+                              <input 
+                                type="number" 
+                                value={selectedCard.cost}
+                                onChange={(e) => updatePackCard(selectedCard.id, { cost: Number(e.target.value) })}
+                                className="w-full bg-zinc-800 border border-zinc-700 p-1 text-xs text-center"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
                       <button
                         onClick={() => duplicatePackCard(selectedCard.id)}
                         className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-xs flex items-center justify-center gap-2"
                       >
-                        <RefreshCw className="w-3 h-3" /> Duplicate Card
+                        <Copy className="w-3 h-3" /> Duplicate {packData.packMode === "sports" ? "Player" : "Card"}
                       </button>
                     </div>
                   )}
@@ -1270,175 +1549,449 @@ export default function CardCreator() {
 
               {packSection === "settings" && (
                 <>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Pack Template</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {PACK_TEMPLATES.map(template => (
-                        <button
-                          key={template.id}
-                          onClick={() => applyPackTemplate(template.id)}
-                          className={`p-2 text-xs border text-left ${
-                            packData.templateId === template.id 
-                              ? "bg-white text-black border-white" 
-                              : "border-zinc-700 hover:border-zinc-500"
-                          }`}
-                          data-testid={`button-pack-template-${template.id}`}
+                  {packData.packMode === "sports" ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Team Template</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {SPORTS_PACK_TEMPLATES.map(template => (
+                            <button
+                              key={template.id}
+                              onClick={() => applyPackSportsTemplate(template.id)}
+                              className={`p-2 text-xs border text-left ${
+                                packData.templateId === template.id
+                                  ? "bg-emerald-600 text-white border-emerald-500"
+                                  : "border-zinc-700 hover:border-zinc-500"
+                              }`}
+                              data-testid={`button-pack-template-${template.id}`}
+                            >
+                              <p className="font-bold">{template.name}</p>
+                              <p className={`text-[10px] ${packData.templateId === template.id ? "text-emerald-200" : "text-zinc-500"}`}>
+                                {template.cards} cards — {template.description}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Sport</label>
+                        <select
+                          value={packData.sport}
+                          onChange={(e) => setPackData({ ...packData, sport: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          data-testid="select-pack-sport"
                         >
-                          <p className="font-bold">{template.name}</p>
-                          <p className={`text-[10px] ${packData.templateId === template.id ? "text-zinc-600" : "text-zinc-500"}`}>
-                            {template.cards} cards
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                          {SPORTS_LIST.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Pack Name</label>
-                    <input 
-                      type="text" 
-                      value={packData.name}
-                      onChange={(e) => setPackData({ ...packData, name: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Team Name</label>
+                        <input
+                          type="text"
+                          value={packData.teamName}
+                          onChange={(e) => setPackData({ ...packData, teamName: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          placeholder="e.g., Wildcats"
+                          data-testid="input-pack-team-name"
+                        />
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Series</label>
-                      <input 
-                        type="text" 
-                        value={packData.seriesName}
-                        onChange={(e) => setPackData({ ...packData, seriesName: e.target.value })}
-                        className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Price</label>
-                      <input 
-                        type="text" 
-                        value={packData.price}
-                        onChange={(e) => setPackData({ ...packData, price: e.target.value })}
-                        className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
-                      />
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">School / Organization</label>
+                        <input
+                          type="text"
+                          value={packData.school}
+                          onChange={(e) => setPackData({ ...packData, school: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          placeholder="e.g., Lincoln High School"
+                          data-testid="input-pack-school"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400 flex justify-between">
-                      <span>Pack Art</span>
-                    </label>
-                    <div 
-                      onClick={() => packArtInputRef.current?.click()}
-                      className="aspect-video bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white overflow-hidden"
-                    >
-                      <img src={packData.packArt} className="w-full h-full object-cover" />
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase text-zinc-400">Season</label>
+                          <input
+                            type="text"
+                            value={packData.season}
+                            onChange={(e) => setPackData({ ...packData, season: e.target.value })}
+                            className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                            placeholder="2025-26"
+                            data-testid="input-pack-season"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase text-zinc-400">Coach</label>
+                          <input
+                            type="text"
+                            value={packData.coachName}
+                            onChange={(e) => setPackData({ ...packData, coachName: e.target.value })}
+                            className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                            placeholder="Coach name"
+                            data-testid="input-pack-coach"
+                          />
+                        </div>
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Cards Per Pack</label>
-                    <input 
-                      type="number" 
-                      value={packData.cardsPerPack}
-                      onChange={(e) => setPackData({ ...packData, cardsPerPack: Number(e.target.value) })}
-                      className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
-                      min={1}
-                      max={20}
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Mascot</label>
+                        <input
+                          type="text"
+                          value={packData.mascot}
+                          onChange={(e) => setPackData({ ...packData, mascot: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          placeholder="Team mascot"
+                          data-testid="input-pack-mascot"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Guaranteed Rarities</label>
-                    <div className="flex flex-wrap gap-1">
-                      {RARITIES.map(rarity => (
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Team Colors</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500">Primary</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={packData.teamColors.primary}
+                                onChange={(e) => setPackData({ ...packData, teamColors: { ...packData.teamColors, primary: e.target.value } })}
+                                className="w-8 h-8 cursor-pointer bg-transparent border-0"
+                              />
+                              <span className="text-[10px] text-zinc-400 font-mono">{packData.teamColors.primary}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-zinc-500">Secondary</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={packData.teamColors.secondary}
+                                onChange={(e) => setPackData({ ...packData, teamColors: { ...packData.teamColors, secondary: e.target.value } })}
+                                className="w-8 h-8 cursor-pointer bg-transparent border-0"
+                              />
+                              <span className="text-[10px] text-zinc-400 font-mono">{packData.teamColors.secondary}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Card Template</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {SPORTS_CARD_TEMPLATES.map(template => (
+                            <button
+                              key={template.id}
+                              onClick={() => {
+                                setPackData(prev => ({
+                                  ...prev,
+                                  cards: prev.cards.map(c => ({
+                                    ...c,
+                                    templateId: template.id,
+                                    borderColor: template.borderColor,
+                                    accentColor: template.accentColor,
+                                  }))
+                                }));
+                                toast.success(`Applied ${template.name} to all cards`);
+                              }}
+                              className="p-2 text-xs border border-zinc-700 hover:border-zinc-500 text-left"
+                              style={{ borderLeftColor: template.accentColor, borderLeftWidth: 3 }}
+                            >
+                              <p className="font-bold truncate">{template.name}</p>
+                              <p className="text-[10px] text-zinc-500">{template.sport}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400 flex justify-between">
+                          <span>Pack Art / Team Logo</span>
+                        </label>
+                        <div
+                          onClick={() => packArtInputRef.current?.click()}
+                          className="aspect-video bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white overflow-hidden"
+                        >
+                          <img src={packData.packArt} className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-zinc-700">
                         <button
-                          key={rarity}
                           onClick={() => {
-                            const newGuaranteed = packData.guaranteedRarities.includes(rarity)
-                              ? packData.guaranteedRarities.filter(r => r !== rarity)
-                              : [...packData.guaranteedRarities, rarity];
-                            setPackData({ ...packData, guaranteedRarities: newGuaranteed });
+                            setPackData(prev => ({
+                              ...prev,
+                              cards: prev.cards.map(c => ({
+                                ...c,
+                                teamName: prev.teamName,
+                                school: prev.school,
+                                season: prev.season,
+                                sport: prev.sport,
+                                borderColor: prev.teamColors.primary,
+                                accentColor: prev.teamColors.secondary,
+                              }))
+                            }));
+                            toast.success("Team info applied to all cards");
                           }}
-                          className={`px-2 py-1 text-[10px] font-bold border ${
-                            packData.guaranteedRarities.includes(rarity)
-                              ? "bg-white text-black border-white"
-                              : "border-zinc-700 hover:border-zinc-500"
-                          }`}
-                          style={{ borderLeftColor: RARITY_COLORS[rarity], borderLeftWidth: 3 }}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2"
+                          data-testid="button-apply-team-to-all"
                         >
-                          {rarity}
+                          <Users className="w-3 h-3" /> Apply Team Info to All Cards
                         </button>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Pack Template</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {PACK_TEMPLATES.map(template => (
+                            <button
+                              key={template.id}
+                              onClick={() => applyPackTemplate(template.id)}
+                              className={`p-2 text-xs border text-left ${
+                                packData.templateId === template.id
+                                  ? "bg-white text-black border-white"
+                                  : "border-zinc-700 hover:border-zinc-500"
+                              }`}
+                              data-testid={`button-pack-template-${template.id}`}
+                            >
+                              <p className="font-bold">{template.name}</p>
+                              <p className={`text-[10px] ${packData.templateId === template.id ? "text-zinc-600" : "text-zinc-500"}`}>
+                                {template.cards} cards
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Pack Name</label>
+                        <input
+                          type="text"
+                          value={packData.name}
+                          onChange={(e) => setPackData({ ...packData, name: e.target.value })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase text-zinc-400">Series</label>
+                          <input
+                            type="text"
+                            value={packData.seriesName}
+                            onChange={(e) => setPackData({ ...packData, seriesName: e.target.value })}
+                            className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase text-zinc-400">Price</label>
+                          <input
+                            type="text"
+                            value={packData.price}
+                            onChange={(e) => setPackData({ ...packData, price: e.target.value })}
+                            className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400 flex justify-between">
+                          <span>Pack Art</span>
+                        </label>
+                        <div
+                          onClick={() => packArtInputRef.current?.click()}
+                          className="aspect-video bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white overflow-hidden"
+                        >
+                          <img src={packData.packArt} className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Cards Per Pack</label>
+                        <input
+                          type="number"
+                          value={packData.cardsPerPack}
+                          onChange={(e) => setPackData({ ...packData, cardsPerPack: Number(e.target.value) })}
+                          className="w-full bg-zinc-800 border border-zinc-700 p-2 text-sm text-center"
+                          min={1}
+                          max={20}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Guaranteed Rarities</label>
+                        <div className="flex flex-wrap gap-1">
+                          {RARITIES.map(rarity => (
+                            <button
+                              key={rarity}
+                              onClick={() => {
+                                const newGuaranteed = packData.guaranteedRarities.includes(rarity)
+                                  ? packData.guaranteedRarities.filter(r => r !== rarity)
+                                  : [...packData.guaranteedRarities, rarity];
+                                setPackData({ ...packData, guaranteedRarities: newGuaranteed });
+                              }}
+                              className={`px-2 py-1 text-[10px] font-bold border ${
+                                packData.guaranteedRarities.includes(rarity)
+                                  ? "bg-white text-black border-white"
+                                  : "border-zinc-700 hover:border-zinc-500"
+                              }`}
+                              style={{ borderLeftColor: RARITY_COLORS[rarity], borderLeftWidth: 3 }}
+                            >
+                              {rarity}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
               {packSection === "simulate" && (
                 <>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Pack Statistics</label>
-                    <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
-                      {Object.entries(getPackStats()).map(([rarity, count]) => (
-                        <div key={rarity} className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 text-xs">
-                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
-                            {rarity}
-                          </span>
-                          <span className="text-xs font-mono">{count} cards</span>
+                  {packData.packMode === "sports" ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Team Roster Summary</label>
+                        <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400">Total Players</span>
+                            <span className="font-bold">{packData.cards.length}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400">Sport</span>
+                            <span className="font-bold">{packData.sport}</span>
+                          </div>
+                          {packData.teamName && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-zinc-400">Team</span>
+                              <span className="font-bold">{packData.teamName}</span>
+                            </div>
+                          )}
+                          {packData.coachName && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-zinc-400">Coach</span>
+                              <span className="font-bold">{packData.coachName}</span>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                      {packData.cards.length === 0 && (
-                        <p className="text-xs text-zinc-500 text-center">No cards in pack yet</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-zinc-400">Rarity Drop Rates</label>
-                    <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
-                      {RARITIES.map(rarity => (
-                        <div key={rarity} className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 text-xs">
-                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
-                            {rarity}
-                          </span>
-                          <span className="text-xs font-mono">{RARITY_ODDS[rarity]}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-zinc-700 space-y-3">
-                    <button 
-                      onClick={simulatePackOpening}
-                      disabled={packData.cards.length === 0}
-                      className="w-full py-3 bg-white text-black text-sm font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      data-testid="button-simulate-pack"
-                    >
-                      <Sparkles className="w-4 h-4" /> Open Pack Simulation
-                    </button>
-                    <p className="text-[10px] text-zinc-500 text-center">
-                      Simulates opening your pack with random card selection
-                    </p>
-                  </div>
-
-                  {packData.guaranteedRarities.length > 0 && (
-                    <div className="bg-zinc-800 border border-zinc-700 p-3">
-                      <p className="text-xs text-zinc-400 mb-2">Guaranteed per pack:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {packData.guaranteedRarities.map(rarity => (
-                          <span 
-                            key={rarity}
-                            className="px-2 py-1 text-[10px] font-bold bg-zinc-900 border border-zinc-600"
-                            style={{ borderLeftColor: RARITY_COLORS[rarity], borderLeftWidth: 3 }}
-                          >
-                            {rarity}
-                          </span>
-                        ))}
                       </div>
-                    </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">By Position</label>
+                        <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
+                          {(() => {
+                            const positionCounts: Record<string, number> = {};
+                            packData.cards.forEach(c => {
+                              const pos = c.position || "Unassigned";
+                              positionCounts[pos] = (positionCounts[pos] || 0) + 1;
+                            });
+                            return Object.entries(positionCounts).map(([pos, count]) => (
+                              <div key={pos} className="flex items-center justify-between text-xs">
+                                <span className="text-zinc-400">{pos}</span>
+                                <span className="font-mono">{count}</span>
+                              </div>
+                            ));
+                          })()}
+                          {packData.cards.length === 0 && (
+                            <p className="text-xs text-zinc-500 text-center">No players yet</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-700 space-y-3">
+                        <button
+                          onClick={handleTeamPrintExport}
+                          disabled={packData.cards.length === 0}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          data-testid="button-print-team-sheet-sidebar"
+                        >
+                          <Printer className="w-4 h-4" /> Print Team Sheet
+                        </button>
+                        <p className="text-[10px] text-zinc-500 text-center">
+                          Exports all cards in a 3-column grid layout for printing (300 DPI)
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-zinc-700 space-y-3">
+                        <button
+                          onClick={handleExport}
+                          disabled={packData.cards.length === 0}
+                          className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Download className="w-4 h-4" /> Export Pack Preview
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Pack Statistics</label>
+                        <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
+                          {Object.entries(getPackStats()).map(([rarity, count]) => (
+                            <div key={rarity} className="flex items-center justify-between">
+                              <span className="flex items-center gap-2 text-xs">
+                                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
+                                {rarity}
+                              </span>
+                              <span className="text-xs font-mono">{count} cards</span>
+                            </div>
+                          ))}
+                          {packData.cards.length === 0 && (
+                            <p className="text-xs text-zinc-500 text-center">No cards in pack yet</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-zinc-400">Rarity Drop Rates</label>
+                        <div className="bg-zinc-800 border border-zinc-700 p-3 space-y-2">
+                          {RARITIES.map(rarity => (
+                            <div key={rarity} className="flex items-center justify-between">
+                              <span className="flex items-center gap-2 text-xs">
+                                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
+                                {rarity}
+                              </span>
+                              <span className="text-xs font-mono">{RARITY_ODDS[rarity]}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-700 space-y-3">
+                        <button 
+                          onClick={simulatePackOpening}
+                          disabled={packData.cards.length === 0}
+                          className="w-full py-3 bg-white text-black text-sm font-bold flex items-center justify-center gap-2 hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          data-testid="button-simulate-pack"
+                        >
+                          <Sparkles className="w-4 h-4" /> Open Pack Simulation
+                        </button>
+                        <p className="text-[10px] text-zinc-500 text-center">
+                          Simulates opening your pack with random card selection
+                        </p>
+                      </div>
+
+                      {packData.guaranteedRarities.length > 0 && (
+                        <div className="bg-zinc-800 border border-zinc-700 p-3">
+                          <p className="text-xs text-zinc-400 mb-2">Guaranteed per pack:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {packData.guaranteedRarities.map(rarity => (
+                              <span 
+                                key={rarity}
+                                className="px-2 py-1 text-[10px] font-bold bg-zinc-900 border border-zinc-600"
+                                style={{ borderLeftColor: RARITY_COLORS[rarity], borderLeftWidth: 3 }}
+                              >
+                                {rarity}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -1462,6 +2015,55 @@ export default function CardCreator() {
             
                 <div ref={cardPreviewRef}>
                 {mode === "pack" ? (
+                  packData.packMode === "sports" ? (
+                  <div className="relative">
+                    <div className="text-center mb-4">
+                      <h3 className="text-2xl font-bold" style={{ color: packData.teamColors.secondary }}>{packData.teamName || "Team Name"}</h3>
+                      <p className="text-sm text-zinc-400">{packData.sport} {packData.season && `• ${packData.season}`}</p>
+                      {packData.school && <p className="text-xs text-zinc-500">{packData.school}</p>}
+                      <p className="text-xs text-zinc-600 mt-1">{packData.cards.length} players</p>
+                    </div>
+                    <div className="w-[600px] mx-auto">
+                      {packData.cards.length === 0 ? (
+                        <div className="aspect-[3/4] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center gap-3">
+                          <Users className="w-12 h-12 text-zinc-600" />
+                          <p className="text-zinc-500 text-sm">Add players from the Roster tab</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          {packData.cards.map((card) => (
+                            <div
+                              key={card.id}
+                              className={`relative aspect-[2.5/3.5] shadow-lg cursor-pointer transition-all ${selectedPackCard === card.id ? "ring-2 ring-emerald-400 scale-105" : "hover:scale-102"}`}
+                              style={{ backgroundColor: card.borderColor || packData.teamColors.primary }}
+                              onClick={() => setSelectedPackCard(card.id)}
+                              data-testid={`pack-sports-card-${card.id}`}
+                            >
+                              <div className="absolute inset-1 bg-white flex flex-col overflow-hidden">
+                                <div className="flex-1 relative overflow-hidden">
+                                  <img src={card.frontImage} className="w-full h-full object-cover" />
+                                  {card.jerseyNumber && (
+                                    <div className="absolute top-1 right-1 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow" style={{ backgroundColor: card.accentColor || packData.teamColors.secondary, color: card.borderColor || packData.teamColors.primary }}>
+                                      {card.jerseyNumber}
+                                    </div>
+                                  )}
+                                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                                    <p className="text-[10px] font-bold text-white truncate uppercase">{card.name}</p>
+                                    <p className="text-[8px] text-white/70">{card.position}</p>
+                                  </div>
+                                </div>
+                                <div className="p-1.5 flex items-center justify-between" style={{ backgroundColor: card.borderColor || packData.teamColors.primary }}>
+                                  <span className="text-[8px] font-bold text-white truncate">{card.teamName || packData.teamName}</span>
+                                  <span className="text-[7px] text-white/60">{card.sport || packData.sport}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  ) : (
                   <div className="relative">
                     <div className="text-center mb-4">
                       <h3 className="text-2xl font-bold">{packData.name}</h3>
@@ -1502,6 +2104,7 @@ export default function CardCreator() {
                       <p className="text-center text-zinc-500 text-sm mt-4">Add cards to your pack from the sidebar</p>
                     )}
                   </div>
+                  )
                 ) : side === "front" ? (
                   cardMode === "sports" ? (
                   <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
@@ -1853,6 +2456,45 @@ export default function CardCreator() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {showTeamPrint && (
+          <div className="fixed inset-0 bg-white z-[9999] overflow-auto" style={{ position: "fixed", left: "-9999px", top: 0 }}>
+            <div ref={teamPrintRef} style={{ width: "8.5in", padding: "0.5in", fontFamily: "Arial, sans-serif", backgroundColor: "white" }}>
+              <div style={{ textAlign: "center", marginBottom: "24px", borderBottom: "3px solid black", paddingBottom: "12px" }}>
+                <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: 0, color: packData.teamColors.primary }}>{packData.teamName || "Team Cards"}</h1>
+                <p style={{ fontSize: "14px", color: "#666", margin: "4px 0" }}>{packData.sport} {packData.season && `• ${packData.season} Season`}</p>
+                {packData.school && <p style={{ fontSize: "12px", color: "#999", margin: "2px 0" }}>{packData.school}</p>}
+                {packData.coachName && <p style={{ fontSize: "12px", color: "#999", margin: "2px 0" }}>Coach: {packData.coachName}</p>}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+                {packData.cards.map((card) => (
+                  <div key={card.id} style={{ aspectRatio: "2.5/3.5", backgroundColor: card.borderColor || packData.teamColors.primary, position: "relative", pageBreakInside: "avoid" }}>
+                    <div style={{ position: "absolute", inset: "4px", backgroundColor: "white", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+                        <img src={card.frontImage} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        {card.jerseyNumber && (
+                          <div style={{ position: "absolute", top: "6px", right: "6px", width: "32px", height: "32px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "14px", backgroundColor: card.accentColor || packData.teamColors.secondary, color: card.borderColor || packData.teamColors.primary }}>
+                            {card.jerseyNumber}
+                          </div>
+                        )}
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.8))", padding: "8px" }}>
+                          <p style={{ fontSize: "11px", fontWeight: "bold", color: "white", textTransform: "uppercase", margin: 0 }}>{card.name}</p>
+                          <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.7)", margin: 0 }}>{card.position}</p>
+                        </div>
+                      </div>
+                      <div style={{ padding: "6px", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: card.borderColor || packData.teamColors.primary }}>
+                        <span style={{ fontSize: "8px", fontWeight: "bold", color: "white" }}>{card.teamName || packData.teamName}</span>
+                        <span style={{ fontSize: "7px", color: "rgba(255,255,255,0.6)" }}>{card.season || packData.season}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ textAlign: "center", marginTop: "16px", paddingTop: "8px", borderTop: "1px solid #ddd", fontSize: "10px", color: "#999" }}>
+                Created with PSCoMiXX Creator • {packData.cards.length} Player Cards • Print at 300 DPI for best quality
+              </div>
             </div>
           </div>
         )}
