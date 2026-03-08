@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
-  Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft,
+  Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles
@@ -873,6 +873,106 @@ export default function ComicCreator() {
       toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
     } catch (error) {
       toast.error("Failed to export pages");
+    }
+  };
+
+  const handleExportFullPDF = async () => {
+    if (!hasFeature("export") && !isAdmin) {
+      setShowUpgradeModal(true);
+      return;
+    }
+    try {
+      const trackRes = await fetch("/api/usage/track-export", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!trackRes.ok) {
+        const err = await trackRes.json();
+        if (err.code === "EXPORT_LIMIT_REACHED") {
+          toast.error(err.message);
+          setShowUpgradeModal(true);
+          return;
+        }
+      }
+    } catch {}
+    try {
+      toast.info("Building print-ready PDF (this may take a moment)...");
+      const { default: jsPDF } = await import("jspdf");
+
+      const pageWidthIn = 6.625;
+      const pageHeightIn = 10.25;
+      const dpi = 300;
+      const canvasW = Math.round(pageWidthIn * dpi);
+      const canvasH = Math.round(pageHeightIn * dpi);
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "in",
+        format: [pageWidthIn, pageHeightIn],
+      });
+
+      let isFirstPage = true;
+
+      const addImageToPDF = (dataUrl: string) => {
+        if (!isFirstPage) pdf.addPage([pageWidthIn, pageHeightIn], "portrait");
+        isFirstPage = false;
+        pdf.addImage(dataUrl, "JPEG", 0, 0, pageWidthIn, pageHeightIn);
+      };
+
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      };
+
+      const imageToCanvas = async (src: string): Promise<HTMLCanvasElement> => {
+        const img = await loadImage(src);
+        const canvas = document.createElement("canvas");
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.drawImage(img, 0, 0, canvasW, canvasH);
+        return canvas;
+      };
+
+      if (comicMeta.frontCover && comicMeta.frontCover.startsWith("data:")) {
+        const coverCanvas = await imageToCanvas(comicMeta.frontCover);
+        addImageToPDF(coverCanvas.toDataURL("image/jpeg", 0.92));
+        toast.info("Front cover added...");
+      }
+
+      for (let i = 0; i < spreads.length; i++) {
+        const spread = spreads[i];
+        if (spread.leftPage.length > 0) {
+          const canvas = await exportPageToCanvas(spread.leftPage, canvasW, canvasH);
+          addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
+        }
+        if (spread.rightPage.length > 0) {
+          const canvas = await exportPageToCanvas(spread.rightPage, canvasW, canvasH);
+          addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
+        }
+        if (spreads.length > 3) {
+          toast.info(`Processing spread ${i + 1} of ${spreads.length}...`);
+        }
+      }
+
+      if (comicMeta.backCover && comicMeta.backCover.startsWith("data:")) {
+        const backCanvas = await imageToCanvas(comicMeta.backCover);
+        addImageToPDF(backCanvas.toDataURL("image/jpeg", 0.92));
+      }
+
+      pdf.save(`${title.replace(/\s+/g, "_")}_print_ready.pdf`);
+
+      const totalPages = (comicMeta.frontCover ? 1 : 0)
+        + spreads.reduce((n, s) => n + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)
+        + (comicMeta.backCover ? 1 : 0);
+      toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF");
     }
   };
 
@@ -2240,7 +2340,10 @@ export default function ComicCreator() {
                   <ImageIcon className="w-4 h-4 mr-2" /> Current Page as PNG
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportAllPagesPNG} className="hover:bg-zinc-800 cursor-pointer">
-                  <Layers className="w-4 h-4 mr-2" /> Full Comic (Cover + Pages)
+                  <Layers className="w-4 h-4 mr-2" /> Full Comic as PNGs
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportFullPDF} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-pdf">
+                  <FileText className="w-4 h-4 mr-2" /> Full Comic as PDF (Print-Ready)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-700" />
                 <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
