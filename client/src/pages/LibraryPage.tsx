@@ -5,8 +5,9 @@ import {
   BookOpen, Layers, Search, Clock, ChevronRight,
   FileText, Film, Gamepad2, BookMarked, Pencil, Plus,
   Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles,
-  X, Trash2, GripVertical, Check
+  X, Trash2, GripVertical, Check, Camera
 } from "lucide-react";
+import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
@@ -609,6 +610,13 @@ export default function LibraryPage() {
                         <span className={`inline-flex px-2 py-1 text-xs font-bold border ${statusInfo.style}`}>
                           {statusInfo.label}
                         </span>
+                      </div>
+
+                      <div className="absolute bottom-12 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <ThumbnailPicker
+                          projectId={project.id}
+                          currentThumbnail={project.thumbnail}
+                        />
                       </div>
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

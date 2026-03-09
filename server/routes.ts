@@ -5715,9 +5715,29 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!project || project.userId !== (req.user as any).id) {
         return res.status(404).json({ message: "Project not found" });
       }
+
+      if (req.body.thumbnail) {
+        const thumb = req.body.thumbnail;
+        if (typeof thumb !== "string") {
+          return res.status(400).json({ message: "Thumbnail must be a string" });
+        }
+        if (!thumb.startsWith("data:image/") && !thumb.startsWith("http://") && !thumb.startsWith("https://")) {
+          return res.status(400).json({ message: "Thumbnail must be a data URI or URL" });
+        }
+        if (thumb.length > 10 * 1024 * 1024) {
+          return res.status(400).json({ message: "Thumbnail data too large (max 10MB)" });
+        }
+        await storage.updateProject(req.params.id, { thumbnail: thumb } as any);
+        return res.json({ success: true, thumbnail: thumb });
+      }
+
       const data = project.data as any;
       let thumbnailUrl: string | null = null;
-      if (data?.spreads?.[0]) {
+
+      if (data?.comicMeta?.frontCover) {
+        thumbnailUrl = data.comicMeta.frontCover;
+      }
+      if (!thumbnailUrl && data?.spreads?.[0]) {
         const spreadPages = [
           ...(data.spreads[0].leftPage || []),
           ...(data.spreads[0].rightPage || []),
@@ -5731,12 +5751,49 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           }
         }
       }
-      if (!thumbnailUrl && data?.comicMeta?.frontCover) {
-        thumbnailUrl = data.comicMeta.frontCover;
+      if (!thumbnailUrl && data?.frontImage) {
+        thumbnailUrl = data.frontImage;
       }
-      if (req.body.thumbnail) {
-        thumbnailUrl = req.body.thumbnail;
+      if (!thumbnailUrl && data?.coverImage) {
+        thumbnailUrl = data.coverImage;
       }
+      if (!thumbnailUrl && data?.cards?.[0]?.frontImage) {
+        thumbnailUrl = data.cards[0].frontImage;
+      }
+      if (!thumbnailUrl && data?.frontImage) {
+        thumbnailUrl = data.frontImage;
+      }
+      if (!thumbnailUrl && data?.frames?.[0]) {
+        const frame = data.frames[0];
+        if (frame.imageData) {
+          thumbnailUrl = frame.imageData;
+        } else if (frame.drawingLayers) {
+          for (const dl of frame.drawingLayers) {
+            if (dl.imageData && dl.visible !== false) {
+              thumbnailUrl = dl.imageData;
+              break;
+            }
+          }
+        }
+        if (!thumbnailUrl && frame.imageLayers) {
+          for (const il of frame.imageLayers) {
+            if (il.url && il.visible !== false) {
+              thumbnailUrl = il.url;
+              break;
+            }
+          }
+        }
+      }
+      if (!thumbnailUrl && data?.scenes?.[0]) {
+        const scene = data.scenes[0];
+        if (scene.backgroundUrl) {
+          thumbnailUrl = scene.backgroundUrl;
+        } else if (scene.background && data.backgrounds) {
+          const bg = data.backgrounds.find((b: any) => b.id === scene.background);
+          if (bg?.url) thumbnailUrl = bg.url;
+        }
+      }
+
       if (thumbnailUrl) {
         await storage.updateProject(req.params.id, { thumbnail: thumbnailUrl } as any);
         res.json({ success: true, thumbnail: thumbnailUrl });

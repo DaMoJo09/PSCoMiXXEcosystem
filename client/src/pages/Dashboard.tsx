@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap, Megaphone } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap, Megaphone, Camera } from "lucide-react";
+import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -306,6 +307,12 @@ export default function Dashboard() {
                       alt={project.title}
                       className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
                     />
+                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ThumbnailPicker
+                        projectId={project.id}
+                        currentThumbnail={project.thumbnail}
+                      />
+                    </div>
                     <div className="absolute top-2 right-2 bg-background border border-border px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider">
                       {typeLabels[project.type] || project.type}
                     </div>
