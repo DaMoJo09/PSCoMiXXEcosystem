@@ -509,6 +509,7 @@ export default function ComicCreator() {
   const leftPageRef = useRef<HTMLDivElement>(null);
   const rightPageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const creationAttempted = useRef(false);
 
   const effectiveProjectId = projectId || createdProjectId;
@@ -890,6 +891,43 @@ export default function ComicCreator() {
     } catch (error: any) {
       toast.error("Failed to generate thumbnail");
     }
+  };
+
+  const handleUploadThumbnail = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!effectiveProjectId || !e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+    try {
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/projects/${effectiveProjectId}/generate-thumbnail`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ thumbnail: dataUrl }),
+      });
+      if (res.ok) {
+        qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+        toast.success("Thumbnail uploaded!");
+      } else {
+        const err = await res.json();
+        toast.error(err.message || "Failed to upload thumbnail");
+      }
+    } catch {
+      toast.error("Failed to upload thumbnail");
+    }
+    e.target.value = "";
   };
 
   const handleOpenReaderPreview = () => {
@@ -2635,7 +2673,10 @@ export default function ComicCreator() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-700" />
                 <DropdownMenuItem onClick={handleGenerateThumbnail} disabled={!effectiveProjectId} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-generate-thumbnail">
-                  <ImageIcon className="w-4 h-4 mr-2" /> Generate Thumbnail
+                  <ImageIcon className="w-4 h-4 mr-2" /> Auto-Generate Thumbnail
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => thumbnailInputRef.current?.click()} disabled={!effectiveProjectId} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-upload-thumbnail">
+                  <Upload className="w-4 h-4 mr-2" /> Upload Thumbnail
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -3902,6 +3943,13 @@ export default function ComicCreator() {
           accept="image/*,video/*,audio/*,.gif,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a"
           className="hidden"
           onChange={handleFileUpload}
+        />
+        <input
+          ref={thumbnailInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="hidden"
+          onChange={handleUploadThumbnail}
         />
 
 
