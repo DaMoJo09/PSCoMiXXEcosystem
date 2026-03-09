@@ -72,12 +72,16 @@ export function TransformableElement({
   const dragStart = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0, startX: 0, startY: 0 });
   const rotateStart = useRef({ angle: 0, startAngle: 0 });
+  const prevInitialRef = useRef(initialTransform);
 
   useEffect(() => {
-    if (initialTransform) {
-      setTransform(prev => ({ ...prev, ...initialTransform }));
+    if (initialTransform && !isDragging && !isResizing && !isRotating) {
+      if (prevInitialRef.current !== initialTransform) {
+        setTransform(prev => ({ ...prev, ...initialTransform }));
+        prevInitialRef.current = initialTransform;
+      }
     }
-  }, []);
+  }, [initialTransform, isDragging, isResizing, isRotating]);
 
   const getContainerOffset = useCallback(() => {
     if (containerRef?.current) {

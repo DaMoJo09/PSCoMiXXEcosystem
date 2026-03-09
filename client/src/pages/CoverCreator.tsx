@@ -218,6 +218,9 @@ interface CoverData {
   tagline: string;
   isbn: string;
   filters: typeof FILTER_PRESETS;
+  frontBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
+  backBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
+  spineBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
   titleTransform?: TransformState;
   subtitleTransform?: TransformState;
   authorTransform?: TransformState;
@@ -862,8 +865,13 @@ export default function CoverCreator() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const url = event.target?.result as string;
+      const bgKey = target === "front" ? "frontImage" : target === "back" ? "backImage" : "spineImage";
+      const bgTransformKey = `${target}BgTransform`;
+      const dW = target === "spine" ? 80 : 600;
+      const dH = target === "spine" ? 900 : 900;
       updateCover({ 
-        [target === "front" ? "frontImage" : target === "back" ? "backImage" : "spineImage"]: url 
+        [bgKey]: url,
+        [bgTransformKey]: { x: 0, y: 0, width: dW, height: dH, rotation: 0, scaleX: 1, scaleY: 1 }
       });
       toast.success(`${target} image updated`);
     };
@@ -872,8 +880,13 @@ export default function CoverCreator() {
   };
 
   const handleAIGenerated = (url: string) => {
+    const bgKey = aiTarget === "front" ? "frontImage" : aiTarget === "back" ? "backImage" : "spineImage";
+    const bgTransformKey = `${aiTarget}BgTransform`;
+    const dW = aiTarget === "spine" ? 80 : 600;
+    const dH = aiTarget === "spine" ? 900 : 900;
     updateCover({ 
-      [aiTarget === "front" ? "frontImage" : aiTarget === "back" ? "backImage" : "spineImage"]: url 
+      [bgKey]: url,
+      [bgTransformKey]: { x: 0, y: 0, width: dW, height: dH, rotation: 0, scaleX: 1, scaleY: 1 }
     });
     setShowAIGen(false);
     toast.success("AI image applied");
@@ -1009,7 +1022,23 @@ export default function CoverCreator() {
         }}
       >
         {bgImage && (
-          <img src={bgImage} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={getFilterStyle()} />
+          <TransformableElement
+            id={`bg-${view}`}
+            initialTransform={
+              coverData[`${view}BgTransform` as keyof CoverData] as any || 
+              { x: 0, y: 0, width: designW, height: designH, rotation: 0, scaleX: 1, scaleY: 1 }
+            }
+            isSelected={selectedLayerIds.includes(`bg-${view}`)}
+            onSelect={(id) => handleShiftSelect(id)}
+            onTransformChange={(_, transform) => updateCover({ [`${view}BgTransform`]: transform })}
+            locked={false}
+            containerRef={canvasRef}
+            containerScale={scale}
+            minWidth={20}
+            minHeight={20}
+          >
+            <img src={bgImage} className="w-full h-full object-cover pointer-events-none select-none" style={getFilterStyle()} draggable={false} />
+          </TransformableElement>
         )}
         
         {coverData.filters.halftone && (
@@ -2010,6 +2039,28 @@ export default function CoverCreator() {
                   })()}
                 </div>
 
+                {(() => {
+                  const viewKey = activeView === "spread" ? "front" : activeView;
+                  const bgImg = coverData[`${viewKey}Image` as keyof CoverData] as string;
+                  if (!bgImg) return null;
+                  return (
+                    <div className="pt-4 border-t border-zinc-700">
+                      <label className="text-xs font-bold uppercase text-zinc-400 mb-2 block">Background Image</label>
+                      <div 
+                        onClick={() => setSelectedLayerId(`bg-${viewKey}`)}
+                        className={`p-2 border cursor-pointer flex items-center gap-2 ${selectedLayerId === `bg-${viewKey}` ? "border-cyan-500 bg-zinc-800" : "border-zinc-700 hover:border-zinc-500"}`}
+                        data-testid="bg-image-layer-item"
+                      >
+                        <img src={bgImg} alt="Background" className="w-8 h-8 object-cover bg-zinc-900 border border-zinc-700" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium">Background</span>
+                          <p className="text-[10px] text-zinc-500">Click to select, then drag to move</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="pt-4 border-t border-zinc-700">
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-xs font-bold uppercase text-zinc-400">Image Layers</label>
@@ -2415,13 +2466,11 @@ export default function CoverCreator() {
                           drawingTarget === "back" ? coverData.backImage : 
                           coverData.spineImage}
               onSave={(rasterData) => {
-                if (drawingTarget === "front") {
-                  setCoverData(prev => ({ ...prev, frontImage: rasterData }));
-                } else if (drawingTarget === "back") {
-                  setCoverData(prev => ({ ...prev, backImage: rasterData }));
-                } else {
-                  setCoverData(prev => ({ ...prev, spineImage: rasterData }));
-                }
+                const imgKey = drawingTarget === "front" ? "frontImage" : drawingTarget === "back" ? "backImage" : "spineImage";
+                const tKey = `${drawingTarget}BgTransform`;
+                const dW2 = drawingTarget === "spine" ? 80 : 600;
+                const dH2 = drawingTarget === "spine" ? 900 : 900;
+                setCoverData(prev => ({ ...prev, [imgKey]: rasterData, [tKey]: { x: 0, y: 0, width: dW2, height: dH2, rotation: 0, scaleX: 1, scaleY: 1 } }));
                 setShowDrawing(false);
                 toast.success(`Drawing saved to ${drawingTarget} cover`);
               }}
