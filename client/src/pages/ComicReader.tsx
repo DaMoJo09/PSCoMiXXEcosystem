@@ -775,6 +775,10 @@ function PageRenderer({ panels, side }: { panels?: Panel[]; side: string }) {
 function PanelRenderer({ panel }: { panel: Panel }) {
   const contentItems = (panel.contents || panel.content || []).slice().sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
   const isCircle = panel.type === "circle";
+  const EDITOR_W = 650;
+  const EDITOR_H = 920;
+  const panelPixelW = (panel.width / 100) * EDITOR_W;
+  const panelPixelH = (panel.height / 100) * EDITOR_H;
 
   return (
     <div
@@ -796,25 +800,30 @@ function PanelRenderer({ panel }: { panel: Panel }) {
     >
       <div className="absolute inset-0 overflow-hidden" style={{ backgroundColor: panel.backgroundColor || "white", filter: panel.filter || "none" }}>
         {contentItems.map((item, idx) => (
-          <ContentRenderer key={item.id || idx} item={item} />
+          <ContentRenderer key={item.id || idx} item={item} panelWidth={panelPixelW} panelHeight={panelPixelH} />
         ))}
       </div>
     </div>
   );
 }
 
-function ContentRenderer({ item }: { item: PanelContentItem }) {
+function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContentItem; panelWidth: number; panelHeight: number }) {
   const imgSrc = item.data?.url || item.data?.imageUrl || item.data?.src || item.src || "";
   const textContent = item.data?.text || item.text || "";
   const drawingData = item.data?.drawingData || "";
 
   const transform = item.transform;
+  const leftPct = transform && panelWidth > 0 ? (transform.x / panelWidth) * 100 : 0;
+  const topPct = transform && panelHeight > 0 ? (transform.y / panelHeight) * 100 : 0;
+  const widthPct = transform && panelWidth > 0 ? (transform.width / panelWidth) * 100 : 100;
+  const heightPct = transform && panelHeight > 0 ? (transform.height / panelHeight) * 100 : 100;
+
   const positionStyle: React.CSSProperties = transform ? {
     position: "absolute",
-    left: `${transform.x}%`,
-    top: `${transform.y}%`,
-    width: `${transform.width}%`,
-    height: `${transform.height}%`,
+    left: `${leftPct}%`,
+    top: `${topPct}%`,
+    width: `${widthPct}%`,
+    height: `${heightPct}%`,
     transform: [
       transform.rotation ? `rotate(${transform.rotation}deg)` : "",
       transform.scaleX !== undefined && transform.scaleX !== 1 ? `scaleX(${transform.flipX ? -transform.scaleX : transform.scaleX})` : (transform.flipX ? "scaleX(-1)" : ""),
