@@ -221,6 +221,7 @@ interface CoverData {
   frontBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
   backBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
   spineBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
+  spineTextTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
   titleTransform?: TransformState;
   subtitleTransform?: TransformState;
   authorTransform?: TransformState;
@@ -1005,7 +1006,8 @@ export default function CoverCreator() {
     const designH = view === "spine" ? 900 : 900;
     const requestedW = parseInt(width);
     const isSpread = activeView === "spread";
-    const scale = isSpread ? requestedW / designW : 1;
+    const needsScale = isSpread || (view === "spine" && activeView === "spine");
+    const scale = needsScale ? requestedW / designW : 1;
 
     return (
       <div
@@ -1018,9 +1020,9 @@ export default function CoverCreator() {
         style={{
           top: 0,
           left: 0,
-          width: isSpread ? `${designW}px` : '100%',
-          height: isSpread ? `${designH}px` : '100%',
-          transform: isSpread ? `scale(${scale})` : 'none',
+          width: needsScale ? `${designW}px` : '100%',
+          height: needsScale ? `${designH}px` : '100%',
+          transform: needsScale ? `scale(${scale})` : 'none',
         }}
       >
         {bgImage && (
@@ -1349,27 +1351,40 @@ export default function CoverCreator() {
         )}
 
         {view === "spine" && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            {editingMasterId === "master-spine" ? (
-              <input
-                autoFocus
-                className="text-lg font-bold tracking-widest uppercase bg-transparent outline-none border border-white/30 text-center"
-                style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
-                value={coverData.spineText}
-                onChange={(e) => updateCover({ spineText: e.target.value })}
-                onBlur={() => setEditingMasterId(null)}
-                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
-              />
-            ) : (
-              <p 
-                style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
-                className="text-lg font-bold tracking-widest uppercase cursor-text"
-                onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-spine"); }}
-              >
-                {coverData.spineText} — {coverData.author}
-              </p>
-            )}
-          </div>
+          <TransformableElement
+            id="master-spine"
+            initialTransform={coverData.spineTextTransform || { x: 0, y: 100, width: designW, height: designH - 200, rotation: 0, scaleX: 1, scaleY: 1 }}
+            isSelected={selectedLayerIds.includes("master-spine")}
+            onSelect={(id) => handleShiftSelect(id)}
+            onTransformChange={(_, transform) => updateCover({ spineTextTransform: transform })}
+            locked={false}
+            containerRef={canvasRef}
+            containerScale={scale}
+            minWidth={20}
+            minHeight={50}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              {editingMasterId === "master-spine" ? (
+                <input
+                  autoFocus
+                  className="text-lg font-bold tracking-widest uppercase bg-transparent outline-none border border-white/30 text-center"
+                  style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
+                  value={coverData.spineText}
+                  onChange={(e) => updateCover({ spineText: e.target.value })}
+                  onBlur={() => setEditingMasterId(null)}
+                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }}
+                />
+              ) : (
+                <p 
+                  style={{ fontFamily: coverData.spineFont, color: coverData.spineColor, writingMode: "vertical-rl", textOrientation: "mixed" }}
+                  className="text-lg font-bold tracking-widest uppercase cursor-text"
+                  onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-spine"); }}
+                >
+                  {coverData.spineText} — {coverData.author}
+                </p>
+              )}
+            </div>
+          </TransformableElement>
         )}
 
         {(() => {
@@ -2361,7 +2376,7 @@ export default function CoverCreator() {
                 ) : activeView === "back" ? (
                   renderCoverSection("back", "600px", "900px")
                 ) : (
-                  renderCoverSection("spine", "80px", "900px")
+                  renderCoverSection("spine", "240px", "900px")
                 )}
                 </div>
                 
