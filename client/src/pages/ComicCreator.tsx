@@ -1655,9 +1655,12 @@ export default function ComicCreator() {
     
     if (hasContent) {
       const dataUrl = canvas.toDataURL('image/png');
+      const panelEl = canvas.parentElement;
+      const panelW = panelEl ? panelEl.clientWidth : canvas.width;
+      const panelH = panelEl ? panelEl.clientHeight : canvas.height;
       addContentToPanel(inlineDrawingPage, inlineDrawingPanelId, {
         type: "drawing",
-        transform: { x: 0, y: 0, width: canvas.width, height: canvas.height, rotation: 0, scaleX: 1, scaleY: 1 },
+        transform: { x: 0, y: 0, width: panelW, height: panelH, rotation: 0, scaleX: 1, scaleY: 1 },
         data: { drawingData: dataUrl },
         locked: false,
       });
