@@ -1009,7 +1009,7 @@ export default function CoverCreator() {
         }}
       >
         {bgImage && (
-          <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" style={getFilterStyle()} />
+          <img src={bgImage} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={getFilterStyle()} />
         )}
         
         {coverData.filters.halftone && (
