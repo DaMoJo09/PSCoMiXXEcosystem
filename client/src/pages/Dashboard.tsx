@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useState } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
+import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,7 @@ export default function Dashboard() {
   const createProject = useCreateProject();
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
+  const { completed: onboardingComplete, markComplete: markOnboardingComplete } = useOnboarding(user?.id);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
@@ -108,6 +110,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
+      {!onboardingComplete && <OnboardingWizard onComplete={markOnboardingComplete} />}
       <div className="p-8 max-w-7xl mx-auto space-y-12">
         <EventCarousel className="mb-4" variant="dark" />
         

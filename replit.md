@@ -91,7 +91,13 @@ Features keyboard shortcuts (accessible via `?`), a skip-to-content link, Aria l
 Designed for mobile with a top header, hamburger menu, bottom navigation bar, and slide-in drawer for full sidebar content. Creator tools display desktop-recommended banners. Public pages are fully responsive and touch-friendly, with viewport settings for safe area support and pinch-to-zoom.
 
 ### SEO
-Includes `robots.txt` for controlling indexing, a dynamic `sitemap.xml`, and Open Graph (OG) image endpoints for community, portfolio, and marketplace listings.
+Includes `robots.txt` for controlling indexing, a dynamic `sitemap.xml`, and Open Graph (OG) image endpoints for community, portfolio, and marketplace listings. Full SEO meta tags in `client/index.html` with JSON-LD structured data (WebApplication, Organization, WebSite, FAQPage).
+
+### Landing Page (Go-to-Market)
+Full marketing landing page at `/landing` and `/welcome` with: glitch-effect hero section with video background, feature showcase (6 tools), audience sections (Schools/Education, Indie Creators, Studios/Professionals), 3-step "How It Works" flow, testimonial cards, pricing CTA, and footer with legal links.
+
+### New User Onboarding
+`OnboardingWizard` component shown on first login (per-user via `localStorage` keyed by user ID). 3-step flow: Welcome → Pick Your Tools → Quick Tips → Dashboard. Integrated into Dashboard page.
 
 ## External Dependencies
 
