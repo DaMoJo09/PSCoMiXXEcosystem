@@ -290,8 +290,21 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
 
   const spreads = useMemo(() => comic?.data?.spreads || [], [comic]);
 
+  const allPages = useMemo(() => {
+    const pages: { panels: Panel[]; spreadIndex: number }[] = [];
+    spreads.forEach((spread, si) => {
+      if (spread.leftPage && spread.leftPage.length > 0) {
+        pages.push({ panels: spread.leftPage, spreadIndex: si });
+      }
+      if (spread.rightPage && spread.rightPage.length > 0) {
+        pages.push({ panels: spread.rightPage, spreadIndex: si });
+      }
+    });
+    return pages;
+  }, [spreads]);
+
   const goToSpread = (index: number) => {
-    if (index >= 0 && index < spreads.length) {
+    if (index >= 0 && index < allPages.length) {
       setCurrentSpreadIndex(index);
       window.scrollTo({ top: 0, behavior: "smooth" });
       if (isAuthenticated && bookmark) {
@@ -473,20 +486,30 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
             </div>
           )}
 
-          {(comic.data?.coverFront || comic.data?.comicMeta?.frontCover) && (
-            <div className="mb-8 overflow-hidden border-2 border-zinc-800" data-testid="img-cover-front">
-              <img src={comic.data.coverFront || comic.data.comicMeta?.frontCover} alt="Front Cover" className="w-full object-contain" />
-            </div>
-          )}
+          {(() => {
+            const frontCoverUrl = comic.data?.coverFront || comic.data?.comicMeta?.frontCover || "";
+            const isValidImage = frontCoverUrl.startsWith("data:image") || frontCoverUrl.startsWith("http") || frontCoverUrl.startsWith("blob:") || frontCoverUrl.startsWith("/");
+            return isValidImage ? (
+              <div className="mb-1 overflow-hidden max-w-2xl mx-auto" data-testid="img-cover-front">
+                <img src={frontCoverUrl} alt="Front Cover" className="w-full object-contain" />
+              </div>
+            ) : null;
+          })()}
 
           {viewMode === "scroll" ? (
-            spreads.map((spread, index) => (
-              <SpreadRenderer key={spread.id} spread={spread} index={index} />
+            allPages.map((page, index) => (
+              <div key={`page-${index}`} className="mb-1" data-testid={`page-section-${index}`}>
+                <div className="max-w-2xl mx-auto">
+                  <PageRenderer panels={page.panels} side={`${index}`} />
+                </div>
+              </div>
             ))
           ) : (
             <>
-              {spreads.length > 0 && (
-                <SpreadRenderer spread={spreads[currentSpreadIndex]} index={currentSpreadIndex} />
+              {allPages.length > 0 && (
+                <div className="max-w-2xl mx-auto">
+                  <PageRenderer panels={allPages[currentSpreadIndex].panels} side={`${currentSpreadIndex}`} />
+                </div>
               )}
               <div className="flex items-center justify-center gap-4 mt-6">
                 <button
@@ -498,11 +521,11 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                   <ChevronLeft className="w-4 h-4" /> Prev
                 </button>
                 <span className="text-zinc-400 text-sm font-bold" data-testid="text-page-indicator">
-                  {currentSpreadIndex + 1} / {spreads.length}
+                  {currentSpreadIndex + 1} / {allPages.length}
                 </span>
                 <button
                   onClick={() => goToSpread(currentSpreadIndex + 1)}
-                  disabled={currentSpreadIndex >= spreads.length - 1}
+                  disabled={currentSpreadIndex >= allPages.length - 1}
                   className="px-4 py-2 border-2 border-zinc-700 text-zinc-400 hover:text-white hover:border-cyan-500 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-sm flex items-center gap-1 transition-colors"
                   data-testid="button-next-page"
                 >
@@ -512,11 +535,15 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
             </>
           )}
 
-          {(comic.data?.coverBack || comic.data?.comicMeta?.backCover) && (
-            <div className="mb-8 overflow-hidden border-2 border-zinc-800" data-testid="img-cover-back">
-              <img src={comic.data.coverBack || comic.data.comicMeta?.backCover} alt="Back Cover" className="w-full object-contain" />
-            </div>
-          )}
+          {(() => {
+            const backCoverUrl = comic.data?.coverBack || comic.data?.comicMeta?.backCover || "";
+            const isValidImage = backCoverUrl.startsWith("data:image") || backCoverUrl.startsWith("http") || backCoverUrl.startsWith("blob:") || backCoverUrl.startsWith("/");
+            return isValidImage ? (
+              <div className="mt-1 overflow-hidden max-w-2xl mx-auto" data-testid="img-cover-back">
+                <img src={backCoverUrl} alt="Back Cover" className="w-full object-contain" />
+              </div>
+            ) : null;
+          })()}
 
           <div className="mt-12 p-6 bg-zinc-900 border-2 border-zinc-800" data-testid="card-creator-info">
             <div className="flex items-center gap-4">
@@ -657,36 +684,6 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
         </div>
       </div>
     </Layout>
-  );
-}
-
-function SpreadRenderer({ spread, index }: { spread: Spread; index: number }) {
-  const hasLeft = spread.leftPage && spread.leftPage.length > 0;
-  const hasRight = spread.rightPage && spread.rightPage.length > 0;
-  const isTwoPage = hasLeft && hasRight;
-
-  return (
-    <div className="mb-10" data-testid={`spread-section-${index}`}>
-      <div className="flex items-center gap-3 mb-4">
-        <div className="h-px flex-1 bg-zinc-800" />
-        <span className="text-zinc-600 text-xs font-bold uppercase tracking-wider" data-testid={`text-spread-number-${index}`}>
-          Page {index + 1}
-        </span>
-        <div className="h-px flex-1 bg-zinc-800" />
-      </div>
-
-      {isTwoPage ? (
-        <div className="flex gap-2">
-          <PageRenderer panels={spread.leftPage} side="left" />
-          <PageRenderer panels={spread.rightPage} side="right" />
-        </div>
-      ) : (
-        <div className="max-w-lg mx-auto">
-          {hasLeft && <PageRenderer panels={spread.leftPage} side="left" />}
-          {hasRight && <PageRenderer panels={spread.rightPage} side="right" />}
-        </div>
-      )}
-    </div>
   );
 }
 

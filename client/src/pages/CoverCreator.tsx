@@ -620,7 +620,7 @@ export default function CoverCreator() {
       const canvas = await html2canvas(el, {
         scale: printScale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null,
         logging: false,
       });
@@ -635,9 +635,9 @@ export default function CoverCreator() {
       pdf.save(`${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.pdf`);
       toast.success("PDF exported successfully!");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("PDF export error:", error);
-      toast.error("Failed to export PDF");
+      toast.error("Failed to export PDF: " + (error?.message || "Unknown error"));
     }
   };
 
@@ -788,12 +788,14 @@ export default function CoverCreator() {
           const canvas = await html2canvasMod.default(coverContentRef.current, {
             scale: 1,
             useCORS: true,
-            allowTaint: true,
+            allowTaint: false,
             backgroundColor: null,
             logging: false,
           });
           coverImageUrl = canvas.toDataURL("image/png");
-        } catch {}
+        } catch (err) {
+          console.error("Cover image capture failed:", err);
+        }
       }
 
       if (comicId) {
@@ -840,7 +842,7 @@ export default function CoverCreator() {
       const canvas = await html2canvas(el, {
         scale: printScale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: null,
         logging: false,
       });
@@ -852,9 +854,9 @@ export default function CoverCreator() {
       
       toast.success(`Cover exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Export error:", error);
-      toast.error("Failed to export cover");
+      toast.error("Failed to export cover: " + (error?.message || "Unknown error"));
     }
   };
 

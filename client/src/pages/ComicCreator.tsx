@@ -923,12 +923,17 @@ export default function ComicCreator() {
       ctx.lineWidth = 3;
       ctx.strokeRect(panelX, panelY, panelW, panelH);
 
+      const EDITOR_W = 650;
+      const EDITOR_H = 920;
+      const scaleFactorX = pageWidth / EDITOR_W;
+      const scaleFactorY = pageHeight / EDITOR_H;
+
       for (const content of panel.contents.sort((a, b) => a.zIndex - b.zIndex)) {
         const { transform, data, type } = content;
-        const contentX = panelX + transform.x;
-        const contentY = panelY + transform.y;
-        const contentW = transform.width;
-        const contentH = transform.height;
+        const contentX = panelX + transform.x * scaleFactorX;
+        const contentY = panelY + transform.y * scaleFactorY;
+        const contentW = transform.width * scaleFactorX;
+        const contentH = transform.height * scaleFactorY;
 
         ctx.save();
         ctx.translate(contentX + contentW / 2, contentY + contentH / 2);
@@ -967,7 +972,8 @@ export default function ComicCreator() {
           }
           
           ctx.fillStyle = data.color || "#000000";
-          ctx.font = `${data.fontSize || 16}px ${(data.fontFamily || "Inter").replace(/'/g, "")}`;
+          const scaledFontSize = (data.fontSize || 16) * Math.min(scaleFactorX, scaleFactorY);
+          ctx.font = `${scaledFontSize}px ${(data.fontFamily || "Inter").replace(/'/g, "")}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(data.text, contentW / 2, contentH / 2);
