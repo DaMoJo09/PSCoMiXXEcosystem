@@ -1,16 +1,12 @@
 import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AppSidebar } from "@/components/layout/AppSidebar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Layout } from "@/components/layout/Layout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 import JSZip from "jszip";
 import { 
@@ -21,8 +17,6 @@ import {
   RefreshCw, 
   Trash2, 
   FolderOpen,
-  Wifi,
-  WifiOff,
   Upload,
   Image,
   Film,
@@ -35,7 +29,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
 } from "lucide-react";
 
 const sourceApps = ["iClone", "CharacterCreator", "CartoonAnimator", "ComfyUI", "Unknown"];
@@ -74,7 +68,7 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
 export default function ImportCenter() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("file-import");
+  const [activeTab, setActiveTab] = useState<"file-import" | "incoming" | "imported" | "failed">("file-import");
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [newImport, setNewImport] = useState({
     bundleName: "",
@@ -93,19 +87,10 @@ export default function ImportCenter() {
   const [projectTitle, setProjectTitle] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: imports = [], isLoading } = useQuery({
+  const { data: imports = [] } = useQuery({
     queryKey: ["/api/imports"],
     queryFn: async () => {
       const res = await fetch("/api/imports", { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-
-  const { data: projects = [] } = useQuery({
-    queryKey: ["/api/projects"],
-    queryFn: async () => {
-      const res = await fetch("/api/projects?fields=meta", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -125,7 +110,7 @@ export default function ImportCenter() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/imports"] });
       setIsImportDialogOpen(false);
-      toast({ title: "Import created", description: "Asset added to import queue" });
+      toast.success("Asset added to import queue");
     },
   });
 
@@ -156,7 +141,7 @@ export default function ImportCenter() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/imports"] });
-      toast({ title: "Import deleted" });
+      toast.success("Import deleted");
     },
   });
 
@@ -178,14 +163,11 @@ export default function ImportCenter() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setPreview(null);
       setProjectTitle("");
-      toast({
-        title: "Import successful!",
-        description: `Created project "${data.project.title}" with ${data.importedCount} item(s)`,
-      });
-      navigate(`/comic-creator?project=${data.project.id}`);
+      toast.success(`Created project "${data.project.title}" with ${data.importedCount} item(s)`);
+      navigate(`/creator/comic?id=${data.project.id}`);
     },
     onError: (error: Error) => {
-      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+      toast.error(error.message);
     },
   });
 
@@ -200,7 +182,7 @@ export default function ImportCenter() {
         .sort(naturalSort);
 
       if (imageFiles.length === 0) {
-        toast({ title: "No images found", description: "The archive doesn't contain any image files", variant: "destructive" });
+        toast.error("The archive doesn't contain any image files");
         return;
       }
 
@@ -219,7 +201,7 @@ export default function ImportCenter() {
       setPreview({ format: "cbz", title: baseName, images, fileName: file.name });
       setProjectTitle(baseName);
     } catch (err: any) {
-      toast({ title: "Failed to read archive", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Failed to read archive");
     } finally {
       setIsProcessing(false);
     }
@@ -234,7 +216,7 @@ export default function ImportCenter() {
         .sort((a, b) => naturalSort(a.name, b.name));
 
       if (imageFiles.length === 0) {
-        toast({ title: "No images found", description: "No valid image files selected", variant: "destructive" });
+        toast.error("No valid image files selected");
         return;
       }
 
@@ -248,7 +230,7 @@ export default function ImportCenter() {
       setPreview({ format: "images", title: "Image Sequence", images, fileName: `${imageFiles.length} images` });
       setProjectTitle("Image Sequence Comic");
     } catch (err: any) {
-      toast({ title: "Failed to process images", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Failed to process images");
     } finally {
       setIsProcessing(false);
     }
@@ -265,7 +247,7 @@ export default function ImportCenter() {
       setProjectTitle(data.title || baseName);
       setImportProgress(100);
     } catch (err: any) {
-      toast({ title: "Invalid JSON file", description: err.message, variant: "destructive" });
+      toast.error(err.message || "Invalid JSON file");
     } finally {
       setIsProcessing(false);
     }
@@ -285,7 +267,7 @@ export default function ImportCenter() {
     } else if (isImageFile(firstFile.name)) {
       await processImageSequence(fileList);
     } else {
-      toast({ title: "Unsupported format", description: `File type .${ext} is not supported. Use CBZ, ZIP, images, or JSON files.`, variant: "destructive" });
+      toast.error(`File type .${ext} is not supported. Use CBZ, ZIP, images, or JSON files.`);
     }
   }, [processCBZ, processJSON, processImageSequence]);
 
@@ -328,9 +310,9 @@ export default function ImportCenter() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "pending": return <Clock className="w-4 h-4 text-yellow-500" />;
-      case "imported": return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case "failed": return <XCircle className="w-4 h-4 text-red-500" />;
+      case "pending": return <Clock className="w-4 h-4 text-yellow-400" />;
+      case "imported": return <CheckCircle className="w-4 h-4 text-emerald-400" />;
+      case "failed": return <XCircle className="w-4 h-4 text-red-400" />;
       default: return null;
     }
   };
@@ -343,564 +325,494 @@ export default function ImportCenter() {
     }
   };
 
+  const tabs = [
+    { id: "file-import" as const, label: "File Import", icon: Upload, count: null },
+    { id: "incoming" as const, label: "Incoming", icon: Clock, count: pendingImports.length },
+    { id: "imported" as const, label: "Imported", icon: CheckCircle, count: importedAssets.length },
+    { id: "failed" as const, label: "Failed", icon: XCircle, count: failedImports.length },
+  ];
+
   const renderImportCard = (item: any) => (
-    <Card key={item.id} className="bg-black border-2 border-white hover:border-red-500 transition-all">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {item.thumbnail ? (
-              <img src={item.thumbnail} alt="" className="w-16 h-16 object-cover border-2 border-white" />
-            ) : (
-              <div className="w-16 h-16 bg-zinc-900 border-2 border-white flex items-center justify-center">
-                {getSourceIcon(item.sourceApp)}
-              </div>
-            )}
-            <div>
-              <h3 className="font-bold text-white">{item.assetName || item.bundleName}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-xs border-white text-white">
-                  {item.sourceApp}
-                </Badge>
-                <Badge variant="outline" className="text-xs border-red-500 text-red-500">
-                  {item.targetMode}
-                </Badge>
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">{item.exportType}</p>
+    <div key={item.id} className="border border-border bg-card p-4 hover:border-cyan-500/50 transition-colors" data-testid={`import-card-${item.id}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {item.thumbnail ? (
+            <img src={item.thumbnail} alt="" className="w-14 h-14 object-cover border border-border" />
+          ) : (
+            <div className="w-14 h-14 bg-muted border border-border flex items-center justify-center text-muted-foreground">
+              {getSourceIcon(item.sourceApp)}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {getStatusIcon(item.status)}
-            {item.status === "pending" && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-green-500 text-green-500 hover:bg-green-500 hover:text-black"
-                  onClick={() => updateImportMutation.mutate({ id: item.id, status: "imported" })}
-                  data-testid={`btn-import-${item.id}`}
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-red-500 text-red-500 hover:bg-red-500 hover:text-black"
-                  onClick={() => deleteImportMutation.mutate(item.id)}
-                  data-testid={`btn-delete-${item.id}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </>
-            )}
-            {item.status === "failed" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black"
-                onClick={() => updateImportMutation.mutate({ id: item.id, status: "pending" })}
-                data-testid={`btn-retry-${item.id}`}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-            )}
+          )}
+          <div>
+            <h3 className="font-bold text-sm">{item.assetName || item.bundleName}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 border border-border bg-muted text-muted-foreground">
+                {item.sourceApp}
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 border border-cyan-500/30 text-cyan-400">
+                {item.targetMode}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 font-mono">{item.exportType}</p>
           </div>
         </div>
-        {item.errorMessage && (
-          <div className="mt-3 p-2 bg-red-900/30 border border-red-500 text-red-400 text-xs">
-            <AlertTriangle className="w-3 h-3 inline mr-1" />
-            {item.errorMessage}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <div className="flex items-center gap-2">
+          {getStatusIcon(item.status)}
+          {item.status === "pending" && (
+            <>
+              <button
+                className="p-1.5 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
+                onClick={() => updateImportMutation.mutate({ id: item.id, status: "imported" })}
+                title="Import"
+                data-testid={`btn-import-${item.id}`}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="p-1.5 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-black transition-colors"
+                onClick={() => deleteImportMutation.mutate(item.id)}
+                title="Delete"
+                data-testid={`btn-delete-${item.id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          {item.status === "failed" && (
+            <button
+              className="p-1.5 border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-colors"
+              onClick={() => updateImportMutation.mutate({ id: item.id, status: "pending" })}
+              title="Retry"
+              data-testid={`btn-retry-${item.id}`}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      {item.errorMessage && (
+        <div className="mt-3 p-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-1.5">
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+          {item.errorMessage}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderEmptyState = (icon: React.ReactNode, title: string, desc: string) => (
+    <div className="border border-dashed border-border p-12 text-center">
+      <div className="text-muted-foreground/30 mb-4 flex justify-center">{icon}</div>
+      <h3 className="font-bold text-lg mb-1">{title}</h3>
+      <p className="text-muted-foreground text-sm">{desc}</p>
+    </div>
   );
 
   return (
-    <div className="flex min-h-screen bg-black">
-      <AppSidebar />
-      <main className="flex-1 ml-64 p-8">
-        <div className="max-w-6xl mx-auto space-y-8">
-          <div className="flex items-center justify-between">
+    <Layout>
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-black text-white tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <h1 className="text-3xl font-black tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }} data-testid="text-import-title">
                 IMPORT CENTER
               </h1>
-              <p className="text-zinc-400 mt-1">Import CBZ, image sequences, and project files</p>
+              <p className="text-muted-foreground mt-1 text-sm">Bring in comics, images, and project files</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 border-2 border-green-500 bg-green-500/10">
-                <Wifi className="w-4 h-4 text-green-500" />
-                <span className="text-green-500 font-bold text-sm">CONNECTED</span>
-              </div>
-              <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-red-600 hover:bg-red-700 text-white border-2 border-white font-bold" data-testid="btn-add-import">
-                    <Plus className="w-4 h-4 mr-2" />
-                    MANUAL IMPORT
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-black border-2 border-white">
-                  <DialogHeader>
-                    <DialogTitle className="text-white font-bold">Add Manual Import</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div>
-                      <Label className="text-white">Bundle Name</Label>
-                      <Input
-                        value={newImport.bundleName}
-                        onChange={(e) => setNewImport({ ...newImport, bundleName: e.target.value })}
-                        className="bg-zinc-900 border-white text-white"
-                        placeholder="20260107_COMIC_Scene01"
-                        data-testid="input-bundle-name"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white">Asset Name</Label>
-                      <Input
-                        value={newImport.assetName}
-                        onChange={(e) => setNewImport({ ...newImport, assetName: e.target.value })}
-                        className="bg-zinc-900 border-white text-white"
-                        placeholder="Character Pose A"
-                        data-testid="input-asset-name"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-white">Source App</Label>
-                        <Select value={newImport.sourceApp} onValueChange={(v) => setNewImport({ ...newImport, sourceApp: v })}>
-                          <SelectTrigger className="bg-zinc-900 border-white text-white" data-testid="select-source-app">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-white">
-                            {sourceApps.map((app) => (
-                              <SelectItem key={app} value={app} className="text-white">{app}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-white">Export Type</Label>
-                        <Select value={newImport.exportType} onValueChange={(v) => setNewImport({ ...newImport, exportType: v })}>
-                          <SelectTrigger className="bg-zinc-900 border-white text-white" data-testid="select-export-type">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-white">
-                            {exportTypes.map((type) => (
-                              <SelectItem key={type} value={type} className="text-white">{type}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-white">Target Mode</Label>
-                        <Select value={newImport.targetMode} onValueChange={(v) => setNewImport({ ...newImport, targetMode: v })}>
-                          <SelectTrigger className="bg-zinc-900 border-white text-white" data-testid="select-target-mode">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-white">
-                            {targetModes.map((mode) => (
-                              <SelectItem key={mode} value={mode} className="text-white">{mode}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-white">Asset Role</Label>
-                        <Select value={newImport.assetRole} onValueChange={(v) => setNewImport({ ...newImport, assetRole: v })}>
-                          <SelectTrigger className="bg-zinc-900 border-white text-white" data-testid="select-asset-role">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-white">
-                            {assetRoles.map((role) => (
-                              <SelectItem key={role} value={role} className="text-white">{role}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full bg-red-600 hover:bg-red-700 text-white border-2 border-white font-bold"
-                      onClick={() => createImportMutation.mutate(newImport)}
-                      disabled={!newImport.bundleName || !newImport.assetName}
-                      data-testid="btn-submit-import"
-                    >
-                      ADD TO QUEUE
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4">
-            <Card className="bg-black border-2 border-white">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-yellow-500" data-testid="text-pending-count">{pendingImports.length}</div>
-                <div className="text-xs text-zinc-400 uppercase font-bold">Pending</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-black border-2 border-white">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-green-500" data-testid="text-imported-count">{importedAssets.length}</div>
-                <div className="text-xs text-zinc-400 uppercase font-bold">Imported</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-black border-2 border-white">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-red-500" data-testid="text-failed-count">{failedImports.length}</div>
-                <div className="text-xs text-zinc-400 uppercase font-bold">Failed</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-black border-2 border-white">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-black text-white" data-testid="text-total-count">{imports.length}</div>
-                <div className="text-xs text-zinc-400 uppercase font-bold">Total</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-zinc-900 border-2 border-white p-1">
-              <TabsTrigger
-                value="file-import"
-                className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-bold"
-                data-testid="tab-file-import"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                FILE IMPORT
-              </TabsTrigger>
-              <TabsTrigger 
-                value="incoming" 
-                className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-bold"
-                data-testid="tab-incoming"
-              >
-                INCOMING ({pendingImports.length})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="imported" 
-                className="data-[state=active]:bg-green-600 data-[state=active]:text-white font-bold"
-                data-testid="tab-imported"
-              >
-                IMPORTED ({importedAssets.length})
-              </TabsTrigger>
-              <TabsTrigger 
-                value="failed" 
-                className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-bold"
-                data-testid="tab-failed"
-              >
-                FAILED ({failedImports.length})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="file-import" className="space-y-6">
-              {!preview ? (
-                <>
-                  <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`relative border-4 border-dashed rounded-lg p-16 text-center cursor-pointer transition-all ${
-                      isDragOver
-                        ? "border-red-500 bg-red-500/10"
-                        : "border-zinc-600 hover:border-zinc-400 bg-zinc-900/30"
-                    }`}
-                    data-testid="drop-zone"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept=".cbz,.cbr,.zip,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.json,.cyoa,.psdcf"
-                      onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                      className="hidden"
-                      data-testid="input-file-upload"
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+              <DialogTrigger asChild>
+                <button
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm flex items-center gap-2 border border-cyan-500"
+                  data-testid="btn-add-import"
+                >
+                  <Plus className="w-4 h-4" />
+                  MANUAL IMPORT
+                </button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border border-border">
+                <DialogHeader>
+                  <DialogTitle className="font-bold">Add Manual Import</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Bundle Name</Label>
+                    <Input
+                      value={newImport.bundleName}
+                      onChange={(e) => setNewImport({ ...newImport, bundleName: e.target.value })}
+                      className="mt-1 bg-background border-border"
+                      placeholder="20260107_COMIC_Scene01"
+                      data-testid="input-bundle-name"
                     />
-                    {isProcessing ? (
-                      <div className="space-y-4">
-                        <div className="w-16 h-16 mx-auto border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-white font-bold text-lg">Processing files...</p>
-                        <Progress value={importProgress} className="w-64 mx-auto" />
-                        <p className="text-zinc-400 text-sm">{importProgress}% complete</p>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload className="w-16 h-16 text-zinc-500 mx-auto mb-4" />
-                        <h3 className="text-white font-bold text-xl mb-2">Drop files here or click to browse</h3>
-                        <p className="text-zinc-400 mb-6">Import comics and project files into your library</p>
-                        <div className="flex items-center justify-center gap-6">
-                          <div className="flex items-center gap-2 text-zinc-400">
-                            <FileArchive className="w-5 h-5 text-blue-400" />
-                            <span className="text-sm">CBZ / ZIP</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-zinc-400">
-                            <Images className="w-5 h-5 text-green-400" />
-                            <span className="text-sm">Image Sequence</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-zinc-400">
-                            <FileJson className="w-5 h-5 text-yellow-400" />
-                            <span className="text-sm">JSON / CYOA / PSDCF</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </div>
+                  <div>
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Name</Label>
+                    <Input
+                      value={newImport.assetName}
+                      onChange={(e) => setNewImport({ ...newImport, assetName: e.target.value })}
+                      className="mt-1 bg-background border-border"
+                      placeholder="Character Pose A"
+                      data-testid="input-asset-name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Source App</Label>
+                      <Select value={newImport.sourceApp} onValueChange={(v) => setNewImport({ ...newImport, sourceApp: v })}>
+                        <SelectTrigger className="mt-1 bg-background border-border" data-testid="select-source-app">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sourceApps.map((app) => (
+                            <SelectItem key={app} value={app}>{app}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Export Type</Label>
+                      <Select value={newImport.exportType} onValueChange={(v) => setNewImport({ ...newImport, exportType: v })}>
+                        <SelectTrigger className="mt-1 bg-background border-border" data-testid="select-export-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {exportTypes.map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Target Mode</Label>
+                      <Select value={newImport.targetMode} onValueChange={(v) => setNewImport({ ...newImport, targetMode: v })}>
+                        <SelectTrigger className="mt-1 bg-background border-border" data-testid="select-target-mode">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetModes.map((mode) => (
+                            <SelectItem key={mode} value={mode}>{mode}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Role</Label>
+                      <Select value={newImport.assetRole} onValueChange={(v) => setNewImport({ ...newImport, assetRole: v })}>
+                        <SelectTrigger className="mt-1 bg-background border-border" data-testid="select-asset-role">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assetRoles.map((role) => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <button
+                    className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm border border-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => createImportMutation.mutate(newImport)}
+                    disabled={!newImport.bundleName || !newImport.assetName}
+                    data-testid="btn-submit-import"
+                  >
+                    ADD TO QUEUE
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <Card className="bg-zinc-900/50 border border-zinc-700">
-                      <CardContent className="p-6">
-                        <FileArchive className="w-8 h-8 text-blue-400 mb-3" />
-                        <h4 className="text-white font-bold mb-1">CBZ / CBR / ZIP</h4>
-                        <p className="text-zinc-400 text-sm">Comic book archives. Images are extracted and each becomes a comic page.</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-zinc-900/50 border border-zinc-700">
-                      <CardContent className="p-6">
-                        <Images className="w-8 h-8 text-green-400 mb-3" />
-                        <h4 className="text-white font-bold mb-1">Image Sequence</h4>
-                        <p className="text-zinc-400 text-sm">Select multiple images. They'll be sorted naturally and arranged as comic pages.</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-zinc-900/50 border border-zinc-700">
-                      <CardContent className="p-6">
-                        <FileJson className="w-8 h-8 text-yellow-400 mb-3" />
-                        <h4 className="text-white font-bold mb-1">Project Files</h4>
-                        <p className="text-zinc-400 text-sm">Import .cyoa, .psdcf, or JSON project exports to restore saved work.</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </>
-              ) : (
-                <Card className="bg-black border-2 border-white">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-white font-bold flex items-center gap-2">
-                        <Eye className="w-5 h-5" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Pending", value: pendingImports.length, color: "text-yellow-400" },
+              { label: "Imported", value: importedAssets.length, color: "text-emerald-400" },
+              { label: "Failed", value: failedImports.length, color: "text-red-400" },
+              { label: "Total", value: imports.length, color: "text-foreground" },
+            ].map((stat) => (
+              <div key={stat.label} className="border border-border bg-card p-4 text-center">
+                <div className={`text-2xl font-black ${stat.color}`} data-testid={`text-${stat.label.toLowerCase()}-count`}>{stat.value}</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex gap-1 border-b border-border overflow-x-auto">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
+                      isActive
+                        ? "border-cyan-500 text-cyan-400"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid={`tab-${tab.id}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                    {tab.count !== null && tab.count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.5 font-mono ${
+                        isActive ? "bg-cyan-500/20 text-cyan-400" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTab === "file-import" && (
+              <div className="space-y-6">
+                {!preview ? (
+                  <>
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`relative border-2 border-dashed p-12 md:p-16 text-center cursor-pointer transition-all ${
+                        isDragOver
+                          ? "border-cyan-500 bg-cyan-500/5"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                      data-testid="drop-zone"
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".cbz,.cbr,.zip,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.json,.cyoa,.psdcf"
+                        onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                        className="hidden"
+                        data-testid="input-file-upload"
+                      />
+                      {isProcessing ? (
+                        <div className="space-y-4">
+                          <div className="w-12 h-12 mx-auto border-3 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                          <p className="font-bold text-lg">Processing files...</p>
+                          <Progress value={importProgress} className="w-64 mx-auto" />
+                          <p className="text-muted-foreground text-sm">{importProgress}% complete</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-16 h-16 mx-auto mb-4 border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                            <Upload className="w-8 h-8 text-muted-foreground/50" />
+                          </div>
+                          <h3 className="font-bold text-xl mb-2">Drop files here or click to browse</h3>
+                          <p className="text-muted-foreground mb-6 text-sm">Import comics and project files into your library</p>
+                          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <FileArchive className="w-4 h-4 text-blue-400" />
+                              <span className="text-xs font-mono">CBZ / ZIP</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Images className="w-4 h-4 text-emerald-400" />
+                              <span className="text-xs font-mono">Images</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <FileJson className="w-4 h-4 text-yellow-400" />
+                              <span className="text-xs font-mono">JSON / CYOA</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="border border-border bg-card p-5">
+                        <FileArchive className="w-7 h-7 text-blue-400 mb-3" />
+                        <h4 className="font-bold mb-1 text-sm">CBZ / CBR / ZIP</h4>
+                        <p className="text-muted-foreground text-xs leading-relaxed">Comic book archives. Images are extracted and each becomes a comic page.</p>
+                      </div>
+                      <div className="border border-border bg-card p-5">
+                        <Images className="w-7 h-7 text-emerald-400 mb-3" />
+                        <h4 className="font-bold mb-1 text-sm">Image Sequence</h4>
+                        <p className="text-muted-foreground text-xs leading-relaxed">Select multiple images. They'll be sorted naturally and arranged as comic pages.</p>
+                      </div>
+                      <div className="border border-border bg-card p-5">
+                        <FileJson className="w-7 h-7 text-yellow-400 mb-3" />
+                        <h4 className="font-bold mb-1 text-sm">Project Files</h4>
+                        <p className="text-muted-foreground text-xs leading-relaxed">Import .cyoa, .psdcf, or JSON project exports to restore saved work.</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="border border-border bg-card">
+                    <div className="flex items-center justify-between p-4 border-b border-border">
+                      <h3 className="font-bold flex items-center gap-2">
+                        <Eye className="w-4 h-4 text-cyan-400" />
                         Import Preview
-                      </CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => { setPreview(null); setProjectTitle(""); }}
-                        className="text-zinc-400 hover:text-white"
+                      </h3>
+                      <button
+                        onClick={() => { setPreview(null); setProjectTitle(""); setPreviewIndex(0); }}
+                        className="text-muted-foreground hover:text-foreground p-1"
                         data-testid="btn-cancel-preview"
                       >
-                        <X className="w-5 h-5" />
-                      </Button>
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label className="text-zinc-400 text-xs uppercase">Format</Label>
-                        <p className="text-white font-bold" data-testid="text-preview-format">
-                          {preview.format === "cbz" ? "CBZ / ZIP Archive" : preview.format === "images" ? "Image Sequence" : "Project File (JSON)"}
-                        </p>
+                    <div className="p-5 space-y-5">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Format</span>
+                          <p className="font-bold text-sm mt-0.5" data-testid="text-preview-format">
+                            {preview.format === "cbz" ? "CBZ / ZIP Archive" : preview.format === "images" ? "Image Sequence" : "Project File"}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Source</span>
+                          <p className="font-bold text-sm mt-0.5 truncate" data-testid="text-preview-source">{preview.fileName}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">
+                            {preview.format === "json" ? "Type" : "Pages"}
+                          </span>
+                          <p className="font-bold text-sm mt-0.5" data-testid="text-preview-count">
+                            {preview.format === "json"
+                              ? preview.projectData?.type || "comic"
+                              : `${preview.images.length} page${preview.images.length !== 1 ? "s" : ""}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-zinc-400 text-xs uppercase">Source</Label>
-                        <p className="text-white font-bold" data-testid="text-preview-source">{preview.fileName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-zinc-400 text-xs uppercase">
-                          {preview.format === "json" ? "Type" : "Pages"}
-                        </Label>
-                        <p className="text-white font-bold" data-testid="text-preview-count">
-                          {preview.format === "json"
-                            ? preview.projectData?.type || "comic"
-                            : `${preview.images.length} page${preview.images.length !== 1 ? "s" : ""}`}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div>
-                      <Label className="text-white mb-2 block">Project Title</Label>
-                      <Input
-                        value={projectTitle}
-                        onChange={(e) => setProjectTitle(e.target.value)}
-                        className="bg-zinc-900 border-white text-white"
-                        placeholder="Enter project title..."
-                        data-testid="input-project-title"
-                      />
-                    </div>
+                      <div>
+                        <Label className="text-xs font-bold uppercase text-muted-foreground mb-1.5 block">Project Title</Label>
+                        <Input
+                          value={projectTitle}
+                          onChange={(e) => setProjectTitle(e.target.value)}
+                          className="bg-background border-border"
+                          placeholder="Enter project title..."
+                          data-testid="input-project-title"
+                        />
+                      </div>
 
-                    {preview.images.length > 0 && (
-                      <div className="space-y-3">
-                        <Label className="text-zinc-400 text-xs uppercase">Preview</Label>
-                        <div className="relative bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden" style={{ minHeight: 320 }}>
-                          <img
-                            src={preview.images[previewIndex]}
-                            alt={`Page ${previewIndex + 1}`}
-                            className="max-h-[400px] mx-auto object-contain"
-                            data-testid="img-preview"
-                          />
+                      {preview.images.length > 0 && (
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Preview</span>
+                          <div className="relative bg-muted border border-border overflow-hidden" style={{ minHeight: 280 }}>
+                            <img
+                              src={preview.images[previewIndex]}
+                              alt={`Page ${previewIndex + 1}`}
+                              className="max-h-[380px] mx-auto object-contain"
+                              data-testid="img-preview"
+                            />
+                            {preview.images.length > 1 && (
+                              <>
+                                <button
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30"
+                                  onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
+                                  disabled={previewIndex === 0}
+                                  data-testid="btn-preview-prev"
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <button
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30"
+                                  onClick={() => setPreviewIndex(Math.min(preview.images.length - 1, previewIndex + 1))}
+                                  disabled={previewIndex === preview.images.length - 1}
+                                  data-testid="btn-preview-next"
+                                >
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 text-white text-xs font-mono font-bold">
+                                  {previewIndex + 1} / {preview.images.length}
+                                </div>
+                              </>
+                            )}
+                          </div>
                           {preview.images.length > 1 && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 text-white hover:bg-black/80"
-                                onClick={() => setPreviewIndex(Math.max(0, previewIndex - 1))}
-                                disabled={previewIndex === 0}
-                                data-testid="btn-preview-prev"
-                              >
-                                <ChevronLeft className="w-5 h-5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 text-white hover:bg-black/80"
-                                onClick={() => setPreviewIndex(Math.min(preview.images.length - 1, previewIndex + 1))}
-                                disabled={previewIndex === preview.images.length - 1}
-                                data-testid="btn-preview-next"
-                              >
-                                <ChevronRight className="w-5 h-5" />
-                              </Button>
-                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded text-white text-sm font-bold">
-                                {previewIndex + 1} / {preview.images.length}
-                              </div>
-                            </>
+                            <div className="flex gap-1.5 overflow-x-auto pb-1">
+                              {preview.images.map((img, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => setPreviewIndex(idx)}
+                                  className={`flex-shrink-0 w-14 h-14 border-2 overflow-hidden transition-all ${
+                                    idx === previewIndex ? "border-cyan-500" : "border-border hover:border-muted-foreground"
+                                  }`}
+                                  data-testid={`btn-thumbnail-${idx}`}
+                                >
+                                  <img src={img} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        {preview.images.length > 1 && (
-                          <div className="flex gap-2 overflow-x-auto pb-2">
-                            {preview.images.map((img, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => setPreviewIndex(idx)}
-                                className={`flex-shrink-0 w-16 h-16 border-2 overflow-hidden transition-all ${
-                                  idx === previewIndex ? "border-red-500" : "border-zinc-700 hover:border-zinc-400"
-                                }`}
-                                data-testid={`btn-thumbnail-${idx}`}
-                              >
-                                <img src={img} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      )}
 
-                    {preview.format === "json" && preview.projectData && (
-                      <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4">
-                        <Label className="text-zinc-400 text-xs uppercase mb-2 block">Project Data Preview</Label>
-                        <pre className="text-zinc-300 text-xs overflow-auto max-h-48 font-mono">
-                          {JSON.stringify(preview.projectData, null, 2).slice(0, 2000)}
-                          {JSON.stringify(preview.projectData, null, 2).length > 2000 ? "\n..." : ""}
-                        </pre>
-                      </div>
-                    )}
+                      {preview.format === "json" && preview.projectData && (
+                        <div className="bg-muted border border-border p-4">
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Project Data</span>
+                          <pre className="text-xs overflow-auto max-h-40 font-mono text-muted-foreground">
+                            {JSON.stringify(preview.projectData, null, 2).slice(0, 2000)}
+                            {JSON.stringify(preview.projectData, null, 2).length > 2000 ? "\n..." : ""}
+                          </pre>
+                        </div>
+                      )}
 
-                    <div className="flex gap-4">
-                      <Button
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white border-2 border-white font-bold text-lg py-6"
-                        onClick={handleConfirmImport}
-                        disabled={fileImportMutation.isPending || !projectTitle.trim()}
-                        data-testid="btn-confirm-import"
-                      >
-                        {fileImportMutation.isPending ? (
-                          <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                            IMPORTING...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-5 h-5 mr-2" />
-                            CREATE PROJECT
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-zinc-600 text-zinc-400 hover:text-white font-bold py-6"
-                        onClick={() => { setPreview(null); setProjectTitle(""); setPreviewIndex(0); }}
-                        data-testid="btn-cancel-import"
-                      >
-                        CANCEL
-                      </Button>
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm border border-cyan-500 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={handleConfirmImport}
+                          disabled={fileImportMutation.isPending || !projectTitle.trim()}
+                          data-testid="btn-confirm-import"
+                        >
+                          {fileImportMutation.isPending ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              IMPORTING...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4" />
+                              CREATE PROJECT
+                            </>
+                          )}
+                        </button>
+                        <button
+                          className="px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground font-bold text-sm"
+                          onClick={() => { setPreview(null); setProjectTitle(""); setPreviewIndex(0); }}
+                          data-testid="btn-cancel-import"
+                        >
+                          CANCEL
+                        </button>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="incoming" className="space-y-4">
-              {pendingImports.length === 0 ? (
-                <Card className="bg-black border-2 border-dashed border-zinc-700">
-                  <CardContent className="p-12 text-center">
-                    <FolderOpen className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
-                    <h3 className="text-white font-bold text-lg">No Pending Imports</h3>
-                    <p className="text-zinc-400 mt-2">Add imports manually or export from Reallusion/ComfyUI</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                pendingImports.map(renderImportCard)
-              )}
-            </TabsContent>
-
-            <TabsContent value="imported" className="space-y-4">
-              {importedAssets.length === 0 ? (
-                <Card className="bg-black border-2 border-dashed border-zinc-700">
-                  <CardContent className="p-12 text-center">
-                    <CheckCircle className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
-                    <h3 className="text-white font-bold text-lg">No Imported Assets Yet</h3>
-                    <p className="text-zinc-400 mt-2">Successfully imported assets will appear here</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                importedAssets.map(renderImportCard)
-              )}
-            </TabsContent>
-
-            <TabsContent value="failed" className="space-y-4">
-              {failedImports.length === 0 ? (
-                <Card className="bg-black border-2 border-dashed border-zinc-700">
-                  <CardContent className="p-12 text-center">
-                    <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-                    <h3 className="text-white font-bold text-lg">No Failed Imports</h3>
-                    <p className="text-zinc-400 mt-2">All imports processed successfully</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                failedImports.map(renderImportCard)
-              )}
-            </TabsContent>
-          </Tabs>
-
-          <Card className="bg-black border-2 border-white">
-            <CardHeader>
-              <CardTitle className="text-white font-bold">Supported Formats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 border border-zinc-700 bg-zinc-900/50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">CBZ / CBR / ZIP</span>
-                    <Badge className="bg-blue-600 text-white">Archive</Badge>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-2">Comic book archives with images extracted into pages</p>
-                </div>
-                <div className="p-4 border border-zinc-700 bg-zinc-900/50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">Image Sequence</span>
-                    <Badge className="bg-green-600 text-white">Images</Badge>
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-2">JPG, PNG, GIF, WebP - sorted and arranged as pages</p>
-                </div>
-                <div className="p-4 border border-zinc-700 bg-zinc-900/50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">JSON / CYOA / PSDCF</span>
-                    <Badge className="bg-yellow-600 text-white">Project</Badge>
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-2">Exported project files from CoMiXX or compatible tools</p>
-                </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            )}
+
+            {activeTab === "incoming" && (
+              <div className="space-y-3">
+                {pendingImports.length === 0
+                  ? renderEmptyState(<FolderOpen className="w-14 h-14" />, "No Pending Imports", "Add imports manually or drop files in the File Import tab")
+                  : pendingImports.map(renderImportCard)}
+              </div>
+            )}
+
+            {activeTab === "imported" && (
+              <div className="space-y-3">
+                {importedAssets.length === 0
+                  ? renderEmptyState(<CheckCircle className="w-14 h-14" />, "No Imported Assets Yet", "Successfully imported assets will appear here")
+                  : importedAssets.map(renderImportCard)}
+              </div>
+            )}
+
+            {activeTab === "failed" && (
+              <div className="space-y-3">
+                {failedImports.length === 0
+                  ? renderEmptyState(<CheckCircle className="w-14 h-14 text-emerald-500/30" />, "No Failed Imports", "All imports processed successfully")
+                  : failedImports.map(renderImportCard)}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }
