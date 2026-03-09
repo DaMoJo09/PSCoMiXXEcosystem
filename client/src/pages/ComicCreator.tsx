@@ -94,6 +94,8 @@ interface PanelContent {
     letterSpacing?: number;
     lineHeight?: number;
     textArch?: number;
+    filter?: string;
+    filterOverlay?: string;
   };
   zIndex: number;
   locked: boolean;
@@ -120,6 +122,69 @@ interface Spread {
   id: string;
   leftPage: Panel[];
   rightPage: Panel[];
+}
+
+const COMIC_IMAGE_FILTERS = [
+  { name: "None", filter: "none", overlay: "" },
+  { name: "Classic Comic", filter: "contrast(140%) saturate(120%) brightness(105%)", overlay: "halftone" },
+  { name: "Vintage Comic", filter: "sepia(30%) contrast(130%) saturate(90%) brightness(95%)", overlay: "halftone" },
+  { name: "Ink & Paper", filter: "contrast(200%) grayscale(100%) brightness(110%)", overlay: "" },
+  { name: "Newsprint", filter: "contrast(120%) brightness(95%) saturate(80%)", overlay: "halftone-fine" },
+  { name: "Pop Art", filter: "contrast(160%) saturate(200%) brightness(110%)", overlay: "halftone-bold" },
+  { name: "Silver Age", filter: "sepia(15%) contrast(125%) saturate(110%) brightness(100%)", overlay: "halftone" },
+  { name: "Golden Age", filter: "sepia(40%) contrast(130%) saturate(80%) brightness(90%)", overlay: "grain" },
+  { name: "Manga", filter: "grayscale(100%) contrast(150%) brightness(105%)", overlay: "screentone" },
+  { name: "Noir", filter: "grayscale(100%) contrast(180%) brightness(85%)", overlay: "" },
+  { name: "Watercolor", filter: "saturate(150%) brightness(110%) contrast(90%)", overlay: "paper" },
+  { name: "Cel Shade", filter: "contrast(170%) saturate(130%) brightness(105%)", overlay: "" },
+  { name: "Aged Paper", filter: "sepia(50%) contrast(110%) brightness(90%)", overlay: "grain" },
+  { name: "Faded Print", filter: "contrast(90%) brightness(115%) saturate(70%)", overlay: "halftone-fine" },
+  { name: "High Impact", filter: "contrast(180%) saturate(140%)", overlay: "" },
+  { name: "Duotone Blue", filter: "grayscale(100%) contrast(130%) brightness(100%) sepia(100%) hue-rotate(180deg) saturate(300%)", overlay: "" },
+  { name: "Duotone Red", filter: "grayscale(100%) contrast(130%) brightness(100%) sepia(100%) hue-rotate(-30deg) saturate(300%)", overlay: "" },
+];
+
+function getOverlayStyle(overlayType: string): React.CSSProperties {
+  switch (overlayType) {
+    case "halftone":
+      return {
+        backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.15) 20%, transparent 20%)",
+        backgroundSize: "4px 4px",
+        mixBlendMode: "multiply" as const,
+      };
+    case "halftone-fine":
+      return {
+        backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.12) 15%, transparent 15%)",
+        backgroundSize: "3px 3px",
+        mixBlendMode: "multiply" as const,
+      };
+    case "halftone-bold":
+      return {
+        backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.2) 25%, transparent 25%)",
+        backgroundSize: "6px 6px",
+        mixBlendMode: "multiply" as const,
+      };
+    case "screentone":
+      return {
+        backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.1) 10%, transparent 10%)",
+        backgroundSize: "2px 2px",
+        mixBlendMode: "multiply" as const,
+      };
+    case "grain":
+      return {
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E")`,
+        opacity: 0.15,
+        mixBlendMode: "overlay" as const,
+      };
+    case "paper":
+      return {
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E")`,
+        opacity: 0.1,
+        mixBlendMode: "overlay" as const,
+      };
+    default:
+      return {};
+  }
 }
 
 // Panel templates organized by category - inspired by standard comic book template layouts
@@ -1962,12 +2027,18 @@ export default function ComicCreator() {
               locked={content.locked}
             >
               {(content.type === "image" || content.type === "gif") && content.data.url && (
-                <img 
-                  src={content.data.url} 
-                  alt="Panel content" 
-                  className="w-full h-full object-contain"
-                  draggable={false}
-                />
+                <div className="w-full h-full relative">
+                  <img 
+                    src={content.data.url} 
+                    alt="Panel content" 
+                    className="w-full h-full object-contain"
+                    style={{ filter: content.data.filter || 'none' }}
+                    draggable={false}
+                  />
+                  {content.data.filterOverlay && (
+                    <div className="absolute inset-0 pointer-events-none" style={getOverlayStyle(content.data.filterOverlay)} />
+                  )}
+                </div>
               )}
               {content.type === "video" && content.data.videoUrl && (
                 <video
@@ -3722,6 +3793,37 @@ export default function ComicCreator() {
                       </div>
                     )}
                                       </div>
+                </div>
+              )}
+
+              {selectedContent && (selectedContent.type === 'image' || selectedContent.type === 'gif') && selectedPanelId && (
+                <div className="border-t border-zinc-800 p-3">
+                  <h4 className="font-bold text-xs mb-3 flex items-center gap-2">
+                    <Sparkles className="w-3 h-3" /> Comic Filters
+                  </h4>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {COMIC_IMAGE_FILTERS.map((f) => {
+                      const isActive = (selectedContent.data.filter || "none") === f.filter && 
+                        (selectedContent.data.filterOverlay || "") === f.overlay;
+                      return (
+                        <button
+                          key={f.name}
+                          onClick={() => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { 
+                            filter: f.filter, 
+                            filterOverlay: f.overlay 
+                          })}
+                          className={`px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+                            isActive 
+                              ? 'bg-white text-black border-white' 
+                              : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:border-zinc-500'
+                          }`}
+                          data-testid={`button-filter-${f.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          {f.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </aside>

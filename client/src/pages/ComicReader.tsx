@@ -40,6 +40,8 @@ interface PanelContentItem {
     letterSpacing?: number;
     lineHeight?: number;
     textArch?: number;
+    filter?: string;
+    filterOverlay?: string;
   };
   src?: string;
   text?: string;
@@ -807,6 +809,25 @@ function PanelRenderer({ panel }: { panel: Panel }) {
   );
 }
 
+function getReaderOverlayStyle(overlayType: string): React.CSSProperties {
+  switch (overlayType) {
+    case "halftone":
+      return { backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.15) 20%, transparent 20%)", backgroundSize: "4px 4px", mixBlendMode: "multiply" as const };
+    case "halftone-fine":
+      return { backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.12) 15%, transparent 15%)", backgroundSize: "3px 3px", mixBlendMode: "multiply" as const };
+    case "halftone-bold":
+      return { backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.2) 25%, transparent 25%)", backgroundSize: "6px 6px", mixBlendMode: "multiply" as const };
+    case "screentone":
+      return { backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.1) 10%, transparent 10%)", backgroundSize: "2px 2px", mixBlendMode: "multiply" as const };
+    case "grain":
+      return { backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E")`, opacity: 0.15, mixBlendMode: "overlay" as const };
+    case "paper":
+      return { backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E")`, opacity: 0.1, mixBlendMode: "overlay" as const };
+    default:
+      return {};
+  }
+}
+
 function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContentItem; panelWidth: number; panelHeight: number }) {
   const imgSrc = item.data?.url || item.data?.imageUrl || item.data?.src || item.src || "";
   const textContent = item.data?.text || item.text || "";
@@ -838,15 +859,22 @@ function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContent
   };
 
   if ((item.type === "image" || item.type === "gif") && imgSrc) {
+    const imgFilter = item.data?.filter || "none";
+    const imgOverlay = item.data?.filterOverlay || "";
     return (
-      <img
-        src={imgSrc}
-        alt=""
-        className="object-contain"
-        style={{ ...positionStyle, objectFit: "contain" }}
-        draggable={false}
-        data-testid={`img-content-${item.id}`}
-      />
+      <div style={positionStyle}>
+        <img
+          src={imgSrc}
+          alt=""
+          className="w-full h-full object-contain"
+          style={{ filter: imgFilter !== "none" ? imgFilter : undefined }}
+          draggable={false}
+          data-testid={`img-content-${item.id}`}
+        />
+        {imgOverlay && (
+          <div className="absolute inset-0 pointer-events-none" style={getReaderOverlayStyle(imgOverlay)} />
+        )}
+      </div>
     );
   }
 
