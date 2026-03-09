@@ -6377,5 +6377,79 @@ Sitemap: https://pressstart.space/sitemap.xml`
     });
   });
 
+  // =========== Print Studio / Quote Requests ===========
+
+  app.post("/api/print-quotes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { name, organization, accountType, productType, quantity, size, deadline, notes, artworkUrl } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      const validAccountTypes = ["school", "program", "creator"];
+      if (!accountType || !validAccountTypes.includes(accountType)) {
+        return res.status(400).json({ message: "Account type must be school, program, or creator" });
+      }
+      if (!productType || typeof productType !== "string" || productType.trim().length === 0) {
+        return res.status(400).json({ message: "Product type is required" });
+      }
+      const parsedQuantity = quantity ? parseInt(quantity, 10) : null;
+      if (parsedQuantity !== null && (isNaN(parsedQuantity) || parsedQuantity < 1)) {
+        return res.status(400).json({ message: "Quantity must be a positive number" });
+      }
+      const quote = await storage.createPrintQuoteRequest({
+        userId,
+        name: name.trim(),
+        organization: organization?.trim() || null,
+        accountType,
+        productType: productType.trim(),
+        quantity: parsedQuantity,
+        size: size?.trim() || null,
+        deadline: deadline?.trim() || null,
+        notes: notes?.trim() || null,
+        artworkUrl: artworkUrl?.trim() || null,
+        status: "pending",
+      });
+      res.status(201).json(quote);
+    } catch (error) {
+      console.error("Error creating print quote request:", error);
+      res.status(500).json({ message: "Error creating print quote request" });
+    }
+  });
+
+  app.get("/api/print-quotes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const quotes = await storage.getUserPrintQuoteRequests(userId);
+      res.json(quotes);
+    } catch {
+      res.status(500).json({ message: "Error fetching print quote requests" });
+    }
+  });
+
+  app.get("/api/admin/print-quotes", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const quotes = await storage.getAllPrintQuoteRequests();
+      res.json(quotes);
+    } catch {
+      res.status(500).json({ message: "Error fetching print quote requests" });
+    }
+  });
+
+  app.patch("/api/admin/print-quotes/:id/status", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const validStatuses = ["pending", "reviewed", "quoted", "completed"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Status must be one of: pending, reviewed, quoted, completed" });
+      }
+      const updated = await storage.updatePrintQuoteStatus(req.params.id, status);
+      if (!updated) return res.status(404).json({ message: "Quote request not found" });
+      res.json(updated);
+    } catch {
+      res.status(500).json({ message: "Error updating quote request status" });
+    }
+  });
+
   return server;
 }

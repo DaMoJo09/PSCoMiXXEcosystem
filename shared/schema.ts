@@ -2172,6 +2172,30 @@ export const insertComicSeriesSchema = createInsertSchema(comicSeries).omit({
 export type InsertComicSeries = z.infer<typeof insertComicSeriesSchema>;
 export type ComicSeriesType = typeof comicSeries.$inferSelect;
 
+export const printQuoteRequests = pgTable("print_quote_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  organization: text("organization"),
+  accountType: text("account_type").notNull(),
+  productType: text("product_type").notNull(),
+  quantity: integer("quantity"),
+  size: text("size"),
+  deadline: text("deadline"),
+  notes: text("notes"),
+  artworkUrl: text("artwork_url"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPrintQuoteRequestSchema = createInsertSchema(printQuoteRequests).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPrintQuoteRequest = z.infer<typeof insertPrintQuoteRequestSchema>;
+export type PrintQuoteRequest = typeof printQuoteRequests.$inferSelect;
+
 export const tosAcceptances = pgTable("tos_acceptances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -42,7 +42,10 @@ import {
   ChevronRight,
   Monitor,
   Wifi,
-  WifiOff
+  WifiOff,
+  Printer,
+  FileDown,
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,6 +89,13 @@ const marketplaceTools = [
   { icon: ShoppingBag, label: "Browse Marketplace", href: "/marketplace", studentOk: true },
   { icon: DollarSign, label: "Sell Content", href: "/marketplace/sell", studentOk: false },
   { icon: Layers, label: "My Purchases", href: "/marketplace/purchases", studentOk: true },
+];
+
+const printStudioTools = [
+  { icon: Printer, label: "Print Studio", href: "/print-studio" },
+  { icon: FileDown, label: "Export Dashboard", href: "/print-studio/export" },
+  { icon: Package, label: "Packages", href: "/print-studio/packages" },
+  { icon: Mail, label: "Request Quote", href: "/print-studio/quote" },
 ];
 
 const ecosystemToolsBase = [
@@ -337,6 +347,9 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
 
         {renderSectionLabel("Marketplace")}
         {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+
+        {renderSectionLabel("Print Studio")}
+        {printStudioTools.map((item) => renderNavLink(item))}
 
         {renderSectionLabel("Community", "community-nav-label")}
         {communityTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}

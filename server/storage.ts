@@ -37,6 +37,7 @@ import {
   comicComments,
   comicBookmarks,
   comicSeries,
+  printQuoteRequests,
   engagementEvents,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
@@ -95,10 +96,11 @@ import {
   type MarketplaceOrder, type InsertMarketplaceOrder,
   type MarketplaceReview,
   usageTracking, type UsageTracking,
-  projectVersions, publishJobs, engagementEvents,
+  projectVersions, publishJobs,
   type ProjectVersion, type InsertProjectVersion,
   type PublishJob, type InsertPublishJob,
   type EngagementEvent, type InsertEngagementEvent,
+  type PrintQuoteRequest, type InsertPrintQuoteRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql, ilike, gt } from "drizzle-orm";
@@ -459,6 +461,12 @@ export interface IStorage {
   // TOS operations
   recordTosAcceptance(userId: string, version: string, ipAddress?: string): Promise<any>;
   getLatestTosAcceptance(userId: string): Promise<any | undefined>;
+
+  // Print Quote operations
+  createPrintQuoteRequest(request: InsertPrintQuoteRequest): Promise<PrintQuoteRequest>;
+  getUserPrintQuoteRequests(userId: string): Promise<PrintQuoteRequest[]>;
+  getAllPrintQuoteRequests(): Promise<PrintQuoteRequest[]>;
+  updatePrintQuoteStatus(id: string, status: string): Promise<PrintQuoteRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3154,6 +3162,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userFollows.followerId, userId))
       .orderBy(desc(userFollows.createdAt))
       .limit(limit);
+  }
+
+  async createPrintQuoteRequest(request: InsertPrintQuoteRequest): Promise<PrintQuoteRequest> {
+    const [result] = await db.insert(printQuoteRequests).values(request).returning();
+    return result;
+  }
+
+  async getUserPrintQuoteRequests(userId: string): Promise<PrintQuoteRequest[]> {
+    return db.select().from(printQuoteRequests).where(eq(printQuoteRequests.userId, userId)).orderBy(desc(printQuoteRequests.createdAt));
+  }
+
+  async getAllPrintQuoteRequests(): Promise<PrintQuoteRequest[]> {
+    return db.select().from(printQuoteRequests).orderBy(desc(printQuoteRequests.createdAt));
+  }
+
+  async updatePrintQuoteStatus(id: string, status: string): Promise<PrintQuoteRequest | undefined> {
+    const [result] = await db.update(printQuoteRequests).set({ status }).where(eq(printQuoteRequests.id, id)).returning();
+    return result || undefined;
   }
 }
 

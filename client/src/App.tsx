@@ -72,6 +72,10 @@ import TeacherDashboard from "@/pages/TeacherDashboard";
 import CompliancePage from "@/pages/CompliancePage";
 import AccessibilityPage from "@/pages/AccessibilityPage";
 import SecurityPage from "@/pages/SecurityPage";
+import PrintStudio from "@/pages/PrintStudio";
+import ExportDashboard from "@/pages/ExportDashboard";
+import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
+import PrintPackages from "@/pages/PrintPackages";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 
@@ -180,6 +184,10 @@ function ProtectedRouter() {
         <Route path="/social/notifications" component={Notifications} />
         <Route path="/social/search" component={UserSearch} />
         <Route path="/tools/import" component={ImportCenter} />
+        <Route path="/print-studio" component={PrintStudio} />
+        <Route path="/print-studio/export" component={ExportDashboard} />
+        <Route path="/print-studio/quote" component={PrintQuoteRequest} />
+        <Route path="/print-studio/packages" component={PrintPackages} />
         <Route path="/marketplace" component={MarketplacePage} />
         <Route path="/marketplace/sell" component={MarketplaceSellPage} />
         <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />

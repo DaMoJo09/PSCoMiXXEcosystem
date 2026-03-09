@@ -53,6 +53,15 @@ Features transformable text elements with extensive editing controls and integra
 ### Card Creator
 Supports TCG and Sports modes with specific card types and fields. Sports mode includes 16 sports, various templates, team-level settings, and a Pack Builder with a 3-column roster grid preview and a "Print Team Sheet" export for organizations.
 
+### Print Studio (CoMiXX Print & Merch)
+A creation-to-print pipeline module with four pages under `/print-studio`:
+- **Print Studio Landing** (`/print-studio`): Marketing overview with hero, feature grid (6 output types), audience sections (Schools/Creators/Programs), how-it-works flow, and product bundles.
+- **Export Dashboard** (`/print-studio/export`): Asset type selector (Comic Book, Trading Card, T-Shirt, Poster, Sticker Sheet) with print-ready export settings (DPI, bleed, trim marks, CMYK notes, size presets). Links to relevant creator tools for export.
+- **Print Quote Request** (`/print-studio/quote`): Form for requesting print quotes with fields for name, org, account type, product type (multi-select), quantity, size, deadline, notes. Submits to `POST /api/print-quotes`. Shows user's previous requests with status badges.
+- **Packages** (`/print-studio/packages`): Three audience tabs (Schools/Programs/Creators) with package details and 4 bundle cards (Comic Launch, School Showcase, Creator Merch, Fundraiser).
+- **Database**: `print_quote_requests` table with userId, name, organization, accountType, productType, quantity, size, deadline, notes, artworkUrl, status, createdAt.
+- **API**: `POST /api/print-quotes`, `GET /api/print-quotes`, `GET /api/admin/print-quotes`, `PATCH /api/admin/print-quotes/:id/status`.
+
 ### Creator Marketplace
 A public storefront for browsing, searching, and filtering content. Creators can list projects or asset packs for free or sale (via Stripe Checkout), with content rating and student filtering. Purchased asset packs can be imported into the user's library.
 
