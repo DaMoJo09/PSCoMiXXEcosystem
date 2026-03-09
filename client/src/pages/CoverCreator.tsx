@@ -986,11 +986,27 @@ export default function CoverCreator() {
     const layers = coverData[`${view}Layers` as keyof CoverData] as TextLayer[];
     const imageLayers = (coverData[`${view}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
 
+    const designW = view === "spine" ? 80 : 600;
+    const designH = view === "spine" ? 900 : 900;
+    const requestedW = parseInt(width);
+    const isSpread = activeView === "spread";
+    const scale = isSpread ? requestedW / designW : 1;
+
     return (
-      <div 
+      <div
         className="relative overflow-hidden border-2 border-black shadow-xl"
         style={{ width, height, backgroundColor: bgColor }}
         onClick={(e) => { if (!e.shiftKey) setSelectedLayerIds([]); setEditingMasterId(null); setActiveView(view); }}
+      >
+      <div
+        className="absolute origin-top-left"
+        style={{
+          top: 0,
+          left: 0,
+          width: isSpread ? `${designW}px` : '100%',
+          height: isSpread ? `${designH}px` : '100%',
+          transform: isSpread ? `scale(${scale})` : 'none',
+        }}
       >
         {bgImage && (
           <img src={bgImage} className="absolute inset-0 w-full h-full object-cover" style={getFilterStyle()} />
@@ -1405,6 +1421,7 @@ export default function CoverCreator() {
             <div className="absolute bottom-0 left-0 text-[8px] text-green-400 bg-black/60 px-1 z-[61]">SAFE</div>
           </>
         )}
+      </div>
       </div>
     );
   };
@@ -2274,7 +2291,7 @@ export default function CoverCreator() {
                 {activeView === "spread" ? (
                   <div className="flex items-center shadow-2xl" style={{ perspective: "1000px" }}>
                     {renderCoverSection("back", "480px", "720px")}
-                    {renderCoverSection("spine", "60px", "720px")}
+                    {renderCoverSection("spine", "64px", "720px")}
                     {renderCoverSection("front", "480px", "720px")}
                   </div>
                 ) : activeView === "front" ? (
