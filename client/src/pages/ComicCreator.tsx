@@ -832,28 +832,45 @@ export default function ComicCreator() {
           img.src = src;
         });
 
+      const editorDims = getEditorPageDimensions();
       for (const panel of panels.sort((a, b) => a.zIndex - b.zIndex)) {
         const px = (panel.x / 100) * thumbWidth;
         const py = (panel.y / 100) * thumbHeight;
         const pw = (panel.width / 100) * thumbWidth;
         const ph = (panel.height / 100) * thumbHeight;
+        const edPanelW = (panel.width / 100) * editorDims.w;
+        const edPanelH = (panel.height / 100) * editorDims.h;
         ctx.save();
+        ctx.beginPath();
+        ctx.rect(px, py, pw, ph);
+        ctx.clip();
         ctx.fillStyle = panel.backgroundColor || "#ffffff";
         ctx.fillRect(px, py, pw, ph);
         for (const content of (panel.contents || []).sort((a, b) => a.zIndex - b.zIndex)) {
-          if (content.type === "image" && content.data?.url) {
+          if ((content.type === "image" || content.type === "gif") && content.data?.url) {
             try {
               const img = await loadImg(content.data.url);
-              const cx = px + content.transform.x;
-              const cy = py + content.transform.y;
-              ctx.drawImage(img, cx, cy, content.transform.width, content.transform.height);
+              const cx = px + (content.transform.x / edPanelW) * pw;
+              const cy = py + (content.transform.y / edPanelH) * ph;
+              const cw = (content.transform.width / edPanelW) * pw;
+              const ch = (content.transform.height / edPanelH) * ph;
+              ctx.drawImage(img, cx, cy, cw, ch);
+            } catch {}
+          } else if (content.type === "drawing" && content.data?.drawingData) {
+            try {
+              const img = await loadImg(content.data.drawingData);
+              const cx = px + (content.transform.x / edPanelW) * pw;
+              const cy = py + (content.transform.y / edPanelH) * ph;
+              const cw = (content.transform.width / edPanelW) * pw;
+              const ch = (content.transform.height / edPanelH) * ph;
+              ctx.drawImage(img, cx, cy, cw, ch);
             } catch {}
           }
         }
+        ctx.restore();
         ctx.strokeStyle = panel.borderColor || "#000000";
         ctx.lineWidth = panel.borderWidth || 2;
         ctx.strokeRect(px, py, pw, ph);
-        ctx.restore();
       }
 
       const dataUrl = canvas.toDataURL("image/png");
@@ -883,6 +900,16 @@ export default function ComicCreator() {
     window.open(`/creator/comic/preview?id=${effectiveProjectId}`, "_blank");
   };
 
+  const getEditorPageDimensions = (): { w: number; h: number } => {
+    const ref = leftPageRef.current || rightPageRef.current;
+    if (ref) {
+      const rect = ref.getBoundingClientRect();
+      const zoomScale = zoom / 100;
+      return { w: rect.width / zoomScale, h: rect.height / zoomScale };
+    }
+    return { w: isFullscreen ? 800 : 650, h: isFullscreen ? 1130 : 920 };
+  };
+
   const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement("canvas");
     canvas.width = pageWidth;
@@ -892,6 +919,8 @@ export default function ComicCreator() {
 
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+    const editorDims = getEditorPageDimensions();
 
     const loadImage = (src: string): Promise<HTMLImageElement> => {
       return new Promise((resolve, reject) => {
@@ -909,31 +938,30 @@ export default function ComicCreator() {
       const panelW = (panel.width / 100) * pageWidth;
       const panelH = (panel.height / 100) * pageHeight;
 
+      const editorPanelW = (panel.width / 100) * editorDims.w;
+      const editorPanelH = (panel.height / 100) * editorDims.h;
+
       ctx.save();
       
       if (panel.type === "circle") {
         ctx.beginPath();
         ctx.ellipse(panelX + panelW / 2, panelY + panelH / 2, panelW / 2, panelH / 2, 0, 0, Math.PI * 2);
         ctx.clip();
+      } else {
+        ctx.beginPath();
+        ctx.rect(panelX, panelY, panelW, panelH);
+        ctx.clip();
       }
 
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = panel.backgroundColor || "#ffffff";
       ctx.fillRect(panelX, panelY, panelW, panelH);
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(panelX, panelY, panelW, panelH);
-
-      const EDITOR_W = 650;
-      const EDITOR_H = 920;
-      const scaleFactorX = pageWidth / EDITOR_W;
-      const scaleFactorY = pageHeight / EDITOR_H;
 
       for (const content of panel.contents.sort((a, b) => a.zIndex - b.zIndex)) {
         const { transform, data, type } = content;
-        const contentX = panelX + transform.x * scaleFactorX;
-        const contentY = panelY + transform.y * scaleFactorY;
-        const contentW = transform.width * scaleFactorX;
-        const contentH = transform.height * scaleFactorY;
+        const contentX = panelX + (transform.x / editorPanelW) * panelW;
+        const contentY = panelY + (transform.y / editorPanelH) * panelH;
+        const contentW = (transform.width / editorPanelW) * panelW;
+        const contentH = (transform.height / editorPanelH) * panelH;
 
         ctx.save();
         ctx.translate(contentX + contentW / 2, contentY + contentH / 2);
@@ -972,7 +1000,8 @@ export default function ComicCreator() {
           }
           
           ctx.fillStyle = data.color || "#000000";
-          const scaledFontSize = (data.fontSize || 16) * Math.min(scaleFactorX, scaleFactorY);
+          const fontScale = Math.min(panelW / editorPanelW, panelH / editorPanelH);
+          const scaledFontSize = (data.fontSize || 16) * fontScale;
           ctx.font = `${scaledFontSize}px ${(data.fontFamily || "Inter").replace(/'/g, "")}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -981,7 +1010,8 @@ export default function ComicCreator() {
           ctx.fillStyle = "#1a1a2e";
           ctx.fillRect(0, 0, contentW, contentH);
           ctx.fillStyle = "#ffffff";
-          ctx.font = "14px Inter";
+          const fontScale = Math.min(panelW / editorPanelW, panelH / editorPanelH);
+          ctx.font = `${Math.round(14 * fontScale)}px Inter`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText("[Video Frame]", contentW / 2, contentH / 2);
@@ -990,6 +1020,18 @@ export default function ComicCreator() {
         ctx.restore();
       }
 
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = panel.borderColor || "#000000";
+      ctx.lineWidth = panel.borderWidth || 3;
+      if (panel.type === "circle") {
+        ctx.beginPath();
+        ctx.ellipse(panelX + panelW / 2, panelY + panelH / 2, panelW / 2, panelH / 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(panelX, panelY, panelW, panelH);
+      }
       ctx.restore();
     }
 
@@ -1049,13 +1091,16 @@ export default function ComicCreator() {
       toast.info("Exporting full comic (cover + all pages)...");
       let pageNum = 0;
 
-      if (comicMeta.frontCover && comicMeta.frontCover.startsWith("data:")) {
+      const hasCoverImage = comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("/") || comicMeta.frontCover.startsWith("blob:"));
+      if (hasCoverImage) {
         pageNum++;
         const coverLink = document.createElement("a");
         coverLink.download = `${title.replace(/\s+/g, "_")}_00_cover.png`;
         coverLink.href = comicMeta.frontCover;
         coverLink.click();
         await new Promise(resolve => setTimeout(resolve, 500));
+      } else if (comicMeta.frontCover) {
+        toast.info("Cover needs to be re-saved. Open Cover Creator and click 'Save & Return to Comic'.");
       }
       
       for (let i = 0; i < spreads.length; i++) {
@@ -1082,7 +1127,8 @@ export default function ComicCreator() {
         }
       }
 
-      if (comicMeta.backCover && comicMeta.backCover.startsWith("data:")) {
+      const hasBackCoverImage = comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("/") || comicMeta.backCover.startsWith("blob:"));
+      if (hasBackCoverImage) {
         const backLink = document.createElement("a");
         backLink.download = `${title.replace(/\s+/g, "_")}_${String(pageNum + 1).padStart(2, "0")}_back_cover.png`;
         backLink.href = comicMeta.backCover;
@@ -1158,10 +1204,18 @@ export default function ComicCreator() {
         return canvas;
       };
 
-      if (comicMeta.frontCover && comicMeta.frontCover.startsWith("data:")) {
-        const coverCanvas = await imageToCanvas(comicMeta.frontCover);
-        addImageToPDF(coverCanvas.toDataURL("image/jpeg", 0.92));
-        toast.info("Front cover added...");
+      const hasCoverForPdf = comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("/") || comicMeta.frontCover.startsWith("blob:"));
+      if (hasCoverForPdf) {
+        try {
+          const coverCanvas = await imageToCanvas(comicMeta.frontCover);
+          addImageToPDF(coverCanvas.toDataURL("image/jpeg", 0.92));
+          toast.info("Front cover added...");
+        } catch (e) {
+          console.error("Failed to add cover to PDF:", e);
+          toast.error("Cover image could not be loaded. Try re-saving it from Cover Creator.");
+        }
+      } else if (comicMeta.frontCover) {
+        toast.info("Cover needs to be re-saved. Open Cover Creator and click 'Save & Return to Comic'.");
       }
 
       for (let i = 0; i < spreads.length; i++) {
@@ -1179,16 +1233,22 @@ export default function ComicCreator() {
         }
       }
 
-      if (comicMeta.backCover && comicMeta.backCover.startsWith("data:")) {
-        const backCanvas = await imageToCanvas(comicMeta.backCover);
-        addImageToPDF(backCanvas.toDataURL("image/jpeg", 0.92));
+      const hasBackCoverForPdf = comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("/") || comicMeta.backCover.startsWith("blob:"));
+      if (hasBackCoverForPdf) {
+        try {
+          const backCanvas = await imageToCanvas(comicMeta.backCover);
+          addImageToPDF(backCanvas.toDataURL("image/jpeg", 0.92));
+        } catch (e) {
+          console.error("Failed to add back cover to PDF:", e);
+          toast.error("Back cover image could not be loaded. Try re-saving it from Cover Creator.");
+        }
       }
 
       pdf.save(`${title.replace(/\s+/g, "_")}_print_ready.pdf`);
 
-      const totalPages = (comicMeta.frontCover ? 1 : 0)
+      const totalPages = (hasCoverForPdf ? 1 : 0)
         + spreads.reduce((n, s) => n + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)
-        + (comicMeta.backCover ? 1 : 0);
+        + (hasBackCoverForPdf ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
