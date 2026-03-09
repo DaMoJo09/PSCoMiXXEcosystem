@@ -635,7 +635,8 @@ export default function ComicCreator() {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: cm } }, 'comic');
+    const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
+    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe } }, 'comic');
   }, []);
 
   useEffect(() => {
@@ -664,9 +665,10 @@ export default function ComicCreator() {
       if (pendingSaveRef.current && projectConfirmedRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
         if (projectId) {
+          const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe } })], { type: "application/json" })
           );
         }
       }
@@ -678,9 +680,10 @@ export default function ComicCreator() {
       if (pendingSaveRef.current && projectConfirmedRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
         if (projectId) {
+          const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cm } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe } })], { type: "application/json" })
           );
         }
         e.preventDefault();

@@ -736,7 +736,14 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const incomingData = req.body.data || {};
       const mergedData = { ...existingData, ...incomingData };
       if (incomingData.comicMeta && existingData.comicMeta) {
-        mergedData.comicMeta = { ...existingData.comicMeta, ...incomingData.comicMeta };
+        const merged = { ...existingData.comicMeta, ...incomingData.comicMeta };
+        const coverFields = ['frontCover', 'backCover', 'coverProjectId'] as const;
+        for (const f of coverFields) {
+          if (!incomingData.comicMeta[f] && existingData.comicMeta[f]) {
+            merged[f] = existingData.comicMeta[f];
+          }
+        }
+        mergedData.comicMeta = merged;
       }
       const updatePayload: any = { data: mergedData };
       if (req.body.title) updatePayload.title = req.body.title;

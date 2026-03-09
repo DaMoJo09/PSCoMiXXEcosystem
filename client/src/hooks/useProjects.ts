@@ -14,6 +14,7 @@ export function useProject(id: string) {
     queryKey: ["project", id],
     queryFn: () => projectsApi.getOne(id),
     enabled: !!id,
+    refetchOnWindowFocus: true,
   });
 }
 
