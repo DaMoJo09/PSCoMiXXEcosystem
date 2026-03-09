@@ -1045,6 +1045,7 @@ export default function CoverCreator() {
                 onTransformChange={(_, transform) => updateCover({ bannerTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
+                containerScale={scale}
               >
                 <div 
                   className="w-full h-full flex items-center justify-between px-2 text-white"
@@ -1087,6 +1088,7 @@ export default function CoverCreator() {
                 onTransformChange={(_, transform) => updateCover({ priceBoxTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
+                containerScale={scale}
               >
                 <div className="w-full h-full bg-white border-2 border-black flex items-center justify-center">
                   {editingMasterId === "master-price" ? (
@@ -1114,6 +1116,7 @@ export default function CoverCreator() {
                 onTransformChange={(_, transform) => updateCover({ issueNumberTransform: transform })}
                 locked={false}
                 containerRef={canvasRef}
+                containerScale={scale}
               >
                 <div className="w-full h-full flex items-center justify-center">
                   {editingMasterId === "master-issue" ? (
@@ -1143,6 +1146,7 @@ export default function CoverCreator() {
               onTransformChange={(_, transform) => updateCover({ titleTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              containerScale={scale}
               style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-title") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
@@ -1186,6 +1190,7 @@ export default function CoverCreator() {
               onTransformChange={(_, transform) => updateCover({ subtitleTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              containerScale={scale}
               style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-subtitle") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
@@ -1228,6 +1233,7 @@ export default function CoverCreator() {
               onTransformChange={(_, transform) => updateCover({ authorTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              containerScale={scale}
               style={{ zIndex: (coverData.elementZOrder || []).indexOf("master-author") + 10 }}
             >
               <div className="w-full h-full flex items-center justify-center text-center">
@@ -1275,6 +1281,7 @@ export default function CoverCreator() {
               onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
               locked={false}
               containerRef={canvasRef}
+              containerScale={scale}
             >
               <div className="w-full h-full flex items-center justify-center text-center p-4">
                 {editingMasterId === "master-blurb" ? (
@@ -1358,6 +1365,7 @@ export default function CoverCreator() {
                   onDelete={(lid) => deleteImageLayer(view, lid)}
                   locked={imgLayer.locked}
                   containerRef={canvasRef}
+                  containerScale={scale}
                   style={{ zIndex: zIdx }}
                 >
                   <img
@@ -1383,6 +1391,7 @@ export default function CoverCreator() {
                   onDelete={(lid) => deleteTextLayer(view, lid)}
                   locked={layer.locked}
                   containerRef={canvasRef}
+                  containerScale={scale}
                   style={{ zIndex: zIdx }}
                 >
                   <TextElement

@@ -31,6 +31,7 @@ interface TransformableElementProps {
   minWidth?: number;
   minHeight?: number;
   containerRef?: React.RefObject<HTMLElement | null>;
+  containerScale?: number;
   style?: React.CSSProperties;
 }
 
@@ -50,6 +51,7 @@ export function TransformableElement({
   minWidth = 50,
   minHeight = 50,
   containerRef,
+  containerScale = 1,
   style: extraStyle,
 }: TransformableElementProps) {
   const elementRef = useRef<HTMLDivElement>(null);
@@ -141,8 +143,9 @@ export function TransformableElement({
       const offset = getContainerOffset();
       
       if (isDragging) {
-        const dx = (e.clientX - offset.x) - dragStart.current.x;
-        const dy = (e.clientY - offset.y) - dragStart.current.y;
+        const s = containerScale || 1;
+        const dx = ((e.clientX - offset.x) - dragStart.current.x) / s;
+        const dy = ((e.clientY - offset.y) - dragStart.current.y) / s;
         
         let newX = dragStart.current.startX + dx;
         let newY = dragStart.current.startY + dy;
@@ -165,8 +168,9 @@ export function TransformableElement({
       }
       
       if (isResizing) {
-        const dx = (e.clientX - offset.x) - resizeStart.current.x;
-        const dy = (e.clientY - offset.y) - resizeStart.current.y;
+        const s = containerScale || 1;
+        const dx = ((e.clientX - offset.x) - resizeStart.current.x) / s;
+        const dy = ((e.clientY - offset.y) - resizeStart.current.y) / s;
         
         let newWidth = resizeStart.current.width;
         let newHeight = resizeStart.current.height;
@@ -243,7 +247,7 @@ export function TransformableElement({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, isResizing, isRotating, transform, id, onTransformChange, minWidth, minHeight, getContainerOffset]);
+  }, [isDragging, isResizing, isRotating, transform, id, onTransformChange, minWidth, minHeight, getContainerOffset, containerScale]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
