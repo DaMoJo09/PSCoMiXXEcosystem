@@ -85,6 +85,7 @@ export default function Dashboard() {
         type: newProjectType,
         status: "draft",
         data: {},
+        forceNew: true,
       });
       toast.success("Project created");
       setNewProjectOpen(false);
@@ -102,6 +103,7 @@ export default function Dashboard() {
         type,
         status: "draft",
         data: {},
+        forceNew: true,
       });
       navigate(`${href}?id=${project.id}`);
     } catch (error: any) {

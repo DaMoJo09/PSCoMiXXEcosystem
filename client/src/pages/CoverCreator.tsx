@@ -786,14 +786,29 @@ export default function CoverCreator() {
       if (coverContentRef.current) {
         try {
           const html2canvasMod = await import("html2canvas");
-          const canvas = await html2canvasMod.default(coverContentRef.current, {
-            scale: 1,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: null,
-            logging: false,
-          });
-          coverImageUrl = canvas.toDataURL("image/png");
+          let canvas;
+          try {
+            canvas = await html2canvasMod.default(coverContentRef.current, {
+              scale: 1,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: null,
+              logging: false,
+            });
+          } catch {
+            canvas = await html2canvasMod.default(coverContentRef.current, {
+              scale: 1,
+              useCORS: false,
+              allowTaint: true,
+              backgroundColor: null,
+              logging: false,
+            });
+          }
+          try {
+            coverImageUrl = canvas.toDataURL("image/png");
+          } catch {
+            coverImageUrl = "";
+          }
         } catch (err) {
           console.error("Cover image capture failed:", err);
         }
@@ -807,7 +822,7 @@ export default function CoverCreator() {
           body: JSON.stringify({
             data: {
               comicMeta: {
-                frontCover: coverImageUrl || savedProjectId,
+                frontCover: coverImageUrl || "",
                 coverProjectId: savedProjectId,
               }
             },

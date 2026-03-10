@@ -673,7 +673,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
       }
 
-      if (req.body.type) {
+      if (req.body.type && req.body.forceNew !== true) {
         const userProjects = await storage.getUserProjects(req.user!.id);
         const existing = userProjects
           .filter((p: any) => p.type === req.body.type)
@@ -689,8 +689,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
       }
 
+      const { forceNew, ...projectBody } = req.body;
       const result = insertProjectSchema.safeParse({
-        ...req.body,
+        ...projectBody,
         userId: req.user!.id,
       });
       if (!result.success) {
