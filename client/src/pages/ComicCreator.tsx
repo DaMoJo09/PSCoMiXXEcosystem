@@ -2850,7 +2850,7 @@ export default function ComicCreator() {
             <div className="absolute inset-0 pointer-events-none opacity-5"
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
-            <div className="text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-[100] bg-zinc-900/80 px-4 py-2 rounded">
+            <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/80 px-4 py-2 rounded ${showPreview ? 'hidden' : ''}`}>
               <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
               <button 
                 onClick={async () => { 
@@ -4064,13 +4064,19 @@ export default function ComicCreator() {
                   const isLeftPage = (previewPage - 1) % 2 === 0;
                   const spread = spreads[spreadIndex];
                   const panels = isLeftPage ? spread?.leftPage : spread?.rightPage;
+                  const editorDims = getEditorPageDimensions();
+                  const PREVIEW_W = 500;
+                  const PREVIEW_H = 750;
                   
                   return (
-                    <div className="w-[500px] h-[750px] bg-white border-4 border-zinc-800 shadow-2xl relative overflow-hidden">
-                      {panels?.map(panel => (
+                    <div className="bg-white border-4 border-zinc-800 shadow-2xl relative overflow-hidden" style={{ width: PREVIEW_W, height: PREVIEW_H }}>
+                      {panels?.map(panel => {
+                        const editorPanelW = (panel.width / 100) * editorDims.w;
+                        const editorPanelH = (panel.height / 100) * editorDims.h;
+                        return (
                         <div 
                           key={panel.id}
-                          className="absolute border-2 border-black bg-white overflow-hidden"
+                          className="absolute bg-white overflow-hidden"
                           style={{
                             left: `${panel.x}%`,
                             top: `${panel.y}%`,
@@ -4085,14 +4091,10 @@ export default function ComicCreator() {
                           }}
                         >
                           {panel.contents.map(content => {
-                          const EDITOR_W = 650;
-                          const EDITOR_H = 920;
-                          const panelW = (panel.width / 100) * EDITOR_W;
-                          const panelH = (panel.height / 100) * EDITOR_H;
-                          const leftPct = panelW > 0 ? (content.transform.x / panelW) * 100 : 0;
-                          const topPct = panelH > 0 ? (content.transform.y / panelH) * 100 : 0;
-                          const widthPct = panelW > 0 ? (content.transform.width / panelW) * 100 : 100;
-                          const heightPct = panelH > 0 ? (content.transform.height / panelH) * 100 : 100;
+                          const leftPct = editorPanelW > 0 ? (content.transform.x / editorPanelW) * 100 : 0;
+                          const topPct = editorPanelH > 0 ? (content.transform.y / editorPanelH) * 100 : 0;
+                          const widthPct = editorPanelW > 0 ? (content.transform.width / editorPanelW) * 100 : 100;
+                          const heightPct = editorPanelH > 0 ? (content.transform.height / editorPanelH) * 100 : 100;
                           return (
                             <div
                               key={content.id}
@@ -4156,7 +4158,8 @@ export default function ComicCreator() {
                           );
                           })}
                         </div>
-                      ))}
+                      );
+                      })}
                       {(!panels || panels.length === 0) && (
                         <div className="absolute inset-0 flex items-center justify-center text-zinc-300">
                           <p className="text-lg">Empty Page</p>
