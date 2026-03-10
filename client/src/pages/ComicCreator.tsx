@@ -4042,7 +4042,7 @@ export default function ComicCreator() {
               <div className="relative" style={{ perspective: "2000px" }}>
                 {previewPage === 0 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {comicMeta.frontCover ? (
+                    {comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("blob:") || comicMeta.frontCover.startsWith("/")) ? (
                       <img src={comicMeta.frontCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
@@ -4064,7 +4064,7 @@ export default function ComicCreator() {
                   const isLeftPage = (previewPage - 1) % 2 === 0;
                   const spread = spreads[spreadIndex];
                   const panels = isLeftPage ? spread?.leftPage : spread?.rightPage;
-                  const editorDims = getEditorPageDimensions();
+                  const editorDims = { w: isFullscreen ? 800 : 650, h: isFullscreen ? 1130 : 920 };
                   const PREVIEW_W = 500;
                   const PREVIEW_H = 750;
                   
@@ -4109,10 +4109,10 @@ export default function ComicCreator() {
                               }}
                             >
                               {content.type === "image" && content.data.url && (
-                                <img src={content.data.url} className="w-full h-full object-cover" />
+                                <img src={content.data.url} className="w-full h-full object-contain" style={{ filter: content.data.filter || 'none' }} />
                               )}
                               {content.type === "gif" && content.data.url && (
-                                <img src={content.data.url} className="w-full h-full object-cover" />
+                                <img src={content.data.url} className="w-full h-full object-contain" />
                               )}
                               {content.type === "drawing" && content.data.drawingData && (
                                 <img src={content.data.drawingData} className="w-full h-full object-contain" />
@@ -4120,7 +4120,7 @@ export default function ComicCreator() {
                               {content.type === "video" && content.data.videoUrl && (
                                 <video 
                                   src={content.data.videoUrl} 
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-contain"
                                   autoPlay={content.data.autoplay !== false}
                                   loop={content.data.loop !== false}
                                   muted={content.data.muted !== false}
@@ -4174,7 +4174,7 @@ export default function ComicCreator() {
 
                 {previewPage === spreads.length * 2 + 1 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {comicMeta.backCover ? (
+                    {comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("blob:") || comicMeta.backCover.startsWith("/")) ? (
                       <img src={comicMeta.backCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
