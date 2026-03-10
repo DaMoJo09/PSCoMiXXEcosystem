@@ -91,7 +91,11 @@ Supports video/GIF export with progress tracking, using a Web Worker for GIF enc
 Integrates with FX Studio (pressplays.site) via a server-proxied API to allow users to browse, import, and apply effects to Motion Studio frames.
 
 ### PWA & Offline Mode
-Includes a Service Worker for app shell, font, and asset caching, with version-based invalidation. Projects are saved locally using IndexedDB for offline use, with timestamp-based conflict resolution and background syncing. Sync status is indicated in the UI.
+Includes a Service Worker (v6) for app shell, font, and asset caching, with version-based invalidation and dynamic cache size limits (max 100 entries). On activation, the SW pre-caches the Vite-built app shell by parsing `/` for script/CSS references. Projects are saved locally using IndexedDB for offline use, with timestamp-based conflict resolution and background syncing. Sync status is indicated in the UI sidebar. PWA components live in `client/src/components/pwa/`:
+- **InstallBanner**: Dismissible top banner prompting install after 2+ visits, hidden for 7 days after dismissal.
+- **NetworkStatusToast**: Global online/offline toast notifications via Sonner, triggers sync on reconnect with result feedback.
+- **UpdatePrompt**: Detects waiting SW updates and shows persistent "Update Now" toast; user-controlled activation (no auto `skipWaiting`).
+iOS PWA support includes `apple-mobile-web-app-capable`, multiple touch icon sizes, and a branded splash screen in `index.html`.
 
 ### Accessibility
 Features keyboard shortcuts (accessible via `?`), a skip-to-content link, Aria labels for UI elements, a high-contrast mode, and respect for `prefers-reduced-motion` settings. A global `ErrorBoundary` handles page crashes.

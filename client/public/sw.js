@@ -1,8 +1,10 @@
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `pressstart-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `pressstart-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
 const APP_SHELL_CACHE = `pressstart-shell-${CACHE_VERSION}`;
+
+const MAX_DYNAMIC_CACHE_SIZE = 100;
 
 const STATIC_ASSETS = [
   '/',
@@ -54,8 +56,36 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
 });
+
+async function trimCache(cacheName, maxSize) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxSize) {
+    for (let i = 0; i < keys.length - maxSize; i++) {
+      await cache.delete(keys[i]);
+    }
+  }
+}
+
+async function precacheAppShell() {
+  try {
+    const cache = await caches.open(APP_SHELL_CACHE);
+    const response = await fetch('/');
+    const html = await response.text();
+    const assetUrls = [];
+    const scriptMatches = html.matchAll(/src="([^"]+\.(js|css))"/g);
+    const linkMatches = html.matchAll(/href="([^"]+\.css)"/g);
+    for (const match of scriptMatches) assetUrls.push(match[1]);
+    for (const match of linkMatches) assetUrls.push(match[1]);
+    const localAssets = assetUrls.filter(u => u.startsWith('/'));
+    if (localAssets.length > 0) {
+      await cache.addAll(localAssets).catch(() => {});
+    }
+  } catch (e) {
+    console.log('App shell precache failed:', e);
+  }
+}
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -68,7 +98,7 @@ self.addEventListener('activate', (event) => {
           })
           .map((name) => caches.delete(name))
       );
-    })
+    }).then(() => precacheAppShell())
   );
   self.clients.claim();
 });
@@ -160,6 +190,7 @@ self.addEventListener('fetch', (event) => {
           const fetchPromise = fetch(request).then((response) => {
             if (isValidCacheResponse(response)) {
               cache.put(request, response.clone());
+              trimCache(DYNAMIC_CACHE, MAX_DYNAMIC_CACHE_SIZE);
             }
             return response;
           }).catch(() => cached);

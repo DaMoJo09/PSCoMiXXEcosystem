@@ -79,6 +79,9 @@ import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
 import PrintPackages from "@/pages/PrintPackages";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
+import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
+import { NetworkStatusToast } from "@/components/pwa/NetworkStatusToast";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 
 function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -224,6 +227,9 @@ function App() {
                   <Toaster />
                   <SonnerToaster theme="dark" position="bottom-right" />
                   <KeyboardShortcutsDialog />
+                  <InstallBanner />
+                  <NetworkStatusToast />
+                  <UpdatePrompt />
                   <ProtectedRouter />
                 </TooltipProvider>
               </EcosystemProvider>
