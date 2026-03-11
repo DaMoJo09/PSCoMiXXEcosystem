@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import html2canvas from "html2canvas";
+import { captureElement } from "@/lib/canvasCapture";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
@@ -506,13 +506,7 @@ export default function CardCreator() {
       const targetWidth = Math.round(inchW * targetDPI);
       const printScale = targetWidth / elWidth;
       
-      const canvas = await html2canvas(el, {
-        scale: printScale,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-      });
+      const canvas = await captureElement(el, { scale: printScale });
       
       const label = mode === "pack" ? "pack" : `card_${side}`;
       const link = document.createElement("a");
@@ -777,13 +771,7 @@ export default function CardCreator() {
         const targetWidth = Math.round(pageWidthInches * targetDPI);
         const printScale = targetWidth / el.offsetWidth;
 
-        const canvas = await html2canvas(el, {
-          scale: printScale,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-        });
+        const canvas = await captureElement(el, { scale: printScale, backgroundColor: "#ffffff" });
 
         const link = document.createElement("a");
         const teamLabel = packData.teamName ? packData.teamName.replace(/\s+/g, "_") : "team";

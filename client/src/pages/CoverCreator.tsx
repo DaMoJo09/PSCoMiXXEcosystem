@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import html2canvas from "html2canvas";
+import { captureElement } from "@/lib/canvasCapture";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
   RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen,
@@ -612,6 +612,10 @@ export default function CoverCreator() {
 
   const handlePDFExport = async () => {
     if (!coverContentRef.current) return;
+    const prevSelection = [...selectedLayerIds];
+    setSelectedLayerIds([]);
+    setEditingMasterId(null);
+    await new Promise(r => setTimeout(r, 50));
     try {
       toast.info("Generating print-ready PDF...");
       const el = coverContentRef.current;
@@ -620,13 +624,7 @@ export default function CoverCreator() {
       const inchH = activeView === "spread" ? 10.25 : activeView === "spine" ? 10.25 : 10.25;
       const targetWidth = Math.round(inchW * targetDPI);
       const printScale = targetWidth / el.offsetWidth;
-      const canvas = await html2canvas(el, {
-        scale: printScale,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
-        logging: false,
-      });
+      const canvas = await captureElement(el, { scale: printScale });
       const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({
         orientation: inchW > inchH ? "landscape" : "portrait",
@@ -641,6 +639,8 @@ export default function CoverCreator() {
     } catch (error: any) {
       console.error("PDF export error:", error);
       toast.error("Failed to export PDF: " + (error?.message || "Unknown error"));
+    } finally {
+      setSelectedLayerIds(prevSelection);
     }
   };
 
@@ -784,40 +784,35 @@ export default function CoverCreator() {
         savedProjectId = newProject.id;
       }
 
-      let coverImageUrl = "";
+      let frontCoverCapture = "";
+      let backCoverCapture = "";
       if (coverContentRef.current) {
-        try {
-          const html2canvasMod = await import("html2canvas");
-          let canvas;
+        const prevView = activeView;
+        const prevSel = [...selectedLayerIds];
+        setSelectedLayerIds([]);
+        setEditingMasterId(null);
+
+        const captureView = async (view: "front" | "back") => {
+          setActiveView(view);
+          await new Promise(r => setTimeout(r, 100));
+          if (!coverContentRef.current) return "";
           try {
-            canvas = await html2canvasMod.default(coverContentRef.current, {
-              scale: 1,
-              useCORS: true,
-              allowTaint: false,
-              backgroundColor: null,
-              logging: false,
-            });
-          } catch {
-            canvas = await html2canvasMod.default(coverContentRef.current, {
-              scale: 1,
-              useCORS: false,
-              allowTaint: true,
-              backgroundColor: null,
-              logging: false,
-            });
+            const canvas = await captureElement(coverContentRef.current);
+            return canvas.toDataURL("image/png");
+          } catch (err) {
+            console.error(`Cover ${view} capture failed:`, err);
+            return "";
           }
-          try {
-            coverImageUrl = canvas.toDataURL("image/png");
-          } catch {
-            coverImageUrl = "";
-          }
-        } catch (err) {
-          console.error("Cover image capture failed:", err);
-        }
+        };
+
+        frontCoverCapture = await captureView("front");
+        backCoverCapture = await captureView("back");
+        setActiveView(prevView);
+        setSelectedLayerIds(prevSel);
       }
 
-      const frontCoverFinal = (activeView === "front" && coverImageUrl) ? coverImageUrl : (coverData.frontImage || "");
-      const backCoverFinal = coverData.backImage || "";
+      const frontCoverFinal = frontCoverCapture || coverData.frontImage || "";
+      const backCoverFinal = backCoverCapture || coverData.backImage || "";
 
       if (comicId) {
         const autosaveRes = await fetch(`/api/projects/${comicId}/autosave`, {
@@ -854,25 +849,22 @@ export default function CoverCreator() {
 
   const handleExport = async () => {
     if (!coverContentRef.current) return;
+    const prevSelection = [...selectedLayerIds];
+    setSelectedLayerIds([]);
+    setEditingMasterId(null);
+    await new Promise(r => setTimeout(r, 50));
     
     try {
       toast.info("Exporting print-ready cover (300 DPI)...");
       
       const el = coverContentRef.current;
       const elWidth = el.offsetWidth;
-      const elHeight = el.offsetHeight;
       const targetDPI = 300;
       const inchW = activeView === "spread" ? 13.95 : activeView === "spine" ? 0.7 : 6.625;
       const targetWidth = Math.round(inchW * targetDPI);
       const printScale = targetWidth / elWidth;
       
-      const canvas = await html2canvas(el, {
-        scale: printScale,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
-        logging: false,
-      });
+      const canvas = await captureElement(el, { scale: printScale });
       
       const link = document.createElement("a");
       link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.png`;
@@ -884,6 +876,8 @@ export default function CoverCreator() {
     } catch (error: any) {
       console.error("Export error:", error);
       toast.error("Failed to export cover: " + (error?.message || "Unknown error"));
+    } finally {
+      setSelectedLayerIds(prevSelection);
     }
   };
 
