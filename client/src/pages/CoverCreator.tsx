@@ -17,6 +17,7 @@ import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { AssetBrowser, AssetBrowserTrigger } from "@/components/tools/AssetBrowser";
 import type { AssetItem } from "@/components/tools/AssetBrowser";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 import {
@@ -289,6 +290,7 @@ export default function CoverCreator() {
   const { data: project } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
+  const queryClient = useQueryClient();
 
   const [coverData, setCoverData] = useState<CoverData>(defaultCover);
   const [activeView, setActiveView] = useState<"front" | "back" | "spine" | "spread">("front");
@@ -814,21 +816,30 @@ export default function CoverCreator() {
         }
       }
 
+      const frontCoverFinal = (activeView === "front" && coverImageUrl) ? coverImageUrl : (coverData.frontImage || "");
+      const backCoverFinal = coverData.backImage || "";
+
       if (comicId) {
-        await fetch(`/api/projects/${comicId}/autosave`, {
+        const autosaveRes = await fetch(`/api/projects/${comicId}/autosave`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
             data: {
               comicMeta: {
-                frontCover: coverImageUrl || "",
+                frontCover: frontCoverFinal,
+                backCover: backCoverFinal,
                 coverProjectId: savedProjectId,
               }
             },
-            thumbnail: coverImageUrl || undefined,
+            thumbnail: frontCoverFinal || undefined,
           }),
         });
+        if (!autosaveRes.ok) {
+          const errData = await autosaveRes.json().catch(() => ({}));
+          throw new Error(errData.message || "Failed to link cover to comic");
+        }
+        queryClient.invalidateQueries({ queryKey: ["project", comicId] });
         toast.success("Cover linked to comic!");
         navigate(`/creator/comic?id=${comicId}`);
       } else {
