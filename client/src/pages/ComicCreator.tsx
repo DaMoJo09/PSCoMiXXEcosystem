@@ -402,7 +402,7 @@ export default function ComicCreator() {
   const projectId = searchParams.get('id');
   
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const { data: project, isError: projectFetchError } = useProject(projectId || createdProjectId || '');
+  const { data: project, isError: projectFetchError, refetch: refetchProject } = useProject(projectId || createdProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
@@ -611,6 +611,15 @@ export default function ComicCreator() {
     }
   }, [project]);
 
+  const isValidCoverSrc = (src: string | undefined | null): src is string =>
+    !!src && (src.startsWith("data:") || src.startsWith("http") || src.startsWith("blob:") || src.startsWith("/"));
+
+  const projectData = project?.data as any;
+  const effectiveFrontCover = isValidCoverSrc(comicMeta.frontCover) ? comicMeta.frontCover
+    : isValidCoverSrc(projectData?.comicMeta?.frontCover) ? projectData.comicMeta.frontCover : "";
+  const effectiveBackCover = isValidCoverSrc(comicMeta.backCover) ? comicMeta.backCover
+    : isValidCoverSrc(projectData?.comicMeta?.backCover) ? projectData.comicMeta.backCover : "";
+
   // Auto-save system: debounced save + flush on unmount/beforeunload
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userEditCountRef = useRef(0);
@@ -715,7 +724,7 @@ export default function ComicCreator() {
         case 'y': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleRedo(); } break;
         case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
         case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
-        case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); } break;
+        case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); refetchProject(); } break;
         case '[': setBrushSize(s => Math.max(1, s - 2)); break;
         case ']': setBrushSize(s => Math.min(100, s + 2)); break;
       }
@@ -742,7 +751,7 @@ export default function ComicCreator() {
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+      qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Submitted for review!");
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit for review"),
@@ -769,7 +778,7 @@ export default function ComicCreator() {
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+      qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Publishing started!");
     },
     onError: (err: any) => toast.error(err.message || "Failed to publish"),
@@ -802,15 +811,15 @@ export default function ComicCreator() {
       }
       const panels = [...(firstSpread.leftPage || []), ...(firstSpread.rightPage || [])];
 
-      if (comicMeta.frontCover) {
+      if (effectiveFrontCover) {
         const res = await fetch(`/api/projects/${effectiveProjectId}/generate-thumbnail`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ thumbnail: comicMeta.frontCover }),
+          body: JSON.stringify({ thumbnail: effectiveFrontCover }),
         });
         if (res.ok) {
-          qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+          qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
           toast.success("Thumbnail generated from front cover!");
           return;
         }
@@ -885,7 +894,7 @@ export default function ComicCreator() {
         body: JSON.stringify({ thumbnail: dataUrl }),
       });
       if (res.ok) {
-        qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+        qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
         toast.success("Thumbnail generated from first page!");
       } else {
         const err = await res.json();
@@ -921,7 +930,7 @@ export default function ComicCreator() {
         body: JSON.stringify({ thumbnail: dataUrl }),
       });
       if (res.ok) {
-        qc.invalidateQueries({ queryKey: [`/api/projects/${effectiveProjectId}`] });
+        qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
         toast.success("Thumbnail uploaded!");
       } else {
         const err = await res.json();
@@ -1132,16 +1141,13 @@ export default function ComicCreator() {
       toast.info("Exporting full comic (cover + all pages)...");
       let pageNum = 0;
 
-      const hasCoverImage = comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("/") || comicMeta.frontCover.startsWith("blob:"));
-      if (hasCoverImage) {
+      if (effectiveFrontCover) {
         pageNum++;
         const coverLink = document.createElement("a");
         coverLink.download = `${title.replace(/\s+/g, "_")}_00_cover.png`;
-        coverLink.href = comicMeta.frontCover;
+        coverLink.href = effectiveFrontCover;
         coverLink.click();
         await new Promise(resolve => setTimeout(resolve, 500));
-      } else if (comicMeta.frontCover) {
-        toast.info("Cover needs to be re-saved. Open Cover Creator and click 'Save & Return to Comic'.");
       }
       
       for (let i = 0; i < spreads.length; i++) {
@@ -1168,11 +1174,10 @@ export default function ComicCreator() {
         }
       }
 
-      const hasBackCoverImage = comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("/") || comicMeta.backCover.startsWith("blob:"));
-      if (hasBackCoverImage) {
+      if (effectiveBackCover) {
         const backLink = document.createElement("a");
         backLink.download = `${title.replace(/\s+/g, "_")}_${String(pageNum + 1).padStart(2, "0")}_back_cover.png`;
-        backLink.href = comicMeta.backCover;
+        backLink.href = effectiveBackCover;
         backLink.click();
       }
       
@@ -1245,18 +1250,15 @@ export default function ComicCreator() {
         return canvas;
       };
 
-      const hasCoverForPdf = comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("/") || comicMeta.frontCover.startsWith("blob:"));
-      if (hasCoverForPdf) {
+      if (effectiveFrontCover) {
         try {
-          const coverCanvas = await imageToCanvas(comicMeta.frontCover);
+          const coverCanvas = await imageToCanvas(effectiveFrontCover);
           addImageToPDF(coverCanvas.toDataURL("image/jpeg", 0.92));
           toast.info("Front cover added...");
         } catch (e) {
           console.error("Failed to add cover to PDF:", e);
           toast.error("Cover image could not be loaded. Try re-saving it from Cover Creator.");
         }
-      } else if (comicMeta.frontCover) {
-        toast.info("Cover needs to be re-saved. Open Cover Creator and click 'Save & Return to Comic'.");
       }
 
       for (let i = 0; i < spreads.length; i++) {
@@ -1274,10 +1276,9 @@ export default function ComicCreator() {
         }
       }
 
-      const hasBackCoverForPdf = comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("/") || comicMeta.backCover.startsWith("blob:"));
-      if (hasBackCoverForPdf) {
+      if (effectiveBackCover) {
         try {
-          const backCanvas = await imageToCanvas(comicMeta.backCover);
+          const backCanvas = await imageToCanvas(effectiveBackCover);
           addImageToPDF(backCanvas.toDataURL("image/jpeg", 0.92));
         } catch (e) {
           console.error("Failed to add back cover to PDF:", e);
@@ -1287,9 +1288,9 @@ export default function ComicCreator() {
 
       pdf.save(`${title.replace(/\s+/g, "_")}_print_ready.pdf`);
 
-      const totalPages = (hasCoverForPdf ? 1 : 0)
+      const totalPages = (effectiveFrontCover ? 1 : 0)
         + spreads.reduce((n, s) => n + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)
-        + (hasBackCoverForPdf ? 1 : 0);
+        + (effectiveBackCover ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
@@ -2668,7 +2669,7 @@ export default function ComicCreator() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
-                <DropdownMenuItem onClick={() => { setPreviewPage(0); setShowPreview(true); }} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-inline">
+                <DropdownMenuItem onClick={() => { setPreviewPage(0); setShowPreview(true); refetchProject(); }} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-inline">
                   <Eye className="w-4 h-4 mr-2" /> Quick Preview (Ctrl+R)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleOpenReaderPreview} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-reader">
@@ -2750,7 +2751,7 @@ export default function ComicCreator() {
           </div>
         </header>
 
-        {showCoverPrompt && !comicMeta.frontCover && (
+        {showCoverPrompt && !effectiveFrontCover && (
           <div className="bg-gradient-to-r from-cyan-900/60 to-purple-900/60 border-b border-cyan-700/50 px-4 py-2.5 flex items-center justify-between" data-testid="cover-prompt-banner">
             <div className="flex items-center gap-3">
               <Palette className="w-5 h-5 text-cyan-400 flex-shrink-0" />
@@ -4042,8 +4043,8 @@ export default function ComicCreator() {
               <div className="relative" style={{ perspective: "2000px" }}>
                 {previewPage === 0 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {comicMeta.frontCover && (comicMeta.frontCover.startsWith("data:") || comicMeta.frontCover.startsWith("http") || comicMeta.frontCover.startsWith("blob:") || comicMeta.frontCover.startsWith("/")) ? (
-                      <img src={comicMeta.frontCover} className="absolute inset-0 w-full h-full object-cover" />
+                    {effectiveFrontCover ? (
+                      <img src={effectiveFrontCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-b from-zinc-900 to-black" />
@@ -4174,8 +4175,8 @@ export default function ComicCreator() {
 
                 {previewPage === spreads.length * 2 + 1 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {comicMeta.backCover && (comicMeta.backCover.startsWith("data:") || comicMeta.backCover.startsWith("http") || comicMeta.backCover.startsWith("blob:") || comicMeta.backCover.startsWith("/")) ? (
-                      <img src={comicMeta.backCover} className="absolute inset-0 w-full h-full object-cover" />
+                    {effectiveBackCover ? (
+                      <img src={effectiveBackCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-black" />

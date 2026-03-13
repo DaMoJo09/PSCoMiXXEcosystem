@@ -50,8 +50,8 @@ export function ThumbnailPicker({ projectId, currentThumbnail, onSuccess, classN
         body: JSON.stringify({ thumbnail: preview }),
       });
       if (res.ok) {
-        qc.invalidateQueries({ queryKey: ["/api/projects"] });
-        qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+        qc.invalidateQueries({ queryKey: ["projects"] });
+        qc.invalidateQueries({ queryKey: ["project", projectId] });
         toast.success("Thumbnail updated!");
         setIsOpen(false);
         setPreview(null);
@@ -77,8 +77,8 @@ export function ThumbnailPicker({ projectId, currentThumbnail, onSuccess, classN
         body: JSON.stringify({}),
       });
       if (res.ok) {
-        qc.invalidateQueries({ queryKey: ["/api/projects"] });
-        qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+        qc.invalidateQueries({ queryKey: ["projects"] });
+        qc.invalidateQueries({ queryKey: ["project", projectId] });
         toast.success("Thumbnail auto-generated!");
         setIsOpen(false);
         onSuccess?.();
