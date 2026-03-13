@@ -737,16 +737,79 @@ export default function CoverCreator() {
     return map[id] || null;
   }, []);
 
+  const waitForRender = () => new Promise<void>(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 150)));
+  });
+
+  const captureCoverImages = async (savedProjectId: string | null) => {
+    let frontCoverCapture = "";
+    let backCoverCapture = "";
+
+    if (coverContentRef.current) {
+      const prevView = activeView;
+      const prevSel = [...selectedLayerIds];
+      setSelectedLayerIds([]);
+      setEditingMasterId(null);
+      await waitForRender();
+
+      const captureView = async (view: "front" | "back") => {
+        setActiveView(view);
+        await waitForRender();
+        if (!coverContentRef.current) return "";
+        try {
+          const canvas = await captureElement(coverContentRef.current);
+          return canvas.toDataURL("image/png");
+        } catch (err) {
+          console.error(`Cover ${view} capture failed:`, err);
+          return "";
+        }
+      };
+
+      frontCoverCapture = await captureView("front");
+      backCoverCapture = await captureView("back");
+      setActiveView(prevView);
+      setSelectedLayerIds(prevSel);
+    }
+
+    return {
+      frontCover: frontCoverCapture || coverData.frontImage || "",
+      backCover: backCoverCapture || coverData.backImage || "",
+    };
+  };
+
+  const linkCoverToComic = async (coverImages: { frontCover: string; backCover: string }, savedProjectId: string | null) => {
+    if (!comicId) return;
+    const autosaveRes = await fetch(`/api/projects/${comicId}/autosave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        data: {
+          comicMeta: {
+            frontCover: coverImages.frontCover,
+            backCover: coverImages.backCover,
+            coverProjectId: savedProjectId,
+          }
+        },
+        thumbnail: coverImages.frontCover || undefined,
+      }),
+    });
+    if (!autosaveRes.ok) {
+      const errData = await autosaveRes.json().catch(() => ({}));
+      throw new Error(errData.message || "Failed to link cover to comic");
+    }
+    queryClient.invalidateQueries({ queryKey: ["project", comicId] });
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      let savedProjectId = effectiveProjectId;
       if (effectiveProjectId) {
         await updateProject.mutateAsync({
           id: effectiveProjectId,
           data: { title: coverData.title, data: coverData },
         });
-        toast.success("Cover saved");
-        fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
       } else {
         const newProject = await createProject.mutateAsync({
           title: coverData.title || "Untitled Cover",
@@ -754,10 +817,19 @@ export default function CoverCreator() {
           status: "draft",
           data: coverData,
         });
-        navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
-        toast.success("Cover created and saved");
-        fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+        savedProjectId = newProject.id;
+        navigate(`/creator/cover?id=${newProject.id}${comicId ? `&comicId=${comicId}` : ''}`, { replace: true });
       }
+
+      if (comicId) {
+        const coverImages = await captureCoverImages(savedProjectId);
+        await linkCoverToComic(coverImages, savedProjectId);
+        toast.success("Cover saved & linked to comic!");
+      } else {
+        toast.success("Cover saved");
+      }
+
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -784,62 +856,12 @@ export default function CoverCreator() {
         savedProjectId = newProject.id;
       }
 
-      let frontCoverCapture = "";
-      let backCoverCapture = "";
-      if (coverContentRef.current) {
-        const prevView = activeView;
-        const prevSel = [...selectedLayerIds];
-        setSelectedLayerIds([]);
-        setEditingMasterId(null);
+      const coverImages = await captureCoverImages(savedProjectId);
+      await linkCoverToComic(coverImages, savedProjectId);
 
-        const captureView = async (view: "front" | "back") => {
-          setActiveView(view);
-          await new Promise(r => setTimeout(r, 100));
-          if (!coverContentRef.current) return "";
-          try {
-            const canvas = await captureElement(coverContentRef.current);
-            return canvas.toDataURL("image/png");
-          } catch (err) {
-            console.error(`Cover ${view} capture failed:`, err);
-            return "";
-          }
-        };
-
-        frontCoverCapture = await captureView("front");
-        backCoverCapture = await captureView("back");
-        setActiveView(prevView);
-        setSelectedLayerIds(prevSel);
-      }
-
-      const frontCoverFinal = frontCoverCapture || coverData.frontImage || "";
-      const backCoverFinal = backCoverCapture || coverData.backImage || "";
-
-      if (comicId) {
-        const autosaveRes = await fetch(`/api/projects/${comicId}/autosave`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            data: {
-              comicMeta: {
-                frontCover: frontCoverFinal,
-                backCover: backCoverFinal,
-                coverProjectId: savedProjectId,
-              }
-            },
-            thumbnail: frontCoverFinal || undefined,
-          }),
-        });
-        if (!autosaveRes.ok) {
-          const errData = await autosaveRes.json().catch(() => ({}));
-          throw new Error(errData.message || "Failed to link cover to comic");
-        }
-        queryClient.invalidateQueries({ queryKey: ["project", comicId] });
-        toast.success("Cover linked to comic!");
-        navigate(`/creator/comic?id=${comicId}`);
-      } else {
-        toast.success("Cover saved");
-      }
+      toast.success("Cover linked to comic!");
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+      navigate(`/creator/comic?id=${comicId}`);
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -852,7 +874,7 @@ export default function CoverCreator() {
     const prevSelection = [...selectedLayerIds];
     setSelectedLayerIds([]);
     setEditingMasterId(null);
-    await new Promise(r => setTimeout(r, 50));
+    await waitForRender();
     
     try {
       toast.info("Exporting print-ready cover (300 DPI)...");
@@ -864,7 +886,13 @@ export default function CoverCreator() {
       const targetWidth = Math.round(inchW * targetDPI);
       const printScale = targetWidth / elWidth;
       
-      const canvas = await captureElement(el, { scale: printScale });
+      let canvas: HTMLCanvasElement;
+      try {
+        canvas = await captureElement(el, { scale: printScale });
+      } catch (captureErr) {
+        console.warn("High-res capture failed, trying 1x scale:", captureErr);
+        canvas = await captureElement(el, { scale: 1 });
+      }
       
       const link = document.createElement("a");
       link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.png`;

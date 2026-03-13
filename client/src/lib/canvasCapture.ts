@@ -115,6 +115,35 @@ function restoreLiveStyles(backups: { styleBackups: StyleBackup[]; linkBackups: 
   }
 }
 
+async function convertExternalImages(el: HTMLElement): Promise<() => void> {
+  const imgs = el.querySelectorAll("img");
+  const originals: { img: HTMLImageElement; src: string }[] = [];
+
+  const promises = Array.from(imgs).map(async (img) => {
+    const src = img.src;
+    if (!src || src.startsWith("data:") || src.startsWith("blob:")) return;
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      originals.push({ img, src });
+      img.src = dataUrl;
+    } catch {
+    }
+  });
+
+  await Promise.all(promises);
+  return () => {
+    for (const { img, src } of originals) {
+      img.src = src;
+    }
+  };
+}
+
 export async function captureElement(
   el: HTMLElement,
   options: {
@@ -127,28 +156,42 @@ export async function captureElement(
   }
   captureInProgress = true;
   const backups = sanitizeLiveStyles();
+  let restoreImages = () => {};
 
   try {
+    restoreImages = await convertExternalImages(el);
+
+    const canvas = await html2canvas(el, {
+      scale: options.scale ?? 1,
+      backgroundColor: options.backgroundColor ?? null,
+      logging: false,
+      useCORS: true,
+      allowTaint: false,
+    });
+
+    canvas.toDataURL("image/png");
+    return canvas;
+  } catch (firstErr) {
+    console.warn("Capture with CORS failed, retrying with allowTaint:", firstErr);
     try {
       const canvas = await html2canvas(el, {
-        scale: options.scale ?? 1,
-        backgroundColor: options.backgroundColor ?? null,
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-      });
-      canvas.toDataURL("image/png");
-      return canvas;
-    } catch {
-      return await html2canvas(el, {
         scale: options.scale ?? 1,
         backgroundColor: options.backgroundColor ?? null,
         logging: false,
         useCORS: false,
         allowTaint: true,
       });
+      try {
+        canvas.toDataURL("image/png");
+        return canvas;
+      } catch {
+        throw new Error("Canvas is tainted and cannot be exported. Try using local images instead of external URLs.");
+      }
+    } catch (secondErr) {
+      throw secondErr;
     }
   } finally {
+    restoreImages();
     restoreLiveStyles(backups);
     captureInProgress = false;
   }
