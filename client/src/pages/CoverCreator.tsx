@@ -877,7 +877,7 @@ export default function CoverCreator() {
     await waitForRender();
     
     try {
-      toast.info("Exporting print-ready cover (300 DPI)...");
+      toast.info("Exporting cover...");
       
       const el = coverContentRef.current;
       const elWidth = el.offsetWidth;
@@ -886,21 +886,50 @@ export default function CoverCreator() {
       const targetWidth = Math.round(inchW * targetDPI);
       const printScale = targetWidth / elWidth;
       
-      let canvas: HTMLCanvasElement;
+      let exported = false;
       try {
-        canvas = await captureElement(el, { scale: printScale });
-      } catch (captureErr) {
-        console.warn("High-res capture failed, trying 1x scale:", captureErr);
-        canvas = await captureElement(el, { scale: 1 });
+        const canvas = await captureElement(el, { scale: printScale });
+        const dataUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.png`;
+        link.href = dataUrl;
+        link.click();
+        exported = true;
+        toast.success(`Cover exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
+      } catch (highResErr) {
+        console.warn("High-res capture failed, trying 1x:", highResErr);
+        try {
+          const canvas = await captureElement(el, { scale: 1 });
+          const dataUrl = canvas.toDataURL("image/png");
+          const link = document.createElement("a");
+          link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}.png`;
+          link.href = dataUrl;
+          link.click();
+          exported = true;
+          toast.success("Cover exported (standard resolution)");
+        } catch (lowResErr) {
+          console.warn("1x capture also failed:", lowResErr);
+        }
       }
-      
-      const link = document.createElement("a");
-      link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_print.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      
-      toast.success(`Cover exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+
+      if (!exported) {
+        const bgKey = activeView === "front" ? "frontImage" : activeView === "back" ? "backImage" : activeView === "spine" ? "spineImage" : "frontImage";
+        const bgImage = coverData[bgKey as keyof CoverData] as string;
+        if (bgImage && bgImage.startsWith("data:")) {
+          const link = document.createElement("a");
+          link.download = `${coverData.title.replace(/\s+/g, "_")}_cover_${activeView}_bg.png`;
+          link.href = bgImage;
+          link.click();
+          toast.success("Exported background image (text overlays not included)");
+          exported = true;
+        }
+      }
+
+      if (!exported) {
+        toast.error("Export failed — no cover image available to export");
+      } else {
+        fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      }
     } catch (error: any) {
       console.error("Export error:", error);
       toast.error("Failed to export cover: " + (error?.message || "Unknown error"));
