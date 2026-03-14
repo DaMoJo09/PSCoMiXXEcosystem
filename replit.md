@@ -50,6 +50,8 @@ Supports direct drawing within panels, a dedicated toolbar, CSS filters, advance
 ### Cover Creator
 Features transformable text elements, extensive editing controls, integration with the asset library, and print-ready export at 300 DPI. It includes snap-to-grid alignment, aspect ratio locking, and rotational snapping. Front and back covers are captured separately. A `canvasCapture.ts` utility handles html2canvas calls with an `onclone` sanitizer for modern CSS colors.
 
+**Integrated Cover Mode (Comic-Embedded):** When CoverCreator is launched from ComicCreator (via `?comicId=X`), it operates in embedded mode — no separate cover project is created. Instead, cover design data is stored directly in the comic project's `data.coverDesign` field, and captured cover images are saved to `data.comicMeta.frontCover/backCover`. The server autosave endpoint preserves `coverDesign` during ComicCreator autosaves via merge logic. ComicCreator's manual save also uses the autosave/merge endpoint to avoid overwriting coverDesign. Standalone cover mode (no comicId) continues to work independently with its own cover project.
+
 ### Card Creator
 Supports TCG and Sports modes with specific card types and fields. Sports mode includes 16 sports, various templates, team-level settings, and a Pack Builder with a 3-column roster grid preview and a "Print Team Sheet" export.
 

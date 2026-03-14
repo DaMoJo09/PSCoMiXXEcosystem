@@ -285,9 +285,10 @@ export default function CoverCreator() {
   const projectId = searchParams.get('id');
   const comicId = searchParams.get('comicId');
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const effectiveProjectId = projectId || createdProjectId;
+  const isComicEmbedded = !!comicId;
+  const effectiveProjectId = isComicEmbedded ? comicId : (projectId || createdProjectId);
   
-  const { data: project } = useProject(effectiveProjectId || '');
+  const { data: project, refetch: refetchProject } = useProject(effectiveProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const queryClient = useQueryClient();
@@ -324,6 +325,10 @@ export default function CoverCreator() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isComicEmbedded) {
+      setIsCreating(false);
+      return;
+    }
     if (projectId) {
       setIsCreating(false);
       return;
@@ -384,32 +389,28 @@ export default function CoverCreator() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [projectId]);
+  }, [projectId, isComicEmbedded]);
 
   useEffect(() => {
-    if (project) {
+    if (!project) return;
+    if (isComicEmbedded) {
+      const comicData = project.data as any;
+      const savedCoverDesign = comicData?.coverDesign as CoverData;
+      if (savedCoverDesign) {
+        setCoverData(prev => ({ ...prev, ...savedCoverDesign }));
+      } else {
+        setCoverData(prev => ({
+          ...prev,
+          title: project.title || prev.title,
+          spineText: project.title || prev.spineText,
+          author: comicData?.author || prev.author,
+        }));
+      }
+    } else {
       const data = project.data as CoverData;
       if (data) setCoverData(prev => ({ ...prev, ...data }));
     }
-  }, [project]);
-
-  useEffect(() => {
-    if (!comicId) return;
-    fetch(`/api/projects/${comicId}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(comic => {
-        if (comic && !effectiveProjectId) {
-          setCoverData(prev => ({
-            ...prev,
-            title: comic.title || prev.title,
-            spineText: comic.title || prev.spineText,
-            author: comic.data?.author || prev.author,
-          }));
-          toast.info("Auto-populated from comic project");
-        }
-      })
-      .catch(() => {});
-  }, [comicId, projectId]);
+  }, [project, isComicEmbedded]);
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userEditCountRef = useRef(0);
@@ -426,8 +427,12 @@ export default function CoverCreator() {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-    await saveProjectWithOfflineFallback(pid, { title: cd.title, data: cd }, 'cover');
-  }, []);
+    if (isComicEmbedded) {
+      await saveProjectWithOfflineFallback(pid, { title: '', data: { coverDesign: cd } }, 'comic');
+    } else {
+      await saveProjectWithOfflineFallback(pid, { title: cd.title, data: cd }, 'cover');
+    }
+  }, [isComicEmbedded]);
 
   useEffect(() => {
     if (project && !initialLoadDoneRef.current) {
@@ -448,30 +453,39 @@ export default function CoverCreator() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [coverData, projectId, flushSave]);
+  }, [coverData, effectiveProjectId, flushSave]);
+
+  const buildBeaconPayload = useCallback(() => {
+    const { projectId: pid, coverData: cd } = latestDataRef.current;
+    if (!pid) return null;
+    if (isComicEmbedded) {
+      return { url: `/api/projects/${pid}/autosave`, body: { data: { coverDesign: cd } } };
+    }
+    return { url: `/api/projects/${pid}/autosave`, body: { title: cd.title, data: cd } };
+  }, [isComicEmbedded]);
 
   useEffect(() => {
     return () => {
       if (pendingSaveRef.current) {
-        const { projectId: pid, coverData: cd } = latestDataRef.current;
-        if (pid) {
+        const payload = buildBeaconPayload();
+        if (payload) {
           navigator.sendBeacon(
-            `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: cd.title, data: cd })], { type: "application/json" })
+            payload.url,
+            new Blob([JSON.stringify(payload.body)], { type: "application/json" })
           );
         }
       }
     };
-  }, []);
+  }, [buildBeaconPayload]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current) {
-        const { projectId: pid, coverData: cd } = latestDataRef.current;
-        if (pid) {
+        const payload = buildBeaconPayload();
+        if (payload) {
           navigator.sendBeacon(
-            `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: cd.title, data: cd })], { type: "application/json" })
+            payload.url,
+            new Blob([JSON.stringify(payload.body)], { type: "application/json" })
           );
         }
         e.preventDefault();
@@ -479,7 +493,7 @@ export default function CoverCreator() {
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+  }, [buildBeaconPayload]);
 
   const pushHistory = useCallback((data: CoverData) => {
     if (isUndoRedoRef.current) return;
@@ -777,26 +791,26 @@ export default function CoverCreator() {
     };
   };
 
-  const linkCoverToComic = async (coverImages: { frontCover: string; backCover: string }, savedProjectId: string | null) => {
+  const saveToComicProject = async (coverImages: { frontCover: string; backCover: string }) => {
     if (!comicId) return;
-    const autosaveRes = await fetch(`/api/projects/${comicId}/autosave`, {
+    const res = await fetch(`/api/projects/${comicId}/autosave`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
         data: {
+          coverDesign: coverData,
           comicMeta: {
             frontCover: coverImages.frontCover,
             backCover: coverImages.backCover,
-            coverProjectId: savedProjectId,
           }
         },
         thumbnail: coverImages.frontCover || undefined,
       }),
     });
-    if (!autosaveRes.ok) {
-      const errData = await autosaveRes.json().catch(() => ({}));
-      throw new Error(errData.message || "Failed to link cover to comic");
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || "Failed to save cover to comic");
     }
     queryClient.invalidateQueries({ queryKey: ["project", comicId] });
   };
@@ -804,28 +818,27 @@ export default function CoverCreator() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      let savedProjectId = effectiveProjectId;
-      if (effectiveProjectId) {
-        await updateProject.mutateAsync({
-          id: effectiveProjectId,
-          data: { title: coverData.title, data: coverData },
-        });
+      if (isComicEmbedded) {
+        const coverImages = await captureCoverImages(null);
+        await saveToComicProject(coverImages);
+        toast.success("Cover saved to comic!");
       } else {
-        const newProject = await createProject.mutateAsync({
-          title: coverData.title || "Untitled Cover",
-          type: "cover",
-          status: "draft",
-          data: coverData,
-        });
-        savedProjectId = newProject.id;
-        navigate(`/creator/cover?id=${newProject.id}${comicId ? `&comicId=${comicId}` : ''}`, { replace: true });
-      }
-
-      if (comicId) {
-        const coverImages = await captureCoverImages(savedProjectId);
-        await linkCoverToComic(coverImages, savedProjectId);
-        toast.success("Cover saved & linked to comic!");
-      } else {
+        let savedProjectId = effectiveProjectId;
+        if (effectiveProjectId) {
+          await updateProject.mutateAsync({
+            id: effectiveProjectId,
+            data: { title: coverData.title, data: coverData },
+          });
+        } else {
+          const newProject = await createProject.mutateAsync({
+            title: coverData.title || "Untitled Cover",
+            type: "cover",
+            status: "draft",
+            data: coverData,
+          });
+          savedProjectId = newProject.id;
+          navigate(`/creator/cover?id=${newProject.id}`, { replace: true });
+        }
         toast.success("Cover saved");
       }
 
@@ -838,28 +851,13 @@ export default function CoverCreator() {
   };
 
   const handleSaveAndReturnToComic = async () => {
+    if (!comicId) return;
     setIsSaving(true);
     try {
-      let savedProjectId = effectiveProjectId;
-      if (effectiveProjectId) {
-        await updateProject.mutateAsync({
-          id: effectiveProjectId,
-          data: { title: coverData.title, data: coverData },
-        });
-      } else {
-        const newProject = await createProject.mutateAsync({
-          title: coverData.title || "Untitled Cover",
-          type: "cover",
-          status: "draft",
-          data: coverData,
-        });
-        savedProjectId = newProject.id;
-      }
+      const coverImages = await captureCoverImages(null);
+      await saveToComicProject(coverImages);
 
-      const coverImages = await captureCoverImages(savedProjectId);
-      await linkCoverToComic(coverImages, savedProjectId);
-
-      toast.success("Cover linked to comic!");
+      toast.success("Cover saved to comic!");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
       navigate(`/creator/comic?id=${comicId}`);
     } catch (error: any) {
@@ -1576,12 +1574,12 @@ export default function CoverCreator() {
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
         <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
           <div className="flex items-center gap-4">
-            <Link href="/">
+            <Link href={isComicEmbedded ? `/creator/comic?id=${comicId}` : "/"}>
               <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
                 <ArrowLeft className="w-4 h-4" />
               </button>
             </Link>
-            <h2 className="font-display font-bold text-lg">Cover Designer</h2>
+            <h2 className="font-display font-bold text-lg">{isComicEmbedded ? "Comic Cover Editor" : "Cover Designer"}</h2>
             <div className="flex bg-zinc-800 p-1">
               {(["front", "back", "spine", "spread"] as const).map(view => (
                 <button 

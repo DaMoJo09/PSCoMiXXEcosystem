@@ -788,10 +788,14 @@ export default function ComicCreator() {
     if (!effectiveProjectId) return;
     setIsSaving(true);
     try {
-      await updateProject.mutateAsync({
-        id: effectiveProjectId,
-        data: { title, data: { spreads, comicMeta } },
+      const res = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title, data: { spreads, comicMeta } }),
       });
+      if (!res.ok) throw new Error("Save failed");
+      qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Comic saved");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
     } catch (error: any) {

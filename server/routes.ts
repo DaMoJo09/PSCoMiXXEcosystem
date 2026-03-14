@@ -746,6 +746,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
         mergedData.comicMeta = merged;
       }
+      if (!incomingData.coverDesign && existingData.coverDesign) {
+        mergedData.coverDesign = existingData.coverDesign;
+      }
       const updatePayload: any = { data: mergedData };
       if (req.body.title) updatePayload.title = req.body.title;
       if (req.body.thumbnail) updatePayload.thumbnail = req.body.thumbnail;
