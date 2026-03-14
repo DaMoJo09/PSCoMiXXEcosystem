@@ -1,0 +1,403 @@
+Yep — these screenshots actually tell us a **lot**.
+
+This is **not** just “the image didn’t save.”
+
+Your preview is showing the **default fallback cover template**, which means:
+
+* the **Cover Designer save is working in its own editor**
+* but **Preview Mode is reading from a different data source**
+* and when it doesn’t find the rendered cover payload, it falls back to:
+
+  * `UNTITLED COMIC`
+  * `ISSUE #1`
+  * generic back cover text
+  * generic barcode block
+
+So the real bug is:
+
+## The cover designer state and the preview state are disconnected
+
+From your screenshots:
+
+* In the designer, the cover has:
+
+  * title: **MADNESS**
+  * subtitle: **WELCOME**
+  * custom character image
+  * custom spread layout
+  * spine art
+  * back cover art
+
+But in preview, it shows:
+
+* **UNTITLED COMIC**
+* **ISSUE #1**
+* no character art
+* no real spread
+* generic back cover
+
+That means Preview Mode is **not reading the saved rendered cover** at all.
+
+---
+
+# What is most likely happening
+
+Your app probably has **two separate models**:
+
+### Model A: Cover Designer data
+
+Something like:
+
+```js
+coverDesign = {
+  front: {...},
+  back: {...},
+  spine: {...},
+  spread: {...},
+  images: [...]
+}
+```
+
+### Model B: Comic preview data
+
+Something like:
+
+```js
+comic = {
+  title: "Untitled Comic",
+  issueNumber: 1,
+  coverImage: null,
+  backCoverImage: null
+}
+```
+
+And right now:
+
+* the **designer saves Model A**
+* the **preview reads Model B**
+* Model B never gets updated with the rendered cover output
+
+So Preview Mode just builds a basic cover from defaults.
+
+---
+
+# What the screenshots strongly suggest
+
+This is likely one of these 3 exact bugs:
+
+## 1. Preview uses `comic.title` instead of `coverDesign.title`
+
+Evidence:
+
+* Preview says **UNTITLED COMIC**
+* Designer says **MADNESS**
+
+That means preview is likely doing this:
+
+```js
+const coverTitle = comic.title || "Untitled Comic";
+```
+
+instead of:
+
+```js
+const coverTitle = comic.coverDesign?.title || comic.title || "Untitled Comic";
+```
+
+---
+
+## 2. Preview expects `frontCoverImage` / `backCoverImage`, but save only stores design JSON
+
+The designer may be saving layout instructions, but preview expects actual rendered assets.
+
+Example of bad flow:
+
+```js
+saveCoverDesign({
+  title,
+  subtitle,
+  imageLayers,
+  positions
+})
+```
+
+But preview expects:
+
+```js
+comic.frontCoverUrl
+comic.backCoverUrl
+```
+
+If those URLs are empty, it uses fallback template.
+
+---
+
+## 3. Spread view saves only for PDF/export, not for preview
+
+This is super common.
+
+Meaning:
+
+* **PNG/PDF export path** uses the correct render pipeline
+* **Preview Mode** uses a separate lightweight component that never loads designer output
+
+So you may have:
+
+* Export = correct
+* Preview = wrong
+
+That matches your screenshots almost perfectly.
+
+---
+
+# Most likely root cause in plain English
+
+The **Save button in Cover Designer is saving editable cover settings**,
+but **Preview Mode needs either:**
+
+* a rendered front/back cover image, or
+* a normalized cover object the preview can understand
+
+…and it’s not getting either one.
+
+---
+
+# The fix your Replit builder needs to make
+
+They need to do this:
+
+## On Save from Cover Designer:
+
+save both:
+
+### A. the editable design data
+
+for reopening in the editor
+
+and
+
+### B. the normalized preview-ready cover data
+
+for Preview Mode
+
+Example:
+
+```ts
+type ComicCoverData = {
+  title: string;
+  subtitle?: string;
+  author?: string;
+  issueNumber?: string;
+  publisher?: string;
+  price?: string;
+
+  frontCoverImageUrl?: string;
+  backCoverImageUrl?: string;
+  spineImageUrl?: string;
+  spreadImageUrl?: string;
+
+  frontLayout?: any;
+  backLayout?: any;
+  spineLayout?: any;
+  spreadLayout?: any;
+}
+```
+
+Then Preview Mode should use that object first.
+
+---
+
+# What Preview Mode should do
+
+Instead of this:
+
+```js
+const title = comic.title || "Untitled Comic";
+const issue = comic.issueNumber || "#1";
+```
+
+do this:
+
+```js
+const cover = comic.coverData || {};
+const title = cover.title || comic.title || "Untitled Comic";
+const issue = cover.issueNumber || comic.issueNumber || "#1";
+```
+
+And for images:
+
+```js
+const frontImage = cover.frontCoverImageUrl || comic.coverImage || null;
+const backImage = cover.backCoverImageUrl || comic.backCoverImage || null;
+```
+
+---
+
+# Best engineering fix
+
+## Option 1 — fastest
+
+When user clicks **Save** in Cover Designer:
+
+1. render the **front cover**
+2. render the **back cover**
+3. save those as image assets
+4. write them to the comic record
+
+Like:
+
+```js
+comic.coverImage = renderedFrontCoverUrl;
+comic.backCoverImage = renderedBackCoverUrl;
+comic.coverTitle = design.title;
+comic.coverSubtitle = design.subtitle;
+comic.coverDesign = fullEditableJson;
+```
+
+Then Preview Mode reads those saved fields.
+
+This is probably the cleanest quick fix.
+
+---
+
+## Option 2 — better long-term
+
+Use one shared renderer for:
+
+* editor preview
+* reading preview
+* export preview
+* PNG/PDF generation
+
+That way all views render from the **same source of truth**.
+
+Right now I’d bet you have:
+
+* one renderer in Cover Designer
+* one separate renderer in Preview Mode
+* one separate renderer in Export
+
+That’s why it breaks.
+
+---
+
+# Exact prompt to give Replit
+
+Paste this to your builder exactly:
+
+```text
+The Cover Designer is saving, but Preview Mode is not reading the saved cover data. In preview, it falls back to the default template ("UNTITLED COMIC", "ISSUE #1", generic back cover), which means the preview renderer is disconnected from the Cover Designer save payload.
+
+Please fix this by making Cover Designer save both:
+1. editable cover design JSON
+2. normalized preview-ready cover fields on the comic record
+
+Required saved fields:
+- coverData.title
+- coverData.subtitle
+- coverData.author
+- coverData.issueNumber
+- coverData.publisher
+- coverData.price
+- coverData.frontCoverImageUrl
+- coverData.backCoverImageUrl
+- coverData.spineImageUrl
+- coverData.spreadImageUrl
+- coverData.designJson
+
+Then update Preview Mode so it reads `comic.coverData` first before using fallback defaults.
+
+Preview title logic should be:
+`comic.coverData.title || comic.title || "Untitled Comic"`
+
+Issue logic:
+`comic.coverData.issueNumber || comic.issueNumber || "#1"`
+
+Front image logic:
+`comic.coverData.frontCoverImageUrl || comic.coverImage`
+
+Back image logic:
+`comic.coverData.backCoverImageUrl || comic.backCoverImage`
+
+If rendered cover URLs do not exist yet, generate them on Save from the Cover Designer and persist them to the comic record.
+
+Also remove any hardcoded fallback rendering unless coverData is truly empty.
+```
+
+---
+
+# Quick test to prove it
+
+Tell them to inspect the comic object in Preview Mode with:
+
+```js
+console.log("comic preview payload", comic);
+console.log("coverData", comic.coverData);
+console.log("frontCoverImageUrl", comic.coverData?.frontCoverImageUrl);
+console.log("backCoverImageUrl", comic.coverData?.backCoverImageUrl);
+```
+
+I would expect one of these to be true:
+
+* `coverData` is missing entirely
+* `frontCoverImageUrl` is null
+* preview is ignoring `coverData`
+* preview is using old `comic.title` defaults
+
+---
+
+# What to tell them to check in the DB
+
+They need to inspect the saved comic record and look for:
+
+```json
+{
+  "title": "Untitled Comic",
+  "coverImage": null,
+  "backCoverImage": null,
+  "coverData": {
+    "title": "MADNESS",
+    "subtitle": "WELCOME"
+  }
+}
+```
+
+or maybe:
+
+```json
+{
+  "title": "Untitled Comic",
+  "coverDesign": { ...full design json... },
+  "coverImage": null
+}
+```
+
+If that’s what they see, then the diagnosis is confirmed.
+
+---
+
+# My confidence read
+
+Based on the screenshots, I’m about **90% sure** the bug is:
+
+**Preview Mode is rendering fallback comic metadata instead of the saved Cover Designer output.**
+
+Not a styling issue.
+Not a missing asset only.
+Not just caching.
+
+It’s a **data mapping / renderer pipeline bug**.
+
+---
+
+# Fast workaround for you right now
+
+Until they fix it, have them do this temporary patch:
+
+* when saving the cover, export the front and back as PNG automatically
+* assign those directly to the comic preview cover fields
+* preview those images as page 1 and page 4
+
+That’ll at least stop the wasting-credits madness while they do the proper refactor.
+
+If you send me the Replit code for the cover save function and the preview component, I can pinpoint the exact broken line.
