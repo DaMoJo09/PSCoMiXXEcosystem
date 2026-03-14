@@ -24,7 +24,8 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
-import { CoverEditorPanel, CoverData, defaultCover } from "@/components/tools/CoverEditorPanel";
+import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
+import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -117,6 +118,7 @@ interface Panel {
   borderColor?: string;
   borderWidth?: number;
   filter?: string;
+  coverRole?: "front-cover" | "back-cover";
 }
 
 interface Spread {
@@ -499,7 +501,6 @@ export default function ComicCreator() {
   });
   const [showCoverPrompt, setShowCoverPrompt] = useState(false);
   const [coverDismissed, setCoverDismissed] = useState(false);
-  const [showCoverEditor, setShowCoverEditor] = useState(false);
   
   const [inlineDrawingPanelId, setInlineDrawingPanelId] = useState<string | null>(null);
   const [inlineDrawingPage, setInlineDrawingPage] = useState<"left" | "right">("left");
@@ -634,8 +635,8 @@ export default function ComicCreator() {
   const userEditCountRef = useRef(0);
   const initialLoadDoneRef = useRef(false);
   const pendingSaveRef = useRef(false);
-  const latestDataRef = useRef({ title, spreads, comicMeta, projectId: effectiveProjectId });
-  latestDataRef.current = { title, spreads, comicMeta, projectId: effectiveProjectId };
+  const latestDataRef = useRef({ title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId });
+  latestDataRef.current = { title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId };
 
   const projectConfirmedRef = useRef(false);
   useEffect(() => {
@@ -646,7 +647,7 @@ export default function ComicCreator() {
   }, [projectId]);
 
   const flushSave = useCallback(async () => {
-    const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+    const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
     if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current) return;
     pendingSaveRef.current = false;
     if (autoSaveTimerRef.current) {
@@ -654,7 +655,7 @@ export default function ComicCreator() {
       autoSaveTimerRef.current = null;
     }
     const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
-    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe } }, 'comic');
+    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) } }, 'comic');
   }, []);
 
   useEffect(() => {
@@ -676,17 +677,17 @@ export default function ComicCreator() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [spreads, title, effectiveProjectId, flushSave]);
+  }, [spreads, title, coverDesignData, effectiveProjectId, flushSave]);
 
   useEffect(() => {
     return () => {
       if (pendingSaveRef.current && projectConfirmedRef.current) {
-        const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
           );
         }
       }
@@ -696,12 +697,12 @@ export default function ComicCreator() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current && projectConfirmedRef.current) {
-        const { projectId, title: t, spreads: s, comicMeta: cm } = latestDataRef.current;
+        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
           );
         }
         e.preventDefault();
@@ -801,7 +802,7 @@ export default function ComicCreator() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title, data: { spreads, comicMeta } }),
+        body: JSON.stringify({ title, data: { spreads, comicMeta, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) } }),
       });
       if (!res.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
@@ -842,6 +843,36 @@ export default function ComicCreator() {
     }));
     qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
   };
+
+  const setCoverRole = useCallback((page: "left" | "right", panelId: string, role: "front-cover" | "back-cover" | null) => {
+    setSpreads(prev => prev.map(spread => ({
+      ...spread,
+      leftPage: spread.leftPage.map(p => {
+        if (p.id === panelId && page === "left") return { ...p, coverRole: role || undefined };
+        if (role && p.coverRole === role) return { ...p, coverRole: undefined };
+        return p;
+      }),
+      rightPage: spread.rightPage.map(p => {
+        if (p.id === panelId && page === "right") return { ...p, coverRole: role || undefined };
+        if (role && p.coverRole === role) return { ...p, coverRole: undefined };
+        return p;
+      }),
+    })));
+    if (role) {
+      toast.success(`Panel set as ${role === "front-cover" ? "Front Cover" : "Back Cover"}`);
+    } else {
+      toast.success("Cover role removed");
+    }
+  }, [setSpreads]);
+
+  const updateCoverData = useCallback((updates: Partial<CoverData>) => {
+    setCoverDesignData(prev => {
+      const base = prev || { ...defaultCover };
+      return { ...base, ...updates };
+    });
+  }, []);
+
+  const [coverSelectedLayerId, setCoverSelectedLayerId] = useState<string | null>(null);
 
   const handleGenerateThumbnail = async () => {
     if (!effectiveProjectId) return;
@@ -2155,7 +2186,105 @@ export default function ComicCreator() {
         onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
         data-testid={`panel-${panel.id}`}
       >
+        {panel.coverRole && (
+          <div className={`absolute top-0 left-0 z-10 px-0.5 py-px text-[8px] font-bold text-white ${panel.coverRole === "front-cover" ? "bg-cyan-600" : "bg-purple-600"}`}>
+            {panel.coverRole === "front-cover" ? "FRONT COVER" : "BACK COVER"}
+          </div>
+        )}
         <div className="absolute inset-0 overflow-hidden bg-white" style={{ filter: panel.filter || 'none' }}>
+          {panel.coverRole && coverDesignData && (() => {
+            const cd = { ...defaultCover, ...coverDesignData } as CoverData;
+            const isFront = panel.coverRole === "front-cover";
+            const bgColor = isFront ? cd.frontBgColor : cd.backBgColor;
+            const bgImage = isFront ? cd.frontImage : cd.backImage;
+            const textLayers = isFront ? (cd.frontLayers || []) : (cd.backLayers || []);
+            const imageLayers = isFront ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
+
+            return (
+              <div className="absolute inset-0 z-0 flex flex-col items-center justify-start overflow-hidden" style={{ backgroundColor: bgColor }}>
+                {bgImage && <img src={bgImage} alt="Cover background" className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
+                <div className="relative z-10 w-full h-full flex flex-col items-center p-[8%]">
+                  {isFront ? (
+                    <>
+                      {cd.publisherName && (
+                        <div className="text-[6px] font-bold opacity-70 mb-1 text-center" style={{ color: cd.titleColor }}>{cd.publisherName}</div>
+                      )}
+                      {cd.issueNumber && (
+                        <div className="text-[7px] font-bold opacity-80 mb-1" style={{ color: cd.titleColor }}>{cd.issueNumber}</div>
+                      )}
+                      <div className="font-bold text-center leading-tight break-words w-full" style={{
+                        fontFamily: cd.titleFont, color: cd.titleColor,
+                        fontSize: `${Math.max(8, (cd.titleSize || 48) * 0.25)}px`,
+                        WebkitTextStroke: cd.titleStrokeWidth ? `${cd.titleStrokeWidth * 0.5}px ${cd.titleStrokeColor || '#000'}` : undefined,
+                      }}>{cd.title || "Title"}</div>
+                      {cd.subtitle && (
+                        <div className="text-center break-words w-full mt-1" style={{
+                          fontFamily: cd.subtitleFont, color: cd.subtitleColor,
+                          fontSize: `${Math.max(6, (cd.subtitleSize || 20) * 0.2)}px`,
+                        }}>{cd.subtitle}</div>
+                      )}
+                      {cd.tagline && (
+                        <div className="text-[5px] italic opacity-70 mt-1 text-center" style={{ color: cd.subtitleColor }}>{cd.tagline}</div>
+                      )}
+                      <div className="mt-auto text-center" style={{
+                        fontFamily: cd.authorFont, color: cd.authorColor,
+                        fontSize: `${Math.max(5, (cd.authorSize || 16) * 0.2)}px`,
+                      }}>{cd.author || "Author"}</div>
+                      {cd.showPriceBox && cd.priceText && (
+                        <div className="absolute top-1 right-1 px-1 py-0.5 text-[6px] font-bold border" style={{
+                          backgroundColor: cd.bannerBgColor || '#FFD700',
+                          color: '#000',
+                          borderColor: '#000',
+                        }}>{cd.priceText}</div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-center break-words w-full" style={{
+                        fontFamily: cd.titleFont, color: cd.titleColor,
+                        fontSize: `${Math.max(6, (cd.titleSize || 48) * 0.2)}px`,
+                      }}>{cd.title || "Title"}</div>
+                      {cd.backBlurb && (
+                        <div className="mt-2 text-[5px] leading-relaxed break-words w-full text-center" style={{ color: cd.authorColor }}>{cd.backBlurb}</div>
+                      )}
+                      {cd.isbn && (
+                        <div className="mt-auto pt-1 border-t border-current opacity-50">
+                          <div className="text-[5px] font-mono" style={{ color: cd.authorColor }}>ISBN: {cd.isbn}</div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                {imageLayers.map(il => (
+                  <img key={il.id} src={il.url} alt={il.name}
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: il.transform.x, top: il.transform.y,
+                      width: il.transform.width, height: il.transform.height,
+                      opacity: il.opacity ?? 1,
+                      transform: `rotate(${il.transform.rotation || 0}deg)`,
+                    }}
+                    draggable={false}
+                  />
+                ))}
+                {textLayers.map(tl => (
+                  <div key={tl.id} className="absolute pointer-events-none"
+                    style={{
+                      left: tl.transform.x, top: tl.transform.y,
+                      fontSize: `${Math.max(6, tl.fontSize * 0.25)}px`,
+                      fontFamily: tl.fontFamily,
+                      color: tl.color,
+                      fontWeight: tl.fontWeight || 'normal',
+                      fontStyle: tl.fontStyle || 'normal',
+                      textTransform: (tl.textTransform as any) || 'none',
+                      WebkitTextStroke: tl.strokeWidth ? `${tl.strokeWidth * 0.5}px ${tl.strokeColor || '#000'}` : undefined,
+                    }}>
+                    {tl.text}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {panel.contents.map(content => (
             <TransformableElement
               key={content.id}
@@ -2693,7 +2822,18 @@ export default function ComicCreator() {
               <LayoutGrid className="w-4 h-4" /> Templates
             </button>
             <button
-              onClick={() => setShowCoverEditor(true)}
+              onClick={() => {
+                if (!coverDesignData) {
+                  setCoverDesignData({ ...defaultCover, title: title || "Untitled", author: user?.name || "" });
+                }
+                setShowLayers(true);
+                const allPanels = currentSpread ? [...currentSpread.leftPage, ...currentSpread.rightPage] : [];
+                const coverPanel = allPanels.find(p => p.coverRole);
+                if (coverPanel) {
+                  setSelectedPanelId(coverPanel.id);
+                  setSelectedContentId(null);
+                }
+              }}
               className="px-3 py-1.5 text-sm flex items-center gap-2 bg-gradient-to-r from-cyan-700 to-purple-700 hover:from-cyan-600 hover:to-purple-600 border border-cyan-500/50 text-white"
               data-testid="button-edit-cover"
             >
@@ -2810,7 +2950,13 @@ export default function ComicCreator() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={() => { setShowCoverEditor(true); setShowCoverPrompt(false); }}
+                onClick={() => {
+                  if (!coverDesignData) {
+                    setCoverDesignData({ ...defaultCover, title: title || "Untitled", author: user?.name || "" });
+                  }
+                  setShowLayers(true);
+                  setShowCoverPrompt(false);
+                }}
                 className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold border border-cyan-500"
                 data-testid="button-create-cover"
               >
@@ -3647,7 +3793,14 @@ export default function ComicCreator() {
                       className={`px-2 py-1.5 text-sm cursor-pointer flex items-center gap-1 group ${isActive ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
                       onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
                     >
-                      <span className="flex-1 truncate text-xs font-medium">Panel {idx + 1}</span>
+                      <span className="flex-1 truncate text-xs font-medium">
+                        {panel.coverRole === "front-cover" ? "★ Front Cover" : panel.coverRole === "back-cover" ? "★ Back Cover" : `Panel ${idx + 1}`}
+                      </span>
+                      {panel.coverRole && (
+                        <span className={`text-[8px] px-1 py-0.5 font-bold ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white" : "bg-purple-600 text-white"}`}>
+                          {panel.coverRole === "front-cover" ? "FC" : "BC"}
+                        </span>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePanelLock(selectedPage, panel.id); }}
                         className={`p-0.5 rounded ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'}`}
@@ -3720,12 +3873,54 @@ export default function ComicCreator() {
                         })}
                       </div>
                     )}
+                    {isActive && (
+                      <div className="ml-3 px-2 py-1 flex gap-1 border-l border-zinc-700">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCoverRole(selectedPage, panel.id, panel.coverRole === "front-cover" ? null : "front-cover"); }}
+                          className={`flex-1 py-1 text-[9px] font-bold border ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white border-cyan-500" : "bg-zinc-800 text-zinc-400 border-zinc-600 hover:border-cyan-500 hover:text-cyan-400"}`}
+                          data-testid={`cover-set-front-${panel.id}`}
+                        >
+                          {panel.coverRole === "front-cover" ? "✓ Front Cover" : "Set Front Cover"}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setCoverRole(selectedPage, panel.id, panel.coverRole === "back-cover" ? null : "back-cover"); }}
+                          className={`flex-1 py-1 text-[9px] font-bold border ${panel.coverRole === "back-cover" ? "bg-purple-600 text-white border-purple-500" : "bg-zinc-800 text-zinc-400 border-zinc-600 hover:border-purple-500 hover:text-purple-400"}`}
+                          data-testid={`cover-set-back-${panel.id}`}
+                        >
+                          {panel.coverRole === "back-cover" ? "✓ Back Cover" : "Set Back Cover"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   );
                 })}
               </div>
               
-              {selectedContent && (selectedContent.type === 'text' || selectedContent.type === 'bubble') && selectedPanelId && (
+              {(() => {
+                const allPanels = currentSpread ? [...currentSpread.leftPage, ...currentSpread.rightPage] : [];
+                const activePanel = allPanels.find(p => p.id === selectedPanelId);
+                if (activePanel?.coverRole && coverDesignData) {
+                  const fullCoverData = { ...defaultCover, ...coverDesignData } as CoverData;
+                  return (
+                    <div className="flex-1 overflow-hidden border-t border-zinc-800">
+                      <CoverPropertiesPanel
+                        coverData={fullCoverData}
+                        updateCover={updateCoverData}
+                        coverView={activePanel.coverRole === "front-cover" ? "front" : "back"}
+                        selectedLayerId={coverSelectedLayerId}
+                        setSelectedLayerId={setCoverSelectedLayerId}
+                      />
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {selectedContent && (selectedContent.type === 'text' || selectedContent.type === 'bubble') && selectedPanelId && !(() => {
+                const allPanels = currentSpread ? [...currentSpread.leftPage, ...currentSpread.rightPage] : [];
+                const activePanel = allPanels.find(p => p.id === selectedPanelId);
+                return activePanel?.coverRole;
+              })() && (
                 <div className="border-t border-zinc-800 p-3">
                   <h4 className="font-bold text-xs mb-3 flex items-center gap-2">
                     <Type className="w-3 h-3" /> Caption Properties
@@ -4532,18 +4727,6 @@ export default function ComicCreator() {
         requiredTier="creator"
       />
 
-      {showCoverEditor && (
-        <CoverEditorPanel
-          initialCoverData={coverDesignData}
-          onSave={async (coverDesign, coverImages) => {
-            await handleCoverSave(coverDesign, coverImages);
-            setCoverDesignData(coverDesign);
-          }}
-          onClose={() => setShowCoverEditor(false)}
-          comicTitle={title}
-          comicAuthor={user?.name || ""}
-        />
-      )}
     </Layout>
   );
 }
