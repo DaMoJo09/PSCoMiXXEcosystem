@@ -24,6 +24,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import { CoverEditorPanel, CoverData, defaultCover } from "@/components/tools/CoverEditorPanel";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -498,6 +499,7 @@ export default function ComicCreator() {
   });
   const [showCoverPrompt, setShowCoverPrompt] = useState(false);
   const [coverDismissed, setCoverDismissed] = useState(false);
+  const [showCoverEditor, setShowCoverEditor] = useState(false);
   
   const [inlineDrawingPanelId, setInlineDrawingPanelId] = useState<string | null>(null);
   const [inlineDrawingPage, setInlineDrawingPage] = useState<"left" | "right">("left");
@@ -593,6 +595,8 @@ export default function ComicCreator() {
     return findOrCreateProject();
   }, [projectId]);
 
+  const [coverDesignData, setCoverDesignData] = useState<Partial<CoverData> | undefined>(undefined);
+
   useEffect(() => {
     if (project) {
       setTitle(project.title);
@@ -604,6 +608,11 @@ export default function ComicCreator() {
       }
       if (data?.comicMeta) {
         setComicMeta(data.comicMeta);
+      }
+      if (data?.coverDesign) {
+        setCoverDesignData(data.coverDesign);
+      } else {
+        setCoverDesignData(undefined);
       }
       if (!data?.comicMeta?.frontCover && !coverDismissed) {
         setShowCoverPrompt(true);
@@ -803,6 +812,35 @@ export default function ComicCreator() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCoverSave = async (coverDesign: CoverData, coverImages: { frontCover: string; backCover: string }) => {
+    if (!effectiveProjectId) throw new Error("No project to save cover to");
+    const res = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        data: {
+          coverDesign,
+          comicMeta: {
+            frontCover: coverImages.frontCover,
+            backCover: coverImages.backCover,
+          }
+        },
+        thumbnail: coverImages.frontCover || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || "Failed to save cover");
+    }
+    setComicMeta(prev => ({
+      ...prev,
+      frontCover: coverImages.frontCover || prev.frontCover,
+      backCover: coverImages.backCover || prev.backCover,
+    }));
+    qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
   };
 
   const handleGenerateThumbnail = async () => {
@@ -2655,6 +2693,13 @@ export default function ComicCreator() {
               <LayoutGrid className="w-4 h-4" /> Templates
             </button>
             <button
+              onClick={() => setShowCoverEditor(true)}
+              className="px-3 py-1.5 text-sm flex items-center gap-2 bg-gradient-to-r from-cyan-700 to-purple-700 hover:from-cyan-600 hover:to-purple-600 border border-cyan-500/50 text-white"
+              data-testid="button-edit-cover"
+            >
+              <Palette className="w-4 h-4" /> {effectiveFrontCover ? "Edit Cover" : "Create Cover"}
+            </button>
+            <button
               onClick={handleSave}
               disabled={isSaving || !effectiveProjectId}
               className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2764,11 +2809,13 @@ export default function ComicCreator() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Link href={`/creator/cover?comicId=${effectiveProjectId}`}>
-                <button className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold border border-cyan-500" data-testid="button-create-cover">
-                  Create Cover
-                </button>
-              </Link>
+              <button
+                onClick={() => { setShowCoverEditor(true); setShowCoverPrompt(false); }}
+                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold border border-cyan-500"
+                data-testid="button-create-cover"
+              >
+                Create Cover
+              </button>
               <button 
                 onClick={() => { setShowCoverPrompt(false); setCoverDismissed(true); }}
                 className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white"
@@ -4484,6 +4531,19 @@ export default function ComicCreator() {
         feature="Export to PNG"
         requiredTier="creator"
       />
+
+      {showCoverEditor && (
+        <CoverEditorPanel
+          initialCoverData={coverDesignData}
+          onSave={async (coverDesign, coverImages) => {
+            await handleCoverSave(coverDesign, coverImages);
+            setCoverDesignData(coverDesign);
+          }}
+          onClose={() => setShowCoverEditor(false)}
+          comicTitle={title}
+          comicAuthor={user?.name || ""}
+        />
+      )}
     </Layout>
   );
 }

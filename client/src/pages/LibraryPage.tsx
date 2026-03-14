@@ -42,7 +42,7 @@ const PROJECT_TYPE_CONFIG: Record<string, { label: string; icon: any; color: str
   card: { label: "Trading Card", icon: CreditCard, color: "text-yellow-400 border-yellow-400", editorPath: "/creator/card" },
   vn: { label: "Visual Novel", icon: BookMarked, color: "text-purple-400 border-purple-400", editorPath: "/creator/vn" },
   cyoa: { label: "CYOA", icon: Gamepad2, color: "text-green-400 border-green-400", editorPath: "/creator/cyoa" },
-  cover: { label: "Cover Art", icon: ImageIcon, color: "text-pink-400 border-pink-400", editorPath: "/creator/cover" },
+  cover: { label: "Cover Art", icon: ImageIcon, color: "text-pink-400 border-pink-400", editorPath: "/creator/comic" },
   motion: { label: "Motion Comic", icon: Film, color: "text-orange-400 border-orange-400", editorPath: "/creator/motion" },
 };
 

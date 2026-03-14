@@ -14,7 +14,7 @@ const CREATOR_TOOL_PATHS = [
   "/creator/card",
   "/creator/vn",
   "/creator/cyoa",
-  "/creator/cover",
+
   "/tools/prompt",
   "/tools/story",
 ];

@@ -50,7 +50,7 @@ const quickActions = [
   { title: "New Card", href: "/creator/card", type: "card", desc: "TCG card forge" },
   { title: "New Visual Novel", href: "/creator/vn", type: "vn", desc: "Interactive fiction" },
   { title: "New CYOA", href: "/creator/cyoa", type: "cyoa", desc: "Branching story builder" },
-  { title: "New Cover", href: "/creator/cover", type: "cover", desc: "Full wrap designer" },
+
 ];
 
 export default function Dashboard() {
@@ -172,7 +172,6 @@ export default function Dashboard() {
                       <option value="card">Trading Card</option>
                       <option value="vn">Visual Novel</option>
                       <option value="cyoa">CYOA</option>
-                      <option value="cover">Cover Design</option>
                       <option value="motion">Motion Graphics</option>
                     </select>
                   </div>

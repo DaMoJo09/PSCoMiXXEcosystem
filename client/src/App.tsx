@@ -22,7 +22,7 @@ import VNCreator from "@/pages/VNCreator";
 import AdminDashboard from "@/pages/AdminDashboard";
 import MotionStudio from "@/pages/MotionStudio";
 import CYOABuilder from "@/pages/CYOABuilder";
-import CoverCreator from "@/pages/CoverCreator";
+
 import PromptFactory from "@/pages/PromptFactory";
 import StoryForge from "@/pages/StoryForge";
 import AssetBuilder from "@/pages/AssetBuilder";
@@ -145,7 +145,7 @@ function ProtectedRouter() {
         <Route path="/creator/card" component={CardCreator} />
         <Route path="/creator/vn" component={VNCreator} />
         <Route path="/creator/cyoa" component={CYOABuilder} />
-        <Route path="/creator/cover" component={CoverCreator} />
+
         <Route path="/tools/prompt" component={PromptFactory} />
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/assets" component={AssetBuilder} />
