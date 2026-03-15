@@ -859,11 +859,23 @@ export default function ComicCreator() {
       }),
     })));
     if (role) {
-      toast.success(`Panel set as ${role === "front-cover" ? "Front Cover" : "Back Cover"}`);
+      setCoverDesignData(prev => {
+        if (prev && prev.title) return prev;
+        return {
+          ...defaultCover,
+          title: title || defaultCover.title,
+          spineText: title || defaultCover.spineText,
+          author: user?.name || defaultCover.author,
+        };
+      });
+      setShowLayers(true);
+      setSelectedPanelId(panelId);
+      setSelectedContentId(null);
+      toast.success(`Panel set as ${role === "front-cover" ? "Front Cover" : "Back Cover"} — edit cover properties in the sidebar`);
     } else {
       toast.success("Cover role removed");
     }
-  }, [setSpreads]);
+  }, [setSpreads, title, user?.name]);
 
   const updateCoverData = useCallback((updates: Partial<CoverData>) => {
     setCoverDesignData(prev => {
@@ -2201,63 +2213,126 @@ export default function ComicCreator() {
             const imageLayers = isFront ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
 
             return (
-              <div className="absolute inset-0 z-0 flex flex-col items-center justify-start overflow-hidden" style={{ backgroundColor: bgColor }}>
+              <div className="absolute inset-0 z-[1] overflow-hidden" style={{ backgroundColor: bgColor, containerType: 'size' }}>
                 {bgImage && <img src={bgImage} alt="Cover background" className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
-                <div className="relative z-10 w-full h-full flex flex-col items-center p-[8%]">
-                  {isFront ? (
-                    <>
-                      {cd.publisherName && (
-                        <div className="text-[6px] font-bold opacity-70 mb-1 text-center" style={{ color: cd.titleColor }}>{cd.publisherName}</div>
-                      )}
-                      {cd.issueNumber && (
-                        <div className="text-[7px] font-bold opacity-80 mb-1" style={{ color: cd.titleColor }}>{cd.issueNumber}</div>
-                      )}
-                      <div className="font-bold text-center leading-tight break-words w-full" style={{
-                        fontFamily: cd.titleFont, color: cd.titleColor,
-                        fontSize: `${Math.max(8, (cd.titleSize || 48) * 0.25)}px`,
-                        WebkitTextStroke: cd.titleStrokeWidth ? `${cd.titleStrokeWidth * 0.5}px ${cd.titleStrokeColor || '#000'}` : undefined,
-                      }}>{cd.title || "Title"}</div>
-                      {cd.subtitle && (
-                        <div className="text-center break-words w-full mt-1" style={{
-                          fontFamily: cd.subtitleFont, color: cd.subtitleColor,
-                          fontSize: `${Math.max(6, (cd.subtitleSize || 20) * 0.2)}px`,
-                        }}>{cd.subtitle}</div>
-                      )}
-                      {cd.tagline && (
-                        <div className="text-[5px] italic opacity-70 mt-1 text-center" style={{ color: cd.subtitleColor }}>{cd.tagline}</div>
-                      )}
-                      <div className="mt-auto text-center" style={{
-                        fontFamily: cd.authorFont, color: cd.authorColor,
-                        fontSize: `${Math.max(5, (cd.authorSize || 16) * 0.2)}px`,
+
+                {isFront ? (
+                  <div className="relative z-10 w-full h-full flex flex-col overflow-hidden">
+                    {cd.bannerText && (
+                      <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{
+                        backgroundColor: cd.bannerBgColor || '#000',
+                        color: cd.titleColor,
+                        fontSize: 'max(6px, 2.5cqi)',
+                        letterSpacing: '0.15em',
+                      }}>{cd.bannerText}</div>
+                    )}
+
+                    <div className="flex-1 flex flex-col items-center justify-between p-[5%]">
+                      <div className="w-full text-center space-y-[2%]">
+                        {cd.publisherName && (
+                          <div className="font-bold uppercase tracking-wider opacity-80" style={{
+                            color: cd.titleColor,
+                            fontSize: 'max(5px, 2.5cqi)',
+                          }}>{cd.publisherName}</div>
+                        )}
+                        {cd.issueNumber && (
+                          <div className="font-bold" style={{
+                            color: cd.titleColor,
+                            fontSize: 'max(6px, 3cqi)',
+                          }}>{cd.issueNumber}</div>
+                        )}
+                      </div>
+
+                      <div className="w-full text-center flex-1 flex flex-col items-center justify-center py-[3%]">
+                        <div className="font-bold text-center leading-none break-words w-full uppercase" style={{
+                          fontFamily: cd.titleFont,
+                          color: cd.titleColor,
+                          fontSize: 'max(12px, 8cqi)',
+                          WebkitTextStroke: cd.titleStrokeWidth ? `${Math.max(0.5, cd.titleStrokeWidth * 0.4)}px ${cd.titleStrokeColor || '#000'}` : undefined,
+                          textShadow: '2px 2px 4px rgba(0,0,0,0.6)',
+                        }}>{cd.title || "TITLE"}</div>
+                        {cd.subtitle && (
+                          <div className="text-center break-words w-full mt-[2%]" style={{
+                            fontFamily: cd.subtitleFont,
+                            color: cd.subtitleColor,
+                            fontSize: 'max(5px, 3cqi)',
+                          }}>{cd.subtitle}</div>
+                        )}
+                        {cd.tagline && (
+                          <div className="italic opacity-80 mt-[2%] text-center" style={{
+                            color: cd.subtitleColor,
+                            fontSize: 'max(4px, 2cqi)',
+                          }}>{cd.tagline}</div>
+                        )}
+                      </div>
+
+                      <div className="w-full text-center" style={{
+                        fontFamily: cd.authorFont,
+                        color: cd.authorColor,
+                        fontSize: 'max(6px, 3.5cqi)',
                       }}>{cd.author || "Author"}</div>
-                      {cd.showPriceBox && cd.priceText && (
-                        <div className="absolute top-1 right-1 px-1 py-0.5 text-[6px] font-bold border" style={{
-                          backgroundColor: cd.bannerBgColor || '#FFD700',
-                          color: '#000',
-                          borderColor: '#000',
-                        }}>{cd.priceText}</div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-center break-words w-full" style={{
-                        fontFamily: cd.titleFont, color: cd.titleColor,
-                        fontSize: `${Math.max(6, (cd.titleSize || 48) * 0.2)}px`,
-                      }}>{cd.title || "Title"}</div>
-                      {cd.backBlurb && (
-                        <div className="mt-2 text-[5px] leading-relaxed break-words w-full text-center" style={{ color: cd.authorColor }}>{cd.backBlurb}</div>
-                      )}
-                      {cd.isbn && (
-                        <div className="mt-auto pt-1 border-t border-current opacity-50">
-                          <div className="text-[5px] font-mono" style={{ color: cd.authorColor }}>ISBN: {cd.isbn}</div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                    </div>
+
+                    {cd.showPriceBox && cd.priceText && (
+                      <div className="absolute z-20 flex items-center justify-center" style={{
+                        top: '3%', right: '4%',
+                        width: 'max(18px, 12cqi)',
+                        height: 'max(18px, 12cqi)',
+                        backgroundColor: cd.bannerBgColor || '#FFD700',
+                        color: '#000',
+                        fontSize: 'max(6px, 3cqi)',
+                        fontWeight: 'bold',
+                        border: '1px solid #000',
+                      }}>{cd.priceText}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative z-10 w-full h-full flex flex-col items-center p-[6%] overflow-hidden">
+                    <div className="text-center break-words w-full font-bold uppercase" style={{
+                      fontFamily: cd.titleFont,
+                      color: cd.titleColor,
+                      fontSize: 'max(8px, 5cqi)',
+                      textShadow: '1px 1px 3px rgba(0,0,0,0.5)',
+                    }}>{cd.title || "TITLE"}</div>
+
+                    {cd.backBlurb && (
+                      <div className="mt-[4%] leading-relaxed break-words w-full text-center flex-1 overflow-hidden" style={{
+                        fontFamily: cd.backBlurbFont || 'Georgia, serif',
+                        color: cd.backBlurbColor || cd.authorColor,
+                        fontSize: 'max(4px, 2.2cqi)',
+                        lineHeight: '1.5',
+                      }}>{cd.backBlurb}</div>
+                    )}
+
+                    <div className="w-full mt-auto pt-[3%] text-center" style={{
+                      fontFamily: cd.authorFont,
+                      color: cd.authorColor,
+                      fontSize: 'max(5px, 2.5cqi)',
+                    }}>by {cd.author || "Author"}</div>
+
+                    {cd.isbn && (
+                      <div className="w-full mt-[3%] pt-[2%] text-center" style={{
+                        borderTop: `1px solid ${cd.authorColor}40`,
+                      }}>
+                        <div className="font-mono opacity-60" style={{
+                          color: cd.authorColor,
+                          fontSize: 'max(4px, 1.8cqi)',
+                        }}>ISBN {cd.isbn}</div>
+                      </div>
+                    )}
+
+                    {cd.publisherName && (
+                      <div className="mt-[2%] font-bold uppercase tracking-wider opacity-60" style={{
+                        color: cd.authorColor,
+                        fontSize: 'max(4px, 1.8cqi)',
+                      }}>{cd.publisherName}</div>
+                    )}
+                  </div>
+                )}
+
                 {imageLayers.map(il => (
                   <img key={il.id} src={il.url} alt={il.name}
-                    className="absolute pointer-events-none"
+                    className="absolute pointer-events-none z-[5]"
                     style={{
                       left: il.transform.x, top: il.transform.y,
                       width: il.transform.width, height: il.transform.height,
@@ -2268,10 +2343,10 @@ export default function ComicCreator() {
                   />
                 ))}
                 {textLayers.map(tl => (
-                  <div key={tl.id} className="absolute pointer-events-none"
+                  <div key={tl.id} className="absolute pointer-events-none z-[6]"
                     style={{
                       left: tl.transform.x, top: tl.transform.y,
-                      fontSize: `${Math.max(6, tl.fontSize * 0.25)}px`,
+                      fontSize: `${Math.max(6, tl.fontSize * 0.3)}px`,
                       fontFamily: tl.fontFamily,
                       color: tl.color,
                       fontWeight: tl.fontWeight || 'normal',
