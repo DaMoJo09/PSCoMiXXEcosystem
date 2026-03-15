@@ -480,6 +480,7 @@ export default function ComicCreator() {
   
   const [showTemplates, setShowTemplates] = useState(false);
   const [showLayers, setShowLayers] = useState(true);
+  const [showPanelContents, setShowPanelContents] = useState(true);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const [selectedLibraryFolder, setSelectedLibraryFolder] = useState<string | null>(null);
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
@@ -4210,7 +4211,7 @@ export default function ComicCreator() {
                       </button>
                       <span className="text-[10px] opacity-40 ml-0.5 tabular-nums">{panel.contents.length}</span>
                     </div>
-                    {isActive && panel.contents.length > 0 && (
+                    {isActive && panel.contents.length > 0 && showPanelContents && (
                       <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
                         {panel.contents.map((content, cIdx, contentArr) => {
                           const isContentActive = selectedContentId === content.id;
@@ -4253,50 +4254,153 @@ export default function ComicCreator() {
                     {isActive && panel.coverRole && coverDesignData && (() => {
                       const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                       const isFr = panel.coverRole === "front-cover";
+                      const clearFieldMap: Record<string, Partial<CoverData>> = {
+                        "cover-banner": { bannerText: "", bannerTransform: undefined },
+                        "cover-publisher": { publisherName: "", publisherTransform: undefined },
+                        "cover-issue": { issueNumber: "", issueDate: "", issueNumberTransform: undefined },
+                        "cover-title": { title: "", titleTransform: undefined },
+                        "cover-subtitle": { subtitle: "", subtitleTransform: undefined },
+                        "cover-tagline": { tagline: "", taglineTransform: undefined },
+                        "cover-author": { author: "", authorTransform: undefined },
+                        "cover-price": { showPriceBox: false, priceText: "", priceBoxTransform: undefined },
+                        "cover-back-title": { title: "", backTitleTransform: undefined },
+                        "cover-blurb": { backBlurb: "", backBlurbTransform: undefined },
+                        "cover-back-author": { author: "", backAuthorTransform: undefined },
+                        "cover-isbn": { isbn: "", isbnTransform: undefined },
+                        "cover-back-publisher": { publisherName: "", backPublisherTransform: undefined },
+                      };
+                      const zOrderKey = isFr ? "front" : "back";
+                      const masterIds = isFr
+                        ? ["master-banner", "master-publisher", "master-issue", "master-title", "master-subtitle", "master-tagline", "master-author", "master-price"]
+                        : ["master-back-title", "master-blurb", "master-back-author", "master-isbn", "master-back-publisher"];
+                      const elToMaster: Record<string, string> = {
+                        "cover-banner": "master-banner", "cover-publisher": "master-publisher", "cover-issue": "master-issue",
+                        "cover-title": "master-title", "cover-subtitle": "master-subtitle", "cover-tagline": "master-tagline",
+                        "cover-author": "master-author", "cover-price": "master-price",
+                        "cover-back-title": "master-back-title", "cover-blurb": "master-blurb", "cover-back-author": "master-back-author",
+                        "cover-isbn": "master-isbn", "cover-back-publisher": "master-back-publisher",
+                      };
                       const frontElements = [
                         { id: "cover-banner", label: "Banner", visible: !!cd.bannerText, icon: "▬" },
                         { id: "cover-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
                         { id: "cover-issue", label: "Issue #", visible: !!cd.issueNumber, icon: "#" },
-                        { id: "cover-title", label: "Title", visible: true, icon: "T" },
+                        { id: "cover-title", label: "Title", visible: !!cd.title, icon: "T" },
                         { id: "cover-subtitle", label: "Subtitle", visible: !!cd.subtitle, icon: "t" },
                         { id: "cover-tagline", label: "Tagline", visible: !!cd.tagline, icon: "✦" },
-                        { id: "cover-author", label: "Author", visible: true, icon: "A" },
+                        { id: "cover-author", label: "Author", visible: !!cd.author, icon: "A" },
                         { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!cd.priceText, icon: "$" },
                       ];
                       const backElements = [
-                        { id: "cover-back-title", label: "Title", visible: true, icon: "T" },
+                        { id: "cover-back-title", label: "Title", visible: !!cd.title, icon: "T" },
                         { id: "cover-blurb", label: "Blurb", visible: !!cd.backBlurb, icon: "¶" },
-                        { id: "cover-back-author", label: "Author", visible: true, icon: "A" },
+                        { id: "cover-back-author", label: "Author", visible: !!cd.author, icon: "A" },
                         { id: "cover-isbn", label: "ISBN", visible: !!cd.isbn, icon: "▯" },
                         { id: "cover-back-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
                       ];
-                      const elements = isFr ? frontElements : backElements;
+                      const currentOrder = cd.elementZOrder || [];
+                      const allElements = isFr ? frontElements : backElements;
+                      const visibleEls = allElements.filter(el => el.visible);
+                      const sortedEls = [...visibleEls].sort((a, b) => {
+                        const aIdx = currentOrder.indexOf(elToMaster[a.id] || "");
+                        const bIdx = currentOrder.indexOf(elToMaster[b.id] || "");
+                        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+                      });
                       const textLayers = isFr ? (cd.frontLayers || []) : (cd.backLayers || []);
                       const imageLayers = isFr ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
+                      const moveCoverElUp = (elId: string) => {
+                        const masterId = elToMaster[elId];
+                        if (!masterId) return;
+                        const order = [...(cd.elementZOrder || masterIds)];
+                        if (!order.includes(masterId)) order.push(masterId);
+                        const idx = order.indexOf(masterId);
+                        if (idx <= 0) return;
+                        [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+                        updateCoverData({ elementZOrder: order });
+                      };
+                      const moveCoverElDown = (elId: string) => {
+                        const masterId = elToMaster[elId];
+                        if (!masterId) return;
+                        const order = [...(cd.elementZOrder || masterIds)];
+                        if (!order.includes(masterId)) order.push(masterId);
+                        const idx = order.indexOf(masterId);
+                        if (idx >= order.length - 1) return;
+                        [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+                        updateCoverData({ elementZOrder: order });
+                      };
+                      const deleteCoverEl = (elId: string) => {
+                        const updates = clearFieldMap[elId];
+                        if (updates) {
+                          updateCoverData(updates as any);
+                          if (selectedContentId === elId) setSelectedContentId(null);
+                        }
+                      };
+                      const deleteImageLayer = (layerId: string) => {
+                        const layerKey = `${isFr ? 'front' : 'back'}ImageLayers` as keyof CoverData;
+                        const layers = (cd[layerKey] as CoverImageLayer[]) || [];
+                        const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
+                        updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
+                      };
+                      const deleteTextLayer = (layerId: string) => {
+                        const layerKey = `${isFr ? 'front' : 'back'}Layers` as keyof CoverData;
+                        const layers = (cd[layerKey] as CoverTextLayer[]) || [];
+                        const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
+                        updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
+                      };
                       return (
                         <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
-                          <div className="px-2 py-0.5 text-[8px] font-bold text-cyan-400 uppercase tracking-wider">Cover Elements</div>
-                          {elements.filter(el => el.visible).map(el => (
+                          <div className="px-2 py-0.5 text-[8px] font-bold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
+                            <span>Cover Elements</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShowPanelContents(prev => !prev); }}
+                              className="text-[8px] text-zinc-500 hover:text-white px-1"
+                              title="Toggle panel contents"
+                            >
+                              {showPanelContents ? "Hide Contents" : "Show Contents"}
+                            </button>
+                          </div>
+                          {sortedEls.map((el, eIdx) => (
                             <div
                               key={el.id}
-                              className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === el.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
+                              className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === el.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
                               onClick={(e) => { e.stopPropagation(); setSelectedContentId(el.id); }}
                             >
-                              <span className="w-4 text-center text-[10px] opacity-60">{el.icon}</span>
+                              <span className="w-3 text-center text-[10px] opacity-60">{el.icon}</span>
                               <span className="flex-1 truncate text-[10px]">{el.label}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); moveCoverElUp(el.id); }}
+                                disabled={eIdx === 0}
+                                className={`p-0.5 ${eIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
+                                title="Move Up"
+                              ><MoveUp className="w-2.5 h-2.5" /></button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); moveCoverElDown(el.id); }}
+                                disabled={eIdx === sortedEls.length - 1}
+                                className={`p-0.5 ${eIdx === sortedEls.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
+                                title="Move Down"
+                              ><MoveDown className="w-2.5 h-2.5" /></button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteCoverEl(el.id); }}
+                                className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
+                                title="Delete"
+                              ><Trash2 className="w-2.5 h-2.5" /></button>
                             </div>
                           ))}
                           {imageLayers.length > 0 && (
                             <>
                               <div className="px-2 py-0.5 text-[8px] font-bold text-violet-400 uppercase tracking-wider mt-1">Image Layers</div>
-                              {imageLayers.map(il => (
+                              {imageLayers.map((il, iIdx) => (
                                 <div
                                   key={il.id}
-                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
+                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
                                   onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}
                                 >
-                                  <span className="w-4 text-center text-[10px] opacity-60">🖼</span>
+                                  <span className="w-3 text-center text-[10px] opacity-60">🖼</span>
                                   <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); deleteImageLayer(il.id); }}
+                                    className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
+                                    title="Delete"
+                                  ><Trash2 className="w-2.5 h-2.5" /></button>
                                 </div>
                               ))}
                             </>
@@ -4304,14 +4408,19 @@ export default function ComicCreator() {
                           {textLayers.length > 0 && (
                             <>
                               <div className="px-2 py-0.5 text-[8px] font-bold text-amber-400 uppercase tracking-wider mt-1">Text Layers</div>
-                              {textLayers.map(tl => (
+                              {textLayers.map((tl, tIdx) => (
                                 <div
                                   key={tl.id}
-                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
+                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
                                   onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}
                                 >
-                                  <span className="w-4 text-center text-[10px] opacity-60">Aa</span>
+                                  <span className="w-3 text-center text-[10px] opacity-60">Aa</span>
                                   <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); deleteTextLayer(tl.id); }}
+                                    className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
+                                    title="Delete"
+                                  ><Trash2 className="w-2.5 h-2.5" /></button>
                                 </div>
                               ))}
                             </>
