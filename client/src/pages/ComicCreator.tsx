@@ -848,12 +848,18 @@ export default function ComicCreator() {
     setSpreads(prev => prev.map(spread => ({
       ...spread,
       leftPage: spread.leftPage.map(p => {
-        if (p.id === panelId && page === "left") return { ...p, coverRole: role || undefined };
+        if (p.id === panelId && page === "left") {
+          if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+          return { ...p, coverRole: undefined };
+        }
         if (role && p.coverRole === role) return { ...p, coverRole: undefined };
         return p;
       }),
       rightPage: spread.rightPage.map(p => {
-        if (p.id === panelId && page === "right") return { ...p, coverRole: role || undefined };
+        if (p.id === panelId && page === "right") {
+          if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+          return { ...p, coverRole: undefined };
+        }
         if (role && p.coverRole === role) return { ...p, coverRole: undefined };
         return p;
       }),
