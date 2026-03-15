@@ -3249,24 +3249,6 @@ export default function ComicCreator() {
               <LayoutGrid className="w-4 h-4" /> Templates
             </button>
             <button
-              onClick={() => {
-                if (!coverDesignData) {
-                  setCoverDesignData({ ...defaultCover, title: title || "Untitled", author: user?.name || "" });
-                }
-                setShowLayers(true);
-                const allPanels = currentSpread ? [...currentSpread.leftPage, ...currentSpread.rightPage] : [];
-                const coverPanel = allPanels.find(p => p.coverRole);
-                if (coverPanel) {
-                  setSelectedPanelId(coverPanel.id);
-                  setSelectedContentId(null);
-                }
-              }}
-              className="px-3 py-1.5 text-sm flex items-center gap-2 bg-gradient-to-r from-cyan-700 to-purple-700 hover:from-cyan-600 hover:to-purple-600 border border-cyan-500/50 text-white"
-              data-testid="button-edit-cover"
-            >
-              <Palette className="w-4 h-4" /> {effectiveFrontCover ? "Edit Cover" : "Create Cover"}
-            </button>
-            <button
               onClick={handleSave}
               disabled={isSaving || !effectiveProjectId}
               className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3367,38 +3349,6 @@ export default function ComicCreator() {
           </div>
         </header>
 
-        {showCoverPrompt && !effectiveFrontCover && (
-          <div className="bg-gradient-to-r from-cyan-900/60 to-purple-900/60 border-b border-cyan-700/50 px-4 py-2.5 flex items-center justify-between" data-testid="cover-prompt-banner">
-            <div className="flex items-center gap-3">
-              <Palette className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-              <p className="text-sm text-zinc-200">
-                <span className="font-bold text-white">Pro tip:</span> Create a cover first to give your comic a professional look. Every great comic starts with a great cover!
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => {
-                  if (!coverDesignData) {
-                    setCoverDesignData({ ...defaultCover, title: title || "Untitled", author: user?.name || "" });
-                  }
-                  setShowLayers(true);
-                  setShowCoverPrompt(false);
-                }}
-                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold border border-cyan-500"
-                data-testid="button-create-cover"
-              >
-                Create Cover
-              </button>
-              <button 
-                onClick={() => { setShowCoverPrompt(false); setCoverDismissed(true); }}
-                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                data-testid="button-dismiss-cover-prompt"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="flex-1 flex overflow-hidden">
           <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
