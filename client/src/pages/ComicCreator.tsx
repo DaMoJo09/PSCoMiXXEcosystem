@@ -1142,6 +1142,9 @@ export default function ComicCreator() {
           }
           if (cd.issueNumber) {
             drawCenterText(cd.issueNumber, currentY, "Inter, sans-serif", cd.titleColor, scaleFont(16), { bold: true });
+            if (cd.issueDate) {
+              drawCenterText(cd.issueDate, currentY + scaleFont(18), "Inter, sans-serif", cd.titleColor, scaleFont(10));
+            }
             currentY += scaleFont(22);
           }
           const titleY = panelY + panelH * 0.3;
@@ -1155,13 +1158,38 @@ export default function ComicCreator() {
           drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(40), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           if (cd.showPriceBox && cd.priceText) {
             const boxS = scaleFont(36);
-            ctx.fillStyle = cd.bannerBgColor || '#FFD700';
-            ctx.fillRect(panelX + panelW - boxS - scaleFont(10), panelY + scaleFont(10), boxS, boxS);
-            ctx.fillStyle = '#000';
+            const bx = panelX + panelW - boxS - scaleFont(10);
+            const by = panelY + scaleFont(10);
+            const bcx = bx + boxS / 2;
+            const bcy = by + boxS / 2;
+            ctx.fillStyle = cd.priceBoxColor || cd.bannerBgColor || '#FFD700';
+            if (cd.priceBoxShape === 'circle') {
+              ctx.beginPath();
+              ctx.arc(bcx, bcy, boxS / 2, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#000';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            } else if (cd.priceBoxShape === 'diamond') {
+              ctx.save();
+              ctx.translate(bcx, bcy);
+              ctx.rotate(Math.PI / 4);
+              ctx.fillRect(-boxS / 2, -boxS / 2, boxS, boxS);
+              ctx.strokeStyle = '#000';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(-boxS / 2, -boxS / 2, boxS, boxS);
+              ctx.restore();
+            } else {
+              ctx.fillRect(bx, by, boxS, boxS);
+              ctx.strokeStyle = '#000';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(bx, by, boxS, boxS);
+            }
+            ctx.fillStyle = cd.priceBoxTextColor || '#000';
             ctx.font = `bold ${scaleFont(14)}px Inter`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(cd.priceText, panelX + panelW - boxS / 2 - scaleFont(10), panelY + scaleFont(10) + boxS / 2);
+            ctx.fillText(cd.priceText, bcx, bcy);
           }
         } else {
           drawCenterText(cd.title || "TITLE", panelY + scaleFont(20), cd.titleFont, cd.titleColor, scaleFont(cd.titleSize * 0.6), { bold: true, uppercase: true });
@@ -1190,7 +1218,33 @@ export default function ComicCreator() {
           }
           drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH - scaleFont(60), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           if (cd.isbn) {
-            drawCenterText(`ISBN ${cd.isbn}`, panelY + panelH - scaleFont(30), "monospace", cd.authorColor, scaleFont(10));
+            if (cd.showBarcode !== false) {
+              const barcodeW = scaleFont(80);
+              const barcodeH = scaleFont(40);
+              const barcodeX = panelX + (panelW - barcodeW) / 2;
+              const barcodeY = panelY + panelH - scaleFont(55);
+              ctx.fillStyle = '#fff';
+              ctx.fillRect(barcodeX, barcodeY, barcodeW, barcodeH);
+              ctx.strokeStyle = '#000';
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(barcodeX, barcodeY, barcodeW, barcodeH);
+              const digits = cd.isbn.replace(/[^0-9]/g, '');
+              const barCount = Math.max(digits.length, 13);
+              const barW = (barcodeW - scaleFont(8)) / barCount;
+              for (let i = 0; i < barCount; i++) {
+                const d = parseInt(digits[i] || '5', 10);
+                const h = barcodeH * (0.4 + (d / 10) * 0.4);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(barcodeX + scaleFont(4) + i * barW, barcodeY + scaleFont(2), Math.max(barW * 0.6, 0.5), h);
+              }
+              ctx.fillStyle = '#000';
+              ctx.font = `${scaleFont(7)}px monospace`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "top";
+              ctx.fillText(`ISBN ${cd.isbn}`, panelX + panelW / 2, barcodeY + barcodeH + scaleFont(2));
+            } else {
+              drawCenterText(`ISBN ${cd.isbn}`, panelY + panelH - scaleFont(30), "monospace", cd.authorColor, scaleFont(10));
+            }
           }
         }
       }
@@ -2372,10 +2426,13 @@ export default function ComicCreator() {
                         minWidth={20} minHeight={10}
                         style={{ zIndex: coverElZOrder.indexOf("master-issue") + 10 }}
                       >
-                        <div className="w-full h-full flex items-center justify-center font-bold" style={{
+                        <div className="w-full h-full flex flex-col items-center justify-center font-bold" style={{
                           color: cd.titleColor,
                           fontSize: 'max(6px, 3cqi)',
-                        }}>{cd.issueNumber}</div>
+                        }}>
+                          <span>{cd.issueNumber}</span>
+                          {cd.issueDate && <span style={{ fontSize: 'max(4px, 1.8cqi)', fontWeight: 'normal', opacity: 0.7 }}>{cd.issueDate}</span>}
+                        </div>
                       </TransformableElement>
                     )}
 
@@ -2472,12 +2529,18 @@ export default function ComicCreator() {
                         style={{ zIndex: coverElZOrder.indexOf("master-price") + 10 }}
                       >
                         <div className="w-full h-full flex items-center justify-center" style={{
-                          backgroundColor: cd.bannerBgColor || '#FFD700',
-                          color: '#000',
+                          backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                          color: cd.priceBoxTextColor || '#000',
                           fontSize: 'max(6px, 3cqi)',
                           fontWeight: 'bold',
                           border: '1px solid #000',
-                        }}>{cd.priceText}</div>
+                          borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
+                          transform: cd.priceBoxShape === 'diamond' ? 'rotate(45deg)' : undefined,
+                        }}>
+                          <span style={{ transform: cd.priceBoxShape === 'diamond' ? 'rotate(-45deg)' : undefined, display: 'block' }}>
+                            {cd.priceText}
+                          </span>
+                        </div>
                       </TransformableElement>
                     )}
                   </>
@@ -2540,17 +2603,31 @@ export default function ComicCreator() {
                     {cd.isbn && (
                       <TransformableElement
                         id="cover-isbn"
-                        initialTransform={cd.isbnTransform || { x: 30, y: 210, width: 240, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.isbnTransform || { x: 30, y: 210, width: 240, height: (cd.showBarcode !== false ? 55 : 18), rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-isbn"}
                         onSelect={() => { setSelectedContentId("cover-isbn"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ isbnTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
                       >
-                        <div className="w-full h-full flex items-center justify-center text-center font-mono opacity-60" style={{
-                          color: cd.authorColor,
-                          fontSize: 'max(4px, 1.8cqi)',
-                        }}>ISBN {cd.isbn}</div>
+                        <div className="w-full h-full flex flex-col items-center justify-center" style={{ backgroundColor: cd.showBarcode !== false ? '#fff' : 'transparent', padding: cd.showBarcode !== false ? '2px' : 0 }}>
+                          {cd.showBarcode !== false && (
+                            <div style={{ display: 'flex', gap: '0.5px', height: '60%', alignItems: 'flex-end', marginBottom: '1px' }}>
+                              {cd.isbn.split('').map((ch, i) => {
+                                const w = ((parseInt(ch, 10) || 1) % 3) + 1;
+                                return <div key={i} style={{ width: `${w}px`, height: `${60 + ((parseInt(ch, 10) || 0) * 3)}%`, backgroundColor: '#000', minWidth: '0.5px' }} />;
+                              })}
+                              {Array.from({ length: 8 }).map((_, i) => (
+                                <div key={`pad-${i}`} style={{ width: '1px', height: `${70 + (i * 3)}%`, backgroundColor: '#000', minWidth: '0.5px' }} />
+                              ))}
+                            </div>
+                          )}
+                          <div className="text-center font-mono" style={{
+                            color: cd.showBarcode !== false ? '#000' : (cd.authorColor || '#fff'),
+                            fontSize: 'max(4px, 1.5cqi)',
+                            lineHeight: 1,
+                          }}>ISBN {cd.isbn}</div>
+                        </div>
                       </TransformableElement>
                     )}
 
@@ -2582,7 +2659,7 @@ export default function ComicCreator() {
                     onSelect={() => { setSelectedContentId(`cover-img-${il.id}`); setSelectedPanelId(panel.id); }}
                     onTransformChange={(_, t) => {
                       const layerKey = `${isFront ? 'front' : 'back'}ImageLayers` as keyof CoverData;
-                      const layers = (cd[layerKey] as ImageLayer[]) || [];
+                      const layers = (cd[layerKey] as CoverImageLayer[]) || [];
                       updateCoverData({ [layerKey]: layers.map(l => l.id === il.id ? { ...l, transform: t } : l) });
                     }}
                     locked={il.locked}
@@ -2605,7 +2682,7 @@ export default function ComicCreator() {
                     onSelect={() => { setSelectedContentId(`cover-txt-${tl.id}`); setSelectedPanelId(panel.id); }}
                     onTransformChange={(_, t) => {
                       const layerKey = `${isFront ? 'front' : 'back'}Layers` as keyof CoverData;
-                      const layers = (cd[layerKey] as TextLayer[]) || [];
+                      const layers = (cd[layerKey] as CoverTextLayer[]) || [];
                       updateCoverData({ [layerKey]: layers.map(l => l.id === tl.id ? { ...l, transform: t } : l) });
                     }}
                     locked={tl.locked}
@@ -4217,6 +4294,75 @@ export default function ComicCreator() {
                         })}
                       </div>
                     )}
+                    {isActive && panel.coverRole && coverDesignData && (() => {
+                      const cd = { ...defaultCover, ...coverDesignData } as CoverData;
+                      const isFr = panel.coverRole === "front-cover";
+                      const frontElements = [
+                        { id: "cover-banner", label: "Banner", visible: !!cd.bannerText, icon: "▬" },
+                        { id: "cover-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
+                        { id: "cover-issue", label: "Issue #", visible: !!cd.issueNumber, icon: "#" },
+                        { id: "cover-title", label: "Title", visible: true, icon: "T" },
+                        { id: "cover-subtitle", label: "Subtitle", visible: !!cd.subtitle, icon: "t" },
+                        { id: "cover-tagline", label: "Tagline", visible: !!cd.tagline, icon: "✦" },
+                        { id: "cover-author", label: "Author", visible: true, icon: "A" },
+                        { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!cd.priceText, icon: "$" },
+                      ];
+                      const backElements = [
+                        { id: "cover-back-title", label: "Title", visible: true, icon: "T" },
+                        { id: "cover-blurb", label: "Blurb", visible: !!cd.backBlurb, icon: "¶" },
+                        { id: "cover-back-author", label: "Author", visible: true, icon: "A" },
+                        { id: "cover-isbn", label: "ISBN", visible: !!cd.isbn, icon: "▯" },
+                        { id: "cover-back-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
+                      ];
+                      const elements = isFr ? frontElements : backElements;
+                      const textLayers = isFr ? (cd.frontLayers || []) : (cd.backLayers || []);
+                      const imageLayers = isFr ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
+                      return (
+                        <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
+                          <div className="px-2 py-0.5 text-[8px] font-bold text-cyan-400 uppercase tracking-wider">Cover Elements</div>
+                          {elements.filter(el => el.visible).map(el => (
+                            <div
+                              key={el.id}
+                              className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === el.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
+                              onClick={(e) => { e.stopPropagation(); setSelectedContentId(el.id); }}
+                            >
+                              <span className="w-4 text-center text-[10px] opacity-60">{el.icon}</span>
+                              <span className="flex-1 truncate text-[10px]">{el.label}</span>
+                            </div>
+                          ))}
+                          {imageLayers.length > 0 && (
+                            <>
+                              <div className="px-2 py-0.5 text-[8px] font-bold text-violet-400 uppercase tracking-wider mt-1">Image Layers</div>
+                              {imageLayers.map(il => (
+                                <div
+                                  key={il.id}
+                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}
+                                >
+                                  <span className="w-4 text-center text-[10px] opacity-60">🖼</span>
+                                  <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          {textLayers.length > 0 && (
+                            <>
+                              <div className="px-2 py-0.5 text-[8px] font-bold text-amber-400 uppercase tracking-wider mt-1">Text Layers</div>
+                              {textLayers.map(tl => (
+                                <div
+                                  key={tl.id}
+                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}
+                                >
+                                  <span className="w-4 text-center text-[10px] opacity-60">Aa</span>
+                                  <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {isActive && (
                       <div className="ml-3 px-2 py-1 flex gap-1 border-l border-zinc-700">
                         <button
@@ -4649,7 +4795,7 @@ export default function ComicCreator() {
                             <div className="flex-1 flex flex-col items-center justify-between p-8">
                               <div className="w-full text-center space-y-1">
                                 {cd.publisherName && <div className="text-sm font-bold uppercase tracking-wider opacity-80" style={{ color: cd.titleColor }}>{cd.publisherName}</div>}
-                                {cd.issueNumber && <div className="text-base font-bold" style={{ color: cd.titleColor }}>{cd.issueNumber}</div>}
+                                {cd.issueNumber && <div className="text-base font-bold" style={{ color: cd.titleColor }}>{cd.issueNumber}{cd.issueDate && <span className="block text-xs font-normal opacity-70">{cd.issueDate}</span>}</div>}
                               </div>
                               <div className="w-full text-center flex-1 flex flex-col items-center justify-center py-4">
                                 <div className="text-center leading-none break-words w-full" style={{
@@ -4665,8 +4811,14 @@ export default function ComicCreator() {
                             </div>
                             {cd.showPriceBox && cd.priceText && (
                               <div className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center font-bold text-lg" style={{
-                                backgroundColor: cd.bannerBgColor || '#FFD700', color: '#000', border: '2px solid #000',
-                              }}>{cd.priceText}</div>
+                                backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', border: '2px solid #000',
+                                borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
+                                transform: cd.priceBoxShape === 'diamond' ? 'rotate(45deg)' : undefined,
+                              }}>
+                                <span style={{ transform: cd.priceBoxShape === 'diamond' ? 'rotate(-45deg)' : undefined, display: 'block' }}>
+                                  {cd.priceText}
+                                </span>
+                              </div>
                             )}
                           </div>
                           {(cd.frontImageLayers || []).map(il => (
@@ -4861,7 +5013,23 @@ export default function ComicCreator() {
                             <div className="w-full mt-auto pt-4 text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: `${cd.authorSize}px`, fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>by {cd.author || "Author"}</div>
                             {cd.isbn && (
                               <div className="w-full mt-3 pt-3 text-center" style={{ borderTop: `1px solid ${cd.authorColor}40` }}>
-                                <div className="font-mono opacity-60 text-sm" style={{ color: cd.authorColor }}>ISBN {cd.isbn}</div>
+                                {cd.showBarcode !== false && (
+                                  <div className="inline-block bg-white p-2 mb-1">
+                                    <div style={{ display: 'flex', gap: '1px', height: '30px', alignItems: 'flex-end' }}>
+                                      {cd.isbn.split('').map((ch, i) => {
+                                        const w = ((parseInt(ch, 10) || 1) % 3) + 1;
+                                        return <div key={i} style={{ width: `${w}px`, height: `${60 + ((parseInt(ch, 10) || 0) * 3)}%`, backgroundColor: '#000' }} />;
+                                      })}
+                                      {Array.from({ length: 8 }).map((_, i) => (
+                                        <div key={`p${i}`} style={{ width: '1px', height: `${70 + (i * 3)}%`, backgroundColor: '#000' }} />
+                                      ))}
+                                    </div>
+                                    <div className="font-mono text-[10px] text-black mt-0.5">ISBN {cd.isbn}</div>
+                                  </div>
+                                )}
+                                {cd.showBarcode === false && (
+                                  <div className="font-mono opacity-60 text-sm" style={{ color: cd.authorColor }}>ISBN {cd.isbn}</div>
+                                )}
                               </div>
                             )}
                             {cd.publisherName && <div className="mt-2 font-bold uppercase tracking-wider opacity-60 text-sm" style={{ color: cd.authorColor }}>{cd.publisherName}</div>}

@@ -172,10 +172,15 @@ export function CoverPropertiesPanel({
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Banner Text</label>
-              <input type="text" value={coverData.bannerText}
-                onChange={(e) => updateCover({ bannerText: e.target.value })}
-                onKeyDown={(e) => e.stopPropagation()}
-                className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
+              <div className="flex gap-1.5">
+                <input type="text" value={coverData.bannerText}
+                  onChange={(e) => updateCover({ bannerText: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
+                <input type="color" value={coverData.bannerBgColor || '#000000'}
+                  onChange={(e) => updateCover({ bannerBgColor: e.target.value })}
+                  className="w-8 h-8 bg-zinc-800 border border-zinc-700 cursor-pointer" title="Banner BG" />
+              </div>
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Back Cover Blurb</label>
@@ -207,6 +212,10 @@ export function CoverPropertiesPanel({
                   onChange={(e) => updateCover({ tagline: e.target.value })}
                   onKeyDown={(e) => e.stopPropagation()}
                   className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
+                <input type="text" placeholder="Issue Date (e.g., MAR 2026)" value={coverData.issueDate || ""}
+                  onChange={(e) => updateCover({ issueDate: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
                 <div className="flex gap-1.5">
                   <input type="text" placeholder="Price (e.g., 40¢)" value={coverData.priceText}
                     onChange={(e) => updateCover({ priceText: e.target.value })}
@@ -218,10 +227,32 @@ export function CoverPropertiesPanel({
                       className="w-3 h-3" />Show
                   </label>
                 </div>
+                {coverData.showPriceBox && (
+                  <div className="flex gap-1.5">
+                    <select value={coverData.priceBoxShape || "rectangle"}
+                      onChange={(e) => updateCover({ priceBoxShape: e.target.value as any })}
+                      className="flex-1 bg-zinc-800 border border-zinc-700 p-1 text-[10px]">
+                      <option value="rectangle">Rectangle</option>
+                      <option value="circle">Circle</option>
+                      <option value="diamond">Diamond</option>
+                    </select>
+                    <input type="color" value={coverData.priceBoxColor || coverData.bannerBgColor || '#FFD700'}
+                      onChange={(e) => updateCover({ priceBoxColor: e.target.value })}
+                      className="w-6 h-6 bg-zinc-800 border border-zinc-700 cursor-pointer" title="Box Color" />
+                    <input type="color" value={coverData.priceBoxTextColor || '#000000'}
+                      onChange={(e) => updateCover({ priceBoxTextColor: e.target.value })}
+                      className="w-6 h-6 bg-zinc-800 border border-zinc-700 cursor-pointer" title="Text Color" />
+                  </div>
+                )}
                 <input type="text" placeholder="ISBN (13 digits for barcode)" value={coverData.isbn}
                   onChange={(e) => updateCover({ isbn: e.target.value })}
                   onKeyDown={(e) => e.stopPropagation()}
                   className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" data-testid="cover-input-isbn" />
+                <label className="flex items-center gap-2 text-[10px] text-zinc-400">
+                  <input type="checkbox" checked={coverData.showBarcode ?? true}
+                    onChange={(e) => updateCover({ showBarcode: e.target.checked })}
+                    className="w-3 h-3" />Show Barcode Area (Back Cover)
+                </label>
               </div>
             </div>
             <div className="pt-2 border-t border-zinc-700">

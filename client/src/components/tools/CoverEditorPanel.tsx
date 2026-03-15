@@ -219,10 +219,15 @@ export interface CoverData {
   bannerBgColor: string;
   showPriceBox: boolean;
   priceText: string;
+  priceBoxShape?: "rectangle" | "circle" | "diamond";
+  priceBoxColor?: string;
+  priceBoxTextColor?: string;
   issueNumber: string;
+  issueDate?: string;
   publisherName: string;
   tagline: string;
   isbn: string;
+  showBarcode?: boolean;
   filters: typeof FILTER_PRESETS;
   frontBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
   backBgTransform?: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number };
