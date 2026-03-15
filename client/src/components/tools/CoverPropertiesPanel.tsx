@@ -171,6 +171,13 @@ export function CoverPropertiesPanel({
                 className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
             </div>
             <div>
+              <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Banner Text</label>
+              <input type="text" value={coverData.bannerText}
+                onChange={(e) => updateCover({ bannerText: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="w-full bg-zinc-800 border border-zinc-700 p-1.5 text-xs" />
+            </div>
+            <div>
               <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Back Cover Blurb</label>
               <textarea value={coverData.backBlurb}
                 onChange={(e) => updateCover({ backBlurb: e.target.value })}
@@ -232,15 +239,14 @@ export function CoverPropertiesPanel({
 
         {activeSection === "style" && (
           <>
-            {(["title", "subtitle", "author"] as const).map(field => {
+            {(["title", "subtitle", "author", "backBlurb"] as const).map(field => {
               const fontKey = `${field}Font` as keyof CoverData;
               const colorKey = `${field}Color` as keyof CoverData;
               const sizeKey = `${field}Size` as keyof CoverData;
-              const effectKey = `${field}Effect` as keyof CoverData;
-              const archKey = `${field}Arch` as keyof CoverData;
-              const strokeColorKey = `${field}StrokeColor` as keyof CoverData;
-              const strokeWidthKey = `${field}StrokeWidth` as keyof CoverData;
-              const label = field.charAt(0).toUpperCase() + field.slice(1);
+              const boldKey = `${field}Bold` as keyof CoverData;
+              const italicKey = `${field}Italic` as keyof CoverData;
+              const uppercaseKey = `${field}Uppercase` as keyof CoverData;
+              const label = field === "backBlurb" ? "Back Blurb" : field.charAt(0).toUpperCase() + field.slice(1);
               return (
                 <div key={field} className="space-y-1">
                   <label className="text-[10px] font-bold uppercase text-zinc-500">{label} Font</label>
@@ -256,6 +262,19 @@ export function CoverPropertiesPanel({
                     <input type="number" value={coverData[sizeKey] as number}
                       onChange={(e) => updateCover({ [sizeKey]: Number(e.target.value) })}
                       className="flex-1 bg-zinc-800 border border-zinc-700 p-1 text-xs text-center" min="8" max="120" />
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => updateCover({ [boldKey]: !coverData[boldKey] })}
+                      className={`px-2 py-0.5 text-[10px] font-bold border ${coverData[boldKey] ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400 text-zinc-400"}`}
+                      data-testid={`button-${field}-bold`}>B</button>
+                    <button onClick={() => updateCover({ [italicKey]: !coverData[italicKey] })}
+                      className={`px-2 py-0.5 text-[10px] italic border ${coverData[italicKey] ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400 text-zinc-400"}`}
+                      data-testid={`button-${field}-italic`}>I</button>
+                    {field !== "backBlurb" && (
+                      <button onClick={() => updateCover({ [uppercaseKey]: !coverData[uppercaseKey] })}
+                        className={`px-2 py-0.5 text-[10px] border ${coverData[uppercaseKey] ? "bg-white text-black border-white" : "border-zinc-600 hover:border-zinc-400 text-zinc-400"}`}
+                        data-testid={`button-${field}-uppercase`}>AA</button>
+                    )}
                   </div>
                 </div>
               );

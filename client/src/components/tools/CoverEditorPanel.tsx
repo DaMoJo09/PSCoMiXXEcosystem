@@ -190,6 +190,17 @@ export interface CoverData {
   authorArch?: number;
   authorStrokeColor?: string;
   authorStrokeWidth?: number;
+  titleBold?: boolean;
+  titleItalic?: boolean;
+  titleUppercase?: boolean;
+  subtitleBold?: boolean;
+  subtitleItalic?: boolean;
+  subtitleUppercase?: boolean;
+  authorBold?: boolean;
+  authorItalic?: boolean;
+  authorUppercase?: boolean;
+  backBlurbBold?: boolean;
+  backBlurbItalic?: boolean;
   backBlurb: string;
   backBlurbFont: string;
   backBlurbColor: string;
@@ -224,6 +235,12 @@ export interface CoverData {
   bannerTransform?: TransformState;
   priceBoxTransform?: TransformState;
   issueNumberTransform?: TransformState;
+  publisherTransform?: TransformState;
+  taglineTransform?: TransformState;
+  isbnTransform?: TransformState;
+  backPublisherTransform?: TransformState;
+  backTitleTransform?: TransformState;
+  backAuthorTransform?: TransformState;
   elementZOrder: string[];
 }
 
