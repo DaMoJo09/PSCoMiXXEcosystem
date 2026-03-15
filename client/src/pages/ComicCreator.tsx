@@ -2381,7 +2381,7 @@ export default function ComicCreator() {
                     {cd.bannerText && (
                       <TransformableElement
                         id="cover-banner"
-                        initialTransform={cd.bannerTransform || { x: 0, y: 0, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.bannerTransform || { x: 0, y: 0, width: 300, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-banner"}
                         onSelect={() => { setSelectedContentId("cover-banner"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ bannerTransform: t })}
@@ -2401,7 +2401,7 @@ export default function ComicCreator() {
                     {cd.publisherName && (
                       <TransformableElement
                         id="cover-publisher"
-                        initialTransform={cd.publisherTransform || { x: 10, y: 28, width: 200, height: 20, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.publisherTransform || { x: 50, y: 26, width: 200, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-publisher"}
                         onSelect={() => { setSelectedContentId("cover-publisher"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ publisherTransform: t })}
@@ -2418,7 +2418,7 @@ export default function ComicCreator() {
                     {cd.issueNumber && (
                       <TransformableElement
                         id="cover-issue"
-                        initialTransform={cd.issueNumberTransform || { x: 10, y: 48, width: 80, height: 20, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.issueNumberTransform || { x: 110, y: 46, width: 80, height: 28, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-issue"}
                         onSelect={() => { setSelectedContentId("cover-issue"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ issueNumberTransform: t })}
@@ -2438,7 +2438,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-title"
-                      initialTransform={cd.titleTransform || { x: 10, y: 70, width: 280, height: 60, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.titleTransform || { x: 10, y: 80, width: 280, height: 55, rotation: 0, scaleX: 1, scaleY: 1 }}
                       isSelected={selectedContentId === "cover-title"}
                       onSelect={() => { setSelectedContentId("cover-title"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ titleTransform: t })}
@@ -2461,7 +2461,7 @@ export default function ComicCreator() {
                     {cd.subtitle && (
                       <TransformableElement
                         id="cover-subtitle"
-                        initialTransform={cd.subtitleTransform || { x: 30, y: 135, width: 240, height: 25, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.subtitleTransform || { x: 40, y: 138, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-subtitle"}
                         onSelect={() => { setSelectedContentId("cover-subtitle"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ subtitleTransform: t })}
@@ -2483,7 +2483,7 @@ export default function ComicCreator() {
                     {cd.tagline && (
                       <TransformableElement
                         id="cover-tagline"
-                        initialTransform={cd.taglineTransform || { x: 30, y: 162, width: 240, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.taglineTransform || { x: 40, y: 163, width: 220, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-tagline"}
                         onSelect={() => { setSelectedContentId("cover-tagline"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ taglineTransform: t })}
@@ -2499,7 +2499,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-author"
-                      initialTransform={cd.authorTransform || { x: 30, y: 200, width: 240, height: 25, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.authorTransform || { x: 40, y: 230, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
                       isSelected={selectedContentId === "cover-author"}
                       onSelect={() => { setSelectedContentId("cover-author"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ authorTransform: t })}
@@ -2520,7 +2520,7 @@ export default function ComicCreator() {
                     {cd.showPriceBox && cd.priceText && (
                       <TransformableElement
                         id="cover-price"
-                        initialTransform={cd.priceBoxTransform || { x: 250, y: 5, width: 40, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.priceBoxTransform || { x: 255, y: 4, width: 38, height: 38, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-price"}
                         onSelect={() => { setSelectedContentId("cover-price"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ priceBoxTransform: t })}
@@ -2548,7 +2548,7 @@ export default function ComicCreator() {
                   <>
                     <TransformableElement
                       id="cover-back-title"
-                      initialTransform={cd.backTitleTransform || { x: 10, y: 10, width: 280, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.backTitleTransform || { x: 20, y: 12, width: 260, height: 35, rotation: 0, scaleX: 1, scaleY: 1 }}
                       isSelected={selectedContentId === "cover-back-title"}
                       onSelect={() => { setSelectedContentId("cover-back-title"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ backTitleTransform: t })}
@@ -2566,7 +2566,7 @@ export default function ComicCreator() {
                     {cd.backBlurb && (
                       <TransformableElement
                         id="cover-blurb"
-                        initialTransform={cd.backBlurbTransform || { x: 10, y: 55, width: 280, height: 120, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.backBlurbTransform || { x: 20, y: 55, width: 260, height: 110, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-blurb"}
                         onSelect={() => { setSelectedContentId("cover-blurb"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ backBlurbTransform: t })}
@@ -2586,7 +2586,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-back-author"
-                      initialTransform={cd.backAuthorTransform || { x: 30, y: 185, width: 240, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.backAuthorTransform || { x: 40, y: 175, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
                       isSelected={selectedContentId === "cover-back-author"}
                       onSelect={() => { setSelectedContentId("cover-back-author"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ backAuthorTransform: t })}
@@ -2603,7 +2603,7 @@ export default function ComicCreator() {
                     {cd.isbn && (
                       <TransformableElement
                         id="cover-isbn"
-                        initialTransform={cd.isbnTransform || { x: 30, y: 210, width: 240, height: (cd.showBarcode !== false ? 55 : 18), rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.isbnTransform || { x: 70, y: 205, width: 160, height: (cd.showBarcode !== false ? 50 : 18), rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-isbn"}
                         onSelect={() => { setSelectedContentId("cover-isbn"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ isbnTransform: t })}
@@ -2634,7 +2634,7 @@ export default function ComicCreator() {
                     {cd.publisherName && (
                       <TransformableElement
                         id="cover-back-publisher"
-                        initialTransform={cd.backPublisherTransform || { x: 30, y: 230, width: 240, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.backPublisherTransform || { x: 60, y: 258, width: 180, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
                         isSelected={selectedContentId === "cover-back-publisher"}
                         onSelect={() => { setSelectedContentId("cover-back-publisher"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ backPublisherTransform: t })}
@@ -3093,7 +3093,7 @@ export default function ComicCreator() {
 
         <div
           className={`absolute inset-0 z-10 ${panel.locked ? 'cursor-pointer' : 'cursor-move'}`}
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: panel.coverRole && isSelected ? 'none' : 'auto' }}
           onClick={(e) => {
             if (panel.locked) {
               e.stopPropagation();
