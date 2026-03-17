@@ -36,9 +36,9 @@ I am particularly interested in how traditional comic art and illustration can e
     { title: "Final Composition", description: "All elements are combined, color-corrected, and prepared for the final medium - whether print, screen, or physical installation." },
   ],
   studioPhotos: [
-    "https://image.pollinations.ai/prompt/artist%20studio%20workspace%20computers%20drawing%20tablets%20creative?width=600&height=400&nologo=true&seed=201",
-    "https://image.pollinations.ai/prompt/art%20studio%20prints%20on%20wall%20professional%20creative%20space?width=600&height=400&nologo=true&seed=202",
-    "https://image.pollinations.ai/prompt/digital%20art%20workspace%20monitors%20tablets%20desk%20setup?width=600&height=400&nologo=true&seed=203",
+    "https://image.pollinations.ai/prompt/artist%20studio%20workspace%20computers%20drawing%20tablets%20creative?width=600&height=400&seed=201",
+    "https://image.pollinations.ai/prompt/art%20studio%20prints%20on%20wall%20professional%20creative%20space?width=600&height=400&seed=202",
+    "https://image.pollinations.ai/prompt/digital%20art%20workspace%20monitors%20tablets%20desk%20setup?width=600&height=400&seed=203",
   ],
   socialLinks: {
     instagram: "https://instagram.com/pressstartstudio",
@@ -65,7 +65,7 @@ export default function ArtistPage() {
         <header className="border-b-4 border-border">
           <div className="relative h-48 bg-gradient-to-br from-zinc-900 to-black overflow-hidden">
             <div className="absolute inset-0 opacity-20" style={{
-              backgroundImage: `url("https://image.pollinations.ai/prompt/abstract%20art%20studio%20background%20creative%20moody?width=1200&height=400&nologo=true&seed=200")`,
+              backgroundImage: `url("https://image.pollinations.ai/prompt/abstract%20art%20studio%20background%20creative%20moody?width=1200&height=400&seed=200")`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }} />

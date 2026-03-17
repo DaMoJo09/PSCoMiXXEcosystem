@@ -233,5 +233,5 @@ export function generateImageUrl(modelId: string, prompt: string, width = 1024, 
   
   const safetyModifier = isStudent ? ", safe for children, family friendly, age appropriate, no violence, no mature content" : "";
   const encodedPrompt = encodeURIComponent(`${prompt}${styleModifier}${safetyModifier}`);
-  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+  return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}`;
 }

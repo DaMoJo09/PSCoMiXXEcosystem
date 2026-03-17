@@ -216,7 +216,7 @@ Requirements:
   const generateImage = async (prompt: string) => {
     const encodedPrompt = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 10000);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}`;
     setGeneratedImage(url);
     toast.success("Image generating...");
   };
