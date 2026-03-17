@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "wouter";
+import { Layout } from "@/components/layout/Layout";
 import { 
   Shield, Users, Mail, Key, Gift, Settings, Activity, 
   ToggleLeft, ToggleRight, Check, X, Plus, Trash2, 
-  Download, RefreshCw, Clock, ChevronDown, ChevronRight
+  Download, RefreshCw, Clock, ChevronDown, ChevronRight, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,22 +223,27 @@ export default function AdminControlRoom() {
 
   if (!user || user.role !== "admin") {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Card className="bg-zinc-950 border-4 border-white shadow-[8px_8px_0_#fff]">
-          <CardContent className="p-8 text-center">
-            <Shield className="w-16 h-16 text-white mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white font-space-grotesk mb-2">ACCESS DENIED</h1>
-            <p className="text-zinc-400">Admin privileges required</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Layout>
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <Card className="bg-zinc-950 border-4 border-white shadow-[8px_8px_0_#fff]">
+            <CardContent className="p-8 text-center">
+              <Shield className="w-16 h-16 text-white mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-white font-space-grotesk mb-2">ACCESS DENIED</h1>
+              <p className="text-zinc-400">Admin privileges required</p>
+              <Link href="/"><Button variant="outline" className="mt-4"><ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard</Button></Link>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
     );
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-black text-white font-inter p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
+          <Link href="/admin"><button className="p-2 hover:bg-zinc-800 border border-zinc-700" data-testid="button-back-admin"><ArrowLeft className="w-5 h-5" /></button></Link>
           <div className="p-3 bg-white">
             <Shield className="w-8 h-8 text-black" />
           </div>
@@ -711,5 +718,6 @@ export default function AdminControlRoom() {
         </Tabs>
       </div>
     </div>
+    </Layout>
   );
 }

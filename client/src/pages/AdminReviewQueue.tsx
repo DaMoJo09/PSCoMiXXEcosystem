@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
+import { Layout } from "@/components/layout/Layout";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,13 +91,17 @@ export default function AdminReviewQueue() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <p className="text-white text-xl">Admin access required</p>
-      </div>
+      <Layout>
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+          <p className="text-white text-xl">Admin access required</p>
+          <Link href="/"><Button variant="outline" className="ml-4">Back to Dashboard</Button></Link>
+        </div>
+      </Layout>
     );
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-zinc-950 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
@@ -316,5 +321,6 @@ export default function AdminReviewQueue() {
         </DialogContent>
       </Dialog>
     </div>
+    </Layout>
   );
 }

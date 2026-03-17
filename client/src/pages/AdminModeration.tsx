@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link, useLocation } from "wouter";
+import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatDistanceToNow } from "date-fns";
 import { Flag, CheckCircle, XCircle, Eye, AlertTriangle, Ban, Trash2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ContentReport {
@@ -192,15 +193,19 @@ export default function AdminModeration() {
 
   if (user?.role !== "admin") {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <p className="text-white/50 font-bold">Access Denied</p>
-      </div>
+      <Layout>
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+          <p className="text-white/50 font-bold">Access Denied</p>
+          <Link href="/"><Button variant="outline" className="ml-4">Back to Dashboard</Button></Link>
+        </div>
+      </Layout>
     );
   }
 
   const pendingCount = reports.filter(r => r.status === "pending").length;
 
   return (
+    <Layout>
     <div className="min-h-screen bg-zinc-950 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
@@ -261,5 +266,6 @@ export default function AdminModeration() {
         )}
       </div>
     </div>
+    </Layout>
   );
 }
