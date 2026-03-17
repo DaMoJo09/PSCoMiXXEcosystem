@@ -68,6 +68,9 @@ A Webtoons-style browse page with search, sorting, and a comic reader for vertic
 ### Motion Studio
 Supports video/GIF export with progress tracking, using a Web Worker for GIF encoding. Features drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, throttled canvas drawing, and a virtualized frame list.
 
+### Platform Analytics Dashboard
+An admin-only analytics dashboard at `/analytics` provides 40+ KPIs across 7 tabs: Overview, Growth, Engagement, Content, Revenue, AI & Platform, and User Health. The API endpoint (`GET /api/analytics/platform`) aggregates data from users, projects, subscriptions, revenue events, marketplace listings, engagement events, and usage tracking tables. Charts use recharts. KPIs include DAU/MAU ratio, retention, activation rate, content velocity, cross-tool adoption, ARPU, AI adoption rate, and more. Future-thinking KPI descriptions are included for metrics not yet tracked. Accessible via the Admin Dashboard's "Platform Analytics" button.
+
 ### FX Studio Integration
 Integrates with FX Studio (pressplays.site) to browse, import, and apply visual effects. Available in Motion Studio for frames and in Cover Editor (CoverPropertiesPanel Images tab) for applying FX overlays to front/back covers. FX layers are added as ImageLayers with `blendMode: "screen"` at 70% opacity. Users can paste FX image URLs or upload FX images directly. The Dashboard "Tools & Utilities" section links directly to FX Studio (replaced former Asset Builder). The Asset Builder route (`/tools/assets`) has been removed.
 

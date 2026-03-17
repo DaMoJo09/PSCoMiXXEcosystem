@@ -5,7 +5,8 @@ import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking } from "@shared/schema";
+import { db } from "./db";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -943,6 +944,249 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         projectsByType: projectStats,
       });
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // PLATFORM ANALYTICS & KPI ROUTES
+  // ============================================
+
+  app.get("/api/analytics/platform", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const thisMonth = now.toISOString().slice(0, 7);
+      const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000);
+
+      const allUsers = await db.select().from(users);
+      const allProjects = await db.select().from(projects);
+
+      const totalUsers = allUsers.length;
+      const studentUsers = allUsers.filter(u => u.accountType === "student").length;
+      const creatorUsers = allUsers.filter(u => u.accountType === "creator").length;
+      const adminUsers = allUsers.filter(u => u.role === "admin").length;
+
+      const usersLast7d = allUsers.filter(u => new Date(u.createdAt) >= sevenDaysAgo).length;
+      const usersLast30d = allUsers.filter(u => new Date(u.createdAt) >= thirtyDaysAgo).length;
+      const usersPrev30d = allUsers.filter(u => {
+        const d = new Date(u.createdAt);
+        return d >= sixtyDaysAgo && d < thirtyDaysAgo;
+      }).length;
+      const userGrowthRate = usersPrev30d > 0 ? ((usersLast30d - usersPrev30d) / usersPrev30d * 100).toFixed(1) : "N/A";
+
+      const activeToday = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat).toISOString().slice(0, 10) === today).length;
+      const activeLast7d = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) >= sevenDaysAgo).length;
+      const activeLast30d = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) >= thirtyDaysAgo).length;
+      const dauMauRatio = activeLast30d > 0 ? (activeToday / activeLast30d * 100).toFixed(1) : "0";
+
+      const avgTimeSpent = totalUsers > 0 ? Math.round(allUsers.reduce((sum, u) => sum + (u.totalMinutes || 0), 0) / totalUsers) : 0;
+      const totalPlatformMinutes = allUsers.reduce((sum, u) => sum + (u.totalMinutes || 0), 0);
+      const avgXpPerUser = totalUsers > 0 ? Math.round(allUsers.reduce((sum, u) => sum + (u.xp || 0), 0) / totalUsers) : 0;
+
+      const usersSignedUp30d = allUsers.filter(u => new Date(u.createdAt) >= thirtyDaysAgo);
+      const retainedUsers = usersSignedUp30d.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) > new Date(u.createdAt));
+      const day30Retention = usersSignedUp30d.length > 0 ? (retainedUsers.length / usersSignedUp30d.length * 100).toFixed(1) : "0";
+
+      const usersWithProjects = new Set(allProjects.map(p => p.userId)).size;
+      const activationRate = totalUsers > 0 ? (usersWithProjects / totalUsers * 100).toFixed(1) : "0";
+
+      const totalProjects = allProjects.length;
+      const projectsByType: Record<string, number> = {};
+      const projectsByStatus: Record<string, number> = {};
+      allProjects.forEach(p => {
+        projectsByType[p.type] = (projectsByType[p.type] || 0) + 1;
+        projectsByStatus[p.status] = (projectsByStatus[p.status] || 0) + 1;
+      });
+      const projectsLast7d = allProjects.filter(p => new Date(p.createdAt) >= sevenDaysAgo).length;
+      const projectsLast30d = allProjects.filter(p => new Date(p.createdAt) >= thirtyDaysAgo).length;
+      const avgProjectsPerUser = totalUsers > 0 ? (totalProjects / totalUsers).toFixed(1) : "0";
+      const publishedProjects = allProjects.filter(p => p.status === "published").length;
+      const publishRate = totalProjects > 0 ? (publishedProjects / totalProjects * 100).toFixed(1) : "0";
+
+      const projectsWithViews = allProjects.filter(p => (p.viewCount || 0) > 0);
+      const totalContentViews = allProjects.reduce((sum, p) => sum + (p.viewCount || 0), 0);
+      const avgViewsPerProject = publishedProjects > 0 ? Math.round(totalContentViews / publishedProjects) : 0;
+
+      let subscriptionData: any[] = [];
+      let revenueData: any[] = [];
+      let marketplaceData: any[] = [];
+      let engagementData: any[] = [];
+      let usageData: any[] = [];
+
+      try { subscriptionData = await db.select().from(subscriptions); } catch {}
+      try { revenueData = await db.select().from(revenueEvents); } catch {}
+      try { marketplaceData = await db.select().from(marketplaceListings); } catch {}
+      try { engagementData = await db.select().from(engagementEvents); } catch {}
+      try { usageData = await db.select().from(usageTracking); } catch {}
+
+      const paidSubscriptions = subscriptionData.filter((s: any) => s.status === "active" && s.tier !== "free");
+      const subscriptionsByTier: Record<string, number> = {};
+      subscriptionData.forEach((s: any) => {
+        const tier = s.tier || "free";
+        subscriptionsByTier[tier] = (subscriptionsByTier[tier] || 0) + 1;
+      });
+      const conversionRate = totalUsers > 0 ? (paidSubscriptions.length / totalUsers * 100).toFixed(1) : "0";
+
+      const totalRevenue = revenueData.reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+      const revenueByType: Record<string, number> = {};
+      revenueData.forEach((r: any) => {
+        revenueByType[r.type] = (revenueByType[r.type] || 0) + (r.amount || 0);
+      });
+      const revenueLast30d = revenueData.filter((r: any) => new Date(r.createdAt) >= thirtyDaysAgo).reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
+      const arpu = paidSubscriptions.length > 0 ? (totalRevenue / paidSubscriptions.length / 100).toFixed(2) : "0";
+
+      const totalListings = marketplaceData.length;
+      const activeListings = marketplaceData.filter((l: any) => l.status === "active").length;
+      const totalSales = marketplaceData.reduce((sum: number, l: any) => sum + (l.salesCount || 0), 0);
+      const totalMarketplaceRevenue = marketplaceData.reduce((sum: number, l: any) => sum + (l.totalEarnings || 0), 0);
+      const avgPricePoint = activeListings > 0 ? Math.round(marketplaceData.filter((l: any) => l.priceInCents > 0).reduce((sum: number, l: any) => sum + l.priceInCents, 0) / Math.max(1, marketplaceData.filter((l: any) => l.priceInCents > 0).length)) : 0;
+
+      const engagementByType: Record<string, number> = {};
+      engagementData.forEach((e: any) => {
+        engagementByType[e.eventType] = (engagementByType[e.eventType] || 0) + 1;
+      });
+      const engagementLast30d = engagementData.filter((e: any) => new Date(e.createdAt) >= thirtyDaysAgo).length;
+      const engagementLast7d = engagementData.filter((e: any) => new Date(e.createdAt) >= sevenDaysAgo).length;
+
+      const aiUsageToday = usageData.filter((u: any) => u.actionType === "ai_generation" && u.periodKey === today).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
+      const aiUsageMonth = usageData.filter((u: any) => u.actionType === "ai_generation" && u.periodKey === thisMonth).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
+      const exportUsageMonth = usageData.filter((u: any) => u.actionType === "export" && u.periodKey === thisMonth).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
+      const uniqueAIUsers = new Set(usageData.filter((u: any) => u.actionType === "ai_generation").map((u: any) => u.userId)).size;
+      const aiAdoptionRate = totalUsers > 0 ? (uniqueAIUsers / totalUsers * 100).toFixed(1) : "0";
+
+      const levelDistribution: Record<string, number> = {};
+      allUsers.forEach(u => {
+        const bucket = u.level! <= 5 ? "1-5" : u.level! <= 10 ? "6-10" : u.level! <= 20 ? "11-20" : u.level! <= 50 ? "21-50" : "50+";
+        levelDistribution[bucket] = (levelDistribution[bucket] || 0) + 1;
+      });
+
+      const creatorClassDistribution: Record<string, number> = {};
+      allUsers.forEach(u => {
+        const cls = u.creatorClass || "Rookie";
+        creatorClassDistribution[cls] = (creatorClassDistribution[cls] || 0) + 1;
+      });
+
+      const userSignupTimeline: Record<string, number> = {};
+      allUsers.forEach(u => {
+        const month = new Date(u.createdAt).toISOString().slice(0, 7);
+        userSignupTimeline[month] = (userSignupTimeline[month] || 0) + 1;
+      });
+
+      const projectCreationTimeline: Record<string, number> = {};
+      allProjects.forEach(p => {
+        const month = new Date(p.createdAt).toISOString().slice(0, 7);
+        projectCreationTimeline[month] = (projectCreationTimeline[month] || 0) + 1;
+      });
+
+      const multiToolCreators = Object.entries(
+        allProjects.reduce((acc: Record<string, Set<string>>, p) => {
+          if (!acc[p.userId]) acc[p.userId] = new Set();
+          acc[p.userId].add(p.type);
+          return acc;
+        }, {})
+      ).filter(([_, types]) => (types as Set<string>).size >= 2).length;
+      const crossToolAdoption = totalUsers > 0 ? (multiToolCreators / totalUsers * 100).toFixed(1) : "0";
+
+      const powerCreators = allUsers.filter(u => (u.totalMinutes || 0) > 300 && (u.xp || 0) > 1000).length;
+      const atRiskUsers = allUsers.filter(u => {
+        if (!u.lastXpHeartbeat) return true;
+        return new Date(u.lastXpHeartbeat) < thirtyDaysAgo && (u.totalMinutes || 0) > 30;
+      }).length;
+
+      const topCreators = [...allUsers]
+        .sort((a, b) => (b.xp || 0) - (a.xp || 0))
+        .slice(0, 10)
+        .map(u => ({ name: u.name, xp: u.xp, level: u.level, minutes: u.totalMinutes, projects: allProjects.filter(p => p.userId === u.id).length }));
+
+      const contentVelocity = activeLast30d > 0 ? (projectsLast30d / activeLast30d).toFixed(2) : "0";
+
+      const consentCompletionRate = totalUsers > 0 ? (allUsers.filter(u => u.ipDisclosureAccepted || u.userAgreementAccepted).length / totalUsers * 100).toFixed(1) : "0";
+      const parentalConsentRate = studentUsers > 0 ? (allUsers.filter(u => u.accountType === "student" && u.parentalConsentAt).length / studentUsers * 100).toFixed(1) : "0";
+
+      res.json({
+        generatedAt: now.toISOString(),
+        growth: {
+          totalUsers,
+          studentUsers,
+          creatorUsers,
+          adminUsers,
+          usersLast7d,
+          usersLast30d,
+          userGrowthRate,
+          userSignupTimeline,
+        },
+        engagement: {
+          dau: activeToday,
+          wau: activeLast7d,
+          mau: activeLast30d,
+          dauMauRatio,
+          avgTimeSpentMinutes: avgTimeSpent,
+          totalPlatformMinutes,
+          avgXpPerUser,
+          day30Retention,
+          activationRate,
+          engagementByType,
+          engagementLast7d,
+          engagementLast30d,
+        },
+        content: {
+          totalProjects,
+          projectsByType,
+          projectsByStatus,
+          projectsLast7d,
+          projectsLast30d,
+          avgProjectsPerUser,
+          publishRate,
+          totalContentViews,
+          avgViewsPerProject,
+          contentVelocity,
+          projectCreationTimeline,
+        },
+        revenue: {
+          totalRevenueCents: totalRevenue,
+          revenueLast30dCents: revenueLast30d,
+          revenueByType,
+          arpu,
+          subscriptionsByTier,
+          paidSubscriptions: paidSubscriptions.length,
+          conversionRate,
+          totalListings,
+          activeListings,
+          totalMarketplaceSales: totalSales,
+          totalMarketplaceRevenueCents: totalMarketplaceRevenue,
+          avgPricePointCents: avgPricePoint,
+        },
+        aiPlatform: {
+          aiUsageToday,
+          aiUsageMonth,
+          exportUsageMonth,
+          uniqueAIUsers,
+          aiAdoptionRate,
+        },
+        userHealth: {
+          levelDistribution,
+          creatorClassDistribution,
+          crossToolAdoption,
+          powerCreators,
+          atRiskUsers,
+          topCreators,
+        },
+        compliance: {
+          consentCompletionRate,
+          parentalConsentRate,
+        },
+      });
+    } catch (error: any) {
+      console.error("Analytics error:", error);
       res.status(500).json({ message: error.message });
     }
   });

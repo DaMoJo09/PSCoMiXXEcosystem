@@ -76,6 +76,7 @@ import PrintStudio from "@/pages/PrintStudio";
 import ExportDashboard from "@/pages/ExportDashboard";
 import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
 import PrintPackages from "@/pages/PrintPackages";
+import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
@@ -165,6 +166,7 @@ function ProtectedRouter() {
         <Route path="/admin/control" component={AdminControlRoom} />
         <Route path="/admin/moderation" component={AdminModeration} />
         <Route path="/admin/review-queue" component={AdminReviewQueue} />
+        <Route path="/analytics" component={AnalyticsDashboard} />
         <Route path="/pricing" component={PricingPage} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />

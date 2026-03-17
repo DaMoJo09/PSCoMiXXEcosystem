@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings, Flag } from "lucide-react";
+import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings, Flag, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import { useAdminStats, useAdminUsers, useAdminProjects } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
@@ -191,6 +191,11 @@ export default function AdminDashboard() {
               <Link href="/admin/control">
                 <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-control-room">
                   <Settings className="w-4 h-4 mr-2" /> Control Room
+                </Button>
+              </Link>
+              <Link href="/analytics">
+                <Button className="bg-purple-600 text-white hover:bg-purple-700 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-analytics">
+                  <BarChart3 className="w-4 h-4 mr-2" /> Platform Analytics
                 </Button>
               </Link>
             </div>
