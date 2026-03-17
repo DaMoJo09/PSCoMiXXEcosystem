@@ -1580,6 +1580,19 @@ export default function ComicCreator() {
 
   const getPageRef = (page: "left" | "right") => page === "left" ? leftPageRef : rightPageRef;
 
+  const getPanelPixelSize = (page: "left" | "right", panelId: string): { w: number; h: number } => {
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    const pageEl = (page === "left" ? leftPageRef : rightPageRef)?.current;
+    if (panel && pageEl) {
+      return {
+        w: (panel.width / 100) * pageEl.clientWidth,
+        h: (panel.height / 100) * pageEl.clientHeight,
+      };
+    }
+    return { w: 400, h: 300 };
+  };
+
   const getCoords = (e: React.MouseEvent, pageRef: React.RefObject<HTMLDivElement | null>) => {
     if (!pageRef.current) return { x: 0, y: 0 };
     const rect = pageRef.current.getBoundingClientRect();
@@ -2026,9 +2039,10 @@ export default function ComicCreator() {
   };
 
   const addBubblePresetToPanel = (page: "left" | "right", panelId: string, preset: typeof bubblePresets[0]) => {
+    const { w, h } = getPanelPixelSize(page, panelId);
     addContentToPanel(page, panelId, {
       type: "image",
-      transform: { x: 50, y: 50, width: 250, height: 180, rotation: 0, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { url: preset.file },
       locked: false,
     });
@@ -2036,9 +2050,10 @@ export default function ComicCreator() {
   };
 
   const addEffectPresetToPanel = (page: "left" | "right", panelId: string, preset: typeof effectPresets[0]) => {
+    const { w, h } = getPanelPixelSize(page, panelId);
     addContentToPanel(page, panelId, {
       type: "image",
-      transform: { x: 80, y: 80, width: 200, height: 150, rotation: -5, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { url: preset.file },
       locked: false,
     });
@@ -2050,9 +2065,10 @@ export default function ComicCreator() {
       toast.error("Please select a panel first");
       return;
     }
+    const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
     addContentToPanel(selectedPage, selectedPanelId, {
       type: "image",
-      transform: { x: 50, y: 50, width: 250, height: 180, rotation: 0, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { url: asset.url },
       locked: false,
     });
@@ -2243,6 +2259,7 @@ export default function ComicCreator() {
         toast.info("Asset added to panel (library save skipped)");
       }
       
+      const { w: panelW, h: panelH } = getPanelPixelSize(selectedPage, selectedPanelId);
       if (fileType.startsWith('audio/') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "audio",
@@ -2254,7 +2271,7 @@ export default function ComicCreator() {
       } else if (fileType.startsWith('video/') || fileName.endsWith('.mp4') || fileName.endsWith('.webm') || fileName.endsWith('.mov')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "video",
-          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: panelW, height: panelH, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { videoUrl: url, autoplay: true, loop: true, muted: true },
           locked: false,
         });
@@ -2262,7 +2279,7 @@ export default function ComicCreator() {
       } else if (fileType === 'image/gif' || fileName.endsWith('.gif')) {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "gif",
-          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: panelW, height: panelH, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { url },
           locked: false,
         });
@@ -2270,7 +2287,7 @@ export default function ComicCreator() {
       } else {
         addContentToPanel(selectedPage, selectedPanelId, {
           type: "image",
-          transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: panelW, height: panelH, rotation: 0, scaleX: 1, scaleY: 1 },
           data: { url },
           locked: false,
         });
@@ -2286,9 +2303,10 @@ export default function ComicCreator() {
       toast.error("Please select a panel first");
       return;
     }
+    const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
     addContentToPanel(selectedPage, selectedPanelId, {
       type: "image",
-      transform: { x: 0, y: 0, width: 450, height: 350, rotation: 0, scaleX: 1, scaleY: 1 },
+      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { url },
       locked: false,
     });
@@ -2739,7 +2757,7 @@ export default function ComicCreator() {
                   <img 
                     src={content.data.url} 
                     alt="Panel content" 
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                     style={{ filter: content.data.filter || 'none' }}
                     draggable={false}
                   />
@@ -2751,7 +2769,7 @@ export default function ComicCreator() {
               {content.type === "video" && content.data.videoUrl && (
                 <video
                   src={content.data.videoUrl}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                   autoPlay={content.data.autoplay ?? true}
                   loop={content.data.loop ?? true}
                   muted={content.data.muted ?? true}
@@ -2779,7 +2797,7 @@ export default function ComicCreator() {
                 <img
                   src={content.data.drawingData}
                   alt="Drawing"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-fill"
                   draggable={false}
                 />
               )}
@@ -3245,6 +3263,19 @@ export default function ComicCreator() {
             </Tooltip>
             <div className="w-px h-6 bg-zinc-700 mx-2" />
             <button
+              onClick={async () => {
+                try {
+                  const p = await createProject.mutateAsync({ title: "Untitled Comic", type: "comic", status: "draft", data: {}, forceNew: true } as any);
+                  navigate(`/creator/comic?id=${p.id}`, { replace: true });
+                  window.location.reload();
+                } catch { toast.error("Failed to create new project"); }
+              }}
+              className="px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700"
+              data-testid="button-new-comic"
+            >
+              <Plus className="w-4 h-4" /> New
+            </button>
+            <button
               onClick={() => setShowTemplates(!showTemplates)}
               className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
             >
@@ -3631,9 +3662,10 @@ export default function ComicCreator() {
                           key={asset.id}
                           onClick={() => {
                             if (selectedPanelId) {
+                              const { w, h } = getPanelPixelSize("left", selectedPanelId);
                               addContentToPanel("left", selectedPanelId, {
                                 type: "image",
-                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
                                 data: { url: asset.url },
                                 locked: false,
                               });
@@ -3959,9 +3991,10 @@ export default function ComicCreator() {
                           key={asset.id}
                           onClick={() => {
                             if (selectedPanelId) {
+                              const { w, h } = getPanelPixelSize("right", selectedPanelId);
                               addContentToPanel("right", selectedPanelId, {
                                 type: "image",
-                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
                                 data: { url: asset.url },
                                 locked: false,
                               });
@@ -4991,18 +5024,18 @@ export default function ComicCreator() {
                               }}
                             >
                               {content.type === "image" && content.data.url && (
-                                <img src={content.data.url} className="w-full h-full object-contain" style={{ filter: content.data.filter || 'none' }} />
+                                <img src={content.data.url} className="w-full h-full object-cover" style={{ filter: content.data.filter || 'none' }} />
                               )}
                               {content.type === "gif" && content.data.url && (
-                                <img src={content.data.url} className="w-full h-full object-contain" />
+                                <img src={content.data.url} className="w-full h-full object-cover" />
                               )}
                               {content.type === "drawing" && content.data.drawingData && (
-                                <img src={content.data.drawingData} className="w-full h-full object-contain" />
+                                <img src={content.data.drawingData} className="w-full h-full object-fill" />
                               )}
                               {content.type === "video" && content.data.videoUrl && (
                                 <video 
                                   src={content.data.videoUrl} 
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full object-cover"
                                   autoPlay={content.data.autoplay !== false}
                                   loop={content.data.loop !== false}
                                   muted={content.data.muted !== false}
@@ -5324,9 +5357,10 @@ export default function ComicCreator() {
                           }}
                           onClick={() => {
                             if (selectedPanelId) {
+                              const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
                               addContentToPanel(selectedPage, selectedPanelId, {
                                 type: "image",
-                                transform: { x: 50, y: 50, width: 150, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                                transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
                                 data: { url: asset.url },
                                 locked: false,
                               });

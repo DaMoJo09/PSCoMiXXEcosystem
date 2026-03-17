@@ -718,6 +718,19 @@ if(N.length>0)showN(N[0].id);
             )}
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const p = await createProject.mutateAsync({ title: "Untitled CYOA", type: "cyoa", status: "draft", data: {}, forceNew: true } as any);
+                  navigate(`/creator/cyoa?id=${p.id}`, { replace: true });
+                  window.location.reload();
+                } catch { toast.error("Failed to create new project"); }
+              }}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+              data-testid="button-new-cyoa"
+            >
+              <Plus className="w-4 h-4" /> New
+            </button>
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export

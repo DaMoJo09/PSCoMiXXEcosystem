@@ -2803,6 +2803,20 @@ export default function MotionStudio() {
             <Layers className="w-3.5 h-3.5" />
             Apply
           </button>
+          <button
+            onClick={async () => {
+              try {
+                const p = await createProject.mutateAsync({ title: "Untitled Motion", type: "motion", status: "draft", data: {}, forceNew: true } as any);
+                navigate(`/creator/motion?id=${p.id}`, { replace: true });
+                window.location.reload();
+              } catch { toast.error("Failed to create new project"); }
+            }}
+            className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2"
+            data-testid="button-new-motion"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New
+          </button>
           <button onClick={handleSave} disabled={isSaving}
             className="px-3 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             data-testid="button-save">

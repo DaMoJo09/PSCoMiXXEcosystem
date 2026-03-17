@@ -799,6 +799,19 @@ if(S.length>0)showS(0);
             <span className="text-[10px] font-mono text-zinc-600 hidden md:block">{scenes.length} scenes • {totalDialogueLines} lines • {characters.length} chars</span>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const p = await createProject.mutateAsync({ title: "Untitled Visual Novel", type: "vn", status: "draft", data: {}, forceNew: true } as any);
+                  navigate(`/creator/vn?id=${p.id}`, { replace: true });
+                  window.location.reload();
+                } catch { toast.error("Failed to create new project"); }
+              }}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+              data-testid="button-new-vn"
+            >
+              <Plus className="w-4 h-4" /> New
+            </button>
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export
@@ -916,8 +929,33 @@ if(S.length>0)showS(0);
                     <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
                   </div>
                   {backgrounds.map((bg) => (
-                    <div key={bg.id} onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })} className={`p-2 border cursor-pointer ${currentScene?.background === bg.id ? "border-white" : "border-zinc-700 hover:border-zinc-500"}`}>
-                      <div className="aspect-video bg-zinc-800 overflow-hidden mb-1"><img src={bg.url} className="w-full h-full object-cover" /></div>
+                    <div key={bg.id} onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })} className={`p-2 border cursor-pointer relative group ${currentScene?.background === bg.id ? "border-white" : "border-zinc-700 hover:border-zinc-500"}`}>
+                      <div className="aspect-video bg-zinc-800 overflow-hidden mb-1 relative">
+                        <img src={bg.url} className="w-full h-full object-cover" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const remaining = backgrounds.filter(b => b.id !== bg.id);
+                            if (remaining.length === 0) {
+                              toast.error("Cannot remove the last background");
+                              return;
+                            }
+                            const fallbackId = remaining[0].id;
+                            scenes.forEach(scene => {
+                              if (scene.background === bg.id) {
+                                updateScene(scene.id, { background: fallbackId });
+                              }
+                            });
+                            setBackgrounds(remaining);
+                            toast.success(`Background "${bg.name}" removed`);
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove background"
+                          data-testid={`button-delete-bg-${bg.id}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                       <span className="text-xs font-medium">{bg.name}</span>
                     </div>
                   ))}
