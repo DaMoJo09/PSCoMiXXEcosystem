@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { 
   Type, ImageIcon, Wand2, X, Upload, Plus, Trash2,
-  Palette, Layers
+  Palette, Layers, Sparkles, ExternalLink
 } from "lucide-react";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
@@ -552,6 +552,117 @@ export function CoverPropertiesPanel({
               </div>
               <button onClick={() => updateCover({ filters: { ...FILTER_PRESETS } })}
                 className="w-full py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600">Reset Filters</button>
+            </div>
+            <div className="pt-2 border-t border-zinc-700 space-y-2">
+              <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-purple-400" /> FX Studio Effects
+              </label>
+              <p className="text-[9px] text-zinc-500">
+                Browse visual effects from FX Studio and apply them as overlay layers on your {coverView} cover.
+              </p>
+              <button
+                onClick={() => {
+                  window.open("https://pressplays.site", "_blank", "noopener,noreferrer");
+                }}
+                className="w-full py-2 text-xs font-bold bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-2 transition-colors"
+                data-testid="button-cover-fx-studio"
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Browse FX Studio
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </button>
+              <div className="space-y-1">
+                <label className="text-[10px] text-zinc-400">Paste FX image URL</label>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    className="flex-1 bg-zinc-800 border border-zinc-700 text-white text-[10px] px-2 py-1.5"
+                    data-testid="input-fx-url"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const url = (e.target as HTMLInputElement).value.trim();
+                        if (url) {
+                          const newLayer: ImageLayer = {
+                            id: `fx_${Date.now()}`,
+                            url,
+                            name: "FX Effect",
+                            transform: { x: 0, y: 0, width: 300, height: 400, rotation: 0, scaleX: 1, scaleY: 1 },
+                            opacity: 0.7,
+                            locked: false,
+                            blendMode: "screen",
+                          };
+                          const layerKey = `${coverView}ImageLayers` as keyof CoverData;
+                          const existing = (coverData[layerKey] as ImageLayer[]) || [];
+                          updateCover({ [layerKey]: [...existing, newLayer] });
+                          (e.target as HTMLInputElement).value = "";
+                          toast.success("FX effect applied as overlay layer");
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.querySelector('[data-testid="input-fx-url"]') as HTMLInputElement;
+                      const url = input?.value.trim();
+                      if (url) {
+                        const newLayer: ImageLayer = {
+                          id: `fx_${Date.now()}`,
+                          url,
+                          name: "FX Effect",
+                          transform: { x: 0, y: 0, width: 300, height: 400, rotation: 0, scaleX: 1, scaleY: 1 },
+                          opacity: 0.7,
+                          locked: false,
+                          blendMode: "screen",
+                        };
+                        const layerKey = `${coverView}ImageLayers` as keyof CoverData;
+                        const existing = (coverData[layerKey] as ImageLayer[]) || [];
+                        updateCover({ [layerKey]: [...existing, newLayer] });
+                        input.value = "";
+                        toast.success("FX effect applied as overlay layer");
+                      }
+                    }}
+                    className="px-2 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold border border-purple-500"
+                    data-testid="button-apply-fx"
+                  >
+                    Apply
+                  </button>
+                </div>
+                <p className="text-[8px] text-zinc-600">FX layers are added with screen blend mode at 70% opacity</p>
+              </div>
+              <button
+                onClick={() => {
+                  const fxInput = document.createElement("input");
+                  fxInput.type = "file";
+                  fxInput.accept = "image/*";
+                  fxInput.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const dataUrl = ev.target?.result as string;
+                      const newLayer: ImageLayer = {
+                        id: `fx_${Date.now()}`,
+                        url: dataUrl,
+                        name: "FX Effect Upload",
+                        transform: { x: 0, y: 0, width: 300, height: 400, rotation: 0, scaleX: 1, scaleY: 1 },
+                        opacity: 0.7,
+                        locked: false,
+                        blendMode: "screen",
+                      };
+                      const layerKey = `${coverView}ImageLayers` as keyof CoverData;
+                      const existing = (coverData[layerKey] as ImageLayer[]) || [];
+                      updateCover({ [layerKey]: [...existing, newLayer] });
+                      toast.success("FX effect uploaded and applied");
+                    };
+                    reader.readAsDataURL(file);
+                  };
+                  fxInput.click();
+                }}
+                className="w-full py-1.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1.5"
+                data-testid="button-upload-fx"
+              >
+                <Upload className="w-3 h-3" /> Upload FX Image
+              </button>
             </div>
           </>
         )}

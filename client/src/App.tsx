@@ -25,7 +25,6 @@ import CYOABuilder from "@/pages/CYOABuilder";
 
 import PromptFactory from "@/pages/PromptFactory";
 import StoryForge from "@/pages/StoryForge";
-import AssetBuilder from "@/pages/AssetBuilder";
 import SettingsPage from "@/pages/SettingsPage";
 import AuthPage from "@/pages/AuthPage";
 import AdminLogin from "@/pages/AdminLogin";
@@ -148,7 +147,6 @@ function ProtectedRouter() {
 
         <Route path="/tools/prompt" component={PromptFactory} />
         <Route path="/tools/story" component={StoryForge} />
-        <Route path="/tools/assets" component={AssetBuilder} />
         <Route path="/tools/cyoa" component={CYOABuilder} />
         <Route path="/creator/comic/preview">{() => <ComicReader isPreview={true} />}</Route>
         <Route path="/community/read/:id" component={ComicReader} />

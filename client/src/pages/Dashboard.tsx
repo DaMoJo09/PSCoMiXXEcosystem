@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, MessageSquare, Zap, Megaphone, Camera } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -223,16 +223,16 @@ export default function Dashboard() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button 
-              onClick={() => navigate("/tools/assets")}
+              onClick={() => window.open("https://pressplays.site", "_blank", "noopener,noreferrer")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
-              data-testid="button-tool-assets"
+              data-testid="button-tool-fx-studio"
             >
-              <MessageSquare className="w-6 h-6 mb-2" />
+              <Sparkles className="w-6 h-6 mb-2" />
               <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
-                Asset Builder
+                FX Studio
               </h3>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Create speech bubbles & effects
+                Browse & import visual effects
               </p>
             </button>
             <button 

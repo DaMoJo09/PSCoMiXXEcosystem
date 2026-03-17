@@ -1118,7 +1118,7 @@ export default function ComicCreator() {
           ctx.save();
           ctx.fillStyle = color;
           const weight = opts?.bold ? 'bold ' : '';
-          ctx.font = `${weight}${size}px ${font.replace(/'/g, "")}`;
+          ctx.font = `${weight}${size}px ${font.replace(/'/g, '"')}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "top";
           const displayText = opts?.uppercase ? text.toUpperCase() : text;
@@ -1203,7 +1203,7 @@ export default function ComicCreator() {
           if (cd.backBlurb) {
             ctx.save();
             ctx.fillStyle = cd.backBlurbColor || cd.authorColor;
-            ctx.font = `${scaleFont(cd.backBlurbSize)}px ${(cd.backBlurbFont || "Georgia").replace(/'/g, "")}`;
+            ctx.font = `${scaleFont(cd.backBlurbSize)}px ${(cd.backBlurbFont || "Georgia").replace(/'/g, '"')}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
             const words = cd.backBlurb.split(' ');
@@ -1302,7 +1302,8 @@ export default function ComicCreator() {
           ctx.fillStyle = data.color || "#000000";
           const fontScale = Math.min(panelW / editorPanelW, panelH / editorPanelH);
           const scaledFontSize = (data.fontSize || 16) * fontScale;
-          ctx.font = `${scaledFontSize}px ${(data.fontFamily || "Inter").replace(/'/g, "")}`;
+          const fontName = (data.fontFamily || "Inter").replace(/'/g, '"');
+          ctx.font = `${scaledFontSize}px ${fontName}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(data.text, contentW / 2, contentH / 2);
@@ -2388,7 +2389,7 @@ export default function ComicCreator() {
                     {cd.bannerText && (
                       <TransformableElement
                         id="cover-banner"
-                        initialTransform={cd.bannerTransform || { x: 0, y: 0, width: 300, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.bannerTransform || defaultCover.bannerTransform}
                         isSelected={selectedContentId === "cover-banner"}
                         onSelect={() => { setSelectedContentId("cover-banner"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ bannerTransform: t })}
@@ -2408,7 +2409,7 @@ export default function ComicCreator() {
                     {cd.publisherName && (
                       <TransformableElement
                         id="cover-publisher"
-                        initialTransform={cd.publisherTransform || { x: 50, y: 26, width: 200, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.publisherTransform || defaultCover.publisherTransform}
                         isSelected={selectedContentId === "cover-publisher"}
                         onSelect={() => { setSelectedContentId("cover-publisher"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ publisherTransform: t })}
@@ -2425,7 +2426,7 @@ export default function ComicCreator() {
                     {cd.issueNumber && (
                       <TransformableElement
                         id="cover-issue"
-                        initialTransform={cd.issueNumberTransform || { x: 110, y: 46, width: 80, height: 28, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.issueNumberTransform || defaultCover.issueNumberTransform}
                         isSelected={selectedContentId === "cover-issue"}
                         onSelect={() => { setSelectedContentId("cover-issue"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ issueNumberTransform: t })}
@@ -2445,7 +2446,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-title"
-                      initialTransform={cd.titleTransform || { x: 10, y: 80, width: 280, height: 55, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.titleTransform || defaultCover.titleTransform}
                       isSelected={selectedContentId === "cover-title"}
                       onSelect={() => { setSelectedContentId("cover-title"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ titleTransform: t })}
@@ -2468,7 +2469,7 @@ export default function ComicCreator() {
                     {cd.subtitle && (
                       <TransformableElement
                         id="cover-subtitle"
-                        initialTransform={cd.subtitleTransform || { x: 40, y: 138, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.subtitleTransform || defaultCover.subtitleTransform}
                         isSelected={selectedContentId === "cover-subtitle"}
                         onSelect={() => { setSelectedContentId("cover-subtitle"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ subtitleTransform: t })}
@@ -2490,7 +2491,7 @@ export default function ComicCreator() {
                     {cd.tagline && (
                       <TransformableElement
                         id="cover-tagline"
-                        initialTransform={cd.taglineTransform || { x: 40, y: 163, width: 220, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.taglineTransform || defaultCover.taglineTransform}
                         isSelected={selectedContentId === "cover-tagline"}
                         onSelect={() => { setSelectedContentId("cover-tagline"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ taglineTransform: t })}
@@ -2506,7 +2507,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-author"
-                      initialTransform={cd.authorTransform || { x: 40, y: 230, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.authorTransform || defaultCover.authorTransform}
                       isSelected={selectedContentId === "cover-author"}
                       onSelect={() => { setSelectedContentId("cover-author"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ authorTransform: t })}
@@ -2527,7 +2528,7 @@ export default function ComicCreator() {
                     {cd.showPriceBox && cd.priceText && (
                       <TransformableElement
                         id="cover-price"
-                        initialTransform={cd.priceBoxTransform || { x: 255, y: 4, width: 38, height: 38, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.priceBoxTransform || defaultCover.priceBoxTransform}
                         isSelected={selectedContentId === "cover-price"}
                         onSelect={() => { setSelectedContentId("cover-price"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ priceBoxTransform: t })}
@@ -2555,7 +2556,7 @@ export default function ComicCreator() {
                   <>
                     <TransformableElement
                       id="cover-back-title"
-                      initialTransform={cd.backTitleTransform || { x: 20, y: 12, width: 260, height: 35, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.backTitleTransform || defaultCover.backTitleTransform}
                       isSelected={selectedContentId === "cover-back-title"}
                       onSelect={() => { setSelectedContentId("cover-back-title"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ backTitleTransform: t })}
@@ -2573,7 +2574,7 @@ export default function ComicCreator() {
                     {cd.backBlurb && (
                       <TransformableElement
                         id="cover-blurb"
-                        initialTransform={cd.backBlurbTransform || { x: 20, y: 55, width: 260, height: 110, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.backBlurbTransform || defaultCover.backBlurbTransform}
                         isSelected={selectedContentId === "cover-blurb"}
                         onSelect={() => { setSelectedContentId("cover-blurb"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ backBlurbTransform: t })}
@@ -2593,7 +2594,7 @@ export default function ComicCreator() {
 
                     <TransformableElement
                       id="cover-back-author"
-                      initialTransform={cd.backAuthorTransform || { x: 40, y: 175, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 }}
+                      initialTransform={cd.backAuthorTransform || defaultCover.backAuthorTransform}
                       isSelected={selectedContentId === "cover-back-author"}
                       onSelect={() => { setSelectedContentId("cover-back-author"); setSelectedPanelId(panel.id); }}
                       onTransformChange={(_, t) => updateCoverData({ backAuthorTransform: t })}
@@ -2610,7 +2611,7 @@ export default function ComicCreator() {
                     {cd.isbn && (
                       <TransformableElement
                         id="cover-isbn"
-                        initialTransform={cd.isbnTransform || { x: 70, y: 205, width: 160, height: (cd.showBarcode !== false ? 50 : 18), rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.isbnTransform || defaultCover.isbnTransform}
                         isSelected={selectedContentId === "cover-isbn"}
                         onSelect={() => { setSelectedContentId("cover-isbn"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ isbnTransform: t })}
@@ -2641,7 +2642,7 @@ export default function ComicCreator() {
                     {cd.publisherName && (
                       <TransformableElement
                         id="cover-back-publisher"
-                        initialTransform={cd.backPublisherTransform || { x: 60, y: 258, width: 180, height: 18, rotation: 0, scaleX: 1, scaleY: 1 }}
+                        initialTransform={cd.backPublisherTransform || defaultCover.backPublisherTransform}
                         isSelected={selectedContentId === "cover-back-publisher"}
                         onSelect={() => { setSelectedContentId("cover-back-publisher"); setSelectedPanelId(panel.id); }}
                         onTransformChange={(_, t) => updateCoverData({ backPublisherTransform: t })}
@@ -2675,7 +2676,7 @@ export default function ComicCreator() {
                   >
                     <img src={il.url} alt={il.name}
                       className="w-full h-full object-contain"
-                      style={{ opacity: il.opacity ?? 1 }}
+                      style={{ opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any }}
                       draggable={false}
                     />
                   </TransformableElement>
@@ -4255,19 +4256,19 @@ export default function ComicCreator() {
                       const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                       const isFr = panel.coverRole === "front-cover";
                       const clearFieldMap: Record<string, Partial<CoverData>> = {
-                        "cover-banner": { bannerText: "", bannerTransform: undefined },
-                        "cover-publisher": { publisherName: "", publisherTransform: undefined },
-                        "cover-issue": { issueNumber: "", issueDate: "", issueNumberTransform: undefined },
-                        "cover-title": { title: "", titleTransform: undefined },
-                        "cover-subtitle": { subtitle: "", subtitleTransform: undefined },
-                        "cover-tagline": { tagline: "", taglineTransform: undefined },
-                        "cover-author": { author: "", authorTransform: undefined },
-                        "cover-price": { showPriceBox: false, priceText: "", priceBoxTransform: undefined },
-                        "cover-back-title": { title: "", backTitleTransform: undefined },
-                        "cover-blurb": { backBlurb: "", backBlurbTransform: undefined },
-                        "cover-back-author": { author: "", backAuthorTransform: undefined },
-                        "cover-isbn": { isbn: "", isbnTransform: undefined },
-                        "cover-back-publisher": { publisherName: "", backPublisherTransform: undefined },
+                        "cover-banner": { bannerText: "" },
+                        "cover-publisher": { publisherName: "" },
+                        "cover-issue": { issueNumber: "", issueDate: "" },
+                        "cover-title": { title: "" },
+                        "cover-subtitle": { subtitle: "" },
+                        "cover-tagline": { tagline: "" },
+                        "cover-author": { author: "" },
+                        "cover-price": { showPriceBox: false, priceText: "" },
+                        "cover-back-title": { title: "" },
+                        "cover-blurb": { backBlurb: "" },
+                        "cover-back-author": { author: "" },
+                        "cover-isbn": { isbn: "" },
+                        "cover-back-publisher": { publisherName: "" },
                       };
                       const zOrderKey = isFr ? "front" : "back";
                       const masterIds = isFr
@@ -4888,7 +4889,7 @@ export default function ComicCreator() {
                           </div>
                           {(cd.frontImageLayers || []).map(il => (
                             <img key={il.id} src={il.url} alt={il.name} className="absolute pointer-events-none" draggable={false}
-                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
+                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
                           ))}
                           {(cd.frontLayers || []).map(tl => (
                             <div key={tl.id} className="absolute pointer-events-none" style={{
@@ -5101,7 +5102,7 @@ export default function ComicCreator() {
                           </div>
                           {(cd.backImageLayers || []).map(il => (
                             <img key={il.id} src={il.url} alt={il.name} className="absolute pointer-events-none" draggable={false}
-                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
+                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
                           ))}
                           {(cd.backLayers || []).map(tl => (
                             <div key={tl.id} className="absolute pointer-events-none" style={{

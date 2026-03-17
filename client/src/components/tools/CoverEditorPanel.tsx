@@ -157,6 +157,7 @@ export interface ImageLayer {
   transform: TransformState;
   opacity: number;
   locked: boolean;
+  blendMode?: string;
 }
 
 export interface CoverData {
@@ -291,7 +292,20 @@ export const defaultCover: CoverData = {
   tagline: "COLLECT THEM ALL!",
   isbn: "",
   filters: { ...FILTER_PRESETS },
-  elementZOrder: ["master-banner", "master-issue", "master-title", "master-subtitle", "master-author", "master-price"],
+  elementZOrder: ["master-banner", "master-publisher", "master-issue", "master-price", "master-title", "master-subtitle", "master-tagline", "master-author"],
+  bannerTransform: { x: 0, y: 0, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
+  publisherTransform: { x: 8, y: 28, width: 120, height: 16, rotation: 0, scaleX: 1, scaleY: 1 },
+  issueNumberTransform: { x: 8, y: 46, width: 60, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
+  priceBoxTransform: { x: 256, y: 2, width: 38, height: 38, rotation: 0, scaleX: 1, scaleY: 1 },
+  titleTransform: { x: 10, y: 120, width: 280, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
+  subtitleTransform: { x: 40, y: 184, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
+  taglineTransform: { x: 30, y: 210, width: 240, height: 18, rotation: 0, scaleX: 1, scaleY: 1 },
+  authorTransform: { x: 50, y: 380, width: 200, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
+  backTitleTransform: { x: 20, y: 20, width: 260, height: 35, rotation: 0, scaleX: 1, scaleY: 1 },
+  backBlurbTransform: { x: 20, y: 70, width: 260, height: 140, rotation: 0, scaleX: 1, scaleY: 1 },
+  backAuthorTransform: { x: 50, y: 220, width: 200, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
+  isbnTransform: { x: 70, y: 320, width: 160, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+  backPublisherTransform: { x: 60, y: 380, width: 180, height: 18, rotation: 0, scaleX: 1, scaleY: 1 },
 };
 
 export interface CoverEditorPanelProps {
