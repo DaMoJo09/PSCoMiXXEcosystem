@@ -2,16 +2,15 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Play, Plus, ArrowLeft, Save, Trash2, Image as ImageIcon, 
   MessageSquare, GitBranch, User, Upload, Wand2, X,
-  Copy, Eye, EyeOff,
-  Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
-  BookOpen
+  Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
+  BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
+  ChevronLeft, ChevronRight, FileText
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -22,17 +21,26 @@ import {
 } from "@/components/ui/context-menu";
 
 type TransitionType = "none" | "fade" | "slide-left" | "slide-right" | "dissolve";
+type TextMode = "adv" | "nvl";
+
+interface VNDialogueLine {
+  speaker: string;
+  text: string;
+  choices?: { label: string; target: string }[];
+  stageDirection?: string;
+}
 
 interface VNScene {
   id: string;
   name: string;
+  label?: string;
   background: string;
   backgroundUrl?: string;
   transition?: TransitionType;
   musicUrl?: string;
   tintColor?: string;
   characters: { id: string; position: "left" | "center" | "right"; expression: string; visible: boolean }[];
-  dialogue: { speaker: string; text: string; choices?: { label: string; target: string }[] }[];
+  dialogue: VNDialogueLine[];
 }
 
 interface VNCharacter {
@@ -40,6 +48,7 @@ interface VNCharacter {
   name: string;
   color: string;
   sprites: { expression: string; url: string }[];
+  sideImage?: string;
 }
 
 interface VNBackground {
@@ -73,14 +82,12 @@ function TypewriterText({ text, speed = 30, onComplete }: { text: string; speed?
     setDisplayed("");
     setDone(false);
     indexRef.current = 0;
-
     if (speed <= 0) {
       setDisplayed(text);
       setDone(true);
       onComplete?.();
       return;
     }
-
     const interval = setInterval(() => {
       indexRef.current++;
       if (indexRef.current >= text.length) {
@@ -92,7 +99,6 @@ function TypewriterText({ text, speed = 30, onComplete }: { text: string; speed?
         setDisplayed(text.slice(0, indexRef.current));
       }
     }, speed);
-
     return () => clearInterval(interval);
   }, [text, speed]);
 
@@ -133,6 +139,90 @@ function TextLog({ log, onClose }: { log: { speaker: string; text: string; color
   );
 }
 
+function ScriptView({ scenes, characters, backgrounds }: { scenes: VNScene[]; characters: VNCharacter[]; backgrounds: VNBackground[] }) {
+  return (
+    <div className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed bg-zinc-950">
+      <div className="text-zinc-600 mb-4">
+        {characters.map(c => (
+          <div key={c.id}>
+            <span className="text-purple-400">define</span>{" "}
+            <span className="text-yellow-300">{c.name.toLowerCase().replace(/\s+/g, "_")}</span>{" = "}
+            <span className="text-green-400">Character</span>
+            {"("}
+            <span className="text-orange-300">"{c.name}"</span>
+            {", color="}
+            <span className="text-orange-300">"{c.color}"</span>
+            {")"}
+          </div>
+        ))}
+      </div>
+      {scenes.map((scene, si) => (
+        <div key={scene.id} className="mb-6">
+          <div className="text-cyan-400 mb-1">
+            label {scene.label || scene.id}:
+          </div>
+          <div className="ml-4 space-y-0.5">
+            <div className="text-zinc-500">
+              <span className="text-blue-400">scene</span> {backgrounds.find(b => b.id === scene.background)?.name || scene.background}
+              {scene.transition && scene.transition !== "none" && (
+                <span className="text-zinc-600"> with {scene.transition}</span>
+              )}
+            </div>
+            {scene.musicUrl && (
+              <div className="text-zinc-500">
+                <span className="text-blue-400">play music</span> "{scene.musicUrl}"
+              </div>
+            )}
+            {scene.characters.filter(c => c.visible).map(sc => {
+              const char = characters.find(c => c.id === sc.id);
+              return (
+                <div key={sc.id} className="text-zinc-500">
+                  <span className="text-blue-400">show</span> {char?.name || sc.id} {sc.expression} at {sc.position}
+                </div>
+              );
+            })}
+            <div className="mt-2" />
+            {scene.dialogue.map((line, li) => (
+              <div key={li}>
+                {line.stageDirection && (
+                  <div className="text-zinc-600 italic">
+                    # {line.stageDirection}
+                  </div>
+                )}
+                {line.speaker === "Narrator" ? (
+                  <div>
+                    <span className="text-orange-300">"{line.text}"</span>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-yellow-300">{line.speaker.toLowerCase().replace(/\s+/g, "_")}</span>
+                    {" "}
+                    <span className="text-orange-300">"{line.text}"</span>
+                  </div>
+                )}
+                {line.choices && line.choices.length > 0 && (
+                  <div className="ml-4 mt-1 mb-1">
+                    <div className="text-pink-400">menu:</div>
+                    {line.choices.map((choice, ci) => (
+                      <div key={ci} className="ml-4">
+                        <span className="text-orange-300">"{choice.label}"</span>
+                        {":"}
+                        <div className="ml-4 text-zinc-500">
+                          <span className="text-blue-400">jump</span> {choice.target}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function VNCreator() {
   const [, navigate] = useLocation();
   const search = useSearch();
@@ -157,25 +247,30 @@ export default function VNCreator() {
   const [playIndex, setPlayIndex] = useState(0);
   const [showAIGen, setShowAIGen] = useState(false);
   const [aiTarget, setAiTarget] = useState<"background" | "sprite">("background");
-  const [editMode, setEditMode] = useState<"dialogue" | "staging">("dialogue");
+  const [editMode, setEditMode] = useState<"dialogue" | "staging" | "script">("dialogue");
   const [textSpeed, setTextSpeed] = useState(30);
   const [autoAdvance, setAutoAdvance] = useState(false);
-  const [autoAdvanceDelay, setAutoAdvanceDelay] = useState(3000);
+  const [autoAdvanceDelay] = useState(3000);
   const [showTextLog, setShowTextLog] = useState(false);
   const [textLog, setTextLog] = useState<{ speaker: string; text: string; color: string }[]>([]);
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [transitionClass, setTransitionClass] = useState("");
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [textMode, setTextMode] = useState<TextMode>("adv");
+  const [hideTextbox, setHideTextbox] = useState(false);
+  const [nvlLines, setNvlLines] = useState<{ speaker: string; text: string; color: string }[]>([]);
 
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spriteInputRef = useRef<HTMLInputElement>(null);
   const playtestRef = useRef<HTMLDivElement>(null);
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [scenes, setScenes] = useState<VNScene[]>([
     {
       id: "scene_1",
       name: "Scene 1: Intro",
+      label: "intro",
       background: "classroom",
       transition: "fade",
       characters: [],
@@ -194,66 +289,26 @@ export default function VNCreator() {
   const [backgrounds, setBackgrounds] = useState<VNBackground[]>(defaultBackgrounds);
 
   useEffect(() => {
-    if (projectId) {
-      setIsCreating(false);
-      return;
-    }
+    if (projectId) { setIsCreating(false); return; }
     if (creationAttempted.current) return;
-
     creationAttempted.current = true;
     setIsCreating(true);
-
     let cancelled = false;
-    const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-      setIsCreating(false);
-      toast.error("Project creation timed out - please try again");
-    }, 15000);
-
+    const timeoutId = setTimeout(() => { if (cancelled) return; setIsCreating(false); toast.error("Project creation timed out"); }, 15000);
     fetch("/api/projects?fields=meta", { credentials: "include" })
-      .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to fetch projects")))
+      .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed")))
       .then((allProjects: any[]) => {
         if (cancelled) return;
-        const existing = allProjects
-          .filter((p: any) => p.type === "vn")
-          .sort((a: any, b: any) => {
-            const aHasData = a.updatedAt !== a.createdAt;
-            const bHasData = b.updatedAt !== b.createdAt;
-            if (aHasData && !bHasData) return -1;
-            if (!aHasData && bHasData) return 1;
-            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-          });
-        if (existing.length > 0) {
-          clearTimeout(timeoutId);
-          setCreatedProjectId(existing[0].id);
-          setIsCreating(false);
-          navigate(`/creator/vn?id=${existing[0].id}`, { replace: true });
-          return;
-        }
-        return createProject.mutateAsync({
-          title: "Untitled Visual Novel",
-          type: "vn",
-          status: "draft",
-          data: { scenes, characters, backgrounds },
-        }).then((newProject) => {
-          if (cancelled) return;
-          clearTimeout(timeoutId);
-          setCreatedProjectId(newProject.id);
-          setIsCreating(false);
-          navigate(`/creator/vn?id=${newProject.id}`, { replace: true });
+        const existing = allProjects.filter((p: any) => p.type === "vn").sort((a: any, b: any) => {
+          const aHasData = a.updatedAt !== a.createdAt; const bHasData = b.updatedAt !== b.createdAt;
+          if (aHasData && !bHasData) return -1; if (!aHasData && bHasData) return 1;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
         });
-      }).catch((err) => {
-        if (cancelled) return;
-        clearTimeout(timeoutId);
-        toast.error(err?.message || "Failed to create project - please try again");
-        setIsCreating(false);
-        creationAttempted.current = false;
-      });
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
+        if (existing.length > 0) { clearTimeout(timeoutId); setCreatedProjectId(existing[0].id); setIsCreating(false); navigate(`/creator/vn?id=${existing[0].id}`, { replace: true }); return; }
+        return createProject.mutateAsync({ title: "Untitled Visual Novel", type: "vn", status: "draft", data: { scenes, characters, backgrounds } })
+          .then((p) => { if (cancelled) return; clearTimeout(timeoutId); setCreatedProjectId(p.id); setIsCreating(false); navigate(`/creator/vn?id=${p.id}`, { replace: true }); });
+      }).catch((err) => { if (cancelled) return; clearTimeout(timeoutId); toast.error(err?.message || "Failed"); setIsCreating(false); creationAttempted.current = false; });
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [projectId]);
 
   useEffect(() => {
@@ -266,34 +321,17 @@ export default function VNCreator() {
     }
   }, [project]);
 
-  useEffect(() => {
-    if (scenes.length > 0 && !selectedScene) {
-      setSelectedScene(scenes[0].id);
-    }
-  }, [scenes, selectedScene]);
+  useEffect(() => { if (scenes.length > 0 && !selectedScene) setSelectedScene(scenes[0].id); }, [scenes, selectedScene]);
 
   useEffect(() => {
     const importData = localStorage.getItem("vn_import_data");
     if (importData) {
-      try {
-        const data = JSON.parse(importData);
-        if (data.scenes) setScenes(data.scenes);
-        if (data.characters) setCharacters(data.characters);
-        localStorage.removeItem("vn_import_data");
-        toast.success("Story imported from Story Forge!");
-      } catch (e) {
-        console.error("Failed to import VN data:", e);
-      }
+      try { const data = JSON.parse(importData); if (data.scenes) setScenes(data.scenes); if (data.characters) setCharacters(data.characters); localStorage.removeItem("vn_import_data"); toast.success("Story imported!"); } catch {}
     }
   }, []);
 
   const fireXpAction = useCallback((action: string) => {
-    fetch("/api/xp/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-      credentials: "include",
-    });
+    fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }), credentials: "include" });
   }, []);
 
   const pendingSaveRef = useRef(false);
@@ -301,28 +339,14 @@ export default function VNCreator() {
   const latestDataRef = useRef({ title, scenes, characters, backgrounds, projectId: effectiveProjectId });
   latestDataRef.current = { title, scenes, characters, backgrounds, projectId: effectiveProjectId };
 
-  useEffect(() => {
-    if (project && !initialLoadDoneRef.current) {
-      initialLoadDoneRef.current = true;
-    }
-  }, [project]);
-
-  useEffect(() => {
-    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
-    pendingSaveRef.current = true;
-  }, [scenes, characters, backgrounds, title, effectiveProjectId]);
+  useEffect(() => { if (project && !initialLoadDoneRef.current) initialLoadDoneRef.current = true; }, [project]);
+  useEffect(() => { if (!effectiveProjectId || !initialLoadDoneRef.current) return; pendingSaveRef.current = true; }, [scenes, characters, backgrounds, title, effectiveProjectId]);
 
   useEffect(() => {
     if (!effectiveProjectId || scenes.length === 0) return;
     const interval = setInterval(async () => {
       if (!pendingSaveRef.current) return;
-      try {
-        await updateProject.mutateAsync({
-          id: effectiveProjectId,
-          data: { title, data: { scenes, characters, backgrounds } },
-        });
-        pendingSaveRef.current = false;
-      } catch {}
+      try { await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds } } }); pendingSaveRef.current = false; } catch {}
     }, 30000);
     return () => clearInterval(interval);
   }, [effectiveProjectId, scenes, characters, backgrounds, title]);
@@ -331,12 +355,7 @@ export default function VNCreator() {
     return () => {
       if (pendingSaveRef.current) {
         const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
-        if (pid) {
-          navigator.sendBeacon(
-            `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" })
-          );
-        }
+        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" }));
       }
     };
   }, []);
@@ -345,12 +364,7 @@ export default function VNCreator() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current) {
         const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
-        if (pid) {
-          navigator.sendBeacon(
-            `/api/projects/${pid}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" })
-          );
-        }
+        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" }));
         e.preventDefault();
       }
     };
@@ -361,187 +375,153 @@ export default function VNCreator() {
   useEffect(() => {
     if (!isPlaying) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === " " || e.key === "Enter") {
-        e.preventDefault();
-        if (!typewriterDone) {
-          setTextSpeed(0);
-        } else {
-          advanceDialogue();
-        }
-      } else if (e.key === "Escape") {
-        setIsPlaying(false);
-        setIsFullscreen(false);
-      } else if (e.key === "l" || e.key === "L") {
-        setShowTextLog(prev => !prev);
-      } else if (e.key === "a" || e.key === "A") {
-        setAutoAdvance(prev => !prev);
-      }
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!typewriterDone) setTextSpeed(0); else advanceDialogue(); }
+      else if (e.key === "Escape") { setIsPlaying(false); setIsFullscreen(false); stopMusic(); }
+      else if (e.key === "l" || e.key === "L") setShowTextLog(prev => !prev);
+      else if (e.key === "a" || e.key === "A") setAutoAdvance(prev => !prev);
+      else if (e.key === "h" || e.key === "H") setHideTextbox(prev => !prev);
+      else if (e.key === "ArrowLeft" || e.key === "Backspace") rollback();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isPlaying, typewriterDone]);
+  }, [isPlaying, typewriterDone, playIndex]);
 
   useEffect(() => {
     if (autoAdvance && typewriterDone && isPlaying) {
       const scene = scenes.find(s => s.id === selectedScene);
       const currentLine = scene?.dialogue[playIndex];
       if (currentLine?.choices && currentLine.choices.length > 0) return;
-      autoAdvanceTimer.current = setTimeout(() => {
-        advanceDialogue();
-      }, autoAdvanceDelay);
+      autoAdvanceTimer.current = setTimeout(() => advanceDialogue(), autoAdvanceDelay);
     }
-    return () => {
-      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
-    };
+    return () => { if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current); };
   }, [autoAdvance, typewriterDone, isPlaying, playIndex, selectedScene, autoAdvanceDelay]);
+
+  const playMusic = (url?: string) => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (url) {
+      audioRef.current = new Audio(url);
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3;
+      audioRef.current.play().catch(() => {});
+    }
+  };
+
+  const stopMusic = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } };
 
   const handleExportJSON = () => {
     const data = { title, scenes, characters, backgrounds };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/\s+/g, "_")}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Project exported as JSON");
-    fireXpAction("export");
+    const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/\s+/g, "_")}.json`; a.click(); URL.revokeObjectURL(url);
+    toast.success("Project exported as JSON"); fireXpAction("export");
+  };
+
+  const handleExportRenpy = () => {
+    let script = `# ${title}\n# Generated by PSCoMiXX Visual Novel Engine\n\n`;
+    characters.forEach(c => { script += `define ${c.name.toLowerCase().replace(/\s+/g, "_")} = Character("${c.name}", color="${c.color}")\n`; });
+    script += "\n";
+    scenes.forEach(scene => {
+      script += `label ${scene.label || scene.id}:\n`;
+      const bg = backgrounds.find(b => b.id === scene.background);
+      script += `    scene ${bg?.name || scene.background}`;
+      if (scene.transition && scene.transition !== "none") script += ` with ${scene.transition}`;
+      script += "\n";
+      if (scene.musicUrl) script += `    play music "${scene.musicUrl}"\n`;
+      scene.characters.filter(c => c.visible).forEach(sc => {
+        const char = characters.find(c => c.id === sc.id);
+        script += `    show ${char?.name || sc.id} ${sc.expression} at ${sc.position}\n`;
+      });
+      script += "\n";
+      scene.dialogue.forEach(line => {
+        if (line.stageDirection) script += `    # ${line.stageDirection}\n`;
+        if (line.speaker === "Narrator") { script += `    "${line.text}"\n`; }
+        else { script += `    ${line.speaker.toLowerCase().replace(/\s+/g, "_")} "${line.text}"\n`; }
+        if (line.choices && line.choices.length > 0) {
+          script += "    menu:\n";
+          line.choices.forEach(c => { script += `        "${c.label}":\n            jump ${c.target}\n`; });
+        }
+      });
+      script += "\n";
+    });
+    const blob = new Blob([script], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/\s+/g, "_")}.rpy`; a.click(); URL.revokeObjectURL(url);
+    toast.success("Exported as Ren'Py script!"); fireXpAction("export");
   };
 
   const handleExportHTML = () => {
     const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title}</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#000;color:#fff;overflow:hidden;height:100vh;width:100vw}
-#game{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-#bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 0.8s}
-.char{position:absolute;bottom:0;height:80%;display:flex;align-items:flex-end;transition:all 0.5s}
-.char img{height:100%;object-fit:contain}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;background:#000;color:#fff;overflow:hidden;height:100vh;width:100vw}
+#game{position:relative;width:100%;height:100%;cursor:pointer}#bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 0.8s}
+.char{position:absolute;bottom:0;height:80%;display:flex;align-items:flex-end;transition:all 0.5s}.char img{height:100%;object-fit:contain}
 .char.left{left:10%}.char.center{left:50%;transform:translateX(-50%)}.char.right{right:10%}
-#textbox{position:absolute;bottom:2rem;left:2rem;right:2rem;background:rgba(0,0,0,0.92);border:2px solid rgba(255,255,255,0.8);padding:1.5rem 2rem;min-height:140px;z-index:10}
-#speaker{font-weight:bold;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem}
-#dialogue{font-size:0.95rem;line-height:1.7;min-height:3em}
-#advance{position:absolute;bottom:0.5rem;right:1rem;animation:bounce 1s infinite;color:rgba(255,255,255,0.5);font-size:1.2rem}
-@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+#textbox{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.95) 20%);padding:3rem 2.5rem 1rem;min-height:180px;z-index:10;transition:opacity 0.3s}
+#textbox.hidden{opacity:0;pointer-events:none}
+#speaker-row{display:flex;align-items:center;gap:0.8rem;margin-bottom:0.6rem}
+#side-img{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.3);display:none}
+#speaker{font-weight:bold;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.1em}
+#dialogue{font-size:1rem;line-height:1.8;min-height:3.5em}
 #choices{display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap}
-#choices button{padding:0.7rem 1.5rem;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.3);color:#fff;cursor:pointer;font-size:0.9rem;transition:all 0.2s}
-#choices button:hover{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.6)}
-#controls{position:absolute;top:1rem;right:1rem;display:flex;gap:0.5rem;z-index:20}
-#controls button{padding:0.4rem 0.8rem;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);color:#fff;cursor:pointer;font-size:0.7rem;text-transform:uppercase}
-#controls button:hover{background:rgba(255,255,255,0.1)}
-#counter{position:absolute;top:1rem;left:1rem;font-size:0.7rem;color:rgba(255,255,255,0.4);font-family:monospace;z-index:20}
+#choices button{padding:0.8rem 1.5rem;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.25);color:#fff;cursor:pointer;font-size:0.9rem;transition:all 0.2s;backdrop-filter:blur(4px)}
+#choices button:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.5);transform:translateX(4px)}
+#quickmenu{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:0.3rem;padding:0.4rem;z-index:20;background:rgba(0,0,0,0.5)}
+#quickmenu button{padding:0.3rem 0.8rem;background:transparent;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);cursor:pointer;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;transition:all 0.2s}
+#quickmenu button:hover{color:#fff;border-color:rgba(255,255,255,0.4)}#quickmenu button.active{color:#4ade80;border-color:#4ade80}
+#counter{position:absolute;top:1rem;left:1rem;font-size:0.7rem;color:rgba(255,255,255,0.3);font-family:monospace;z-index:20}
 .fade-in{animation:fadeIn 0.8s}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-#log-panel{position:absolute;inset:0;background:rgba(0,0,0,0.95);z-index:30;display:none;flex-direction:column}
-#log-panel.open{display:flex}
-#log-panel .header{padding:1rem;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
-#log-panel .entries{flex:1;overflow:auto;padding:1.5rem}
-#log-panel .entry{border-bottom:1px solid #222;padding-bottom:0.8rem;margin-bottom:0.8rem}
-#log-panel .entry .name{font-size:0.75rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.08em}
-#log-panel .entry .text{font-size:0.85rem;color:#aaa;margin-top:0.3rem;line-height:1.5}
-</style>
-</head>
-<body>
-<div id="game">
+#log-panel{position:absolute;inset:0;background:rgba(0,0,0,0.97);z-index:30;display:none;flex-direction:column}
+#log-panel.open{display:flex}#log-panel .hdr{padding:1rem 1.5rem;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;font-weight:bold}
+#log-panel .entries{flex:1;overflow:auto;padding:1.5rem}#log-panel .entry{border-bottom:1px solid #1a1a1a;padding-bottom:0.8rem;margin-bottom:0.8rem}
+#log-panel .entry .nm{font-size:0.75rem;font-weight:bold;text-transform:uppercase;letter-spacing:0.08em}
+#log-panel .entry .tx{font-size:0.85rem;color:#999;margin-top:0.3rem;line-height:1.6}
+</style></head><body>
+<div id="game" onclick="advance()">
 <div id="bg"></div>
-<div id="textbox">
-<div id="speaker"></div>
-<div id="dialogue"></div>
-<div id="advance">▼</div>
-<div id="choices"></div>
+<div id="textbox"><div id="speaker-row"><img id="side-img" src=""><div id="speaker"></div></div><div id="dialogue"></div><div id="choices"></div></div>
+<div id="quickmenu">
+<button onclick="event.stopPropagation();doRollback()">Back</button>
+<button onclick="event.stopPropagation();skipText()">Skip</button>
+<button id="btn-auto" onclick="event.stopPropagation();toggleAuto()">Auto</button>
+<button onclick="event.stopPropagation();toggleLog()">Log</button>
+<button onclick="event.stopPropagation();toggleHide()">Hide</button>
 </div>
 <div id="counter"></div>
-<div id="controls">
-<button onclick="toggleAuto()">Auto</button>
-<button onclick="toggleLog()">Log</button>
-<button onclick="skipText()">Skip</button>
-</div>
-<div id="log-panel">
-<div class="header"><span style="font-weight:bold">Text Log</span><button onclick="toggleLog()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.2rem">✕</button></div>
-<div class="entries" id="log-entries"></div>
-</div>
+<div id="log-panel"><div class="hdr"><span>Text Log</span><button onclick="toggleLog()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.2rem">&times;</button></div><div class="entries" id="log-entries"></div></div>
 </div>
 <script>
-const scenes=${JSON.stringify(scenes)};
-const characters=${JSON.stringify(characters)};
-const backgrounds=${JSON.stringify(backgrounds)};
-let sceneIdx=0,lineIdx=0,typing=false,autoMode=false,autoTimer=null,textLog=[];
-function getBgUrl(scene){
-if(scene.backgroundUrl)return scene.backgroundUrl;
-const bg=backgrounds.find(b=>b.id===scene.background);
-return bg?bg.url:'';
-}
-function getCharColor(name){const c=characters.find(ch=>ch.name===name);return c?c.color:'#fff';}
-function showScene(idx){
-sceneIdx=idx;lineIdx=0;
-const scene=scenes[idx];if(!scene)return;
-const bgEl=document.getElementById('bg');
-bgEl.style.backgroundImage='url('+getBgUrl(scene)+')';
-if(scene.tintColor){bgEl.style.backgroundColor=scene.tintColor;bgEl.style.backgroundBlendMode='overlay';}
-bgEl.className='fade-in';
-showLine();
-}
-function typeText(el,text,cb){
-typing=true;let i=0;el.textContent='';
-const iv=setInterval(()=>{i++;if(i>=text.length){el.textContent=text;typing=false;clearInterval(iv);if(cb)cb();}else{el.textContent=text.slice(0,i);}},30);
-return iv;
-}
-let typeInterval=null;
-function showLine(){
-const scene=scenes[sceneIdx];if(!scene)return;
-if(lineIdx>=scene.dialogue.length){
-if(sceneIdx<scenes.length-1){showScene(sceneIdx+1);}
-return;
-}
-const line=scene.dialogue[lineIdx];
-document.getElementById('speaker').textContent=line.speaker;
-document.getElementById('speaker').style.color=getCharColor(line.speaker);
-document.getElementById('counter').textContent=(lineIdx+1)+' / '+scene.dialogue.length;
-if(typeInterval)clearInterval(typeInterval);
-const choicesEl=document.getElementById('choices');choicesEl.innerHTML='';
-typeInterval=typeText(document.getElementById('dialogue'),line.text,()=>{
-if(line.choices&&line.choices.length>0){
-line.choices.forEach(c=>{
-const btn=document.createElement('button');btn.textContent=c.label;
-btn.onclick=()=>{const ti=scenes.findIndex(s=>s.id===c.target);if(ti>=0)showScene(ti);};
-choicesEl.appendChild(btn);
+const S=${JSON.stringify(scenes)};const C=${JSON.stringify(characters)};const B=${JSON.stringify(backgrounds)};
+let si=0,li=0,typing=false,auto=false,autoT=null,log=[],hist=[];let tI=null;
+function bg(s){if(s.backgroundUrl)return s.backgroundUrl;const b=B.find(x=>x.id===s.background);return b?b.url:'';}
+function cc(n){const c=C.find(x=>x.name===n);return c?c.color:'#fff';}
+function si_url(n){const c=C.find(x=>x.name===n);return c&&c.sideImage?c.sideImage:(c&&c.sprites&&c.sprites[0]&&c.sprites[0].url?c.sprites[0].url:'');}
+function showS(i){si=i;li=0;const s=S[i];if(!s)return;document.getElementById('bg').style.backgroundImage='url('+bg(s)+')';document.getElementById('bg').className='fade-in';showL();}
+function typeT(el,t,cb){typing=true;let i=0;el.textContent='';tI=setInterval(()=>{i++;if(i>=t.length){el.textContent=t;typing=false;clearInterval(tI);tI=null;if(cb)cb();}else{el.textContent=t.slice(0,i);}},30);}
+function showL(){const s=S[si];if(!s)return;if(li>=s.dialogue.length){if(si<S.length-1)showS(si+1);return;}
+hist.push({si,li});const l=s.dialogue[li];
+document.getElementById('speaker').textContent=l.speaker;document.getElementById('speaker').style.color=cc(l.speaker);
+const simg=si_url(l.speaker);const el=document.getElementById('side-img');if(simg){el.src=simg;el.style.display='block';}else{el.style.display='none';}
+document.getElementById('counter').textContent=(li+1)+'/'+s.dialogue.length;
+if(tI)clearInterval(tI);document.getElementById('choices').innerHTML='';
+typeT(document.getElementById('dialogue'),l.text,()=>{
+if(l.choices&&l.choices.length>0){l.choices.forEach(c=>{const b=document.createElement('button');b.textContent=c.label;b.onclick=(e)=>{e.stopPropagation();const ti=S.findIndex(x=>x.id===c.target);if(ti>=0)showS(ti);};document.getElementById('choices').appendChild(b);});}
+if(auto&&!(l.choices&&l.choices.length>0)){autoT=setTimeout(()=>{li++;showL();},3000);}
 });
-}
-if(autoMode){autoTimer=setTimeout(()=>{lineIdx++;showLine();},3000);}
-});
-textLog.push({speaker:line.speaker,text:line.text,color:getCharColor(line.speaker)});
-}
-function advance(){
-if(typing){if(typeInterval)clearInterval(typeInterval);const scene=scenes[sceneIdx];const line=scene.dialogue[lineIdx];document.getElementById('dialogue').textContent=line.text;typing=false;return;}
-lineIdx++;showLine();
-}
-function skipText(){if(typing){if(typeInterval)clearInterval(typeInterval);const scene=scenes[sceneIdx];const line=scene.dialogue[lineIdx];document.getElementById('dialogue').textContent=line.text;typing=false;}}
-function toggleAuto(){autoMode=!autoMode;if(!autoMode&&autoTimer){clearTimeout(autoTimer);autoTimer=null;}}
-function toggleLog(){
-const p=document.getElementById('log-panel');p.classList.toggle('open');
-const el=document.getElementById('log-entries');el.innerHTML='';
-textLog.forEach(e=>{el.innerHTML+='<div class="entry"><div class="name" style="color:'+e.color+'">'+e.speaker+'</div><div class="text">'+e.text+'</div></div>';});
-el.scrollTop=el.scrollHeight;
-}
-document.getElementById('textbox').onclick=advance;
-document.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();advance();}if(e.key==='Escape'){toggleLog();}});
-if(scenes.length>0)showScene(0);
-</script>
-</body>
-</html>`;
+log.push({speaker:l.speaker,text:l.text,color:cc(l.speaker)});}
+function advance(){if(typing){if(tI)clearInterval(tI);const s=S[si];const l=s.dialogue[li];document.getElementById('dialogue').textContent=l.text;typing=false;return;}li++;showL();}
+function skipText(){if(typing){if(tI)clearInterval(tI);document.getElementById('dialogue').textContent=S[si].dialogue[li].text;typing=false;}}
+function toggleAuto(){auto=!auto;document.getElementById('btn-auto').className=auto?'active':'';if(!auto&&autoT){clearTimeout(autoT);autoT=null;}}
+function toggleLog(){const p=document.getElementById('log-panel');p.classList.toggle('open');const el=document.getElementById('log-entries');el.innerHTML='';log.forEach(e=>{el.innerHTML+='<div class="entry"><div class="nm" style="color:'+e.color+'">'+e.speaker+'</div><div class="tx">'+e.text+'</div></div>';});el.scrollTop=el.scrollHeight;}
+function toggleHide(){const t=document.getElementById('textbox');t.classList.toggle('hidden');document.getElementById('quickmenu').classList.toggle('hidden');}
+function doRollback(){if(hist.length>1){hist.pop();const prev=hist[hist.length-1];si=prev.si;li=prev.li;showL();}}
+document.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();advance();}if(e.key==='ArrowLeft'||e.key==='Backspace')doRollback();if(e.key==='Escape')toggleLog();if(e.key==='h'||e.key==='H')toggleHide();});
+if(S.length>0)showS(0);
+</script></body></html>`;
     const blob = new Blob([htmlContent], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.replace(/\s+/g, "_")}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Exported as playable HTML!");
-    fireXpAction("export");
+    const a = document.createElement("a"); a.href = url; a.download = `${title.replace(/\s+/g, "_")}.html`; a.click(); URL.revokeObjectURL(url);
+    toast.success("Exported as playable HTML!"); fireXpAction("export");
   };
 
   const moveDialogue = (sceneId: string, index: number, direction: "up" | "down") => {
@@ -557,106 +537,52 @@ if(scenes.length>0)showScene(0);
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (effectiveProjectId) {
-        await updateProject.mutateAsync({
-          id: effectiveProjectId,
-          data: { title, data: { scenes, characters, backgrounds } },
-        });
-      }
-      pendingSaveRef.current = false;
-      fireXpAction("save");
-      toast.success("Project saved");
-    } catch (error: any) {
-      toast.error(error.message || "Save failed");
-    } finally {
-      setIsSaving(false);
-    }
+      if (effectiveProjectId) await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds } } });
+      pendingSaveRef.current = false; fireXpAction("save"); toast.success("Project saved");
+    } catch (error: any) { toast.error(error.message || "Save failed"); } finally { setIsSaving(false); }
   };
 
   const addScene = () => {
-    const newScene: VNScene = {
-      id: `scene_${Date.now()}`,
-      name: `Scene ${scenes.length + 1}`,
-      background: backgrounds[0]?.id || "classroom",
-      transition: "fade",
-      characters: [],
-      dialogue: [],
-    };
-    setScenes([...scenes, newScene]);
-    setSelectedScene(newScene.id);
-    toast.success("Scene added");
+    const id = `scene_${Date.now()}`;
+    const newScene: VNScene = { id, name: `Scene ${scenes.length + 1}`, label: id, background: backgrounds[0]?.id || "classroom", transition: "fade", characters: [], dialogue: [] };
+    setScenes([...scenes, newScene]); setSelectedScene(newScene.id); toast.success("Scene added");
   };
 
   const duplicateScene = (id: string) => {
     const scene = scenes.find(s => s.id === id);
     if (!scene) return;
-    const dup: VNScene = {
-      ...JSON.parse(JSON.stringify(scene)),
-      id: `scene_${Date.now()}`,
-      name: `${scene.name} (Copy)`,
-    };
+    const newId = `scene_${Date.now()}`;
+    const dup: VNScene = { ...JSON.parse(JSON.stringify(scene)), id: newId, name: `${scene.name} (Copy)`, label: newId };
     const idx = scenes.findIndex(s => s.id === id);
-    const newScenes = [...scenes];
-    newScenes.splice(idx + 1, 0, dup);
-    setScenes(newScenes);
-    toast.success("Scene duplicated");
+    const newScenes = [...scenes]; newScenes.splice(idx + 1, 0, dup); setScenes(newScenes); toast.success("Scene duplicated");
   };
 
   const moveScene = (id: string, direction: "up" | "down") => {
     const idx = scenes.findIndex(s => s.id === id);
     const newIdx = direction === "up" ? idx - 1 : idx + 1;
     if (newIdx < 0 || newIdx >= scenes.length) return;
-    const newScenes = [...scenes];
-    [newScenes[idx], newScenes[newIdx]] = [newScenes[newIdx], newScenes[idx]];
-    setScenes(newScenes);
+    const newScenes = [...scenes]; [newScenes[idx], newScenes[newIdx]] = [newScenes[newIdx], newScenes[idx]]; setScenes(newScenes);
   };
 
   const deleteScene = (id: string) => {
-    if (scenes.length <= 1) {
-      toast.error("Cannot delete the last scene");
-      return;
-    }
-    const remaining = scenes.filter(s => s.id !== id);
-    setScenes(remaining);
-    if (selectedScene === id) {
-      setSelectedScene(remaining[0]?.id || null);
-    }
+    if (scenes.length <= 1) { toast.error("Cannot delete the last scene"); return; }
+    const remaining = scenes.filter(s => s.id !== id); setScenes(remaining);
+    if (selectedScene === id) setSelectedScene(remaining[0]?.id || null);
     toast.success("Scene deleted");
   };
 
   const addCharacter = () => {
-    const newChar: VNCharacter = {
-      id: `char_${Date.now()}`,
-      name: "New Character",
-      color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
-      sprites: [{ expression: "neutral", url: "" }],
-    };
-    setCharacters([...characters, newChar]);
-    setSelectedCharacter(newChar.id);
-    toast.success("Character added");
+    const newChar: VNCharacter = { id: `char_${Date.now()}`, name: "New Character", color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`, sprites: [{ expression: "neutral", url: "" }] };
+    setCharacters([...characters, newChar]); setSelectedCharacter(newChar.id); toast.success("Character added");
   };
 
-  const updateCharacter = (id: string, updates: Partial<VNCharacter>) => {
-    setCharacters(characters.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const deleteCharacter = (id: string) => {
-    setCharacters(characters.filter(c => c.id !== id));
-    if (selectedCharacter === id) setSelectedCharacter(null);
-    toast.success("Character deleted");
-  };
-
-  const updateScene = (id: string, updates: Partial<VNScene>) => {
-    setScenes(scenes.map(s => s.id === id ? { ...s, ...updates } : s));
-  };
+  const updateCharacter = (id: string, updates: Partial<VNCharacter>) => { setCharacters(characters.map(c => c.id === id ? { ...c, ...updates } : c)); };
+  const deleteCharacter = (id: string) => { setCharacters(characters.filter(c => c.id !== id)); if (selectedCharacter === id) setSelectedCharacter(null); toast.success("Character deleted"); };
+  const updateScene = (id: string, updates: Partial<VNScene>) => { setScenes(scenes.map(s => s.id === id ? { ...s, ...updates } : s)); };
 
   const addDialogue = (sceneId: string) => {
     const scene = scenes.find(s => s.id === sceneId);
-    if (scene) {
-      updateScene(sceneId, {
-        dialogue: [...scene.dialogue, { speaker: characters[0]?.name || "???", text: "" }],
-      });
-    }
+    if (scene) updateScene(sceneId, { dialogue: [...scene.dialogue, { speaker: characters[0]?.name || "Narrator", text: "" }] });
   };
 
   const addChoice = (sceneId: string, dialogueIndex: number) => {
@@ -664,132 +590,75 @@ if(scenes.length>0)showScene(0);
     if (scene) {
       const newDialogue = [...scene.dialogue];
       const currentChoices = newDialogue[dialogueIndex].choices || [];
-      newDialogue[dialogueIndex] = {
-        ...newDialogue[dialogueIndex],
-        choices: [...currentChoices, { label: "New choice", target: scenes[0].id }],
-      };
+      newDialogue[dialogueIndex] = { ...newDialogue[dialogueIndex], choices: [...currentChoices, { label: "New choice", target: scenes[0].id }] };
       updateScene(sceneId, { dialogue: newDialogue });
     }
   };
 
-  const updateDialogue = (sceneId: string, index: number, updates: Partial<{ speaker: string; text: string; choices?: { label: string; target: string }[] }>) => {
+  const updateDialogue = (sceneId: string, index: number, updates: Partial<VNDialogueLine>) => {
     const scene = scenes.find(s => s.id === sceneId);
-    if (scene) {
-      const newDialogue = [...scene.dialogue];
-      newDialogue[index] = { ...newDialogue[index], ...updates };
-      updateScene(sceneId, { dialogue: newDialogue });
-    }
+    if (scene) { const d = [...scene.dialogue]; d[index] = { ...d[index], ...updates }; updateScene(sceneId, { dialogue: d }); }
   };
 
   const deleteDialogue = (sceneId: string, index: number) => {
     const scene = scenes.find(s => s.id === sceneId);
-    if (scene) {
-      updateScene(sceneId, { dialogue: scene.dialogue.filter((_, i) => i !== index) });
-    }
+    if (scene) updateScene(sceneId, { dialogue: scene.dialogue.filter((_, i) => i !== index) });
   };
 
   const addCharacterToScene = (sceneId: string, characterId: string, position: "left" | "center" | "right") => {
     const scene = scenes.find(s => s.id === sceneId);
-    if (scene) {
-      const exists = scene.characters.find(c => c.id === characterId);
-      if (!exists) {
-        updateScene(sceneId, {
-          characters: [...scene.characters, { id: characterId, position, expression: "neutral", visible: true }],
-        });
-        toast.success("Character added to scene");
-      }
+    if (scene && !scene.characters.find(c => c.id === characterId)) {
+      updateScene(sceneId, { characters: [...scene.characters, { id: characterId, position, expression: "neutral", visible: true }] });
+      toast.success("Character added to scene");
     }
   };
 
   const removeCharacterFromScene = (sceneId: string, characterId: string) => {
     const scene = scenes.find(s => s.id === sceneId);
-    if (scene) {
-      updateScene(sceneId, {
-        characters: scene.characters.filter(c => c.id !== characterId),
-      });
-    }
+    if (scene) updateScene(sceneId, { characters: scene.characters.filter(c => c.id !== characterId) });
   };
 
   const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const url = event.target?.result as string;
-      const newBg: VNBackground = {
-        id: `bg_${Date.now()}`,
-        name: file.name.replace(/\.[^/.]+$/, ""),
-        url,
-      };
-      setBackgrounds([...backgrounds, newBg]);
-      toast.success("Background imported");
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    reader.onload = (event) => { const url = event.target?.result as string; setBackgrounds([...backgrounds, { id: `bg_${Date.now()}`, name: file.name.replace(/\.[^/.]+$/, ""), url }]); toast.success("Background imported"); };
+    reader.readAsDataURL(file); e.target.value = "";
   };
 
   const handleSpriteUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedCharacter) return;
-
+    const file = e.target.files?.[0]; if (!file || !selectedCharacter) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const url = event.target?.result as string;
       const char = characters.find(c => c.id === selectedCharacter);
-      if (char) {
-        updateCharacter(selectedCharacter, {
-          sprites: [...char.sprites, { expression: `sprite_${char.sprites.length}`, url }],
-        });
-        toast.success("Sprite added to character");
-      }
+      if (char) { updateCharacter(selectedCharacter, { sprites: [...char.sprites, { expression: `sprite_${char.sprites.length}`, url }] }); toast.success("Sprite added"); }
     };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    reader.readAsDataURL(file); e.target.value = "";
   };
 
   const handleAIGenerated = (url: string) => {
     fireXpAction("generate");
-    if (aiTarget === "background") {
-      const newBg: VNBackground = {
-        id: `bg_${Date.now()}`,
-        name: "AI Background",
-        url,
-      };
-      setBackgrounds([...backgrounds, newBg]);
-      toast.success("AI background added");
-    } else if (selectedCharacter) {
-      const char = characters.find(c => c.id === selectedCharacter);
-      if (char) {
-        updateCharacter(selectedCharacter, {
-          sprites: [...char.sprites, { expression: `ai_sprite`, url }],
-        });
-        toast.success("AI sprite added");
-      }
-    }
+    if (aiTarget === "background") { setBackgrounds([...backgrounds, { id: `bg_${Date.now()}`, name: "AI Background", url }]); toast.success("AI background added"); }
+    else if (selectedCharacter) { const char = characters.find(c => c.id === selectedCharacter); if (char) { updateCharacter(selectedCharacter, { sprites: [...char.sprites, { expression: "ai_sprite", url }] }); toast.success("AI sprite added"); } }
     setShowAIGen(false);
   };
 
   const startPlaytest = () => {
-    setIsPlaying(true);
-    setPlayIndex(0);
-    setTextLog([]);
-    setTypewriterDone(false);
-    setTextSpeed(30);
+    setIsPlaying(true); setPlayIndex(0); setTextLog([]); setTypewriterDone(false); setTextSpeed(30); setNvlLines([]); setHideTextbox(false);
     const scene = scenes.find(s => s.id === selectedScene);
     if (scene) {
-      const transition = scene.transition || "none";
-      if (transition !== "none") {
-        setTransitionClass(`vn-transition-${transition}`);
-        setTimeout(() => setTransitionClass(""), 800);
-      }
+      if (scene.transition && scene.transition !== "none") { setTransitionClass(`vn-transition-${scene.transition}`); setTimeout(() => setTransitionClass(""), 800); }
+      playMusic(scene.musicUrl);
     }
+  };
+
+  const rollback = () => {
+    if (playIndex > 0) { setPlayIndex(playIndex - 1); setTypewriterDone(false); setTextSpeed(30); }
   };
 
   const advanceDialogue = () => {
     const scene = scenes.find(s => s.id === selectedScene);
     if (!scene) return;
-
     const currentLine = scene.dialogue[playIndex];
     if (currentLine) {
       const speakerColor = characters.find(c => c.name === currentLine.speaker)?.color || "#fff";
@@ -797,258 +666,155 @@ if(scenes.length>0)showScene(0);
         if (prev.length > 0 && prev[prev.length - 1].text === currentLine.text) return prev;
         return [...prev, { speaker: currentLine.speaker, text: currentLine.text, color: speakerColor }];
       });
+      if (textMode === "nvl") {
+        setNvlLines(prev => [...prev, { speaker: currentLine.speaker, text: currentLine.text, color: speakerColor }]);
+      }
     }
-
-    if (playIndex < scene.dialogue.length - 1) {
-      setPlayIndex(playIndex + 1);
-      setTypewriterDone(false);
-      setTextSpeed(30);
-    } else {
-      setIsPlaying(false);
-      setIsFullscreen(false);
-      setPlayIndex(0);
-    }
+    if (playIndex < scene.dialogue.length - 1) { setPlayIndex(playIndex + 1); setTypewriterDone(false); setTextSpeed(30); }
+    else { setIsPlaying(false); setIsFullscreen(false); setPlayIndex(0); stopMusic(); }
   };
 
   const handlePlaytestClick = () => {
-    if (!typewriterDone) {
-      setTextSpeed(0);
-    } else {
-      advanceDialogue();
-    }
+    if (hideTextbox) { setHideTextbox(false); return; }
+    if (!typewriterDone) setTextSpeed(0); else advanceDialogue();
   };
 
   const currentScene = scenes.find(s => s.id === selectedScene);
   const currentBackground = backgrounds.find(b => b.id === currentScene?.background);
   const currentBackgroundUrl = currentScene?.backgroundUrl || currentBackground?.url || vnBg;
   const currentDialogue = currentScene?.dialogue[playIndex];
-
   const totalDialogueLines = scenes.reduce((sum, s) => sum + s.dialogue.length, 0);
 
+  const currentSpeakerChar = currentDialogue ? characters.find(c => c.name === currentDialogue.speaker) : null;
+  const sideImageUrl = currentSpeakerChar?.sideImage || currentSpeakerChar?.sprites.find(s => s.url)?.url || "";
+
   if (isCreating) {
-    return (
-      <Layout>
-        <div className="h-screen flex items-center justify-center bg-black">
-          <div className="text-center text-white">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-zinc-400">Creating visual novel project...</p>
-          </div>
-        </div>
-      </Layout>
-    );
+    return (<Layout><div className="h-screen flex items-center justify-center bg-black"><div className="text-center text-white"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" /><p className="text-zinc-400">Creating visual novel project...</p></div></div></Layout>);
   }
 
   const playtestView = (
-    <div 
-      ref={playtestRef}
-      className={`relative overflow-hidden cursor-pointer ${isFullscreen ? "fixed inset-0 z-50 bg-black" : "h-[70vh]"}`}
-      onClick={handlePlaytestClick}
-      data-testid="playtest-viewport"
-    >
+    <div ref={playtestRef} className={`relative overflow-hidden cursor-pointer ${isFullscreen ? "fixed inset-0 z-50 bg-black" : "h-[70vh]"}`} onClick={handlePlaytestClick} data-testid="playtest-viewport">
       <div className={`w-full h-full ${transitionClass}`}>
-        <img 
-          src={currentBackgroundUrl} 
-          className="w-full h-full object-cover"
-          style={currentScene?.tintColor ? { filter: `sepia(0.2)`, mixBlendMode: "normal" } : undefined}
-        />
-        {currentScene?.tintColor && (
-          <div className="absolute inset-0" style={{ backgroundColor: currentScene.tintColor, opacity: 0.15 }} />
-        )}
+        <img src={currentBackgroundUrl} className="w-full h-full object-cover" />
+        {currentScene?.tintColor && <div className="absolute inset-0" style={{ backgroundColor: currentScene.tintColor, opacity: 0.15 }} />}
       </div>
       
       {currentScene?.characters.filter(c => c.visible).map((sceneChar) => {
         const char = characters.find(c => c.id === sceneChar.id);
         const sprite = char?.sprites.find(s => s.expression === sceneChar.expression || s.url);
         if (!sprite?.url) return null;
-        
-        const positionStyles = {
-          left: { left: "10%", transform: "translateX(0)" },
-          center: { left: "50%", transform: "translateX(-50%)" },
-          right: { right: "10%", transform: "translateX(0)" },
-        };
-        
-        return (
-          <div
-            key={sceneChar.id}
-            className="absolute bottom-0 h-[80%] flex items-end transition-all duration-500"
-            style={positionStyles[sceneChar.position]}
-          >
-            <img src={sprite.url} className="h-full object-contain" />
-          </div>
-        );
+        const positionStyles = { left: { left: "10%", transform: "translateX(0)" }, center: { left: "50%", transform: "translateX(-50%)" }, right: { right: "10%", transform: "translateX(0)" } };
+        return (<div key={sceneChar.id} className="absolute bottom-0 h-[80%] flex items-end transition-all duration-500" style={positionStyles[sceneChar.position]}><img src={sprite.url} className="h-full object-contain" /></div>);
       })}
 
-      {showTextLog && (
-        <TextLog log={textLog} onClose={() => setShowTextLog(false)} />
-      )}
-      
-      <div className="absolute bottom-8 left-8 right-8 bg-zinc-900/95 border-2 border-white" style={{ minHeight: isFullscreen ? "160px" : "140px" }}>
-        {currentDialogue ? (
-          <div className="p-6">
-            <div 
-              className="font-bold font-display mb-2 uppercase tracking-wider text-sm"
-              style={{ color: characters.find(c => c.name === currentDialogue.speaker)?.color || "#fff" }}
-            >
-              {currentDialogue.speaker}
-            </div>
-            <p className="font-mono text-sm leading-relaxed">
-              <TypewriterText 
-                text={currentDialogue.text} 
-                speed={textSpeed}
-                onComplete={() => setTypewriterDone(true)}
-              />
-            </p>
-            {typewriterDone && currentDialogue.choices && currentDialogue.choices.length > 0 && (
-              <div className="mt-4 flex gap-2 flex-wrap">
+      {showTextLog && <TextLog log={textLog} onClose={() => setShowTextLog(false)} />}
+
+      {textMode === "nvl" && !hideTextbox && (
+        <div className="absolute inset-0 bg-black/85 z-10 overflow-auto p-8" onClick={(e) => e.stopPropagation()}>
+          <div className="max-w-2xl mx-auto space-y-4" onClick={handlePlaytestClick}>
+            {nvlLines.map((line, i) => (
+              <div key={i}>
+                {line.speaker !== "Narrator" && <span className="font-bold text-sm" style={{ color: line.color }}>{line.speaker}: </span>}
+                <span className="text-sm leading-relaxed font-mono">{i === nvlLines.length - 1 && !typewriterDone ? <TypewriterText text={line.text} speed={textSpeed} onComplete={() => setTypewriterDone(true)} /> : line.text}</span>
+              </div>
+            ))}
+            {currentDialogue && nvlLines.length === 0 && (
+              <div>
+                {currentDialogue.speaker !== "Narrator" && <span className="font-bold text-sm" style={{ color: currentSpeakerChar?.color || "#fff" }}>{currentDialogue.speaker}: </span>}
+                <span className="text-sm leading-relaxed font-mono"><TypewriterText text={currentDialogue.text} speed={textSpeed} onComplete={() => setTypewriterDone(true)} /></span>
+              </div>
+            )}
+            {typewriterDone && currentDialogue?.choices && currentDialogue.choices.length > 0 && (
+              <div className="mt-6 space-y-2">
                 {currentDialogue.choices.map((choice, i) => (
-                  <button
-                    key={i}
-                    onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); setTypewriterDone(false); setTextSpeed(30); }}
-                    className="px-4 py-2 bg-white text-black text-sm font-medium hover:bg-zinc-200 transition-colors"
-                    data-testid={`button-choice-${i}`}
-                  >
-                    {choice.label}
-                  </button>
+                  <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); setTypewriterDone(false); setTextSpeed(30); setNvlLines([]); }}
+                    className="block w-full text-left px-4 py-3 bg-white/5 border border-white/20 text-sm hover:bg-white/10 hover:border-white/40 transition-colors" data-testid={`button-choice-${i}`}>{choice.label}</button>
                 ))}
               </div>
             )}
-            <div className="absolute bottom-4 right-4 animate-bounce text-zinc-500">▼</div>
           </div>
-        ) : (
-          <div className="p-6 text-center text-zinc-500">
-            <MessageSquare className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-sm">Click Playtest to preview your visual novel</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+      
+      {textMode === "adv" && !hideTextbox && (
+        <div className="absolute bottom-0 left-0 right-0 z-10" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.95) 20%)", padding: "3rem 2.5rem 2.5rem", minHeight: isFullscreen ? "200px" : "180px" }}>
+          {currentDialogue ? (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                {sideImageUrl && <img src={sideImageUrl} className="w-12 h-12 rounded-full object-cover border-2 border-white/30 flex-shrink-0" />}
+                <div className="font-bold font-display uppercase tracking-wider text-sm" style={{ color: currentSpeakerChar?.color || "#fff" }}>{currentDialogue.speaker}</div>
+              </div>
+              <p className="font-mono text-sm leading-relaxed">
+                <TypewriterText text={currentDialogue.text} speed={textSpeed} onComplete={() => setTypewriterDone(true)} />
+              </p>
+              {typewriterDone && currentDialogue.choices && currentDialogue.choices.length > 0 && (
+                <div className="mt-4 flex gap-2 flex-wrap">
+                  {currentDialogue.choices.map((choice, i) => (
+                    <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); setTypewriterDone(false); setTextSpeed(30); setNvlLines([]); }}
+                      className="px-4 py-2 bg-white/10 border border-white/25 text-sm hover:bg-white/20 hover:border-white/50 transition-all" data-testid={`button-choice-${i}`}>{choice.label}</button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center text-zinc-500"><MessageSquare className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">Click Playtest to preview</p></div>
+          )}
+        </div>
+      )}
 
-      <div className="absolute top-4 right-4 flex gap-1 z-20">
-        <button
-          onClick={(e) => { e.stopPropagation(); setAutoAdvance(!autoAdvance); }}
-          className={`px-2 py-1 text-[10px] font-bold uppercase ${autoAdvance ? "bg-green-500 text-black" : "bg-black/70 text-white border border-white/20"}`}
-          title="Auto-advance (A)"
-          data-testid="button-auto-advance"
-        >
-          {autoAdvance ? "Auto ON" : "Auto"}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setTextSpeed(0); }}
-          className="px-2 py-1 bg-black/70 text-white border border-white/20 text-[10px] font-bold uppercase"
-          title="Skip text"
-          data-testid="button-skip-text"
-        >
-          Skip
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowTextLog(true); }}
-          className="px-2 py-1 bg-black/70 text-white border border-white/20 text-[10px] font-bold uppercase"
-          title="Text log (L)"
-          data-testid="button-text-log"
-        >
-          Log
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsFullscreen(!isFullscreen); }}
-          className="px-2 py-1 bg-black/70 text-white border border-white/20 text-[10px] font-bold uppercase"
-          title="Toggle fullscreen"
-          data-testid="button-fullscreen"
-        >
-          {isFullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsPlaying(false); setIsFullscreen(false); }}
-          className="px-2 py-1 bg-red-500/80 text-white text-[10px] font-bold uppercase"
-          title="Stop (Esc)"
-          data-testid="button-stop-playtest"
-        >
-          Stop
-        </button>
+      <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-1 p-1.5 z-20" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <button onClick={(e) => { e.stopPropagation(); rollback(); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase" title="Back (←)">Back</button>
+        <button onClick={(e) => { e.stopPropagation(); setTextSpeed(0); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase" title="Skip">Skip</button>
+        <button onClick={(e) => { e.stopPropagation(); setAutoAdvance(!autoAdvance); }} className={`px-2 py-0.5 text-[10px] border uppercase ${autoAdvance ? "text-green-400 border-green-400/30" : "text-white/50 border-white/10 hover:text-white hover:border-white/30"}`} title="Auto (A)">Auto</button>
+        <button onClick={(e) => { e.stopPropagation(); setShowTextLog(true); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase" title="Log (L)">Log</button>
+        <button onClick={(e) => { e.stopPropagation(); setHideTextbox(!hideTextbox); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase" title="Hide (H)">Hide</button>
+        <button onClick={(e) => { e.stopPropagation(); setTextMode(textMode === "adv" ? "nvl" : "adv"); setNvlLines([]); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase" title="Toggle ADV/NVL">{textMode === "adv" ? "NVL" : "ADV"}</button>
+        <button onClick={(e) => { e.stopPropagation(); setIsFullscreen(!isFullscreen); }} className="px-2 py-0.5 text-[10px] text-white/50 border border-white/10 hover:text-white hover:border-white/30 uppercase">{isFullscreen ? "Window" : "Full"}</button>
+        <button onClick={(e) => { e.stopPropagation(); setIsPlaying(false); setIsFullscreen(false); stopMusic(); }} className="px-2 py-0.5 text-[10px] text-red-400/70 border border-red-400/20 hover:text-red-400 hover:border-red-400/40 uppercase">Quit</button>
       </div>
 
       <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-1 text-xs font-mono z-20">
-        {playIndex + 1} / {currentScene?.dialogue.length || 0}
+        {currentScene?.label || currentScene?.name} — {playIndex + 1}/{currentScene?.dialogue.length || 0}
       </div>
     </div>
   );
 
-  if (isFullscreen && isPlaying) {
-    return playtestView;
-  }
+  if (isFullscreen && isPlaying) return playtestView;
 
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
         <style>{`
-          .vn-transition-fade { animation: vnFade 0.8s ease-in-out; }
-          .vn-transition-dissolve { animation: vnDissolve 1s ease-in-out; }
-          .vn-transition-slide-left { animation: vnSlideLeft 0.6s ease-out; }
-          .vn-transition-slide-right { animation: vnSlideRight 0.6s ease-out; }
-          @keyframes vnFade { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes vnDissolve { 0% { opacity: 0; filter: blur(8px); } 100% { opacity: 1; filter: blur(0); } }
-          @keyframes vnSlideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
-          @keyframes vnSlideRight { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+          .vn-transition-fade{animation:vnFade 0.8s ease-in-out}.vn-transition-dissolve{animation:vnDissolve 1s ease-in-out}
+          .vn-transition-slide-left{animation:vnSlideLeft 0.6s ease-out}.vn-transition-slide-right{animation:vnSlideRight 0.6s ease-out}
+          @keyframes vnFade{from{opacity:0}to{opacity:1}}@keyframes vnDissolve{0%{opacity:0;filter:blur(8px)}100%{opacity:1;filter:blur(0)}}
+          @keyframes vnSlideLeft{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes vnSlideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
         `}</style>
 
         <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
           <div className="flex items-center gap-4">
-            <Link href="/">
-              <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            </Link>
-            <input 
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1"
-              data-testid="input-vn-title"
-            />
+            <Link href="/"><button className="p-2 hover:bg-zinc-800" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></button></Link>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1" data-testid="input-vn-title" />
             <span className="text-xs font-mono text-zinc-500">Visual Novel Engine</span>
-            <span className="text-[10px] font-mono text-zinc-600 hidden md:block">
-              {scenes.length} scenes • {totalDialogueLines} lines • {characters.length} chars
-            </span>
+            <span className="text-[10px] font-mono text-zinc-600 hidden md:block">{scenes.length} scenes • {totalDialogueLines} lines • {characters.length} chars</span>
           </div>
           <div className="flex gap-2">
             <div className="relative">
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
-                data-testid="button-export"
-              >
+              <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 z-50 w-40">
-                  <button
-                    onClick={() => { handleExportJSON(); setShowExportMenu(false); }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 flex items-center gap-2"
-                    data-testid="button-export-json"
-                  >
-                    JSON Project
-                  </button>
-                  <button
-                    onClick={() => { handleExportHTML(); setShowExportMenu(false); }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 flex items-center gap-2"
-                    data-testid="button-export-html"
-                  >
-                    Playable HTML
-                  </button>
+                <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 z-50 w-44">
+                  <button onClick={() => { handleExportJSON(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700" data-testid="button-export-json">JSON Project</button>
+                  <button onClick={() => { handleExportHTML(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700" data-testid="button-export-html">Playable HTML</button>
+                  <button onClick={() => { handleExportRenpy(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 flex items-center gap-2" data-testid="button-export-renpy"><Code className="w-3 h-3" /> Ren'Py Script</button>
                 </div>
               )}
             </div>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50"
-              data-testid="button-save"
-            >
+            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button 
-              onClick={startPlaytest}
-              className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2" 
-              data-testid="button-playtest"
-            >
+            <button onClick={startPlaytest} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2" data-testid="button-playtest">
               <Play className="w-4 h-4" /> Playtest
             </button>
           </div>
@@ -1058,13 +824,7 @@ if(scenes.length>0)showScene(0);
           <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="border-b border-zinc-800 p-1 flex">
               {(["scenes", "characters", "backgrounds"] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
-                >
-                  {tab}
-                </button>
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{tab}</button>
               ))}
             </div>
 
@@ -1072,190 +832,72 @@ if(scenes.length>0)showScene(0);
               {activeTab === "scenes" && (
                 <>
                   {scenes.map((scene, idx) => (
-                    <div
-                      key={scene.id}
-                      onClick={() => {
-                        if (isPlaying) {
-                          const transition = scene.transition || "none";
-                          if (transition !== "none") {
-                            setTransitionClass(`vn-transition-${transition}`);
-                            setTimeout(() => setTransitionClass(""), 800);
-                          }
-                        }
-                        setSelectedScene(scene.id);
-                      }}
-                      className={`p-3 border cursor-pointer group ${
-                        selectedScene === scene.id 
-                          ? "bg-white text-black border-white" 
-                          : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"
-                      }`}
-                    >
+                    <div key={scene.id} onClick={() => { setSelectedScene(scene.id); if (isPlaying && scene.transition && scene.transition !== "none") { setTransitionClass(`vn-transition-${scene.transition}`); setTimeout(() => setTransitionClass(""), 800); } }}
+                      className={`p-3 border cursor-pointer group ${selectedScene === scene.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>
                       <div className="flex items-center justify-between">
-                        <input
-                          value={scene.name}
-                          onChange={(e) => updateScene(scene.id, { name: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`font-bold text-sm bg-transparent border-none outline-none flex-1 w-0 ${
-                            selectedScene === scene.id ? "text-black" : ""
-                          }`}
-                        />
+                        <input value={scene.name} onChange={(e) => updateScene(scene.id, { name: e.target.value })} onClick={(e) => e.stopPropagation()}
+                          className={`font-bold text-sm bg-transparent border-none outline-none flex-1 w-0 ${selectedScene === scene.id ? "text-black" : ""}`} />
                         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); moveScene(scene.id, "up"); }}
-                            disabled={idx === 0}
-                            className={`p-0.5 disabled:opacity-30 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-yellow-400"}`}
-                          >
-                            <ArrowUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); moveScene(scene.id, "down"); }}
-                            disabled={idx === scenes.length - 1}
-                            className={`p-0.5 disabled:opacity-30 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-yellow-400"}`}
-                          >
-                            <ArrowDown className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); duplicateScene(scene.id); }}
-                            className={`p-0.5 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-blue-400"}`}
-                          >
-                            <Copy className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteScene(scene.id); }}
-                            className={`p-0.5 ${selectedScene === scene.id ? "hover:text-red-600" : "hover:text-red-500"}`}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); moveScene(scene.id, "up"); }} disabled={idx === 0} className={`p-0.5 disabled:opacity-30 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-yellow-400"}`}><ArrowUp className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); moveScene(scene.id, "down"); }} disabled={idx === scenes.length - 1} className={`p-0.5 disabled:opacity-30 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-yellow-400"}`}><ArrowDown className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); duplicateScene(scene.id); }} className={`p-0.5 ${selectedScene === scene.id ? "hover:text-zinc-600" : "hover:text-blue-400"}`}><Copy className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteScene(scene.id); }} className={`p-0.5 ${selectedScene === scene.id ? "hover:text-red-600" : "hover:text-red-500"}`}><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </div>
-                      <div className={`text-xs mt-1 ${selectedScene === scene.id ? "text-zinc-600" : "text-zinc-500"}`}>
-                        {scene.dialogue.length} lines • {scene.characters.length} chars
-                      </div>
+                      <div className={`text-xs mt-1 ${selectedScene === scene.id ? "text-zinc-600" : "text-zinc-500"}`}>{scene.dialogue.length} lines • {scene.characters.length} chars</div>
                       {selectedScene === scene.id && (
                         <div className="mt-2 pt-2 border-t border-zinc-300 space-y-2" onClick={(e) => e.stopPropagation()}>
                           <div>
+                            <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Label (for jumps)</label>
+                            <input value={scene.label || ""} onChange={(e) => updateScene(scene.id, { label: e.target.value })} className="w-full p-1 bg-zinc-200 text-black text-xs font-mono border-none" placeholder="scene_label" />
+                          </div>
+                          <div>
                             <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Transition</label>
-                            <select
-                              value={scene.transition || "none"}
-                              onChange={(e) => updateScene(scene.id, { transition: e.target.value as TransitionType })}
-                              className="w-full p-1 bg-zinc-200 text-black text-xs border-none"
-                            >
-                              {TRANSITION_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                              ))}
+                            <select value={scene.transition || "none"} onChange={(e) => updateScene(scene.id, { transition: e.target.value as TransitionType })} className="w-full p-1 bg-zinc-200 text-black text-xs border-none">
+                              {TRANSITION_OPTIONS.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
                             </select>
                           </div>
                           <div>
+                            <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Music URL</label>
+                            <input value={scene.musicUrl || ""} onChange={(e) => updateScene(scene.id, { musicUrl: e.target.value })} className="w-full p-1 bg-zinc-200 text-black text-xs border-none" placeholder="https://..." />
+                          </div>
+                          <div>
                             <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Tint Color</label>
-                            <div className="flex gap-1">
-                              <input
-                                type="color"
-                                value={scene.tintColor || "#000000"}
-                                onChange={(e) => updateScene(scene.id, { tintColor: e.target.value })}
-                                className="w-8 h-6 bg-transparent cursor-pointer"
-                              />
-                              {scene.tintColor && (
-                                <button
-                                  onClick={() => updateScene(scene.id, { tintColor: undefined })}
-                                  className="text-[10px] text-zinc-400 hover:text-red-400"
-                                >
-                                  Clear
-                                </button>
-                              )}
+                            <div className="flex gap-1 items-center">
+                              <input type="color" value={scene.tintColor || "#000000"} onChange={(e) => updateScene(scene.id, { tintColor: e.target.value })} className="w-8 h-5 bg-transparent cursor-pointer" />
+                              {scene.tintColor && <button onClick={() => updateScene(scene.id, { tintColor: undefined })} className="text-[10px] text-zinc-400 hover:text-red-400">Clear</button>}
                             </div>
                           </div>
                         </div>
                       )}
                     </div>
                   ))}
-                  <button
-                    onClick={addScene}
-                    className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2"
-                    data-testid="button-add-scene"
-                  >
-                    <Plus className="w-4 h-4" /> Add Scene
-                  </button>
+                  <button onClick={addScene} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-scene"><Plus className="w-4 h-4" /> Add Scene</button>
                 </>
               )}
 
               {activeTab === "characters" && (
                 <>
                   {characters.map((char) => (
-                    <div 
-                      key={char.id} 
-                      className={`p-3 border cursor-pointer group ${
-                        selectedCharacter === char.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700"
-                      }`}
-                      onClick={() => setSelectedCharacter(char.id)}
-                    >
+                    <div key={char.id} className={`p-3 border cursor-pointer group ${selectedCharacter === char.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700"}`} onClick={() => setSelectedCharacter(char.id)}>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={char.color}
-                          onChange={(e) => updateCharacter(char.id, { color: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 cursor-pointer bg-transparent border-none"
-                        />
-                        <input
-                          value={char.name}
-                          onChange={(e) => updateCharacter(char.id, { name: e.target.value })}
-                          className={`font-bold text-sm bg-transparent border-none outline-none flex-1 ${
-                            selectedCharacter === char.id ? "text-black" : ""
-                          }`}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteCharacter(char.id); }}
-                          className={`opacity-0 group-hover:opacity-100 p-1 ${selectedCharacter === char.id ? "hover:text-red-600" : "hover:text-red-500"}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        <input type="color" value={char.color} onChange={(e) => updateCharacter(char.id, { color: e.target.value })} onClick={(e) => e.stopPropagation()} className="w-4 h-4 cursor-pointer bg-transparent border-none" />
+                        <input value={char.name} onChange={(e) => updateCharacter(char.id, { name: e.target.value })} className={`font-bold text-sm bg-transparent border-none outline-none flex-1 ${selectedCharacter === char.id ? "text-black" : ""}`} onClick={(e) => e.stopPropagation()} />
+                        <button onClick={(e) => { e.stopPropagation(); deleteCharacter(char.id); }} className={`opacity-0 group-hover:opacity-100 p-1 ${selectedCharacter === char.id ? "hover:text-red-600" : "hover:text-red-500"}`}><Trash2 className="w-3 h-3" /></button>
                       </div>
-                      <div className={`text-xs mt-2 ${selectedCharacter === char.id ? "text-zinc-600" : "text-zinc-500"}`}>
-                        {char.sprites.length} sprite(s)
-                      </div>
+                      <div className={`text-xs mt-2 ${selectedCharacter === char.id ? "text-zinc-600" : "text-zinc-500"}`}>{char.sprites.length} sprite(s)</div>
                       {selectedCharacter === char.id && (
                         <div className="mt-3 pt-3 border-t border-zinc-300 space-y-2">
                           <div className="flex gap-2">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); spriteInputRef.current?.click(); }}
-                              className="flex-1 p-2 bg-zinc-200 text-xs flex items-center justify-center gap-1"
-                            >
-                              <Upload className="w-3 h-3" /> Import
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setAiTarget("sprite"); setShowAIGen(true); }}
-                              className="flex-1 p-2 bg-zinc-800 text-white text-xs flex items-center justify-center gap-1"
-                            >
-                              <Wand2 className="w-3 h-3" /> AI Gen
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); spriteInputRef.current?.click(); }} className="flex-1 p-2 bg-zinc-200 text-xs flex items-center justify-center gap-1"><Upload className="w-3 h-3" /> Import</button>
+                            <button onClick={(e) => { e.stopPropagation(); setAiTarget("sprite"); setShowAIGen(true); }} className="flex-1 p-2 bg-zinc-800 text-white text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
                           </div>
                           <div className="space-y-1">
                             {char.sprites.map((sprite, i) => (
                               <div key={i} className="flex items-center gap-2">
-                                <div className="w-10 h-10 bg-zinc-300 overflow-hidden flex-shrink-0">
-                                  {sprite.url && <img src={sprite.url} className="w-full h-full object-cover" />}
-                                </div>
-                                <input
-                                  value={sprite.expression}
-                                  onChange={(e) => {
-                                    const newSprites = [...char.sprites];
-                                    newSprites[i] = { ...sprite, expression: e.target.value };
-                                    updateCharacter(char.id, { sprites: newSprites });
-                                  }}
-                                  className="flex-1 p-1 bg-zinc-200 text-[10px] text-black border-none"
-                                  placeholder="Expression label"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateCharacter(char.id, { sprites: char.sprites.filter((_, j) => j !== i) });
-                                  }}
-                                  className="p-0.5 hover:text-red-600"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
+                                <div className="w-10 h-10 bg-zinc-300 overflow-hidden flex-shrink-0">{sprite.url && <img src={sprite.url} className="w-full h-full object-cover" />}</div>
+                                <input value={sprite.expression} onChange={(e) => { const s = [...char.sprites]; s[i] = { ...sprite, expression: e.target.value }; updateCharacter(char.id, { sprites: s }); }} className="flex-1 p-1 bg-zinc-200 text-[10px] text-black border-none" placeholder="Expression label" onClick={(e) => e.stopPropagation()} />
+                                <button onClick={(e) => { e.stopPropagation(); updateCharacter(char.id, { sprites: char.sprites.filter((_, j) => j !== i) }); }} className="p-0.5 hover:text-red-600"><X className="w-3 h-3" /></button>
                               </div>
                             ))}
                           </div>
@@ -1263,45 +905,19 @@ if(scenes.length>0)showScene(0);
                       )}
                     </div>
                   ))}
-                  <button
-                    onClick={addCharacter}
-                    className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2"
-                    data-testid="button-add-character"
-                  >
-                    <Plus className="w-4 h-4" /> Add Character
-                  </button>
+                  <button onClick={addCharacter} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-character"><Plus className="w-4 h-4" /> Add Character</button>
                 </>
               )}
 
               {activeTab === "backgrounds" && (
                 <>
                   <div className="flex gap-2 mb-2">
-                    <button
-                      onClick={() => bgInputRef.current?.click()}
-                      className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"
-                    >
-                      <Upload className="w-3 h-3" /> Import
-                    </button>
-                    <button
-                      onClick={() => { setAiTarget("background"); setShowAIGen(true); }}
-                      className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"
-                    >
-                      <Wand2 className="w-3 h-3" /> AI Gen
-                    </button>
+                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"><Upload className="w-3 h-3" /> Import</button>
+                    <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
                   </div>
                   {backgrounds.map((bg) => (
-                    <div
-                      key={bg.id}
-                      onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })}
-                      className={`p-2 border cursor-pointer ${
-                        currentScene?.background === bg.id
-                          ? "border-white"
-                          : "border-zinc-700 hover:border-zinc-500"
-                      }`}
-                    >
-                      <div className="aspect-video bg-zinc-800 overflow-hidden mb-1">
-                        <img src={bg.url} className="w-full h-full object-cover" />
-                      </div>
+                    <div key={bg.id} onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })} className={`p-2 border cursor-pointer ${currentScene?.background === bg.id ? "border-white" : "border-zinc-700 hover:border-zinc-500"}`}>
+                      <div className="aspect-video bg-zinc-800 overflow-hidden mb-1"><img src={bg.url} className="w-full h-full object-cover" /></div>
                       <span className="text-xs font-medium">{bg.name}</span>
                     </div>
                   ))}
@@ -1316,335 +932,156 @@ if(scenes.length>0)showScene(0);
                 <div className="relative">
                   {isPlaying ? playtestView : (
                     <div className="h-[70vh] bg-black relative overflow-hidden">
-                      <img 
-                        src={currentBackgroundUrl} 
-                        className="w-full h-full object-cover"
-                      />
-                      {currentScene?.tintColor && (
-                        <div className="absolute inset-0" style={{ backgroundColor: currentScene.tintColor, opacity: 0.15 }} />
-                      )}
-                      
+                      <img src={currentBackgroundUrl} className="w-full h-full object-cover" />
+                      {currentScene?.tintColor && <div className="absolute inset-0" style={{ backgroundColor: currentScene.tintColor, opacity: 0.15 }} />}
                       {currentScene?.characters.filter(c => c.visible).map((sceneChar) => {
                         const char = characters.find(c => c.id === sceneChar.id);
                         const sprite = char?.sprites.find(s => s.expression === sceneChar.expression || s.url);
                         if (!sprite?.url) return null;
-                        
-                        const positionStyles = {
-                          left: { left: "10%", transform: "translateX(0)" },
-                          center: { left: "50%", transform: "translateX(-50%)" },
-                          right: { right: "10%", transform: "translateX(0)" },
-                        };
-                        
-                        return (
-                          <div
-                            key={sceneChar.id}
-                            className="absolute bottom-0 h-[80%] flex items-end"
-                            style={positionStyles[sceneChar.position]}
-                          >
-                            <img src={sprite.url} className="h-full object-contain" />
-                          </div>
-                        );
+                        const positionStyles = { left: { left: "10%", transform: "translateX(0)" }, center: { left: "50%", transform: "translateX(-50%)" }, right: { right: "10%", transform: "translateX(0)" } };
+                        return (<div key={sceneChar.id} className="absolute bottom-0 h-[80%] flex items-end" style={positionStyles[sceneChar.position]}><img src={sprite.url} className="h-full object-contain" /></div>);
                       })}
-                      
-                      <div className="absolute bottom-8 left-8 right-8 h-36 bg-zinc-900/95 border-2 border-white p-6">
+                      <div className="absolute bottom-0 left-0 right-0 p-8" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.9) 30%)" }}>
                         <div className="text-center text-zinc-500">
                           <MessageSquare className="w-8 h-8 mx-auto mb-2" />
                           <p className="text-sm">Click Playtest to preview your visual novel</p>
-                          <p className="text-xs text-zinc-600 mt-1">Space/Enter to advance • L for log • A for auto • Esc to stop</p>
+                          <p className="text-xs text-zinc-600 mt-1">Space/Enter advance • ← rollback • L log • A auto • H hide • Esc quit</p>
                         </div>
                       </div>
-
                       {currentScene && (
                         <div className="absolute top-4 left-4 flex gap-2">
                           <div className="flex bg-zinc-800 p-1">
-                            <button 
-                              onClick={() => setEditMode("dialogue")}
-                              className={`px-3 py-1 text-xs ${editMode === "dialogue" ? "bg-white text-black" : "text-white"}`}
-                            >
-                              Dialogue
-                            </button>
-                            <button 
-                              onClick={() => setEditMode("staging")}
-                              className={`px-3 py-1 text-xs ${editMode === "staging" ? "bg-white text-black" : "text-white"}`}
-                            >
-                              Staging
-                            </button>
+                            {(["dialogue", "staging", "script"] as const).map(mode => (
+                              <button key={mode} onClick={() => setEditMode(mode)} className={`px-3 py-1 text-xs ${editMode === mode ? "bg-white text-black" : "text-white"}`}>
+                                {mode === "script" ? <><Code className="w-3 h-3 inline mr-1" />Script</> : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       )}
-
-                      {currentScene?.transition && currentScene.transition !== "none" && (
-                        <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 text-[10px] font-mono text-zinc-400">
-                          {currentScene.transition}
-                        </div>
-                      )}
+                      {currentScene?.transition && currentScene.transition !== "none" && <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 text-[10px] font-mono text-zinc-400">with {currentScene.transition}</div>}
+                      {currentScene?.musicUrl && <div className="absolute top-4 right-4 bg-black/60 px-2 py-1 text-[10px] font-mono text-zinc-400 flex items-center gap-1" style={{ top: currentScene.transition && currentScene.transition !== "none" ? "2.5rem" : "1rem" }}><Music className="w-3 h-3" /> music</div>}
                     </div>
                   )}
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
-                <ContextMenuItem onClick={addScene} className="hover:bg-zinc-800 cursor-pointer">
-                  <Plus className="w-4 h-4 mr-2" /> Add Scene
-                </ContextMenuItem>
-                <ContextMenuItem onClick={addCharacter} className="hover:bg-zinc-800 cursor-pointer">
-                  <User className="w-4 h-4 mr-2" /> Add Character
-                </ContextMenuItem>
+                <ContextMenuItem onClick={addScene} className="hover:bg-zinc-800 cursor-pointer"><Plus className="w-4 h-4 mr-2" /> Add Scene</ContextMenuItem>
+                <ContextMenuItem onClick={addCharacter} className="hover:bg-zinc-800 cursor-pointer"><User className="w-4 h-4 mr-2" /> Add Character</ContextMenuItem>
                 <ContextMenuSeparator className="bg-zinc-700" />
-                <ContextMenuItem onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
-                  <Wand2 className="w-4 h-4 mr-2" /> Generate Background
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => { setAiTarget("sprite"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer">
-                  <ImageIcon className="w-4 h-4 mr-2" /> Generate Sprite
-                </ContextMenuItem>
+                <ContextMenuItem onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer"><Wand2 className="w-4 h-4 mr-2" /> Generate Background</ContextMenuItem>
+                <ContextMenuItem onClick={() => { setAiTarget("sprite"); setShowAIGen(true); }} className="hover:bg-zinc-800 cursor-pointer"><ImageIcon className="w-4 h-4 mr-2" /> Generate Sprite</ContextMenuItem>
                 <ContextMenuSeparator className="bg-zinc-700" />
-                <ContextMenuItem onClick={() => isPlaying ? setIsPlaying(false) : startPlaytest()} className="hover:bg-zinc-800 cursor-pointer">
-                  <Play className="w-4 h-4 mr-2" /> {isPlaying ? "Stop" : "Playtest"}
-                </ContextMenuItem>
-                {currentScene && (
-                  <>
-                    <ContextMenuSeparator className="bg-zinc-700" />
-                    <ContextMenuItem onClick={() => addDialogue(currentScene.id)} className="hover:bg-zinc-800 cursor-pointer">
-                      <MessageSquare className="w-4 h-4 mr-2" /> Add Dialogue
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => duplicateScene(currentScene.id)} className="hover:bg-zinc-800 cursor-pointer">
-                      <Copy className="w-4 h-4 mr-2" /> Duplicate Scene
-                    </ContextMenuItem>
-                  </>
-                )}
+                <ContextMenuItem onClick={() => isPlaying ? (setIsPlaying(false), stopMusic()) : startPlaytest()} className="hover:bg-zinc-800 cursor-pointer"><Play className="w-4 h-4 mr-2" /> {isPlaying ? "Stop" : "Playtest"}</ContextMenuItem>
+                {currentScene && (<><ContextMenuSeparator className="bg-zinc-700" /><ContextMenuItem onClick={() => addDialogue(currentScene.id)} className="hover:bg-zinc-800 cursor-pointer"><MessageSquare className="w-4 h-4 mr-2" /> Add Dialogue</ContextMenuItem><ContextMenuItem onClick={() => duplicateScene(currentScene.id)} className="hover:bg-zinc-800 cursor-pointer"><Copy className="w-4 h-4 mr-2" /> Duplicate Scene</ContextMenuItem></>)}
               </ContextMenuContent>
             </ContextMenu>
 
             <div className="flex-1 border-t border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
-              <div className="border-b border-zinc-800 p-2 bg-zinc-800 flex items-center justify-between">
-                <div className="text-xs font-mono text-zinc-400">
-                  {currentScene?.name || "No scene selected"}
-                </div>
-                {currentScene && editMode === "dialogue" && (
-                  <button
-                    onClick={() => addDialogue(currentScene.id)}
-                    className="px-3 py-1 bg-white text-black text-xs font-medium flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> Add Line
-                  </button>
-                )}
-                {currentScene && editMode === "staging" && (
-                  <div className="flex gap-2">
-                    {characters.map(char => (
-                      <button
-                        key={char.id}
-                        onClick={() => addCharacterToScene(currentScene.id, char.id, "center")}
-                        className="px-2 py-1 bg-zinc-700 text-xs flex items-center gap-1"
-                        style={{ borderLeft: `3px solid ${char.color}` }}
-                      >
-                        <Plus className="w-3 h-3" /> {char.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 p-4 overflow-auto space-y-2">
-                {editMode === "dialogue" && currentScene?.dialogue.map((line, index) => (
-                  <div key={index} className={`flex gap-4 p-2 hover:bg-zinc-800 group ${playIndex === index && isPlaying ? "bg-zinc-700" : ""}`}>
-                    <span className="text-zinc-600 w-8 text-right text-sm">{index + 1}</span>
-                    <select
-                      value={line.speaker}
-                      onChange={(e) => updateDialogue(currentScene.id, index, { speaker: e.target.value })}
-                      className="w-32 p-1 border border-zinc-700 bg-zinc-800 text-sm"
-                    >
-                      <option value="Narrator">Narrator</option>
-                      {characters.map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                    <input
-                      value={line.text}
-                      onChange={(e) => updateDialogue(currentScene.id, index, { text: e.target.value })}
-                      className="flex-1 p-1 border border-zinc-700 bg-zinc-800 text-sm font-mono"
-                      placeholder="Enter dialogue..."
-                    />
-                    <button
-                      onClick={() => moveDialogue(currentScene.id, index, "up")}
-                      disabled={index === 0}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30"
-                      title="Move up"
-                    >
-                      <ArrowUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => moveDialogue(currentScene.id, index, "down")}
-                      disabled={index === currentScene.dialogue.length - 1}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30"
-                      title="Move down"
-                    >
-                      <ArrowDown className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => addChoice(currentScene.id, index)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-blue-400"
-                      title="Add branching choice"
-                    >
-                      <GitBranch className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteDialogue(currentScene.id, index)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-
-                {editMode === "dialogue" && currentScene?.dialogue.map((line, index) => (
-                  line.choices && line.choices.length > 0 ? (
-                    <div key={`choices-${index}`} className="ml-12 pl-4 border-l-2 border-blue-500/30 space-y-1">
-                      <div className="text-[10px] font-bold uppercase text-blue-400 mb-1">Choices at line {index + 1}</div>
-                      {line.choices.map((choice, ci) => (
-                        <div key={ci} className="flex gap-2 items-center">
-                          <input
-                            value={choice.label}
-                            onChange={(e) => {
-                              const newChoices = [...(line.choices || [])];
-                              newChoices[ci] = { ...choice, label: e.target.value };
-                              updateDialogue(currentScene.id, index, { choices: newChoices });
-                            }}
-                            className="flex-1 p-1 border border-zinc-700 bg-zinc-800 text-xs"
-                            placeholder="Choice text"
-                          />
-                          <select
-                            value={choice.target}
-                            onChange={(e) => {
-                              const newChoices = [...(line.choices || [])];
-                              newChoices[ci] = { ...choice, target: e.target.value };
-                              updateDialogue(currentScene.id, index, { choices: newChoices });
-                            }}
-                            className="w-32 p-1 border border-zinc-700 bg-zinc-800 text-xs"
-                          >
-                            {scenes.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => {
-                              const newChoices = (line.choices || []).filter((_, j) => j !== ci);
-                              updateDialogue(currentScene.id, index, { choices: newChoices.length > 0 ? newChoices : undefined });
-                            }}
-                            className="p-1 hover:text-red-500"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null
-                ))}
-
-                {editMode === "staging" && currentScene && (
-                  <div className="space-y-2">
-                    {currentScene.characters.map(sceneChar => {
-                      const char = characters.find(c => c.id === sceneChar.id);
-                      const availableSprites = char?.sprites.filter(s => s.url) || [];
-                      return (
-                        <div key={sceneChar.id} className="p-3 bg-zinc-800 border border-zinc-700 space-y-3">
-                          <div className="flex items-center gap-4">
-                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: char?.color }} />
-                            <span className="font-medium text-sm flex-1">{char?.name}</span>
-                            <select
-                              value={sceneChar.position}
-                              onChange={(e) => {
-                                updateScene(currentScene.id, {
-                                  characters: currentScene.characters.map(c => 
-                                    c.id === sceneChar.id ? { ...c, position: e.target.value as any } : c
-                                  )
-                                });
-                              }}
-                              className="p-1 bg-zinc-700 border border-zinc-600 text-sm"
-                            >
-                              <option value="left">Left</option>
-                              <option value="center">Center</option>
-                              <option value="right">Right</option>
-                            </select>
-                            <select
-                              value={sceneChar.expression}
-                              onChange={(e) => {
-                                updateScene(currentScene.id, {
-                                  characters: currentScene.characters.map(c =>
-                                    c.id === sceneChar.id ? { ...c, expression: e.target.value } : c
-                                  )
-                                });
-                              }}
-                              className="p-1 bg-zinc-700 border border-zinc-600 text-xs"
-                            >
-                              {char?.sprites.map((s, i) => (
-                                <option key={i} value={s.expression}>{s.expression}</option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() => {
-                                updateScene(currentScene.id, {
-                                  characters: currentScene.characters.map(c =>
-                                    c.id === sceneChar.id ? { ...c, visible: !c.visible } : c
-                                  )
-                                });
-                              }}
-                              className={`p-1 ${sceneChar.visible ? "text-white" : "text-zinc-500"}`}
-                            >
-                              {sceneChar.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                            </button>
-                            <button
-                              onClick={() => removeCharacterFromScene(currentScene.id, sceneChar.id)}
-                              className="p-1 hover:text-red-500"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          {availableSprites.length > 0 && (
-                            <div className="flex gap-2 overflow-x-auto">
-                              {availableSprites.map((sprite, idx) => (
-                                <div
-                                  key={idx}
-                                  onClick={() => {
-                                    updateScene(currentScene.id, {
-                                      characters: currentScene.characters.map(c =>
-                                        c.id === sceneChar.id ? { ...c, expression: sprite.expression } : c
-                                      )
-                                    });
-                                  }}
-                                  className={`flex-shrink-0 border-2 cursor-pointer overflow-hidden ${
-                                    sceneChar.expression === sprite.expression ? "border-white" : "border-zinc-600 hover:border-zinc-400"
-                                  }`}
-                                >
-                                  <div className="w-16 h-16">
-                                    <img src={sprite.url} className="w-full h-full object-cover" />
-                                  </div>
-                                  <div className="text-[8px] text-center py-0.5 bg-zinc-700 truncate px-1">
-                                    {sprite.expression}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {availableSprites.length === 0 && (
-                            <p className="text-xs text-zinc-500">No sprites imported. Add sprites in Characters tab.</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {currentScene.characters.length === 0 && (
-                      <div className="text-center py-8 text-zinc-500">
-                        <User className="w-8 h-8 mx-auto mb-2" />
-                        <p className="text-sm">No characters in this scene. Add them above.</p>
+              {editMode === "script" ? (
+                <ScriptView scenes={scenes} characters={characters} backgrounds={backgrounds} />
+              ) : (
+                <>
+                  <div className="border-b border-zinc-800 p-2 bg-zinc-800 flex items-center justify-between">
+                    <div className="text-xs font-mono text-zinc-400">{currentScene?.name || "No scene selected"}{currentScene?.label ? ` [${currentScene.label}]` : ""}</div>
+                    {currentScene && editMode === "dialogue" && (
+                      <button onClick={() => addDialogue(currentScene.id)} className="px-3 py-1 bg-white text-black text-xs font-medium flex items-center gap-1"><Plus className="w-3 h-3" /> Add Line</button>
+                    )}
+                    {currentScene && editMode === "staging" && (
+                      <div className="flex gap-2">
+                        {characters.map(char => (
+                          <button key={char.id} onClick={() => addCharacterToScene(currentScene.id, char.id, "center")} className="px-2 py-1 bg-zinc-700 text-xs flex items-center gap-1" style={{ borderLeft: `3px solid ${char.color}` }}><Plus className="w-3 h-3" /> {char.name}</button>
+                        ))}
                       </div>
                     )}
                   </div>
-                )}
+                  <div className="flex-1 p-4 overflow-auto space-y-1">
+                    {editMode === "dialogue" && currentScene?.dialogue.map((line, index) => (
+                      <div key={index}>
+                        {line.stageDirection && (
+                          <div className="flex gap-4 p-1 items-center ml-12">
+                            <span className="text-[10px] text-zinc-600 italic font-mono">#{" "}</span>
+                            <input value={line.stageDirection} onChange={(e) => updateDialogue(currentScene.id, index, { stageDirection: e.target.value })} className="flex-1 p-1 border border-zinc-700/50 bg-zinc-800/50 text-[10px] font-mono italic text-zinc-500" placeholder="Stage direction..." />
+                          </div>
+                        )}
+                        <div className={`flex gap-4 p-2 hover:bg-zinc-800 group ${playIndex === index && isPlaying ? "bg-zinc-700" : ""}`}>
+                          <span className="text-zinc-600 w-8 text-right text-sm">{index + 1}</span>
+                          <select value={line.speaker} onChange={(e) => updateDialogue(currentScene.id, index, { speaker: e.target.value })} className="w-32 p-1 border border-zinc-700 bg-zinc-800 text-sm">
+                            <option value="Narrator">Narrator</option>
+                            {characters.map(c => (<option key={c.id} value={c.name}>{c.name}</option>))}
+                          </select>
+                          <input value={line.text} onChange={(e) => updateDialogue(currentScene.id, index, { text: e.target.value })} className="flex-1 p-1 border border-zinc-700 bg-zinc-800 text-sm font-mono" placeholder="Enter dialogue..." />
+                          <button onClick={() => moveDialogue(currentScene.id, index, "up")} disabled={index === 0} className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30" title="Move up"><ArrowUp className="w-4 h-4" /></button>
+                          <button onClick={() => moveDialogue(currentScene.id, index, "down")} disabled={index === currentScene.dialogue.length - 1} className="opacity-0 group-hover:opacity-100 p-1 hover:text-yellow-400 disabled:opacity-30" title="Move down"><ArrowDown className="w-4 h-4" /></button>
+                          <button onClick={() => updateDialogue(currentScene.id, index, { stageDirection: line.stageDirection ? undefined : "" })} className={`opacity-0 group-hover:opacity-100 p-1 ${line.stageDirection !== undefined ? "text-purple-400" : "hover:text-purple-400"}`} title="Stage direction"><FileText className="w-4 h-4" /></button>
+                          <button onClick={() => addChoice(currentScene.id, index)} className="opacity-0 group-hover:opacity-100 p-1 hover:text-blue-400" title="Add branching choice"><GitBranch className="w-4 h-4" /></button>
+                          <button onClick={() => deleteDialogue(currentScene.id, index)} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                        {line.choices && line.choices.length > 0 && (
+                          <div className="ml-12 pl-4 border-l-2 border-blue-500/30 space-y-1 mb-2">
+                            <div className="text-[10px] font-bold uppercase text-blue-400 mb-1 font-mono">menu:</div>
+                            {line.choices.map((choice, ci) => (
+                              <div key={ci} className="flex gap-2 items-center">
+                                <span className="text-[10px] text-zinc-600 font-mono">→</span>
+                                <input value={choice.label} onChange={(e) => { const nc = [...(line.choices || [])]; nc[ci] = { ...choice, label: e.target.value }; updateDialogue(currentScene.id, index, { choices: nc }); }} className="flex-1 p-1 border border-zinc-700 bg-zinc-800 text-xs" placeholder="Choice text" />
+                                <span className="text-[10px] text-zinc-600 font-mono">jump</span>
+                                <select value={choice.target} onChange={(e) => { const nc = [...(line.choices || [])]; nc[ci] = { ...choice, target: e.target.value }; updateDialogue(currentScene.id, index, { choices: nc }); }} className="w-32 p-1 border border-zinc-700 bg-zinc-800 text-xs">
+                                  {scenes.map(s => (<option key={s.id} value={s.id}>{s.label || s.name}</option>))}
+                                </select>
+                                <button onClick={() => { const nc = (line.choices || []).filter((_, j) => j !== ci); updateDialogue(currentScene.id, index, { choices: nc.length > 0 ? nc : undefined }); }} className="p-1 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
 
-                {editMode === "dialogue" && currentScene && currentScene.dialogue.length === 0 && (
-                  <div className="text-center py-8 text-zinc-500">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">No dialogue yet. Click "Add Line" to start.</p>
+                    {editMode === "staging" && currentScene && (
+                      <div className="space-y-2">
+                        {currentScene.characters.map(sceneChar => {
+                          const char = characters.find(c => c.id === sceneChar.id);
+                          const availableSprites = char?.sprites.filter(s => s.url) || [];
+                          return (
+                            <div key={sceneChar.id} className="p-3 bg-zinc-800 border border-zinc-700 space-y-3">
+                              <div className="flex items-center gap-4">
+                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: char?.color }} />
+                                <span className="font-medium text-sm flex-1">{char?.name}</span>
+                                <select value={sceneChar.position} onChange={(e) => updateScene(currentScene.id, { characters: currentScene.characters.map(c => c.id === sceneChar.id ? { ...c, position: e.target.value as any } : c) })} className="p-1 bg-zinc-700 border border-zinc-600 text-sm">
+                                  <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
+                                </select>
+                                <select value={sceneChar.expression} onChange={(e) => updateScene(currentScene.id, { characters: currentScene.characters.map(c => c.id === sceneChar.id ? { ...c, expression: e.target.value } : c) })} className="p-1 bg-zinc-700 border border-zinc-600 text-xs">
+                                  {char?.sprites.map((s, i) => (<option key={i} value={s.expression}>{s.expression}</option>))}
+                                </select>
+                                <button onClick={() => updateScene(currentScene.id, { characters: currentScene.characters.map(c => c.id === sceneChar.id ? { ...c, visible: !c.visible } : c) })} className={`p-1 ${sceneChar.visible ? "text-white" : "text-zinc-500"}`}>
+                                  {sceneChar.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                </button>
+                                <button onClick={() => removeCharacterFromScene(currentScene.id, sceneChar.id)} className="p-1 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                              {availableSprites.length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto">
+                                  {availableSprites.map((sprite, idx) => (
+                                    <div key={idx} onClick={() => updateScene(currentScene.id, { characters: currentScene.characters.map(c => c.id === sceneChar.id ? { ...c, expression: sprite.expression } : c) })}
+                                      className={`flex-shrink-0 border-2 cursor-pointer overflow-hidden ${sceneChar.expression === sprite.expression ? "border-white" : "border-zinc-600 hover:border-zinc-400"}`}>
+                                      <div className="w-16 h-16"><img src={sprite.url} className="w-full h-full object-cover" /></div>
+                                      <div className="text-[8px] text-center py-0.5 bg-zinc-700 truncate px-1">{sprite.expression}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {availableSprites.length === 0 && <p className="text-xs text-zinc-500">No sprites imported. Add sprites in Characters tab.</p>}
+                            </div>
+                          );
+                        })}
+                        {currentScene.characters.length === 0 && <div className="text-center py-8 text-zinc-500"><User className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">No characters in this scene. Add them above.</p></div>}
+                      </div>
+                    )}
+
+                    {editMode === "dialogue" && currentScene && currentScene.dialogue.length === 0 && (
+                      <div className="text-center py-8 text-zinc-500"><MessageSquare className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">No dialogue yet. Click "Add Line" to start.</p></div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1656,12 +1093,8 @@ if(scenes.length>0)showScene(0);
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-zinc-900 border border-zinc-700 p-6 w-[500px]">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <Wand2 className="w-5 h-5" /> AI Generate {aiTarget === "background" ? "Background" : "Sprite"}
-                </h3>
-                <button onClick={() => setShowAIGen(false)} className="p-2 hover:bg-zinc-800">
-                  <X className="w-4 h-4" />
-                </button>
+                <h3 className="font-bold text-lg flex items-center gap-2"><Wand2 className="w-5 h-5" /> AI Generate {aiTarget === "background" ? "Background" : "Sprite"}</h3>
+                <button onClick={() => setShowAIGen(false)} className="p-2 hover:bg-zinc-800"><X className="w-4 h-4" /></button>
               </div>
               <AIGenerator type="vn" onImageGenerated={handleAIGenerated} />
             </div>
