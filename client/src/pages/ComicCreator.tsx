@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
+import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
@@ -2157,6 +2158,140 @@ export default function ComicCreator() {
     }
   };
 
+  const exportPanelToFxStudio = async (page: "left" | "right", panelId: string) => {
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    if (!panel) {
+      toast.error("Panel not found");
+      return;
+    }
+
+    const toastId = toast.loading("Capturing panel for FX Studio...");
+    try {
+      const exportW = 1200;
+      const exportH = 1600;
+      const panelW = (panel.width / 100) * exportW;
+      const panelH = (panel.height / 100) * exportH;
+
+      const singlePanelForExport: Panel[] = [{
+        ...panel,
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      }];
+
+      const canvas = await exportPageToCanvas(singlePanelForExport, Math.round(panelW), Math.round(panelH));
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const spreadLabel = `Spread ${currentSpreadIndex + 1}`;
+      const panelLabel = `${page === "left" ? "L" : "R"}-Panel`;
+
+      const exportTag = panel.coverRole === "back-cover" ? "back-cover" : panel.coverRole === "front-cover" ? "cover" : "interior-page";
+
+      await fxStudioApi.pushTaggedAsset({
+        name: `${title || "Untitled"} — ${spreadLabel} ${panelLabel}`,
+        asset_tag: exportTag,
+        preview_data_url: dataUrl,
+        target_page: currentSpreadIndex,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/comic",
+        metadata: {
+          panel_id: panelId,
+          page_side: page,
+          spread_index: currentSpreadIndex,
+          panel_type: panel.type,
+          cover_role: panel.coverRole || null,
+        },
+      });
+
+      toast.success("Panel sent to FX Studio", {
+        id: toastId,
+        action: {
+          label: "Open FX Studio",
+          onClick: () => window.open("https://pressplays.site", "_blank"),
+        },
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send panel to FX Studio", { id: toastId });
+    }
+  };
+
+  const applyFxToPanel = (effect: FxEffect) => {
+    if (!selectedPanelId) {
+      toast.error("Select a panel first");
+      return;
+    }
+    if (!effect.preview_data_url) {
+      toast.error("This effect has no preview image");
+      return;
+    }
+    addSidebarAssetToPanel({ url: effect.preview_data_url, name: effect.name });
+  };
+
+  const returnFxToPanel = (effect: FxEffect, panelId: string, pageSide: string) => {
+    if (!effect.preview_data_url) {
+      toast.error("This effect has no preview image");
+      return;
+    }
+    const page = pageSide as "left" | "right";
+
+    const targetSpreadIndex = effect.metadata?.spread_index;
+    if (typeof targetSpreadIndex === "number" && targetSpreadIndex !== currentSpreadIndex) {
+      if (targetSpreadIndex >= 0 && targetSpreadIndex < spreads.length) {
+        setCurrentSpreadIndex(targetSpreadIndex);
+        toast.info(`Navigated to spread ${targetSpreadIndex + 1}`);
+        setTimeout(() => {
+          const targetSpread = spreads[targetSpreadIndex];
+          const targetPanels = page === "left" ? targetSpread.leftPage : targetSpread.rightPage;
+          const panel = targetPanels.find(p => p.id === panelId);
+          if (!panel) {
+            toast.error("Target panel not found on that spread");
+            return;
+          }
+          insertFxIntoPanel(effect, panel, page, panelId, targetSpreadIndex);
+        }, 100);
+        return;
+      }
+    }
+
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    if (!panel) {
+      toast.error("Target panel not found on current spread. Navigate to the correct spread first.");
+      return;
+    }
+    insertFxIntoPanel(effect, panel, page, panelId, currentSpreadIndex);
+  };
+
+  const insertFxIntoPanel = (effect: FxEffect, panel: Panel, page: "left" | "right", panelId: string, _spreadIdx: number) => {
+    if (panel.coverRole && coverDesignData) {
+      const view = panel.coverRole === "front-cover" ? "front" : "back";
+      const newLayer: CoverImageLayer = {
+        id: `img_${Date.now()}`,
+        url: effect.preview_data_url,
+        name: effect.name || "FX Return",
+        transform: { x: 0, y: 0, width: 600, height: 800, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        locked: false,
+      };
+      const layerKey = `${view}ImageLayers` as keyof CoverData;
+      const existing = (coverDesignData[layerKey] as CoverImageLayer[]) || [];
+      const newOrder = [...(coverDesignData.elementZOrder || []), newLayer.id];
+      updateCoverData({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
+      toast.success(`FX applied to ${view} cover`);
+    } else {
+      const { w, h } = getPanelPixelSize(page, panelId);
+      addContentToPanel(page, panelId, {
+        type: "image",
+        transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: { url: effect.preview_data_url },
+        locked: false,
+      });
+      toast.success(`FX applied back to ${page} panel`);
+    }
+  };
+
   const startInlineDrawing = (page: "left" | "right", panelId: string) => {
     setInlineDrawingPanelId(panelId);
     setInlineDrawingPage(page);
@@ -3826,6 +3961,13 @@ export default function ComicCreator() {
                       >
                         <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
                       </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => exportPanelToFxStudio("left", selectedPanelId)}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                        data-testid="button-send-panel-fx-left"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" /> Send to FX Studio
+                      </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>
                         <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -4173,6 +4315,13 @@ export default function ComicCreator() {
                         className="hover:bg-zinc-800 cursor-pointer"
                       >
                         <Film className="w-4 h-4 mr-2" /> Edit in Motion Studio
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => exportPanelToFxStudio("right", selectedPanelId)}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                        data-testid="button-send-panel-fx-right"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" /> Send to FX Studio
                       </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>
@@ -5624,7 +5773,12 @@ export default function ComicCreator() {
                 </div>
               </>
             ) : (
-              <FxBrowserPanel onClose={() => setAssetLibraryTab("library")} />
+              <FxBrowserPanel
+                onClose={() => setAssetLibraryTab("library")}
+                onApplyToPanel={applyFxToPanel}
+                onReturnToPanel={returnFxToPanel}
+                projectId={effectiveProjectId || undefined}
+              />
             )}
           </div>
         </div>

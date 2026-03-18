@@ -63,9 +63,16 @@ Supports video/GIF export with progress tracking, using a Web Worker for GIF enc
 ### Platform Analytics Dashboard
 An admin-only dashboard provides 40+ KPIs across 7 tabs: Overview, Growth, Engagement, Content, Revenue, AI & Platform, and User Health. The API endpoint (`GET /api/analytics/platform`) aggregates data from various sources, and charts use recharts.
 
-### FX Studio Integration
-Integrates with FX Studio (pressplays.site) to browse, import, and apply visual effects across all creator tools. The `FxBrowserPanel` component provides a reusable FX browser with search, save-to-library, and context-specific import actions. Server-side proxy routes (`/api/fx-studio/effects`) handle CRUD operations against the FX Studio Supabase backend. Integration points:
-- **Comic Creator**: FX Studio tab in Asset Library dialog + sidebar shortcut to pressplays.site
+### FX Studio Integration (Bidirectional Pipeline)
+Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools. The `FxBrowserPanel` component provides a reusable FX browser with tag-based folder navigation (Overlays, Backgrounds, Characters, Pages, etc.), search, save-to-library, and context-specific import actions. Server-side proxy routes (`/api/fx-studio/effects`) handle CRUD operations against the FX Studio Supabase backend.
+
+**Bidirectional Pipeline (Comic Creator):**
+- **Export**: Right-click panel → "Send to FX Studio" captures panel as PNG, pushes via `pushTaggedAsset()` with metadata (panel_id, page_side, spread_index, cover_role), and offers link to pressplays.site
+- **Import**: FX browser "Apply to Panel" inserts effects directly into selected panel; "Return to Panel" auto-targets the original panel from metadata, navigating to correct spread and handling cover-aware insertion
+- **Tag Folders**: FxBrowserPanel sidebar filters by asset_tag (fx-overlay, background, character-art, cover, interior-page, etc.) with a "My Project" folder showing project-linked assets
+
+**Integration Points:**
+- **Comic Creator**: FX Studio tab in Asset Library dialog with Apply to Panel + Return to Panel actions, panel context menu "Send to FX Studio", sidebar shortcut to pressplays.site
 - **Motion Studio**: Floating FX browser panel with per-frame effect application
 - **Visual Novel Creator**: FX button in header; imports effects as scene backgrounds
 - **CYOA Builder**: FX button in header; imports as node images (when node selected) or backgrounds (when no node selected), with target indicator and clear option
