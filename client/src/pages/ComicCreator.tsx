@@ -4448,73 +4448,99 @@ export default function ComicCreator() {
                               {showPanelContents ? "Hide Contents" : "Show Contents"}
                             </button>
                           </div>
-                          {sortedEls.map((el, eIdx) => (
-                            <div
-                              key={el.id}
-                              className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === el.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
-                              onClick={(e) => { e.stopPropagation(); setSelectedContentId(el.id); }}
-                            >
-                              <span className="w-3 text-center text-[10px] opacity-60">{el.icon}</span>
-                              <span className="flex-1 truncate text-[10px]">{el.label}</span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); moveCoverElUp(el.id); }}
-                                disabled={eIdx === 0}
-                                className={`p-0.5 ${eIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
-                                title="Move Up"
-                              ><MoveUp className="w-2.5 h-2.5" /></button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); moveCoverElDown(el.id); }}
-                                disabled={eIdx === sortedEls.length - 1}
-                                className={`p-0.5 ${eIdx === sortedEls.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
-                                title="Move Down"
-                              ><MoveDown className="w-2.5 h-2.5" /></button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deleteCoverEl(el.id); }}
-                                className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
-                                title="Delete"
-                              ><Trash2 className="w-2.5 h-2.5" /></button>
-                            </div>
-                          ))}
-                          {imageLayers.length > 0 && (
-                            <>
-                              <div className="px-2 py-0.5 text-[8px] font-bold text-violet-400 uppercase tracking-wider mt-1">Image Layers</div>
-                              {imageLayers.map((il, iIdx) => (
-                                <div
-                                  key={il.id}
-                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}
-                                >
-                                  <span className="w-3 text-center text-[10px] opacity-60">🖼</span>
-                                  <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); deleteImageLayer(il.id); }}
-                                    className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
-                                    title="Delete"
-                                  ><Trash2 className="w-2.5 h-2.5" /></button>
-                                </div>
-                              ))}
-                            </>
-                          )}
-                          {textLayers.length > 0 && (
-                            <>
-                              <div className="px-2 py-0.5 text-[8px] font-bold text-amber-400 uppercase tracking-wider mt-1">Text Layers</div>
-                              {textLayers.map((tl, tIdx) => (
-                                <div
-                                  key={tl.id}
-                                  className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}
-                                >
-                                  <span className="w-3 text-center text-[10px] opacity-60">Aa</span>
-                                  <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); deleteTextLayer(tl.id); }}
-                                    className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
-                                    title="Delete"
-                                  ><Trash2 className="w-2.5 h-2.5" /></button>
-                                </div>
-                              ))}
-                            </>
-                          )}
+                          {(() => {
+                            const masterMap = new Map(sortedEls.map(el => [elToMaster[el.id] || el.id, el]));
+                            const imgMap = new Map(imageLayers.map(il => [il.id, il]));
+                            const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
+                            const allIds = new Set([
+                              ...sortedEls.map(el => elToMaster[el.id] || el.id),
+                              ...imageLayers.map(il => il.id),
+                              ...textLayers.map(tl => tl.id),
+                            ]);
+                            const unified = [...currentOrder.filter(id => allIds.has(id))];
+                            allIds.forEach(id => { if (!unified.includes(id)) unified.push(id); });
+
+                            const moveUnifiedUp = (zId: string) => {
+                              const order = [...(cd.elementZOrder || [])];
+                              if (!order.includes(zId)) order.push(zId);
+                              const idx = order.indexOf(zId);
+                              if (idx <= 0) return;
+                              [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+                              updateCoverData({ elementZOrder: order });
+                            };
+                            const moveUnifiedDown = (zId: string) => {
+                              const order = [...(cd.elementZOrder || [])];
+                              if (!order.includes(zId)) order.push(zId);
+                              const idx = order.indexOf(zId);
+                              if (idx >= order.length - 1) return;
+                              [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+                              updateCoverData({ elementZOrder: order });
+                            };
+
+                            return unified.map((zId, uIdx) => {
+                              const masterEl = masterMap.get(zId);
+                              if (masterEl) {
+                                return (
+                                  <div key={masterEl.id}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === masterEl.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedContentId(masterEl.id); }}>
+                                    <span className="w-3 text-center text-[10px] opacity-60">{masterEl.icon}</span>
+                                    <span className="flex-1 truncate text-[10px]">{masterEl.label}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
+                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
+                                    ><MoveUp className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
+                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
+                                    ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); deleteCoverEl(masterEl.id); }}
+                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
+                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                  </div>
+                                );
+                              }
+                              const il = imgMap.get(zId);
+                              if (il) {
+                                return (
+                                  <div key={il.id}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}>
+                                    <ImageIcon className="w-3 h-3 text-violet-400 opacity-60 shrink-0" />
+                                    <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
+                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
+                                    ><MoveUp className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
+                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
+                                    ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); deleteImageLayer(il.id); }}
+                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
+                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                  </div>
+                                );
+                              }
+                              const tl = txtMap.get(zId);
+                              if (tl) {
+                                return (
+                                  <div key={tl.id}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}>
+                                    <Type className="w-3 h-3 text-amber-400 opacity-60 shrink-0" />
+                                    <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
+                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
+                                    ><MoveUp className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
+                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
+                                    ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); deleteTextLayer(tl.id); }}
+                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
+                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            });
+                          })()}
                         </div>
                       );
                     })()}
