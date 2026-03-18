@@ -1044,7 +1044,7 @@ if(S.length>0)showS(0);
             </button>
             <button
               onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-              className={`px-3 py-2 border text-sm font-medium flex items-center gap-2 ${showTemplatePicker ? "bg-white text-black border-white" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
+              className={`px-3 py-2 border border-zinc-700 text-sm font-medium flex items-center gap-2 ${showTemplatePicker ? "bg-white text-black" : "bg-zinc-800 hover:bg-zinc-700"}`}
               data-testid="button-vn-templates"
             >
               <BookOpen className="w-4 h-4" /> Templates
@@ -1073,23 +1073,14 @@ if(S.length>0)showS(0);
         <div className="flex-1 flex overflow-hidden">
           <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="border-b border-zinc-800 p-1 flex">
-              {([
-                { key: "scenes" as const, label: "\u{1F3AC} Scenes", hint: "Build your story scene by scene" },
-                { key: "characters" as const, label: "\u{1F464} Cast", hint: "Create your characters" },
-                { key: "backgrounds" as const, label: "\u{1F5BC}\u{FE0F} Worlds", hint: "Design your backdrops" },
-              ]).map(tab => (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)} title={tab.hint} className={`flex-1 py-2 text-xs font-bold transition-all ${activeTab === tab.key ? "bg-white text-black scale-[1.02]" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>{tab.label}</button>
+              {(["scenes", "characters", "backgrounds"] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{tab}</button>
               ))}
             </div>
 
             <div className="flex-1 overflow-auto p-2 space-y-2">
               {activeTab === "scenes" && (
                 <>
-                  {scenes.length <= 2 && (
-                    <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-lg">
-                      <p className="text-[11px] text-sky-300">{"\u{1F4A1}"} <strong>Tip:</strong> Each scene is a moment in your story. Add dialogue, pick a backdrop, and place characters on stage!</p>
-                    </div>
-                  )}
                   {scenes.map((scene, idx) => (
                     <div key={scene.id} onClick={() => { setSelectedScene(scene.id); if (isPlaying && scene.transition && scene.transition !== "none") { setTransitionClass(`vn-transition-${scene.transition}`); setTimeout(() => setTransitionClass(""), 800); } }}
                       className={`p-3 border cursor-pointer group ${selectedScene === scene.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>
@@ -1131,17 +1122,12 @@ if(S.length>0)showS(0);
                       )}
                     </div>
                   ))}
-                  <button onClick={addScene} className="w-full p-3 border border-dashed border-zinc-700 hover:border-sky-400 hover:bg-sky-500/10 text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]" data-testid="button-add-scene"><Plus className="w-4 h-4" /> Add a New Scene</button>
+                  <button onClick={addScene} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-scene"><Plus className="w-4 h-4" /> Add Scene</button>
                 </>
               )}
 
               {activeTab === "characters" && (
                 <>
-                  {characters.length <= 2 && (
-                    <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                      <p className="text-[11px] text-purple-300">{"\u{2728}"} <strong>Your cast!</strong> Give each character a name and color. Upload sprites or use AI to create their look!</p>
-                    </div>
-                  )}
                   {characters.map((char) => (
                     <div key={char.id} className={`p-3 border cursor-pointer group ${selectedCharacter === char.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700"}`} onClick={() => setSelectedCharacter(char.id)}>
                       <div className="flex items-center gap-2">
@@ -1169,18 +1155,15 @@ if(S.length>0)showS(0);
                       )}
                     </div>
                   ))}
-                  <button onClick={addCharacter} className="w-full p-3 border border-dashed border-zinc-700 hover:border-purple-400 hover:bg-purple-500/10 text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]" data-testid="button-add-character"><Plus className="w-4 h-4" /> Add a New Character</button>
+                  <button onClick={addCharacter} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-character"><Plus className="w-4 h-4" /> Add Character</button>
                 </>
               )}
 
               {activeTab === "backgrounds" && (
                 <>
-                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-2">
-                    <p className="text-[11px] text-emerald-300">{"\u{1F5BC}\u{FE0F}"} <strong>Set the scene!</strong> Pick a backdrop, then click any scene to assign it. Use AI to create custom worlds!</p>
-                  </div>
                   <div className="flex gap-2 mb-2">
-                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Upload className="w-3 h-3" /> Upload Art</button>
-                    <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Wand2 className="w-3 h-3" /> AI Magic</button>
+                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"><Upload className="w-3 h-3" /> Import</button>
+                    <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
                   </div>
                   {backgrounds.map((bg) => (
                     <div key={bg.id} onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })} className={`p-2 border cursor-pointer relative group ${currentScene?.background === bg.id ? "border-white" : "border-zinc-700 hover:border-zinc-500"}`}>
@@ -1223,11 +1206,10 @@ if(S.length>0)showS(0);
               <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-sm overflow-auto flex items-center justify-center p-8">
                 <div className="max-w-4xl w-full">
                   <div className="text-center mb-8">
-                    <div className="text-6xl mb-4">{"\u{1F3AC}"}</div>
-                    <h2 className="text-3xl font-display font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Story Templates</h2>
-                    <p className="text-zinc-400 text-sm">Pick a template to jumpstart your visual novel! You can customize everything after.</p>
+                    <h2 className="text-2xl font-display font-bold mb-2">Choose a Template</h2>
+                    <p className="text-zinc-500 text-sm">Pick a starter template — everything is fully editable.</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                     {VN_TEMPLATES.map(template => (
                       <button
                         key={template.id}
@@ -1237,15 +1219,17 @@ if(S.length>0)showS(0);
                           setTitle(template.title);
                           setSelectedScene(template.scenes[0].id);
                           setShowTemplatePicker(false);
-                          toast.success(`"${template.title}" loaded! Click Playtest to see it in action.`);
+                          toast.success(`"${template.title}" loaded — click Playtest to preview.`);
                         }}
-                        className={`group p-5 rounded-xl bg-gradient-to-br ${template.gradient} text-left transition-all hover:scale-[1.03] hover:shadow-2xl active:scale-[0.98]`}
+                        className="group p-4 bg-zinc-900 border border-zinc-700 hover:border-white text-left transition-colors"
                         data-testid={`button-vn-template-${template.id}`}
                       >
-                        <div className="text-4xl mb-3 group-hover:animate-bounce">{template.emoji}</div>
-                        <h3 className="font-bold text-lg text-white mb-1">{template.title}</h3>
-                        <p className="text-white/70 text-xs leading-relaxed">{template.desc}</p>
-                        <div className="mt-3 flex items-center gap-2 text-white/50 text-[10px]">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-2xl">{template.emoji}</span>
+                          <h3 className="font-bold text-sm text-white">{template.title}</h3>
+                        </div>
+                        <p className="text-zinc-500 text-xs leading-relaxed">{template.desc}</p>
+                        <div className="mt-2 flex items-center gap-2 text-zinc-600 text-[10px] font-mono">
                           <span>{template.scenes.length} scenes</span>
                           <span>{"\u2022"}</span>
                           <span>{template.characters.length} characters</span>
@@ -1280,10 +1264,9 @@ if(S.length>0)showS(0);
                       })}
                       <div className="absolute bottom-0 left-0 right-0 p-8" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.9) 30%)" }}>
                         <div className="text-center text-zinc-500">
-                          <div className="text-4xl mb-3">{"\u{1F3AC}"}</div>
-                          <p className="text-sm font-medium text-zinc-400">Ready to see your story come alive?</p>
-                          <p className="text-xs text-zinc-500 mt-1">Hit the <strong>Playtest</strong> button above to watch your visual novel play out!</p>
-                          <p className="text-[10px] text-zinc-600 mt-2">Space/Enter = next line {"\u2022"} {"\u2190"} = go back {"\u2022"} H = hide text {"\u2022"} Esc = quit</p>
+                          <MessageSquare className="w-8 h-8 mx-auto mb-2" />
+                          <p className="text-sm">Click Playtest to preview your visual novel</p>
+                          <p className="text-xs text-zinc-600 mt-1">Space/Enter advance {"\u2022"} {"\u2190"} rollback {"\u2022"} L log {"\u2022"} A auto {"\u2022"} H hide {"\u2022"} Esc quit</p>
                         </div>
                       </div>
                       {currentScene && (

@@ -825,14 +825,14 @@ if(N.length>0)showN(N[0].id);
                 </div>
               )}
             </div>
-            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-save">
+            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button onClick={validateCYOA} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" title="Check your story for missing links or dead ends" data-testid="button-validate">
-              <AlertCircle className="w-4 h-4" /> Check Story
+            <button onClick={validateCYOA} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-validate">
+              <AlertCircle className="w-4 h-4" /> Validate
             </button>
             {nodes.length > 0 && (
-              <button onClick={() => startPreview()} className="px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-500 text-black text-sm font-bold flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-preview"><Play className="w-4 h-4" /> Play It!</button>
+              <button onClick={() => startPreview()} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2" data-testid="button-preview"><Play className="w-4 h-4" /> Preview</button>
             )}
           </div>
         </header>
@@ -841,14 +841,9 @@ if(N.length>0)showN(N[0].id);
           <div className="flex-1 flex overflow-hidden">
             <div className="w-80 border-r border-zinc-800 bg-zinc-900 flex flex-col">
               <div className="border-b border-zinc-800 p-1 flex">
-                {([
-                  { key: "story" as const, label: "\u{1F4DD} Story", hint: "Write or paste your story" },
-                  { key: "nodes" as const, label: "\u{1F333} Paths", hint: "Build your story branches" },
-                  { key: "variables" as const, label: "\u{1F4CA} Stats", hint: "Track player choices" },
-                  { key: "assets" as const, label: "\u{1F3A8} Art", hint: "Add backgrounds & images" },
-                ]).map(tab => (
-                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} title={tab.hint} className={`flex-1 py-2 text-xs font-bold transition-all ${activeTab === tab.key ? "bg-white text-black scale-[1.02]" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
-                    {tab.label}
+                {(["story", "nodes", "variables", "assets"] as const).map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>
+                    {tab === "variables" ? <><Variable className="w-3 h-3 inline mr-1" />Vars</> : tab}
                   </button>
                 ))}
               </div>
@@ -856,40 +851,32 @@ if(N.length>0)showN(N[0].id);
               <div className="flex-1 overflow-auto p-4 space-y-4">
                 {activeTab === "story" && (
                   <>
-                    <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg">
-                      <p className="text-xs text-sky-300">{"\u{1F4A1}"} <strong>Tip:</strong> Write or paste a short story below, then hit Generate to turn it into a choose-your-own-adventure!</p>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-zinc-400">Paste Your Story</label>
+                      <textarea value={storyText} onChange={(e) => setStoryText(e.target.value)} placeholder="Paste your story text here..." className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm font-mono resize-none" data-testid="input-story-text" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-sky-400">{"\u{270F}\u{FE0F}"} Your Story</label>
-                      <textarea value={storyText} onChange={(e) => setStoryText(e.target.value)} placeholder="Once upon a time, in a land far away..." className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm resize-none focus:border-sky-500 transition-colors" data-testid="input-story-text" />
+                      <label className="text-xs font-bold uppercase text-zinc-400">Branch Points</label>
+                      <div className="flex gap-1">{[3, 5, 7, 10].map(n => (<button key={n} onClick={() => setBranchPoints(n)} className={`flex-1 py-2 text-sm font-medium border ${branchPoints === n ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>{n}</button>))}</div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-amber-400">{"\u{1F500}"} How Many Branches?</label>
-                      <div className="flex gap-1">{[3, 5, 7, 10].map(n => (<button key={n} onClick={() => setBranchPoints(n)} className={`flex-1 py-2 text-sm font-medium border transition-all ${branchPoints === n ? "bg-amber-400 text-black border-amber-400 scale-105" : "bg-zinc-800 border-zinc-700 hover:border-amber-400/50"}`}>{n}</button>))}</div>
+                      <label className="text-xs font-bold uppercase text-zinc-400">Choices per Branch</label>
+                      <div className="flex gap-1">{[2, 3, 4].map(n => (<button key={n} onClick={() => setOptionsPerBranch(n)} className={`flex-1 py-2 text-sm font-medium border ${optionsPerBranch === n ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>{n}</button>))}</div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-green-400">{"\u{1F449}"} Choices per Branch</label>
-                      <div className="flex gap-1">{[2, 3, 4].map(n => (<button key={n} onClick={() => setOptionsPerBranch(n)} className={`flex-1 py-2 text-sm font-medium border transition-all ${optionsPerBranch === n ? "bg-green-400 text-black border-green-400 scale-105" : "bg-zinc-800 border-zinc-700 hover:border-green-400/50"}`}>{n}</button>))}</div>
-                    </div>
-                    <button onClick={generateCYOA} disabled={isGenerating || !storyText.trim()} className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold uppercase disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-generate-cyoa">
-                      {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <GitBranch className="w-5 h-5" />} {isGenerating ? "Creating Your Adventure..." : "Generate My Adventure!"}
+                    <button onClick={generateCYOA} disabled={isGenerating || !storyText.trim()} className="w-full py-3 bg-white text-black font-bold uppercase disabled:opacity-50 flex items-center justify-center gap-2" data-testid="button-generate-cyoa">
+                      {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <GitBranch className="w-5 h-5" />} Generate CYOA
                     </button>
                   </>
                 )}
 
                 {activeTab === "nodes" && (
                   <>
-                    {nodes.length > 0 && nodes.length <= 2 && (
-                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                        <p className="text-xs text-emerald-300">{"\u{1F31F}"} <strong>Nice start!</strong> Click any path card to edit it. Use the <strong>+</strong> button to add more story branches!</p>
-                      </div>
-                    )}
                     <div className="flex gap-2">
                       <div className="flex-1 relative">
                         <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search story paths..." className="w-full pl-7 pr-2 py-1.5 bg-zinc-800 border border-zinc-700 text-xs" data-testid="input-search-nodes" />
+                        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search nodes..." className="w-full pl-7 pr-2 py-1.5 bg-zinc-800 border border-zinc-700 text-xs" data-testid="input-search-nodes" />
                       </div>
-                      <button onClick={addNode} className="p-1.5 bg-white text-black hover:scale-110 active:scale-95 transition-transform" title="Add a new story path" data-testid="button-add-node"><Plus className="w-4 h-4" /></button>
+                      <button onClick={addNode} className="p-1.5 bg-white text-black" data-testid="button-add-node"><Plus className="w-4 h-4" /></button>
                     </div>
                     {filteredNodes.filter(n => !n.id.startsWith("ending")).map((node, idx) => (
                       <div key={node.id} onClick={() => { setSelectedNodeId(node.id); setEditingNode(node.id); }}
@@ -918,10 +905,10 @@ if(N.length>0)showN(N[0].id);
                   <>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold uppercase text-purple-400">{"\u{1F4CA}"} Story Stats</label>
-                        <button onClick={() => setStoryVariables([...storyVariables, { name: `var_${storyVariables.length + 1}`, type: "number", defaultValue: 0 }])} className="p-1 bg-purple-500 text-white text-[10px] flex items-center gap-1 hover:scale-110 active:scale-95 transition-transform"><Plus className="w-3 h-3" /> Add</button>
+                        <label className="text-xs font-bold uppercase text-zinc-400">Story Variables</label>
+                        <button onClick={() => setStoryVariables([...storyVariables, { name: `var_${storyVariables.length + 1}`, type: "number", defaultValue: 0 }])} className="p-1 bg-white text-black text-[10px] flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>
                       </div>
-                      <p className="text-[10px] text-zinc-500">Keep track of things like courage, friendship, or items collected. Use stats to unlock secret paths!</p>
+                      <p className="text-[10px] text-zinc-600">Define variables to track player choices, stats, and story flags. Use them in node effects and choice conditions.</p>
                     </div>
                     {storyVariables.map((v, i) => (
                       <div key={i} className="p-3 bg-zinc-800 border border-zinc-700 space-y-2">
@@ -943,10 +930,10 @@ if(N.length>0)showN(N[0].id);
                       </div>
                     ))}
                     {storyVariables.length === 0 && (
-                      <div className="text-center py-8">
-                        <div className="text-4xl mb-3">{"\u{1F3AF}"}</div>
-                        <p className="text-sm text-zinc-400 font-medium">No stats yet!</p>
-                        <p className="text-[10px] text-zinc-600 mt-1">Add stats like "Bravery" or "Gold Coins" to make your story even more interactive. Players love seeing their choices matter!</p>
+                      <div className="text-center py-8 text-zinc-600">
+                        <Variable className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-xs">No variables defined yet.</p>
+                        <p className="text-[10px] mt-1">Variables let you track player progress — reputation, items found, allies gained — and gate choices based on those values.</p>
                       </div>
                     )}
                   </>
@@ -954,12 +941,9 @@ if(N.length>0)showN(N[0].id);
 
                 {activeTab === "assets" && (
                   <>
-                    <div className="p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg mb-2">
-                      <p className="text-xs text-pink-300">{"\u{1F3A8}"} <strong>Make it pretty!</strong> Upload your own art or use AI to create cool backgrounds for each scene.</p>
-                    </div>
                     <div className="flex gap-2 mb-2">
-                      <button onClick={() => imageInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Upload className="w-3 h-3" /> Upload Art</button>
-                      <button onClick={() => setShowAIGen(true)} className="flex-1 p-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Wand2 className="w-3 h-3" /> AI Magic</button>
+                      <button onClick={() => imageInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"><Upload className="w-3 h-3" /> Import</button>
+                      <button onClick={() => setShowAIGen(true)} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
                     </div>
                     {backgrounds.map((bg) => (
                       <div key={bg.id} className="p-2 border border-zinc-700">
@@ -988,27 +972,28 @@ if(N.length>0)showN(N[0].id);
                     <div className="absolute inset-0 overflow-auto">
                       <div className="min-h-full flex flex-col items-center justify-center p-8">
                         <div className="text-center mb-8 max-w-lg">
-                          <div className="text-6xl mb-4">{"\u{1F4DA}"}</div>
-                          <h2 className="text-3xl font-display font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Create Your Story!</h2>
-                          <p className="text-zinc-400 text-sm">Pick a story template to get started, or create your own from scratch. Every great adventure starts with a single choice!</p>
+                          <h2 className="text-2xl font-display font-bold mb-2">Choose a Template</h2>
+                          <p className="text-zinc-500 text-sm">Pick a starter template or build from scratch.</p>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl mb-8">
                           {CYOA_TEMPLATES.map(template => (
                             <button
                               key={template.id}
                               onClick={() => {
                                 setNodes(template.nodes as CYOANode[]);
                                 setTitle(template.title);
-                                toast.success(`"${template.title}" loaded! Click any node to edit it.`);
+                                toast.success(`"${template.title}" loaded — click any node to edit.`);
                               }}
-                              className={`group p-5 rounded-xl bg-gradient-to-br ${template.gradient} text-left transition-all hover:scale-[1.03] hover:shadow-2xl hover:shadow-${template.gradient.split('-')[1]}-500/20 active:scale-[0.98]`}
+                              className="group p-4 bg-zinc-900 border border-zinc-700 hover:border-white text-left transition-colors"
                               data-testid={`button-template-${template.id}`}
                             >
-                              <div className="text-4xl mb-3 group-hover:animate-bounce">{template.emoji}</div>
-                              <h3 className="font-bold text-lg text-white mb-1">{template.title}</h3>
-                              <p className="text-white/70 text-xs leading-relaxed">{template.desc}</p>
-                              <div className="mt-3 flex items-center gap-2 text-white/50 text-[10px]">
-                                <span>{template.nodes.length} scenes</span>
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-2xl">{template.emoji}</span>
+                                <h3 className="font-bold text-sm text-white">{template.title}</h3>
+                              </div>
+                              <p className="text-zinc-500 text-xs leading-relaxed">{template.desc}</p>
+                              <div className="mt-2 flex items-center gap-2 text-zinc-600 text-[10px] font-mono">
+                                <span>{template.nodes.length} nodes</span>
                                 <span>{"\u2022"}</span>
                                 <span>{template.nodes.filter(n => n.isEnding).length} endings</span>
                               </div>
@@ -1018,20 +1003,18 @@ if(N.length>0)showN(N[0].id);
                             onClick={() => {
                               addNode();
                               setActiveTab("story");
-                              toast.success("Blank story created! Write your own adventure.");
                             }}
-                            className="group p-5 rounded-xl border-2 border-dashed border-zinc-700 hover:border-white text-left transition-all hover:bg-zinc-900"
+                            className="group p-4 border border-dashed border-zinc-700 hover:border-white text-left transition-colors"
                             data-testid="button-template-blank"
                           >
-                            <div className="text-4xl mb-3 opacity-50 group-hover:opacity-100">{"\u2728"}</div>
-                            <h3 className="font-bold text-lg text-zinc-300 group-hover:text-white mb-1">Start from Scratch</h3>
-                            <p className="text-zinc-500 text-xs leading-relaxed">Create your own unique story with custom characters, scenes, and choices.</p>
-                            <div className="mt-3 text-zinc-600 text-[10px]">Blank canvas</div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <Plus className="w-6 h-6 text-zinc-500 group-hover:text-white" />
+                              <h3 className="font-bold text-sm text-zinc-400 group-hover:text-white">Blank Project</h3>
+                            </div>
+                            <p className="text-zinc-600 text-xs leading-relaxed">Start with an empty canvas and build your own story.</p>
                           </button>
                         </div>
-                        <div className="text-center">
-                          <p className="text-zinc-600 text-xs">Or paste your own story in the <button onClick={() => setActiveTab("story")} className="text-white underline hover:text-zinc-300">Story tab</button> and let AI turn it into a branching adventure!</p>
-                        </div>
+                        <p className="text-zinc-600 text-xs">Or paste a story in the <button onClick={() => setActiveTab("story")} className="text-white underline hover:text-zinc-300">Story tab</button> and generate a CYOA from it.</p>
                       </div>
                     </div>
                   )}
