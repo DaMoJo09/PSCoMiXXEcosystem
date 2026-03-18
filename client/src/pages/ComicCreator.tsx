@@ -2416,6 +2416,7 @@ export default function ComicCreator() {
             const imageLayers = isFront ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
             const zoomScale = zoom / 100;
             const coverElZOrder = cd.elementZOrder || [];
+            const hiddenEls = new Set(cd.hiddenElements || []);
 
             return (
               <div className="absolute inset-0 z-[1] overflow-hidden" style={{ backgroundColor: bgColor, containerType: 'size' }}>
@@ -2423,7 +2424,7 @@ export default function ComicCreator() {
 
                 {isFront ? (
                   <>
-                    {cd.bannerText && (
+                    {cd.bannerText && !hiddenEls.has("master-banner") && (
                       <TransformableElement
                         id="cover-banner"
                         initialTransform={cd.bannerTransform || defaultCover.bannerTransform}
@@ -2443,7 +2444,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {cd.publisherName && (
+                    {cd.publisherName && !hiddenEls.has("master-publisher") && (
                       <TransformableElement
                         id="cover-publisher"
                         initialTransform={cd.publisherTransform || defaultCover.publisherTransform}
@@ -2460,7 +2461,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {cd.issueNumber && (
+                    {cd.issueNumber && !hiddenEls.has("master-issue") && (
                       <TransformableElement
                         id="cover-issue"
                         initialTransform={cd.issueNumberTransform || defaultCover.issueNumberTransform}
@@ -2481,7 +2482,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    <TransformableElement
+                    {!hiddenEls.has("master-title") && <TransformableElement
                       id="cover-title"
                       initialTransform={cd.titleTransform || defaultCover.titleTransform}
                       isSelected={selectedContentId === "cover-title"}
@@ -2501,9 +2502,9 @@ export default function ComicCreator() {
                         WebkitTextStroke: cd.titleStrokeWidth ? `${Math.max(0.5, cd.titleStrokeWidth * 0.4)}px ${cd.titleStrokeColor || '#000'}` : undefined,
                         textShadow: '2px 2px 4px rgba(0,0,0,0.6)',
                       }}>{cd.title || "TITLE"}</div>
-                    </TransformableElement>
+                    </TransformableElement>}
 
-                    {cd.subtitle && (
+                    {cd.subtitle && !hiddenEls.has("master-subtitle") && (
                       <TransformableElement
                         id="cover-subtitle"
                         initialTransform={cd.subtitleTransform || defaultCover.subtitleTransform}
@@ -2525,7 +2526,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {cd.tagline && (
+                    {cd.tagline && !hiddenEls.has("master-tagline") && (
                       <TransformableElement
                         id="cover-tagline"
                         initialTransform={cd.taglineTransform || defaultCover.taglineTransform}
@@ -2542,7 +2543,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    <TransformableElement
+                    {!hiddenEls.has("master-author") && <TransformableElement
                       id="cover-author"
                       initialTransform={cd.authorTransform || defaultCover.authorTransform}
                       isSelected={selectedContentId === "cover-author"}
@@ -2560,9 +2561,9 @@ export default function ComicCreator() {
                         fontStyle: cd.authorItalic ? 'italic' : 'normal',
                         textTransform: cd.authorUppercase ? 'uppercase' : 'none',
                       }}>{cd.author || "Author"}</div>
-                    </TransformableElement>
+                    </TransformableElement>}
 
-                    {cd.showPriceBox && cd.priceText && (
+                    {cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price") && (
                       <TransformableElement
                         id="cover-price"
                         initialTransform={cd.priceBoxTransform || defaultCover.priceBoxTransform}
@@ -2591,7 +2592,7 @@ export default function ComicCreator() {
                   </>
                 ) : (
                   <>
-                    <TransformableElement
+                    {!hiddenEls.has("master-back-title") && <TransformableElement
                       id="cover-back-title"
                       initialTransform={cd.backTitleTransform || defaultCover.backTitleTransform}
                       isSelected={selectedContentId === "cover-back-title"}
@@ -2606,9 +2607,9 @@ export default function ComicCreator() {
                         fontSize: 'max(8px, 5cqi)',
                         textShadow: '1px 1px 3px rgba(0,0,0,0.5)',
                       }}>{cd.title || "TITLE"}</div>
-                    </TransformableElement>
+                    </TransformableElement>}
 
-                    {cd.backBlurb && (
+                    {cd.backBlurb && !hiddenEls.has("master-blurb") && (
                       <TransformableElement
                         id="cover-blurb"
                         initialTransform={cd.backBlurbTransform || defaultCover.backBlurbTransform}
@@ -2629,7 +2630,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    <TransformableElement
+                    {!hiddenEls.has("master-back-author") && <TransformableElement
                       id="cover-back-author"
                       initialTransform={cd.backAuthorTransform || defaultCover.backAuthorTransform}
                       isSelected={selectedContentId === "cover-back-author"}
@@ -2643,9 +2644,9 @@ export default function ComicCreator() {
                         color: cd.authorColor,
                         fontSize: 'max(5px, 2.5cqi)',
                       }}>by {cd.author || "Author"}</div>
-                    </TransformableElement>
+                    </TransformableElement>}
 
-                    {cd.isbn && (
+                    {cd.isbn && !hiddenEls.has("master-isbn") && (
                       <TransformableElement
                         id="cover-isbn"
                         initialTransform={cd.isbnTransform || defaultCover.isbnTransform}
@@ -2676,7 +2677,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {cd.publisherName && (
+                    {cd.publisherName && !hiddenEls.has("master-back-publisher") && (
                       <TransformableElement
                         id="cover-back-publisher"
                         initialTransform={cd.backPublisherTransform || defaultCover.backPublisherTransform}
@@ -2702,7 +2703,7 @@ export default function ComicCreator() {
                   const imgMap = new Map(imageLayers.map(il => [il.id, il]));
                   const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
 
-                  return orderedUserIds.map((id, idx) => {
+                  return orderedUserIds.filter(id => !hiddenEls.has(id)).map((id, idx) => {
                     const zIdx = idx + 20;
                     const il = imgMap.get(id);
                     if (il) {
@@ -4435,6 +4436,12 @@ export default function ComicCreator() {
                         const layers = (cd[layerKey] as CoverTextLayer[]) || [];
                         const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
                         updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
+                      };
+                      const hiddenSet = new Set(cd.hiddenElements || []);
+                      const toggleVisibility = (elId: string) => {
+                        const next = new Set(hiddenSet);
+                        if (next.has(elId)) next.delete(elId); else next.add(elId);
+                        updateCoverData({ hiddenElements: [...next] });
                       };
                       return (
                         <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">

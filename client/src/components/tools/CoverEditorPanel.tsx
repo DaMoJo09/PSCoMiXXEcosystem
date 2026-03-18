@@ -248,6 +248,7 @@ export interface CoverData {
   backTitleTransform?: TransformState;
   backAuthorTransform?: TransformState;
   elementZOrder: string[];
+  hiddenElements: string[];
 }
 
 export const defaultCover: CoverData = {
@@ -293,6 +294,7 @@ export const defaultCover: CoverData = {
   isbn: "",
   filters: { ...FILTER_PRESETS },
   elementZOrder: ["master-banner", "master-publisher", "master-issue", "master-price", "master-title", "master-subtitle", "master-tagline", "master-author"],
+  hiddenElements: [],
   bannerTransform: { x: 0, y: 0, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
   publisherTransform: { x: 8, y: 28, width: 120, height: 16, rotation: 0, scaleX: 1, scaleY: 1 },
   issueNumberTransform: { x: 8, y: 46, width: 60, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
