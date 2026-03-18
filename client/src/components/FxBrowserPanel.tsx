@@ -7,9 +7,10 @@ import { toast } from "sonner";
 interface FxBrowserPanelProps {
   onClose: () => void;
   onSelectEffect?: (effect: FxEffect) => void;
+  useLabel?: string;
 }
 
-export function FxBrowserPanel({ onClose, onSelectEffect }: FxBrowserPanelProps) {
+export function FxBrowserPanel({ onClose, onSelectEffect, useLabel = "Use Effect" }: FxBrowserPanelProps) {
   const [fxEffects, setFxEffects] = useState<FxEffect[]>([]);
   const [fxLoading, setFxLoading] = useState(false);
   const [fxSearchQuery, setFxSearchQuery] = useState("");
@@ -163,7 +164,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect }: FxBrowserPanelProps)
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-cyan-300 hover:bg-cyan-900/30 transition border-l border-purple-500/10"
                     data-testid={`button-fx-use-${effect.id}`}
                   >
-                    Use Effect
+                    {useLabel}
                   </button>
                 )}
               </div>

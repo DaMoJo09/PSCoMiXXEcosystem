@@ -4,8 +4,10 @@ import {
   MessageSquare, GitBranch, User, Upload, Wand2, X,
   Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
   BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
-  ChevronLeft, ChevronRight, FileText
+  ChevronLeft, ChevronRight, FileText, Sparkles
 } from "lucide-react";
+import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
@@ -468,6 +470,7 @@ export default function VNCreator() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showFxBrowser, setShowFxBrowser] = useState(false);
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
@@ -1049,6 +1052,13 @@ if(S.length>0)showS(0);
             >
               <BookOpen className="w-4 h-4" /> Templates
             </button>
+            <button
+              onClick={() => setShowFxBrowser(!showFxBrowser)}
+              className={`px-3 py-2 border border-purple-500/30 text-sm font-medium flex items-center gap-2 ${showFxBrowser ? "bg-purple-600 text-white" : "bg-zinc-800 hover:bg-zinc-700 text-purple-400"}`}
+              data-testid="button-vn-fx-studio"
+            >
+              <Sparkles className="w-4 h-4" /> FX Studio
+            </button>
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export
@@ -1419,6 +1429,28 @@ if(S.length>0)showS(0);
               </div>
               <AIGenerator type="vn" onImageGenerated={handleAIGenerated} />
             </div>
+          </div>
+        )}
+
+        {showFxBrowser && (
+          <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-black border border-purple-500/30 shadow-[4px_4px_0px_0px_rgba(168,85,247,0.3)] z-50 overflow-hidden flex flex-col">
+            <FxBrowserPanel
+              onClose={() => setShowFxBrowser(false)}
+              useLabel="Use as Background"
+              onSelectEffect={(effect: FxEffect) => {
+                if (effect.preview_data_url) {
+                  const newBg = { id: `fx_${Date.now()}`, name: effect.name, url: effect.preview_data_url };
+                  setBackgrounds(prev => [...prev, newBg]);
+                  if (currentScene) {
+                    updateScene(currentScene.id, { background: newBg.id });
+                  }
+                  toast.success(`"${effect.name}" added as scene background`);
+                  setShowFxBrowser(false);
+                } else {
+                  toast.error("This effect has no preview image");
+                }
+              }}
+            />
           </div>
         )}
       </div>

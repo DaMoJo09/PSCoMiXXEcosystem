@@ -5,6 +5,8 @@ import {
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
   Copy, Layers, Eye, Pen, Share2, Printer, Users, Trophy, Grid3X3
 } from "lucide-react";
+import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import type { FxEffect } from "@/lib/api";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -256,6 +258,7 @@ export default function CardCreator() {
   const [showAIGen, setShowAIGen] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showFxBrowser, setShowFxBrowser] = useState(false);
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
@@ -842,6 +845,13 @@ export default function CardCreator() {
               data-testid="button-new-card"
             >
               <Plus className="w-4 h-4" /> New
+            </button>
+            <button
+              onClick={() => setShowFxBrowser(!showFxBrowser)}
+              className={`px-3 py-2 border border-purple-500/30 text-sm font-medium flex items-center gap-2 ${showFxBrowser ? "bg-purple-600 text-white" : "bg-zinc-800 hover:bg-zinc-700 text-purple-400"}`}
+              data-testid="button-card-fx-studio"
+            >
+              <Sparkles className="w-4 h-4" /> FX Studio
             </button>
             <button 
               onClick={handleSave}
@@ -2580,6 +2590,27 @@ export default function CardCreator() {
                 Created with PSCoMiXX Creator • {packData.cards.length} Player Cards • Print at 300 DPI for best quality
               </div>
             </div>
+          </div>
+        )}
+
+        {showFxBrowser && (
+          <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-black border border-purple-500/30 shadow-[4px_4px_0px_0px_rgba(168,85,247,0.3)] z-50 overflow-hidden flex flex-col">
+            <FxBrowserPanel
+              onClose={() => setShowFxBrowser(false)}
+              useLabel="Use as Card Art"
+              onSelectEffect={(effect: FxEffect) => {
+                if (effect.preview_data_url) {
+                  setCardData(prev => ({
+                    ...prev,
+                    [side === "front" ? "frontImage" : "backImage"]: effect.preview_data_url!,
+                  }));
+                  toast.success(`"${effect.name}" applied as ${side} card art`);
+                  setShowFxBrowser(false);
+                } else {
+                  toast.error("This effect has no preview image");
+                }
+              }}
+            />
           </div>
         )}
       </div>

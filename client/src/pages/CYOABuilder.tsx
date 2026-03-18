@@ -3,8 +3,10 @@ import {
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
   Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map,
-  Variable, Filter, Eye, EyeOff, Code
+  Variable, Filter, Eye, EyeOff, Code, Sparkles
 } from "lucide-react";
+import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
@@ -403,6 +405,7 @@ export default function CYOABuilder() {
   const [typewriterDone, setTypewriterDone] = useState(false);
   const [textSpeed, setTextSpeed] = useState(30);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showFxBrowser, setShowFxBrowser] = useState(false);
   const [endingsFound, setEndingsFound] = useState<Set<string>>(new Set());
   const [storyVariables, setStoryVariables] = useState<StoryVariable[]>([]);
   const [runtimeVars, setRuntimeVars] = useState<Record<string, any>>({});
@@ -813,6 +816,13 @@ if(N.length>0)showN(N[0].id);
             >
               <Plus className="w-4 h-4" /> New
             </button>
+            <button
+              onClick={() => setShowFxBrowser(!showFxBrowser)}
+              className={`px-3 py-2 border border-purple-500/30 text-sm font-medium flex items-center gap-2 ${showFxBrowser ? "bg-purple-600 text-white" : "bg-zinc-800 hover:bg-zinc-700 text-purple-400"}`}
+              data-testid="button-cyoa-fx-studio"
+            >
+              <Sparkles className="w-4 h-4" /> FX Studio
+            </button>
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export
@@ -1195,6 +1205,38 @@ if(N.length>0)showN(N[0].id);
             </div>
           </div>
         )}
+
+        {showFxBrowser && (() => {
+          const targetNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
+          return (
+            <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-black border border-purple-500/30 shadow-[4px_4px_0px_0px_rgba(168,85,247,0.3)] z-50 overflow-hidden flex flex-col">
+              {targetNode && (
+                <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900/80 flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-400">Target: <strong className="text-white">{targetNode.title}</strong></span>
+                  <button onClick={() => setSelectedNodeId(null)} className="text-[10px] text-zinc-500 hover:text-white">Clear</button>
+                </div>
+              )}
+              <FxBrowserPanel
+                onClose={() => setShowFxBrowser(false)}
+                useLabel={targetNode ? "Use as Node Image" : "Add as Background"}
+                onSelectEffect={(effect: FxEffect) => {
+                  if (effect.preview_data_url) {
+                    if (targetNode) {
+                      updateNode(targetNode.id, { image: effect.preview_data_url });
+                      toast.success(`"${effect.name}" added to "${targetNode.title}"`);
+                    } else {
+                      setBackgrounds(prev => [...prev, { id: `fx_${Date.now()}`, name: effect.name, url: effect.preview_data_url! }]);
+                      toast.success(`"${effect.name}" added as background`);
+                    }
+                    setShowFxBrowser(false);
+                  } else {
+                    toast.error("This effect has no preview image");
+                  }
+                }}
+              />
+            </div>
+          );
+        })()}
       </div>
     </Layout>
   );

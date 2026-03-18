@@ -64,7 +64,12 @@ Supports video/GIF export with progress tracking, using a Web Worker for GIF enc
 An admin-only dashboard provides 40+ KPIs across 7 tabs: Overview, Growth, Engagement, Content, Revenue, AI & Platform, and User Health. The API endpoint (`GET /api/analytics/platform`) aggregates data from various sources, and charts use recharts.
 
 ### FX Studio Integration
-Integrates with FX Studio (pressplays.site) to browse, import, and apply visual effects. This functionality is available in Motion Studio for frames and in the Cover Editor for applying FX overlays to covers.
+Integrates with FX Studio (pressplays.site) to browse, import, and apply visual effects across all creator tools. The `FxBrowserPanel` component provides a reusable FX browser with search, save-to-library, and context-specific import actions. Server-side proxy routes (`/api/fx-studio/effects`) handle CRUD operations against the FX Studio Supabase backend. Integration points:
+- **Comic Creator**: FX Studio tab in Asset Library dialog + sidebar shortcut to pressplays.site
+- **Motion Studio**: Floating FX browser panel with per-frame effect application
+- **Visual Novel Creator**: FX button in header; imports effects as scene backgrounds
+- **CYOA Builder**: FX button in header; imports as node images (when node selected) or backgrounds (when no node selected), with target indicator and clear option
+- **Card Creator**: FX button in header; imports effects as front/back card art based on active side
 
 ### PWA & Offline Mode
 Includes a Service Worker (v6) for app shell, font, and asset caching, with version-based invalidation and dynamic cache limits. Projects are saved locally using IndexedDB for offline use, with timestamp-based conflict resolution and background syncing. UI components provide install prompts, network status, and update notifications. iOS PWA support is included.
