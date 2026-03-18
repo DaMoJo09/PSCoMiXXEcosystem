@@ -67,9 +67,11 @@ An admin-only dashboard provides 40+ KPIs across 7 tabs: Overview, Growth, Engag
 Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools. The `FxBrowserPanel` component provides a reusable FX browser with tag-based folder navigation (Overlays, Backgrounds, Characters, Pages, etc.), search, save-to-library, and context-specific import actions. Server-side proxy routes (`/api/fx-studio/effects`) handle CRUD operations against the FX Studio Supabase backend.
 
 **Bidirectional Pipeline (Comic Creator):**
-- **Export**: Right-click panel → "Send to FX Studio" captures panel as PNG, pushes via `pushTaggedAsset()` with metadata (panel_id, page_side, spread_index, cover_role), and offers link to pressplays.site
-- **Import**: FX browser "Apply to Panel" inserts effects directly into selected panel; "Return to Panel" auto-targets the original panel from metadata, navigating to correct spread and handling cover-aware insertion
-- **Tag Folders**: FxBrowserPanel sidebar filters by asset_tag (fx-overlay, background, character-art, cover, interior-page, etc.) with a "My Project" folder showing project-linked assets
+- **Export**: Right-click panel → "Send to FX Studio" captures panel as PNG, pushes via `pushTaggedAsset()` with `type: "comixx-panel-export"`, `source_panel_id`, and full metadata. Opens `pressplays.site/studio?import=<effectId>&returnTo=comixx` in new tab.
+- **Import**: FX browser "Apply to Panel" inserts effects directly into selected panel; "Return to Panel" auto-targets the original panel from `source_panel_id` or metadata, navigating to correct spread and handling cover-aware insertion.
+- **FX Returns**: Dedicated folder polls for `type: "panel-fx-return"` assets matching the current project, with 15s auto-refresh.
+- **Tag Folders**: Hierarchical folder groups (Covers, Pages, Overlays, Art Assets, Branding) matching the shared PressPlays asset tag taxonomy, plus "My Project" and "FX Returns" project-scoped folders.
+- **Shared API**: GET proxy forwards `asset_tag`, `project_id`, `type`, `search`, `limit`, `offset` params to Supabase. POST forwards `source_panel_id` and `type` fields.
 
 **Integration Points:**
 - **Comic Creator**: FX Studio tab in Asset Library dialog with Apply to Panel + Return to Panel actions, panel context menu "Send to FX Studio", sidebar shortcut to pressplays.site

@@ -389,6 +389,7 @@ export interface FxEffect {
   target_page?: number;
   project_id?: string;
   source_mode?: string;
+  source_panel_id?: string;
   metadata?: Record<string, any>;
 }
 
@@ -442,6 +443,8 @@ export const fxStudioApi = {
         target_page: payload.target_page,
         project_id: payload.project_id,
         source_mode: payload.source_mode,
+        source_panel_id: payload.source_panel_id,
+        type: payload.type || "static-asset",
         layers: payload.layers || [],
         canvas_background: payload.canvas_background,
         metadata: payload.metadata,

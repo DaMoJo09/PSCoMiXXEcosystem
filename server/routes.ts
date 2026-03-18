@@ -5580,6 +5580,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const params = new URLSearchParams();
       if (req.query.asset_tag) params.set("asset_tag", req.query.asset_tag as string);
       if (req.query.project_id) params.set("project_id", req.query.project_id as string);
+      if (req.query.type) params.set("type", req.query.type as string);
+      if (req.query.search) params.set("search", req.query.search as string);
+      if (req.query.limit) params.set("limit", req.query.limit as string);
+      if (req.query.offset) params.set("offset", req.query.offset as string);
       const qs = params.toString();
       const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
       const response = await fetch(url, {

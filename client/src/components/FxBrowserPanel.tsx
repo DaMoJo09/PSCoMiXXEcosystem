@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from "react";
-import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Layers, ImageIcon, Target, CornerDownLeft } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Target, CornerDownLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
-import { type AssetTag, ASSET_TAG_LABELS } from "@/types/asset-tags";
+import { type AssetTag, ASSET_TAG_LABELS, ASSET_FOLDER_GROUPS } from "@/types/asset-tags";
 
 interface FxBrowserPanelProps {
   onClose: () => void;
@@ -15,20 +15,9 @@ interface FxBrowserPanelProps {
   activeTag?: AssetTag | null;
 }
 
-const TAG_FOLDERS: { tag: AssetTag | "all" | "project"; label: string; icon: string }[] = [
-  { tag: "all", label: "All Effects", icon: "grid" },
-  { tag: "project", label: "My Project", icon: "target" },
-  { tag: "fx-overlay", label: "FX Overlays", icon: "sparkles" },
-  { tag: "background", label: "Backgrounds", icon: "image" },
-  { tag: "character-art", label: "Characters", icon: "user" },
-  { tag: "cover", label: "Covers", icon: "book" },
-  { tag: "interior-page", label: "Pages", icon: "file" },
-  { tag: "splash-page", label: "Splash Pages", icon: "maximize" },
-  { tag: "filter-output", label: "Filters", icon: "sliders" },
-  { tag: "sfx-text", label: "SFX Text", icon: "type" },
-  { tag: "graffiti", label: "Graffiti", icon: "pen" },
-  { tag: "panel-strip", label: "Panel Strips", icon: "columns" },
-];
+type FolderSelection = AssetTag | "all" | "project" | "returns";
+
+const POLL_INTERVAL_MS = 15000;
 
 export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onReturnToPanel, useLabel = "Use Effect", projectId, activeTag }: FxBrowserPanelProps) {
   const [fxEffects, setFxEffects] = useState<FxEffect[]>([]);
@@ -36,18 +25,27 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
   const [fxSearchQuery, setFxSearchQuery] = useState("");
   const [importingFxId, setImportingFxId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<AssetTag | "all" | "project">(activeTag || "all");
+  const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(activeTag || "all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Overlays", "Art Assets"]));
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { addAsset } = useAssetLibrary();
 
-  const loadFxEffects = useCallback(async () => {
-    setFxLoading(true);
+  const loadFxEffects = useCallback(async (silent = false) => {
+    if (!silent) setFxLoading(true);
     try {
       let effects: FxEffect[];
       if (selectedFolder === "all") {
         effects = await fxStudioApi.listEffects();
       } else if (selectedFolder === "project" && projectId) {
         effects = await fxStudioApi.listByTag(undefined, projectId);
-      } else if (selectedFolder !== "project") {
+      } else if (selectedFolder === "returns" && projectId) {
+        const params = new URLSearchParams();
+        params.set("project_id", projectId);
+        params.set("type", "panel-fx-return");
+        const response = await fetch(`/api/fx-studio/effects?${params.toString()}`, { credentials: "include" });
+        const data = await response.json();
+        effects = Array.isArray(data) ? data : data?.effects || [];
+      } else if (selectedFolder !== "project" && selectedFolder !== "returns") {
         effects = await fxStudioApi.listByTag(selectedFolder as AssetTag);
       } else {
         effects = await fxStudioApi.listEffects();
@@ -55,9 +53,9 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
       setFxEffects(Array.isArray(effects) ? effects : []);
       setLoaded(true);
     } catch {
-      toast.error("Failed to load FX Studio effects");
+      if (!silent) toast.error("Failed to load FX Studio effects");
     } finally {
-      setFxLoading(false);
+      if (!silent) setFxLoading(false);
     }
   }, [selectedFolder, projectId]);
 
@@ -71,11 +69,19 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
     }
   }, [loaded, fxLoading, loadFxEffects]);
 
+  useEffect(() => {
+    if (projectId && (selectedFolder === "project" || selectedFolder === "returns")) {
+      pollRef.current = setInterval(() => loadFxEffects(true), POLL_INTERVAL_MS);
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [projectId, selectedFolder, loadFxEffects]);
+
   const importFxToLibrary = useCallback(async (effect: FxEffect) => {
     setImportingFxId(effect.id);
     try {
       await fxStudioApi.getEffect(effect.id);
-
       const saved = await addAsset({
         name: effect.name,
         type: "effect",
@@ -83,7 +89,6 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
         folderId: "effects",
         tags: effect.type ? effect.type.split(",").map((t: string) => t.trim()) : [],
       });
-
       if (saved) {
         toast.success(`"${effect.name}" saved to your Asset Library`);
       } else {
@@ -99,18 +104,27 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
   const filteredEffects = fxEffects.filter(fx =>
     !fxSearchQuery ||
     fx.name.toLowerCase().includes(fxSearchQuery.toLowerCase()) ||
-    fx.type?.toLowerCase().includes(fxSearchQuery.toLowerCase())
+    fx.type?.toLowerCase().includes(fxSearchQuery.toLowerCase()) ||
+    fx.description?.toLowerCase().includes(fxSearchQuery.toLowerCase())
   );
 
-  const folderIcon = (icon: string) => {
-    switch (icon) {
-      case "target": return <Target className="w-3 h-3" />;
-      case "sparkles": return <Sparkles className="w-3 h-3" />;
-      case "image": return <ImageIcon className="w-3 h-3" />;
-      case "layers": return <Layers className="w-3 h-3" />;
-      default: return <FolderOpen className="w-3 h-3" />;
-    }
+  const toggleGroup = (label: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
   };
+
+  const hasReturnableEffect = (effect: FxEffect) =>
+    effect.source_panel_id || effect.metadata?.panel_id;
+
+  const getReturnPanelId = (effect: FxEffect) =>
+    effect.source_panel_id || effect.metadata?.panel_id;
+
+  const getReturnPageSide = (effect: FxEffect) =>
+    effect.metadata?.page_side || "left";
 
   return (
     <div className="flex flex-col h-full">
@@ -121,7 +135,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
           <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 border border-purple-700">pressplays.site</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={loadFxEffects} className="p-1 hover:bg-zinc-800" title="Refresh">
+          <button onClick={() => loadFxEffects()} className="p-1 hover:bg-zinc-800" title="Refresh">
             <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
           </button>
           <button onClick={onClose} className="p-1 hover:bg-zinc-800">
@@ -132,24 +146,79 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-36 border-r border-zinc-700 overflow-y-auto bg-zinc-950 shrink-0">
-          {TAG_FOLDERS.map((folder) => {
-            if (folder.tag === "project" && !projectId) return null;
-            return (
+          <button
+            onClick={() => setSelectedFolder("all")}
+            className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 transition-colors ${
+              selectedFolder === "all"
+                ? "bg-zinc-800 text-white border-l-2 border-cyan-400"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent"
+            }`}
+            data-testid="button-fx-folder-all"
+          >
+            <FolderOpen className="w-3 h-3" />
+            <span>All</span>
+          </button>
+
+          {projectId && (
+            <>
               <button
-                key={folder.tag}
-                onClick={() => setSelectedFolder(folder.tag)}
+                onClick={() => setSelectedFolder("project")}
                 className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 transition-colors ${
-                  selectedFolder === folder.tag
+                  selectedFolder === "project"
                     ? "bg-zinc-800 text-white border-l-2 border-cyan-400"
                     : "text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent"
                 }`}
-                data-testid={`button-fx-folder-${folder.tag}`}
+                data-testid="button-fx-folder-project"
               >
-                {folderIcon(folder.icon)}
-                <span className="truncate">{folder.label}</span>
+                <Target className="w-3 h-3" />
+                <span>My Project</span>
               </button>
-            );
-          })}
+              <button
+                onClick={() => setSelectedFolder("returns")}
+                className={`w-full text-left px-3 py-2 text-[11px] flex items-center gap-2 transition-colors ${
+                  selectedFolder === "returns"
+                    ? "bg-zinc-800 text-amber-300 border-l-2 border-amber-400"
+                    : "text-amber-500/60 hover:text-amber-400 hover:bg-zinc-900 border-l-2 border-transparent"
+                }`}
+                data-testid="button-fx-folder-returns"
+              >
+                <CornerDownLeft className="w-3 h-3" />
+                <span>FX Returns</span>
+              </button>
+            </>
+          )}
+
+          <div className="border-t border-zinc-800 my-1" />
+
+          {ASSET_FOLDER_GROUPS.map((group) => (
+            <div key={group.label}>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className="w-full text-left px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1 hover:text-zinc-300"
+              >
+                {expandedGroups.has(group.label) ? (
+                  <ChevronDown className="w-3 h-3" />
+                ) : (
+                  <ChevronRight className="w-3 h-3" />
+                )}
+                {group.label}
+              </button>
+              {expandedGroups.has(group.label) && group.tags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedFolder(tag)}
+                  className={`w-full text-left pl-6 pr-3 py-1.5 text-[11px] flex items-center gap-2 transition-colors ${
+                    selectedFolder === tag
+                      ? "bg-zinc-800 text-white border-l-2 border-cyan-400"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900 border-l-2 border-transparent"
+                  }`}
+                  data-testid={`button-fx-folder-${tag}`}
+                >
+                  <span className="truncate">{ASSET_TAG_LABELS[tag]}</span>
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -180,7 +249,9 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                   {fxEffects.length === 0
                     ? selectedFolder === "project"
                       ? "No FX linked to this project yet. Send panels to FX Studio to get started."
-                      : "No effects in this category. Create effects at pressplays.site."
+                      : selectedFolder === "returns"
+                        ? "No FX returns yet. Process panels in FX Studio and send them back."
+                        : "No effects in this category. Create effects at pressplays.site."
                     : "No effects match your search."}
                 </p>
               </div>
@@ -206,7 +277,13 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                             {ASSET_TAG_LABELS[effect.asset_tag] || effect.asset_tag}
                           </span>
                         )}
-                        {effect.type && !effect.asset_tag && effect.type.split(",").slice(0, 2).map((t, i) => (
+                        {effect.type === "panel-fx-return" && (
+                          <span className="text-[9px] bg-amber-900/30 text-amber-400 px-1 border border-amber-800">FX Return</span>
+                        )}
+                        {effect.type === "comixx-panel-export" && (
+                          <span className="text-[9px] bg-purple-900/30 text-purple-400 px-1 border border-purple-800">Exported</span>
+                        )}
+                        {!effect.asset_tag && effect.type && effect.type !== "panel-fx-return" && effect.type !== "comixx-panel-export" && effect.type.split(",").slice(0, 2).map((t, i) => (
                           <span key={i} className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 border border-zinc-700">{t.trim()}</span>
                         ))}
                         {effect.layer_count > 0 && (
@@ -215,7 +292,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                         {effect.total_frames > 0 && (
                           <span className="text-[9px] text-zinc-500">{effect.total_frames}f</span>
                         )}
-                        {effect.metadata?.panel_id && (
+                        {hasReturnableEffect(effect) && effect.type !== "panel-fx-return" && (
                           <span className="text-[9px] bg-amber-900/30 text-amber-400 px-1 border border-amber-800">Panel</span>
                         )}
                       </div>
@@ -235,9 +312,9 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                       )}
                       Library
                     </button>
-                    {onReturnToPanel && effect.metadata?.panel_id && effect.metadata?.page_side && (
+                    {onReturnToPanel && hasReturnableEffect(effect) && (
                       <button
-                        onClick={() => onReturnToPanel(effect, effect.metadata!.panel_id, effect.metadata!.page_side)}
+                        onClick={() => onReturnToPanel(effect, getReturnPanelId(effect)!, getReturnPageSide(effect))}
                         className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium text-amber-400 hover:bg-amber-900/20 transition border-l border-zinc-700"
                         data-testid={`button-fx-return-${effect.id}`}
                       >
@@ -245,7 +322,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                         Return to Panel
                       </button>
                     )}
-                    {onApplyToPanel && !(effect.metadata?.panel_id && onReturnToPanel) && (
+                    {onApplyToPanel && !hasReturnableEffect(effect) && (
                       <button
                         onClick={() => onApplyToPanel(effect)}
                         className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium text-cyan-400 hover:bg-cyan-900/20 transition border-l border-zinc-700"
@@ -255,7 +332,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                         Apply to Panel
                       </button>
                     )}
-                    {onSelectEffect && !onApplyToPanel && !(effect.metadata?.panel_id && onReturnToPanel) && (
+                    {onSelectEffect && !onApplyToPanel && !hasReturnableEffect(effect) && (
                       <button
                         onClick={() => onSelectEffect(effect)}
                         className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium text-cyan-400 hover:bg-cyan-900/20 transition border-l border-zinc-700"

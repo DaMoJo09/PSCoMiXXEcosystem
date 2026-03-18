@@ -2189,13 +2189,15 @@ export default function ComicCreator() {
 
       const exportTag = panel.coverRole === "back-cover" ? "back-cover" : panel.coverRole === "front-cover" ? "cover" : "interior-page";
 
-      await fxStudioApi.pushTaggedAsset({
+      const result = await fxStudioApi.pushTaggedAsset({
         name: `${title || "Untitled"} — ${spreadLabel} ${panelLabel}`,
         asset_tag: exportTag,
         preview_data_url: dataUrl,
         target_page: currentSpreadIndex,
         project_id: effectiveProjectId || undefined,
         source_mode: "/creator/comic",
+        source_panel_id: panelId,
+        type: "comixx-panel-export",
         metadata: {
           panel_id: panelId,
           page_side: page,
@@ -2205,11 +2207,16 @@ export default function ComicCreator() {
         },
       });
 
+      const effectId = result?.id || result?.effects?.[0]?.id;
+      const importUrl = effectId
+        ? `https://pressplays.site/studio?import=${effectId}&returnTo=comixx&project=${effectiveProjectId || ""}`
+        : "https://pressplays.site/studio";
+
       toast.success("Panel sent to FX Studio", {
         id: toastId,
         action: {
           label: "Open FX Studio",
-          onClick: () => window.open("https://pressplays.site", "_blank"),
+          onClick: () => window.open(importUrl, "_blank"),
         },
       });
     } catch (err: any) {
@@ -2234,9 +2241,10 @@ export default function ComicCreator() {
       toast.error("This effect has no preview image");
       return;
     }
+    const resolvedPanelId = effect.source_panel_id || panelId;
     const page = pageSide as "left" | "right";
 
-    const targetSpreadIndex = effect.metadata?.spread_index;
+    const targetSpreadIndex = effect.metadata?.spread_index ?? effect.target_page;
     if (typeof targetSpreadIndex === "number" && targetSpreadIndex !== currentSpreadIndex) {
       if (targetSpreadIndex >= 0 && targetSpreadIndex < spreads.length) {
         setCurrentSpreadIndex(targetSpreadIndex);
@@ -2244,24 +2252,24 @@ export default function ComicCreator() {
         setTimeout(() => {
           const targetSpread = spreads[targetSpreadIndex];
           const targetPanels = page === "left" ? targetSpread.leftPage : targetSpread.rightPage;
-          const panel = targetPanels.find(p => p.id === panelId);
+          const panel = targetPanels.find(p => p.id === resolvedPanelId);
           if (!panel) {
             toast.error("Target panel not found on that spread");
             return;
           }
-          insertFxIntoPanel(effect, panel, page, panelId, targetSpreadIndex);
+          insertFxIntoPanel(effect, panel, page, resolvedPanelId, targetSpreadIndex);
         }, 100);
         return;
       }
     }
 
     const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-    const panel = panels.find(p => p.id === panelId);
+    const panel = panels.find(p => p.id === resolvedPanelId);
     if (!panel) {
       toast.error("Target panel not found on current spread. Navigate to the correct spread first.");
       return;
     }
-    insertFxIntoPanel(effect, panel, page, panelId, currentSpreadIndex);
+    insertFxIntoPanel(effect, panel, page, resolvedPanelId, currentSpreadIndex);
   };
 
   const insertFxIntoPanel = (effect: FxEffect, panel: Panel, page: "left" | "right", panelId: string, _spreadIdx: number) => {
