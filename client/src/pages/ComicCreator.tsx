@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
+import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
+import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
@@ -518,6 +520,58 @@ export default function ComicCreator() {
 
   const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
+
+  const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
+    defaultTag: "interior-page",
+    sourceMode: "/creator/comic",
+    projectId: effectiveProjectId || undefined,
+  });
+
+  const handleSyncCurrentPage = async () => {
+    if (!hasFeature("export") && !isAdmin) { setShowUpgradeModal(true); return; }
+    try {
+      toast.info("Syncing page to CoMiXX...");
+      const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+      const canvas = await exportPageToCanvas(panels, 1988, 3075);
+      const dataUrl = canvas.toDataURL("image/png");
+      const pageNum = currentSpreadIndex * 2 + (selectedPage === "left" ? 1 : 2);
+      const hasCover = panels.some(p => p.coverRole);
+      const tag: AssetTag = panels.some(p => p.coverRole === "front-cover") ? "cover"
+        : panels.some(p => p.coverRole === "back-cover") ? "back-cover"
+        : "interior-page";
+      await syncAsset({ name: `${title} - Page ${pageNum}`, dataUrl, tag, targetPage: pageNum });
+    } catch { toast.error("Failed to sync page"); }
+  };
+
+  const handleSyncAllPages = async () => {
+    if (!hasFeature("export") && !isAdmin) { setShowUpgradeModal(true); return; }
+    try {
+      toast.info("Syncing full comic to CoMiXX...");
+      let pageNum = 0;
+      if (effectiveFrontCover) {
+        pageNum++;
+        await syncAsset({ name: `${title} - Cover`, dataUrl: effectiveFrontCover, tag: "cover", targetPage: 0 });
+      }
+      for (let i = 0; i < spreads.length; i++) {
+        const spread = spreads[i];
+        if (spread.leftPage.length > 0) {
+          pageNum++;
+          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075);
+          await syncAsset({ name: `${title} - Page ${pageNum}`, dataUrl: leftCanvas.toDataURL("image/png"), tag: "interior-page", targetPage: pageNum });
+        }
+        if (spread.rightPage.length > 0) {
+          pageNum++;
+          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075);
+          await syncAsset({ name: `${title} - Page ${pageNum}`, dataUrl: rightCanvas.toDataURL("image/png"), tag: "interior-page", targetPage: pageNum });
+        }
+      }
+      if (effectiveBackCover) {
+        pageNum++;
+        await syncAsset({ name: `${title} - Back Cover`, dataUrl: effectiveBackCover, tag: "back-cover", targetPage: pageNum });
+      }
+      toast.success(`Synced ${pageNum} pages to CoMiXX`);
+    } catch { toast.error("Failed to sync comic"); }
+  };
 
   const projectNotFound = projectId && projectFetchError && !createdProjectId;
 
@@ -1100,6 +1154,7 @@ export default function ComicCreator() {
 
       if (panel.coverRole && coverDesignData) {
         const cd = { ...defaultCover, ...coverDesignData } as CoverData;
+        const hiddenEls = new Set(cd.hiddenElements || []);
         const isFront = panel.coverRole === "front-cover";
         const bgColor = isFront ? cd.frontBgColor : cd.backBgColor;
         const bgImage = isFront ? cd.frontImage : cd.backImage;
@@ -1135,19 +1190,19 @@ export default function ComicCreator() {
 
         if (isFront) {
           let currentY = panelY;
-          if (cd.bannerText) {
+          if (cd.bannerText && !hiddenEls.has("master-banner")) {
             ctx.fillStyle = cd.bannerBgColor || '#000';
             const bannerH = scaleFont(30);
             ctx.fillRect(panelX, currentY, panelW, bannerH);
             drawCenterText(cd.bannerText, currentY + bannerH * 0.2, "Inter, sans-serif", cd.titleColor, scaleFont(14), { bold: true, uppercase: true });
             currentY += bannerH;
           }
-          if (cd.publisherName) {
+          if (cd.publisherName && !hiddenEls.has("master-publisher")) {
             currentY += scaleFont(8);
             drawCenterText(cd.publisherName, currentY, "Inter, sans-serif", cd.titleColor, scaleFont(12), { bold: true, uppercase: true });
             currentY += scaleFont(18);
           }
-          if (cd.issueNumber) {
+          if (cd.issueNumber && !hiddenEls.has("master-issue")) {
             drawCenterText(cd.issueNumber, currentY, "Inter, sans-serif", cd.titleColor, scaleFont(16), { bold: true });
             if (cd.issueDate) {
               drawCenterText(cd.issueDate, currentY + scaleFont(18), "Inter, sans-serif", cd.titleColor, scaleFont(10));
@@ -1155,15 +1210,19 @@ export default function ComicCreator() {
             currentY += scaleFont(22);
           }
           const titleY = panelY + panelH * 0.3;
-          drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
-          if (cd.subtitle) {
+          if (!hiddenEls.has("master-title")) {
+            drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
+          }
+          if (cd.subtitle && !hiddenEls.has("master-subtitle")) {
             drawCenterText(cd.subtitle, titleY + scaleFont(cd.titleSize + 8), cd.subtitleFont, cd.subtitleColor, scaleFont(cd.subtitleSize));
           }
-          if (cd.tagline) {
+          if (cd.tagline && !hiddenEls.has("master-tagline")) {
             drawCenterText(cd.tagline, titleY + scaleFont(cd.titleSize + cd.subtitleSize + 16), "Inter, sans-serif", cd.subtitleColor, scaleFont(12));
           }
-          drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(40), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
-          if (cd.showPriceBox && cd.priceText) {
+          if (!hiddenEls.has("master-author")) {
+            drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(40), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+          }
+          if (cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
             const boxS = scaleFont(36);
             const bx = panelX + panelW - boxS - scaleFont(10);
             const by = panelY + scaleFont(10);
@@ -1199,8 +1258,10 @@ export default function ComicCreator() {
             ctx.fillText(cd.priceText, bcx, bcy);
           }
         } else {
-          drawCenterText(cd.title || "TITLE", panelY + scaleFont(20), cd.titleFont, cd.titleColor, scaleFont(cd.titleSize * 0.6), { bold: true, uppercase: true });
-          if (cd.backBlurb) {
+          if (!hiddenEls.has("master-back-title")) {
+            drawCenterText(cd.title || "TITLE", panelY + scaleFont(20), cd.titleFont, cd.titleColor, scaleFont(cd.titleSize * 0.6), { bold: true, uppercase: true });
+          }
+          if (cd.backBlurb && !hiddenEls.has("master-blurb")) {
             ctx.save();
             ctx.fillStyle = cd.backBlurbColor || cd.authorColor;
             ctx.font = `${scaleFont(cd.backBlurbSize)}px ${(cd.backBlurbFont || "Georgia").replace(/'/g, '"')}`;
@@ -1223,8 +1284,10 @@ export default function ComicCreator() {
             if (line) ctx.fillText(line.trim(), panelX + panelW / 2, y);
             ctx.restore();
           }
-          drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH - scaleFont(60), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
-          if (cd.isbn) {
+          if (!hiddenEls.has("master-back-author")) {
+            drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH - scaleFont(60), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+          }
+          if (cd.isbn && !hiddenEls.has("master-isbn")) {
             if (cd.showBarcode !== false) {
               const barcodeW = scaleFont(80);
               const barcodeH = scaleFont(40);
@@ -3373,6 +3436,13 @@ export default function ComicCreator() {
                 <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
                   <Save className="w-4 h-4 mr-2" /> Project Data (JSON)
                 </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem onClick={handleSyncCurrentPage} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400">
+                  <Share2 className="w-4 h-4 mr-2" /> Sync Page to CoMiXX
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSyncAllPages} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400">
+                  <Share2 className="w-4 h-4 mr-2" /> Sync All Pages to CoMiXX
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             {effectiveProjectId && project && (project.status === "draft" || project.status === "rejected") && (
@@ -4441,7 +4511,7 @@ export default function ComicCreator() {
                       const toggleVisibility = (elId: string) => {
                         const next = new Set(hiddenSet);
                         if (next.has(elId)) next.delete(elId); else next.add(elId);
-                        updateCoverData({ hiddenElements: [...next] });
+                        updateCoverData({ hiddenElements: Array.from(next) });
                       };
                       return (
                         <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
@@ -4499,6 +4569,9 @@ export default function ComicCreator() {
                                     <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
                                       className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
                                     ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
+                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteCoverEl(masterEl.id); }}
                                       className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
                                     ><Trash2 className="w-2.5 h-2.5" /></button>
@@ -4519,6 +4592,9 @@ export default function ComicCreator() {
                                     <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
                                       className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
                                     ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
+                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteImageLayer(il.id); }}
                                       className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
                                     ><Trash2 className="w-2.5 h-2.5" /></button>
@@ -4539,6 +4615,9 @@ export default function ComicCreator() {
                                     <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
                                       className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
                                     ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
+                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteTextLayer(tl.id); }}
                                       className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
                                     ><Trash2 className="w-2.5 h-2.5" /></button>

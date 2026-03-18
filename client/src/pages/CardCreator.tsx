@@ -16,6 +16,7 @@ import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
+import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { PostComposer } from "@/components/social/PostComposer";
 import {
   ContextMenu,
@@ -259,6 +260,12 @@ export default function CardCreator() {
   const [showDrawing, setShowDrawing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showFxBrowser, setShowFxBrowser] = useState(false);
+
+  const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
+    defaultTag: "character-art",
+    sourceMode: "/creator/card",
+    projectId: effectiveProjectId || undefined,
+  });
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [activeSection, setActiveSection] = useState<"design" | "stats" | "lore" | "style">("design");
@@ -862,6 +869,22 @@ export default function CardCreator() {
             </button>
             <button onClick={handleExport} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export-card">
               <Download className="w-4 h-4" /> Export
+            </button>
+            <button
+              onClick={async () => {
+                if (!cardPreviewRef.current) return;
+                try {
+                  const el = cardPreviewRef.current;
+                  const canvas = await captureElement(el, { scale: 2 });
+                  const dataUrl = canvas.toDataURL("image/png");
+                  await syncAsset({ name: `${cardData.name} - Card`, dataUrl, tag: "character-art" });
+                } catch { toast.error("Failed to sync card"); }
+              }}
+              disabled={isSyncingToCoMiXX}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-600 text-cyan-400 text-sm font-bold flex items-center gap-2"
+              data-testid="button-sync-comixx"
+            >
+              <Share2 className="w-4 h-4" /> Sync to CoMiXX
             </button>
             {mode === "pack" && packData.packMode === "sports" && (
               <button onClick={handleTeamPrintExport} className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-sm font-bold flex items-center gap-2" data-testid="button-print-team-sheet">

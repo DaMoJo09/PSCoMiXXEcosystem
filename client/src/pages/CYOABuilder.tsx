@@ -12,6 +12,7 @@ import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -385,6 +386,12 @@ export default function CYOABuilder() {
   const [title, setTitle] = useState("Untitled CYOA");
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
+
+  const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
+    defaultTag: "interior-page",
+    sourceMode: "/creator/cyoa",
+    projectId: effectiveProjectId || undefined,
+  });
   const creationAttempted = useRef(false);
   const [storyText, setStoryText] = useState("");
   const [branchPoints, setBranchPoints] = useState(5);
@@ -832,6 +839,33 @@ if(N.length>0)showN(N[0].id);
                   <button onClick={() => { exportCYOA("json"); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700">JSON</button>
                   <button onClick={() => { exportCYOA("html"); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700">Playable HTML</button>
                   <button onClick={() => { exportCYOA("txt"); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700">Plain Text</button>
+                  <div className="border-t border-zinc-600 my-1" />
+                  <button
+                    onClick={async () => {
+                      setShowExportMenu(false);
+                      const canvas = document.createElement("canvas");
+                      canvas.width = 400; canvas.height = 300;
+                      const ctx = canvas.getContext("2d");
+                      if (ctx) {
+                        ctx.fillStyle = "#18181b";
+                        ctx.fillRect(0, 0, 400, 300);
+                        ctx.fillStyle = "#22d3ee";
+                        ctx.font = "bold 18px sans-serif";
+                        ctx.fillText(title, 20, 40);
+                        ctx.fillStyle = "#a1a1aa";
+                        ctx.font = "14px sans-serif";
+                        ctx.fillText(`${nodes.length} nodes`, 20, 70);
+                        ctx.fillText(`${storyVariables.length} variables`, 20, 92);
+                      }
+                      const dataUrl = canvas.toDataURL("image/png");
+                      await syncAsset({ name: `${title} - CYOA`, dataUrl, tag: "interior-page" });
+                    }}
+                    disabled={isSyncingToCoMiXX}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 text-cyan-400"
+                    data-testid="button-sync-comixx"
+                  >
+                    Sync to CoMiXX
+                  </button>
                 </div>
               )}
             </div>

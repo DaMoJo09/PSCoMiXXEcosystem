@@ -5577,7 +5577,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetch(FX_API_URL, {
+      const params = new URLSearchParams();
+      if (req.query.asset_tag) params.set("asset_tag", req.query.asset_tag as string);
+      if (req.query.project_id) params.set("project_id", req.query.project_id as string);
+      const qs = params.toString();
+      const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
+      const response = await fetch(url, {
         headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
       });
       const data = await response.json();

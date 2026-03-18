@@ -14,6 +14,7 @@ import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
+import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -471,6 +472,12 @@ export default function VNCreator() {
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showFxBrowser, setShowFxBrowser] = useState(false);
+
+  const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
+    defaultTag: "background",
+    sourceMode: "/creator/vn",
+    projectId: effectiveProjectId || undefined,
+  });
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
@@ -1068,6 +1075,24 @@ if(S.length>0)showS(0);
                   <button onClick={() => { handleExportJSON(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700" data-testid="button-export-json">JSON Project</button>
                   <button onClick={() => { handleExportHTML(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700" data-testid="button-export-html">Playable HTML</button>
                   <button onClick={() => { handleExportRenpy(); setShowExportMenu(false); }} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 flex items-center gap-2" data-testid="button-export-renpy"><Code className="w-3 h-3" /> Ren'Py Script</button>
+                  <div className="border-t border-zinc-600 my-1" />
+                  <button
+                    onClick={async () => {
+                      setShowExportMenu(false);
+                      const json = JSON.stringify({ title, scenes, characters });
+                      const blob = new Blob([json], { type: "application/json" });
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        await syncAsset({ name: `${title} - VN Project`, dataUrl: reader.result as string, tag: "interior-page" });
+                      };
+                      reader.readAsDataURL(blob);
+                    }}
+                    disabled={isSyncingToCoMiXX}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 text-cyan-400 flex items-center gap-2"
+                    data-testid="button-sync-comixx"
+                  >
+                    Sync to CoMiXX
+                  </button>
                 </div>
               )}
             </div>

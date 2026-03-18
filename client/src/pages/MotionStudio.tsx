@@ -19,6 +19,7 @@ import {
   FileVideo, Settings2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -374,6 +375,12 @@ export default function MotionStudio() {
   const { hasFeature, isAdmin } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState("Export");
+
+  const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
+    defaultTag: "fx-overlay",
+    sourceMode: "/creator/motion",
+    projectId: effectiveProjectId || undefined,
+  });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -2834,6 +2841,20 @@ export default function MotionStudio() {
             data-testid="button-export-video">
             <FileVideo className="w-3.5 h-3.5" />
             Export Video
+          </button>
+          <button
+            onClick={async () => {
+              if (!canvasRef.current) return;
+              try {
+                const dataUrl = canvasRef.current.toDataURL("image/png");
+                await syncAsset({ name: `${title} - Frame`, dataUrl, tag: "fx-overlay" });
+              } catch { toast.error("Failed to sync frame"); }
+            }}
+            disabled={isSyncingToCoMiXX}
+            className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-cyan-600 text-cyan-400 transition-colors flex items-center gap-2"
+            data-testid="button-sync-comixx"
+          >
+            Sync to CoMiXX
           </button>
         </div>
       </header>

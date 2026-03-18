@@ -1,4 +1,5 @@
 import type { User, Project, Asset, InsertUser, InsertProject, InsertAsset, MarketplaceListing, InsertMarketplaceListing, MarketplaceOrder } from "@shared/schema";
+import type { AssetTag, SyncPayload } from "@/types/asset-tags";
 
 const API_BASE = "/api";
 
@@ -384,6 +385,11 @@ export interface FxEffect {
   created_at: string;
   updated_at: string;
   layers?: any[];
+  asset_tag?: AssetTag;
+  target_page?: number;
+  project_id?: string;
+  source_mode?: string;
+  metadata?: Record<string, any>;
 }
 
 export const fxStudioApi = {
@@ -423,5 +429,34 @@ export const fxStudioApi = {
       credentials: "include",
     });
     return handleResponse<any>(response);
+  },
+
+  pushTaggedAsset: async (payload: SyncPayload) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: payload.name,
+        preview_data_url: payload.preview_data_url,
+        asset_tag: payload.asset_tag,
+        target_page: payload.target_page,
+        project_id: payload.project_id,
+        source_mode: payload.source_mode,
+        layers: payload.layers || [],
+        canvas_background: payload.canvas_background,
+        metadata: payload.metadata,
+      }),
+      credentials: "include",
+    });
+    return handleResponse<any>(response);
+  },
+
+  listByTag: async (tag?: AssetTag, projectId?: string) => {
+    const params = new URLSearchParams();
+    if (tag) params.set("asset_tag", tag);
+    if (projectId) params.set("project_id", projectId);
+    const qs = params.toString();
+    const response = await fetch(`${API_BASE}/fx-studio/effects${qs ? `?${qs}` : ""}`, { credentials: "include" });
+    return handleResponse<FxEffect[]>(response);
   },
 };
