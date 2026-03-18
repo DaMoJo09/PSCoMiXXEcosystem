@@ -2065,14 +2065,33 @@ export default function ComicCreator() {
       toast.error("Please select a panel first");
       return;
     }
-    const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
-    addContentToPanel(selectedPage, selectedPanelId, {
-      type: "image",
-      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { url: asset.url },
-      locked: false,
-    });
-    toast.success(`${asset.name} added`);
+    const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const targetPanel = panels.find(p => p.id === selectedPanelId);
+    if (targetPanel?.coverRole && coverDesignData) {
+      const view = targetPanel.coverRole === "front-cover" ? "front" : "back";
+      const newLayer: CoverImageLayer = {
+        id: `img_${Date.now()}`,
+        url: asset.url,
+        name: asset.name || "Asset",
+        transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        locked: false,
+      };
+      const layerKey = `${view}ImageLayers` as keyof CoverData;
+      const existing = (coverDesignData[layerKey] as CoverImageLayer[]) || [];
+      const newOrder = [...(coverDesignData.elementZOrder || []), newLayer.id];
+      updateCoverData({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
+      toast.success(`${asset.name} added to ${view} cover`);
+    } else {
+      const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
+      addContentToPanel(selectedPage, selectedPanelId, {
+        type: "image",
+        transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: { url: asset.url },
+        locked: false,
+      });
+      toast.success(`${asset.name} added`);
+    }
   };
 
   const startInlineDrawing = (page: "left" | "right", panelId: string) => {
@@ -2676,59 +2695,77 @@ export default function ComicCreator() {
                   </>
                 )}
 
-                {imageLayers.map(il => (
-                  <TransformableElement
-                    key={il.id}
-                    id={`cover-img-${il.id}`}
-                    initialTransform={il.transform}
-                    isSelected={selectedContentId === `cover-img-${il.id}`}
-                    onSelect={() => { setSelectedContentId(`cover-img-${il.id}`); setSelectedPanelId(panel.id); }}
-                    onTransformChange={(_, t) => {
-                      const layerKey = `${isFront ? 'front' : 'back'}ImageLayers` as keyof CoverData;
-                      const layers = (cd[layerKey] as CoverImageLayer[]) || [];
-                      updateCoverData({ [layerKey]: layers.map(l => l.id === il.id ? { ...l, transform: t } : l) });
-                    }}
-                    locked={il.locked}
-                    minWidth={15} minHeight={15}
-                    style={{ zIndex: 5 }}
-                  >
-                    <img src={il.url} alt={il.name}
-                      className="w-full h-full object-contain"
-                      style={{ opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any }}
-                      draggable={false}
-                    />
-                  </TransformableElement>
-                ))}
-                {textLayers.map(tl => (
-                  <TransformableElement
-                    key={tl.id}
-                    id={`cover-txt-${tl.id}`}
-                    initialTransform={tl.transform}
-                    isSelected={selectedContentId === `cover-txt-${tl.id}`}
-                    onSelect={() => { setSelectedContentId(`cover-txt-${tl.id}`); setSelectedPanelId(panel.id); }}
-                    onTransformChange={(_, t) => {
-                      const layerKey = `${isFront ? 'front' : 'back'}Layers` as keyof CoverData;
-                      const layers = (cd[layerKey] as CoverTextLayer[]) || [];
-                      updateCoverData({ [layerKey]: layers.map(l => l.id === tl.id ? { ...l, transform: t } : l) });
-                    }}
-                    locked={tl.locked}
-                    minWidth={15} minHeight={10}
-                    style={{ zIndex: 6 }}
-                  >
-                    <div className="w-full h-full flex items-center justify-center"
-                      style={{
-                        fontSize: `${Math.max(6, tl.fontSize * 0.3)}px`,
-                        fontFamily: tl.fontFamily,
-                        color: tl.color,
-                        fontWeight: tl.fontWeight || 'normal',
-                        fontStyle: tl.fontStyle || 'normal',
-                        textTransform: (tl.textTransform as any) || 'none',
-                        WebkitTextStroke: tl.strokeWidth ? `${tl.strokeWidth * 0.5}px ${tl.strokeColor || '#000'}` : undefined,
-                      }}>
-                      {tl.text}
-                    </div>
-                  </TransformableElement>
-                ))}
+                {(() => {
+                  const allUserIds = new Set([...imageLayers.map(il => il.id), ...textLayers.map(tl => tl.id)]);
+                  const orderedUserIds = [...coverElZOrder.filter(id => allUserIds.has(id))];
+                  allUserIds.forEach(id => { if (!orderedUserIds.includes(id)) orderedUserIds.push(id); });
+                  const imgMap = new Map(imageLayers.map(il => [il.id, il]));
+                  const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
+
+                  return orderedUserIds.map((id, idx) => {
+                    const zIdx = idx + 20;
+                    const il = imgMap.get(id);
+                    if (il) {
+                      return (
+                        <TransformableElement
+                          key={il.id}
+                          id={`cover-img-${il.id}`}
+                          initialTransform={il.transform}
+                          isSelected={selectedContentId === `cover-img-${il.id}`}
+                          onSelect={() => { setSelectedContentId(`cover-img-${il.id}`); setSelectedPanelId(panel.id); }}
+                          onTransformChange={(_, t) => {
+                            const layerKey = `${isFront ? 'front' : 'back'}ImageLayers` as keyof CoverData;
+                            const layers = (cd[layerKey] as CoverImageLayer[]) || [];
+                            updateCoverData({ [layerKey]: layers.map(l => l.id === il.id ? { ...l, transform: t } : l) });
+                          }}
+                          locked={il.locked}
+                          minWidth={15} minHeight={15}
+                          style={{ zIndex: zIdx }}
+                        >
+                          <img src={il.url} alt={il.name}
+                            className="w-full h-full object-contain"
+                            style={{ opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any }}
+                            draggable={false}
+                          />
+                        </TransformableElement>
+                      );
+                    }
+                    const tl = txtMap.get(id);
+                    if (tl) {
+                      return (
+                        <TransformableElement
+                          key={tl.id}
+                          id={`cover-txt-${tl.id}`}
+                          initialTransform={tl.transform}
+                          isSelected={selectedContentId === `cover-txt-${tl.id}`}
+                          onSelect={() => { setSelectedContentId(`cover-txt-${tl.id}`); setSelectedPanelId(panel.id); }}
+                          onTransformChange={(_, t) => {
+                            const layerKey = `${isFront ? 'front' : 'back'}Layers` as keyof CoverData;
+                            const layers = (cd[layerKey] as CoverTextLayer[]) || [];
+                            updateCoverData({ [layerKey]: layers.map(l => l.id === tl.id ? { ...l, transform: t } : l) });
+                          }}
+                          locked={tl.locked}
+                          minWidth={15} minHeight={10}
+                          style={{ zIndex: zIdx }}
+                        >
+                          <div className="w-full h-full flex items-center justify-center"
+                            style={{
+                              fontSize: `${Math.max(6, tl.fontSize * 0.3)}px`,
+                              fontFamily: tl.fontFamily,
+                              color: tl.color,
+                              fontWeight: tl.fontWeight || 'normal',
+                              fontStyle: tl.fontStyle || 'normal',
+                              textTransform: (tl.textTransform as any) || 'none',
+                              WebkitTextStroke: tl.strokeWidth ? `${tl.strokeWidth * 0.5}px ${tl.strokeColor || '#000'}` : undefined,
+                            }}>
+                            {tl.text}
+                          </div>
+                        </TransformableElement>
+                      );
+                    }
+                    return null;
+                  });
+                })()}
               </div>
             );
           })()}
@@ -3991,14 +4028,33 @@ export default function ComicCreator() {
                           key={asset.id}
                           onClick={() => {
                             if (selectedPanelId) {
-                              const { w, h } = getPanelPixelSize("right", selectedPanelId);
-                              addContentToPanel("right", selectedPanelId, {
-                                type: "image",
-                                transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-                                data: { url: asset.url },
-                                locked: false,
-                              });
-                              toast.success("Asset added to panel");
+                              const ctxPanels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+                              const ctxPanel = ctxPanels.find(p => p.id === selectedPanelId);
+                              if (ctxPanel?.coverRole && coverDesignData) {
+                                const view = ctxPanel.coverRole === "front-cover" ? "front" : "back";
+                                const newLayer: CoverImageLayer = {
+                                  id: `img_${Date.now()}`,
+                                  url: asset.url,
+                                  name: asset.name || "Asset",
+                                  transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+                                  opacity: 1,
+                                  locked: false,
+                                };
+                                const layerKey = `${view}ImageLayers` as keyof CoverData;
+                                const existing = (coverDesignData[layerKey] as CoverImageLayer[]) || [];
+                                const newOrder = [...(coverDesignData.elementZOrder || []), newLayer.id];
+                                updateCoverData({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
+                                toast.success(`Asset added to ${view} cover`);
+                              } else {
+                                const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
+                                addContentToPanel(selectedPage, selectedPanelId, {
+                                  type: "image",
+                                  transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
+                                  data: { url: asset.url },
+                                  locked: false,
+                                });
+                                toast.success("Asset added to panel");
+                              }
                             } else {
                               toast.error("Select a panel first");
                             }
@@ -5357,14 +5413,33 @@ export default function ComicCreator() {
                           }}
                           onClick={() => {
                             if (selectedPanelId) {
-                              const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
-                              addContentToPanel(selectedPage, selectedPanelId, {
-                                type: "image",
-                                transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-                                data: { url: asset.url },
-                                locked: false,
-                              });
-                              toast.success("Asset added to panel");
+                              const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+                              const targetPanel = panels.find(p => p.id === selectedPanelId);
+                              if (targetPanel?.coverRole && coverDesignData) {
+                                const view = targetPanel.coverRole === "front-cover" ? "front" : "back";
+                                const newLayer: CoverImageLayer = {
+                                  id: `img_${Date.now()}`,
+                                  url: asset.url,
+                                  name: asset.name || "Asset",
+                                  transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
+                                  opacity: 1,
+                                  locked: false,
+                                };
+                                const layerKey = `${view}ImageLayers` as keyof CoverData;
+                                const existing = (coverDesignData[layerKey] as CoverImageLayer[]) || [];
+                                const newOrder = [...(coverDesignData.elementZOrder || []), newLayer.id];
+                                updateCoverData({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
+                                toast.success(`Asset added to ${view} cover`);
+                              } else {
+                                const { w, h } = getPanelPixelSize(selectedPage, selectedPanelId);
+                                addContentToPanel(selectedPage, selectedPanelId, {
+                                  type: "image",
+                                  transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
+                                  data: { url: asset.url },
+                                  locked: false,
+                                });
+                                toast.success("Asset added to panel");
+                              }
                               setShowAssetLibrary(false);
                             } else {
                               toast.error("Select a panel first");
