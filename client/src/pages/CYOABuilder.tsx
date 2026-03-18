@@ -78,6 +78,88 @@ const NODE_GAP_X = 60;
 const NODE_GAP_Y = 40;
 const COLS = 4;
 
+const CYOA_TEMPLATES = [
+  {
+    id: "space",
+    emoji: "\u{1F680}",
+    title: "Space Adventure",
+    desc: "Explore the galaxy, meet aliens, and save your crew!",
+    gradient: "from-indigo-600 to-purple-700",
+    nodes: [
+      { id: "start", title: "Launch Day", text: "The spaceship rumbles beneath your feet. Captain Zara's voice crackles over the intercom: 'Crew, we've detected two signals — one from a mysterious planet, another from a drifting space station. Where should we investigate first?'", choices: [{ label: "\u{1F30D} Head to the mysterious planet", target: "planet" }, { label: "\u{1F6F8} Dock at the space station", target: "station" }], color: "blue" as NodeColor },
+      { id: "planet", title: "Strange Planet", text: "Your ship lands in a valley filled with glowing crystals. A friendly alien creature waves at you with three arms! It seems to want to show you something deeper in the crystal caves.", choices: [{ label: "\u{1F48E} Follow the alien into the caves", target: "caves" }, { label: "\u{1F4E1} Stay at the ship and scan for signals", target: "signal" }], color: "purple" as NodeColor },
+      { id: "station", title: "Space Station", text: "The station looks abandoned... but you hear a faint beeping sound. In the control room, you find a robot that seems to be sending a distress signal. Its screen flickers with a message.", choices: [{ label: "\u{1F916} Help fix the robot", target: "robot_good" }, { label: "\u{1F50D} Search the rest of the station first", target: "station_explore" }], color: "blue" as NodeColor },
+      { id: "caves", title: "Crystal Caves", text: "The caves shimmer with every color of the rainbow! The alien leads you to a chamber where you find a star map showing the way home — and a shortcut through a wormhole!", choices: [{ label: "\u{2B50} Take the star map home", target: "ending_hero" }], isEnding: false, color: "purple" as NodeColor },
+      { id: "signal", title: "Mystery Signal", text: "Your scanner picks up a coded message: 'If you can read this, bring crystals to Station 7.' It's from the space station! Maybe the robot there needs these crystals to power up.", choices: [{ label: "\u{1F48E} Gather crystals and fly to the station", target: "robot_good" }], color: "yellow" as NodeColor },
+      { id: "robot_good", title: "Robot Rescue", text: "You repair the robot and it comes to life! 'Thank you, friend! I am Navigator Bot 7. I know the safest route through every galaxy. Let me guide you home!' The robot joins your crew!", choices: [{ label: "\u{1F389} Head home with your new robot friend!", target: "ending_hero" }], color: "green" as NodeColor },
+      { id: "station_explore", title: "Hidden Lab", text: "Behind a locked door, you discover an old science lab with amazing inventions — a gravity boots prototype and a universal translator! But you hear footsteps approaching...", choices: [{ label: "\u{1F45F} Grab the gravity boots and hide", target: "ending_hero" }, { label: "\u{1F44B} Call out and introduce yourself", target: "robot_good" }], color: "yellow" as NodeColor },
+      { id: "ending_hero", title: "Home Sweet Home", text: "You return to Earth as heroes! Your discoveries help scientists understand the universe better, and your adventure inspires kids everywhere to dream of the stars. THE END \u{2B50}", choices: [], isEnding: true, endingType: "good" as const, color: "green" as NodeColor },
+    ],
+  },
+  {
+    id: "fairy",
+    emoji: "\u{1F9DA}",
+    title: "Fairy Tale Quest",
+    desc: "A magical kingdom needs your help! Befriend dragons and outsmart trolls.",
+    gradient: "from-pink-500 to-rose-600",
+    nodes: [
+      { id: "start", title: "The Enchanted Forest", text: "You find a golden letter on your doorstep: 'Dear Brave One, the Magic Crown has been stolen! Without it, flowers won't bloom and rainbows won't shine. Please help us!' Signed, The Forest Friends.", choices: [{ label: "\u{1F333} Enter the Enchanted Forest", target: "forest" }, { label: "\u{1F3F0} Go straight to the castle", target: "castle" }], color: "purple" as NodeColor },
+      { id: "forest", title: "Meeting the Fox", text: "A clever fox wearing a tiny scarf approaches you. 'I saw the troll take the crown toward the mountain! But the path is tricky. I can guide you through the safe route, or you can take the shortcut through the dragon's garden.'", choices: [{ label: "\u{1F98A} Follow the fox safely", target: "fox_path" }, { label: "\u{1F409} Brave the dragon's garden", target: "dragon" }], color: "yellow" as NodeColor },
+      { id: "castle", title: "The Wise Owl", text: "At the castle, a wise owl sits on the throne. 'The troll won't give back the crown easily. You'll need either the Dragon's Fire Flower or the Fox's Magic Compass to find him. Which friend will you seek?'", choices: [{ label: "\u{1F98A} Find the fox", target: "forest" }, { label: "\u{1F409} Visit the dragon", target: "dragon" }], color: "blue" as NodeColor },
+      { id: "fox_path", title: "Hidden Waterfall", text: "The fox leads you to a beautiful hidden waterfall. Behind it, there's a secret tunnel! 'This leads right to the troll's cave,' whispers the fox. 'But let's be quiet...'", choices: [{ label: "\u{1F910} Sneak in quietly", target: "troll_kind" }], color: "green" as NodeColor },
+      { id: "dragon", title: "The Friendly Dragon", text: "The dragon isn't scary at all — she's painting flowers on rocks! 'Oh, the crown? That silly troll borrowed it for his birthday party and forgot to return it. Here, take this Fire Flower — it lights up dark caves!'", choices: [{ label: "\u{1F338} Take the flower and find the troll", target: "troll_kind" }], color: "red" as NodeColor },
+      { id: "troll_kind", title: "The Troll's Apology", text: "You find the troll... crying! 'I'm so sorry! I just wanted to wear it for ONE day because it's so pretty. I didn't know it would stop the rainbows!' He hands you the crown with a big sniff.", choices: [{ label: "\u{1F451} Return the crown and invite the troll to the celebration!", target: "ending_happy" }], color: "green" as NodeColor },
+      { id: "ending_happy", title: "Rainbow Festival!", text: "With the crown restored, rainbows burst across the sky and flowers bloom everywhere! The whole kingdom celebrates, and even the troll gets to wear a special friendship crown. Everyone is happy! THE END \u{1F308}", choices: [], isEnding: true, endingType: "good" as const, color: "green" as NodeColor },
+    ],
+  },
+  {
+    id: "mystery",
+    emoji: "\u{1F50D}",
+    title: "Mystery Detective",
+    desc: "Solve the case of the missing school mascot!",
+    gradient: "from-amber-500 to-orange-600",
+    nodes: [
+      { id: "start", title: "The Missing Mascot", text: "Oh no! Buddy the school bulldog mascot costume has vanished right before the big game! Principal Park asks you to help. You find a trail of glitter leading two ways — toward the art room and the gym.", choices: [{ label: "\u{1F3A8} Follow the glitter to the art room", target: "art_room" }, { label: "\u{1F3C0} Check the gym", target: "gym" }], color: "yellow" as NodeColor },
+      { id: "art_room", title: "Art Room Clues", text: "In the art room, you find Ms. Chen working on a big banner. 'Buddy? I haven't seen him, but I noticed muddy footprints heading toward the garden earlier. Also, someone borrowed my gold paint — very suspicious!'", choices: [{ label: "\u{1F43E} Follow the muddy footprints", target: "garden" }, { label: "\u{1F3C0} Check the gym too", target: "gym" }], color: "blue" as NodeColor },
+      { id: "gym", title: "Gym Discovery", text: "Coach Williams is setting up for the game. 'I saw someone carrying something big and fuzzy toward the music room about an hour ago. They were humming the school fight song!' You also spot a piece of fake fur on the floor.", choices: [{ label: "\u{1F3B5} Head to the music room", target: "music_room" }], color: "blue" as NodeColor },
+      { id: "garden", title: "The School Garden", text: "In the garden, you find more muddy footprints and... is that a bulldog ear sticking out from behind the shed? Wait, it's just a stuffed animal. But there IS a note: 'Meet me in the music room for the BIG SURPRISE!'", choices: [{ label: "\u{1F3B5} Rush to the music room!", target: "music_room" }], color: "yellow" as NodeColor },
+      { id: "music_room", title: "Case Solved!", text: "You burst into the music room and find... the entire Spirit Committee! They've been secretly decorating Buddy with a brand new sparkly cape and crown for a surprise halftime show! 'You found us! Want to help with the surprise?'", choices: [{ label: "\u{1F389} Join the surprise team!", target: "ending_solved" }], color: "green" as NodeColor },
+      { id: "ending_solved", title: "The Big Reveal!", text: "At halftime, Buddy bursts onto the field with his amazing new cape, and the crowd goes WILD! Principal Park gives you a Junior Detective badge. Best. Game. Ever! THE END \u{1F3C6}", choices: [], isEnding: true, endingType: "good" as const, color: "green" as NodeColor },
+    ],
+  },
+  {
+    id: "animals",
+    emoji: "\u{1F43E}",
+    title: "Animal Friends",
+    desc: "Help forest animals prepare for the big talent show!",
+    gradient: "from-emerald-500 to-teal-600",
+    nodes: [
+      { id: "start", title: "Talent Show Day", text: "The forest is buzzing with excitement! The Annual Animal Talent Show is tonight, but three friends need your help getting ready. Bear forgot his dance moves, Rabbit's magic trick went wrong, and Owl lost her singing voice!", choices: [{ label: "\u{1F43B} Help Bear with his dance", target: "bear" }, { label: "\u{1F430} Fix Rabbit's magic trick", target: "rabbit" }, { label: "\u{1F989} Help Owl find her voice", target: "owl" }], color: "green" as NodeColor },
+      { id: "bear", title: "Bear's Big Dance", text: "Bear is trying to do the moonwalk but keeps tripping! 'I watched a video but my feet are too big!' You could teach him an easier dance, or help him turn his tripping into a funny comedy act.", choices: [{ label: "\u{1F483} Teach Bear the Cha-Cha Slide", target: "show_time" }, { label: "\u{1F923} Turn trips into a comedy routine", target: "show_time" }], color: "yellow" as NodeColor },
+      { id: "rabbit", title: "Rabbit's Magic", text: "Rabbit pulls off her top hat... and instead of a dove, out pops a very confused frog! 'That's NOT what was supposed to happen!' The frog ribbits happily. Maybe the frog could BE the act?", choices: [{ label: "\u{1F438} Make it a frog magic show!", target: "show_time" }, { label: "\u{1F3A9} Practice the trick until it works", target: "show_time" }], color: "purple" as NodeColor },
+      { id: "owl", title: "Owl's Lost Voice", text: "Owl opens her beak and only a tiny squeak comes out! She's been practicing too hard. You find some honey tea and a warm scarf. 'Maybe I could do a spoken word poem instead?' she whispers.", choices: [{ label: "\u{2615} Honey tea + warm-up exercises", target: "show_time" }, { label: "\u{1F4DD} Help write an amazing poem", target: "show_time" }], color: "blue" as NodeColor },
+      { id: "show_time", title: "Showtime!", text: "The curtain rises and ALL three friends perform together — Bear's funny dancing, Rabbit's frog magic, and Owl's beautiful voice combine into the most amazing group act ever! The forest crowd gives a standing ovation!", choices: [{ label: "\u{1F3C6} Take a bow together!", target: "ending_star" }], color: "green" as NodeColor },
+      { id: "ending_star", title: "Best Show Ever!", text: "The judges award the 'Best Friends Forever' trophy! Bear, Rabbit, and Owl lift you on their shoulders. 'We couldn't have done it without you!' The fireflies put on a light show as everyone celebrates. THE END \u{2B50}", choices: [], isEnding: true, endingType: "good" as const, color: "green" as NodeColor },
+    ],
+  },
+  {
+    id: "superhero",
+    emoji: "\u{1F9B8}",
+    title: "Superhero Academy",
+    desc: "Discover your superpower and save Mega City!",
+    gradient: "from-red-500 to-rose-600",
+    nodes: [
+      { id: "start", title: "Power Discovery Day", text: "Welcome to Superhero Academy! Today you discover your superpower. Professor Pulse holds up three glowing orbs: 'Each orb contains a different power. Choose wisely, young hero — Mega City needs you!'", choices: [{ label: "\u{26A1} Lightning Speed (yellow orb)", target: "speed" }, { label: "\u{1F4AA} Super Strength (red orb)", target: "strength" }, { label: "\u{1F9E0} Mind Reading (blue orb)", target: "mind" }], color: "red" as NodeColor },
+      { id: "speed", title: "Lightning Fast!", text: "ZAP! You can run faster than a race car! Your first mission: a kitten is stuck on top of City Tower and a storm is coming. You zoom up the building in 2 seconds flat and rescue the kitten!", choices: [{ label: "\u{1F408} Save the kitten and find the storm's source", target: "villain" }], color: "yellow" as NodeColor },
+      { id: "strength", title: "Super Strong!", text: "BOOM! You lift the training boulder with one hand! Your first mission: a bridge is cracking and a school bus is stuck on it. You hold up the bridge while everyone crosses safely!", choices: [{ label: "\u{1F68C} Save the bus and track the cause", target: "villain" }], color: "red" as NodeColor },
+      { id: "mind", title: "Mind Power!", text: "WHOOSH! You can hear thoughts! Your first mission: someone is planning to turn off all the lights in the city. You read their thoughts and discover it's not a villain — it's a lonely robot who just wants friends!", choices: [{ label: "\u{1F916} Talk to the robot and understand", target: "kind_ending" }], color: "blue" as NodeColor },
+      { id: "villain", title: "The Weather Machine", text: "You track the storm to an old warehouse where you find... a kid your age! 'I built a weather machine for my science fair project but it went haywire! I can't turn it off!' They look really scared.", choices: [{ label: "\u{1F91D} Help them fix it together", target: "kind_ending" }, { label: "\u{26A1} Use your power to disable it", target: "kind_ending" }], color: "purple" as NodeColor },
+      { id: "kind_ending", title: "Heroes Are Kind", text: "You solve the problem with kindness instead of fighting! Professor Pulse gives you the Golden Heart badge: 'The greatest superpower isn't speed or strength — it's compassion.' You and your new friend become the best hero team ever!", choices: [{ label: "\u{1F31F} Graduate as a hero!", target: "ending_super" }], color: "green" as NodeColor },
+      { id: "ending_super", title: "Graduation Day!", text: "The whole city cheers as you receive your Hero Certificate! 'Remember,' says Professor Pulse, 'every kid has a superpower — being kind, being brave, being YOU.' You fly off into the sunset, ready for your next adventure! THE END \u{1F31F}", choices: [], isEnding: true, endingType: "good" as const, color: "green" as NodeColor },
+    ],
+  },
+];
+
 function TypewriterText({ text, speed = 30, onComplete }: { text: string; speed?: number; onComplete?: () => void }) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
@@ -743,14 +825,14 @@ if(N.length>0)showN(N[0].id);
                 </div>
               )}
             </div>
-            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
+            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button onClick={validateCYOA} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-validate">
-              <AlertCircle className="w-4 h-4" /> Validate
+            <button onClick={validateCYOA} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" title="Check your story for missing links or dead ends" data-testid="button-validate">
+              <AlertCircle className="w-4 h-4" /> Check Story
             </button>
             {nodes.length > 0 && (
-              <button onClick={() => startPreview()} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2" data-testid="button-preview"><Play className="w-4 h-4" /> Preview</button>
+              <button onClick={() => startPreview()} className="px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-500 text-black text-sm font-bold flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-preview"><Play className="w-4 h-4" /> Play It!</button>
             )}
           </div>
         </header>
@@ -759,9 +841,14 @@ if(N.length>0)showN(N[0].id);
           <div className="flex-1 flex overflow-hidden">
             <div className="w-80 border-r border-zinc-800 bg-zinc-900 flex flex-col">
               <div className="border-b border-zinc-800 p-1 flex">
-                {(["story", "nodes", "variables", "assets"] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>
-                    {tab === "variables" ? <><Variable className="w-3 h-3 inline mr-1" />Vars</> : tab}
+                {([
+                  { key: "story" as const, label: "\u{1F4DD} Story", hint: "Write or paste your story" },
+                  { key: "nodes" as const, label: "\u{1F333} Paths", hint: "Build your story branches" },
+                  { key: "variables" as const, label: "\u{1F4CA} Stats", hint: "Track player choices" },
+                  { key: "assets" as const, label: "\u{1F3A8} Art", hint: "Add backgrounds & images" },
+                ]).map(tab => (
+                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} title={tab.hint} className={`flex-1 py-2 text-xs font-bold transition-all ${activeTab === tab.key ? "bg-white text-black scale-[1.02]" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                    {tab.label}
                   </button>
                 ))}
               </div>
@@ -769,32 +856,40 @@ if(N.length>0)showN(N[0].id);
               <div className="flex-1 overflow-auto p-4 space-y-4">
                 {activeTab === "story" && (
                   <>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Paste Your Story</label>
-                      <textarea value={storyText} onChange={(e) => setStoryText(e.target.value)} placeholder="Paste your story text here..." className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm font-mono resize-none" data-testid="input-story-text" />
+                    <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+                      <p className="text-xs text-sky-300">{"\u{1F4A1}"} <strong>Tip:</strong> Write or paste a short story below, then hit Generate to turn it into a choose-your-own-adventure!</p>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Branch Points</label>
-                      <div className="flex gap-1">{[3, 5, 7, 10].map(n => (<button key={n} onClick={() => setBranchPoints(n)} className={`flex-1 py-2 text-sm font-medium border ${branchPoints === n ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>{n}</button>))}</div>
+                      <label className="text-xs font-bold uppercase text-sky-400">{"\u{270F}\u{FE0F}"} Your Story</label>
+                      <textarea value={storyText} onChange={(e) => setStoryText(e.target.value)} placeholder="Once upon a time, in a land far away..." className="w-full h-48 p-3 border border-zinc-700 bg-zinc-800 text-sm resize-none focus:border-sky-500 transition-colors" data-testid="input-story-text" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase text-zinc-400">Choices per Branch</label>
-                      <div className="flex gap-1">{[2, 3, 4].map(n => (<button key={n} onClick={() => setOptionsPerBranch(n)} className={`flex-1 py-2 text-sm font-medium border ${optionsPerBranch === n ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>{n}</button>))}</div>
+                      <label className="text-xs font-bold uppercase text-amber-400">{"\u{1F500}"} How Many Branches?</label>
+                      <div className="flex gap-1">{[3, 5, 7, 10].map(n => (<button key={n} onClick={() => setBranchPoints(n)} className={`flex-1 py-2 text-sm font-medium border transition-all ${branchPoints === n ? "bg-amber-400 text-black border-amber-400 scale-105" : "bg-zinc-800 border-zinc-700 hover:border-amber-400/50"}`}>{n}</button>))}</div>
                     </div>
-                    <button onClick={generateCYOA} disabled={isGenerating || !storyText.trim()} className="w-full py-3 bg-white text-black font-bold uppercase disabled:opacity-50 flex items-center justify-center gap-2" data-testid="button-generate-cyoa">
-                      {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <GitBranch className="w-5 h-5" />} Generate CYOA
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-green-400">{"\u{1F449}"} Choices per Branch</label>
+                      <div className="flex gap-1">{[2, 3, 4].map(n => (<button key={n} onClick={() => setOptionsPerBranch(n)} className={`flex-1 py-2 text-sm font-medium border transition-all ${optionsPerBranch === n ? "bg-green-400 text-black border-green-400 scale-105" : "bg-zinc-800 border-zinc-700 hover:border-green-400/50"}`}>{n}</button>))}</div>
+                    </div>
+                    <button onClick={generateCYOA} disabled={isGenerating || !storyText.trim()} className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold uppercase disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform" data-testid="button-generate-cyoa">
+                      {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <GitBranch className="w-5 h-5" />} {isGenerating ? "Creating Your Adventure..." : "Generate My Adventure!"}
                     </button>
                   </>
                 )}
 
                 {activeTab === "nodes" && (
                   <>
+                    {nodes.length > 0 && nodes.length <= 2 && (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                        <p className="text-xs text-emerald-300">{"\u{1F31F}"} <strong>Nice start!</strong> Click any path card to edit it. Use the <strong>+</strong> button to add more story branches!</p>
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <div className="flex-1 relative">
                         <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
-                        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search nodes..." className="w-full pl-7 pr-2 py-1.5 bg-zinc-800 border border-zinc-700 text-xs" data-testid="input-search-nodes" />
+                        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search story paths..." className="w-full pl-7 pr-2 py-1.5 bg-zinc-800 border border-zinc-700 text-xs" data-testid="input-search-nodes" />
                       </div>
-                      <button onClick={addNode} className="p-1.5 bg-white text-black" data-testid="button-add-node"><Plus className="w-4 h-4" /></button>
+                      <button onClick={addNode} className="p-1.5 bg-white text-black hover:scale-110 active:scale-95 transition-transform" title="Add a new story path" data-testid="button-add-node"><Plus className="w-4 h-4" /></button>
                     </div>
                     {filteredNodes.filter(n => !n.id.startsWith("ending")).map((node, idx) => (
                       <div key={node.id} onClick={() => { setSelectedNodeId(node.id); setEditingNode(node.id); }}
@@ -823,10 +918,10 @@ if(N.length>0)showN(N[0].id);
                   <>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold uppercase text-zinc-400">Story Variables</label>
-                        <button onClick={() => setStoryVariables([...storyVariables, { name: `var_${storyVariables.length + 1}`, type: "number", defaultValue: 0 }])} className="p-1 bg-white text-black text-[10px] flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>
+                        <label className="text-xs font-bold uppercase text-purple-400">{"\u{1F4CA}"} Story Stats</label>
+                        <button onClick={() => setStoryVariables([...storyVariables, { name: `var_${storyVariables.length + 1}`, type: "number", defaultValue: 0 }])} className="p-1 bg-purple-500 text-white text-[10px] flex items-center gap-1 hover:scale-110 active:scale-95 transition-transform"><Plus className="w-3 h-3" /> Add</button>
                       </div>
-                      <p className="text-[10px] text-zinc-600">Define variables to track player choices, stats, and story flags. Use them in node effects and choice conditions.</p>
+                      <p className="text-[10px] text-zinc-500">Keep track of things like courage, friendship, or items collected. Use stats to unlock secret paths!</p>
                     </div>
                     {storyVariables.map((v, i) => (
                       <div key={i} className="p-3 bg-zinc-800 border border-zinc-700 space-y-2">
@@ -848,10 +943,10 @@ if(N.length>0)showN(N[0].id);
                       </div>
                     ))}
                     {storyVariables.length === 0 && (
-                      <div className="text-center py-8 text-zinc-600">
-                        <Variable className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs">No variables defined yet.</p>
-                        <p className="text-[10px] mt-1">Variables let you track player progress — reputation, items found, allies gained — and gate choices based on those values.</p>
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-3">{"\u{1F3AF}"}</div>
+                        <p className="text-sm text-zinc-400 font-medium">No stats yet!</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">Add stats like "Bravery" or "Gold Coins" to make your story even more interactive. Players love seeing their choices matter!</p>
                       </div>
                     )}
                   </>
@@ -859,9 +954,12 @@ if(N.length>0)showN(N[0].id);
 
                 {activeTab === "assets" && (
                   <>
+                    <div className="p-3 bg-pink-500/10 border border-pink-500/20 rounded-lg mb-2">
+                      <p className="text-xs text-pink-300">{"\u{1F3A8}"} <strong>Make it pretty!</strong> Upload your own art or use AI to create cool backgrounds for each scene.</p>
+                    </div>
                     <div className="flex gap-2 mb-2">
-                      <button onClick={() => imageInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"><Upload className="w-3 h-3" /> Import</button>
-                      <button onClick={() => setShowAIGen(true)} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
+                      <button onClick={() => imageInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Upload className="w-3 h-3" /> Upload Art</button>
+                      <button onClick={() => setShowAIGen(true)} className="flex-1 p-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Wand2 className="w-3 h-3" /> AI Magic</button>
                     </div>
                     {backgrounds.map((bg) => (
                       <div key={bg.id} className="p-2 border border-zinc-700">
@@ -883,6 +981,58 @@ if(N.length>0)showN(N[0].id);
                       <button onClick={() => setViewMode("cards")} className={`px-3 py-1 text-xs font-bold ${viewMode === "cards" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}>Cards</button>
                       <button onClick={() => setViewMode("graph")} className={`px-3 py-1 text-xs font-bold ${viewMode === "graph" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Map className="w-3 h-3 inline mr-1" />Graph</button>
                       <button onClick={() => setViewMode("script")} className={`px-3 py-1 text-xs font-bold ${viewMode === "script" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Code className="w-3 h-3 inline mr-1" />Script</button>
+                    </div>
+                  )}
+
+                  {nodes.length === 0 && !editingNode && (
+                    <div className="absolute inset-0 overflow-auto">
+                      <div className="min-h-full flex flex-col items-center justify-center p-8">
+                        <div className="text-center mb-8 max-w-lg">
+                          <div className="text-6xl mb-4">{"\u{1F4DA}"}</div>
+                          <h2 className="text-3xl font-display font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Create Your Story!</h2>
+                          <p className="text-zinc-400 text-sm">Pick a story template to get started, or create your own from scratch. Every great adventure starts with a single choice!</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl mb-8">
+                          {CYOA_TEMPLATES.map(template => (
+                            <button
+                              key={template.id}
+                              onClick={() => {
+                                setNodes(template.nodes as CYOANode[]);
+                                setTitle(template.title);
+                                toast.success(`"${template.title}" loaded! Click any node to edit it.`);
+                              }}
+                              className={`group p-5 rounded-xl bg-gradient-to-br ${template.gradient} text-left transition-all hover:scale-[1.03] hover:shadow-2xl hover:shadow-${template.gradient.split('-')[1]}-500/20 active:scale-[0.98]`}
+                              data-testid={`button-template-${template.id}`}
+                            >
+                              <div className="text-4xl mb-3 group-hover:animate-bounce">{template.emoji}</div>
+                              <h3 className="font-bold text-lg text-white mb-1">{template.title}</h3>
+                              <p className="text-white/70 text-xs leading-relaxed">{template.desc}</p>
+                              <div className="mt-3 flex items-center gap-2 text-white/50 text-[10px]">
+                                <span>{template.nodes.length} scenes</span>
+                                <span>{"\u2022"}</span>
+                                <span>{template.nodes.filter(n => n.isEnding).length} endings</span>
+                              </div>
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => {
+                              addNode();
+                              setActiveTab("story");
+                              toast.success("Blank story created! Write your own adventure.");
+                            }}
+                            className="group p-5 rounded-xl border-2 border-dashed border-zinc-700 hover:border-white text-left transition-all hover:bg-zinc-900"
+                            data-testid="button-template-blank"
+                          >
+                            <div className="text-4xl mb-3 opacity-50 group-hover:opacity-100">{"\u2728"}</div>
+                            <h3 className="font-bold text-lg text-zinc-300 group-hover:text-white mb-1">Start from Scratch</h3>
+                            <p className="text-zinc-500 text-xs leading-relaxed">Create your own unique story with custom characters, scenes, and choices.</p>
+                            <div className="mt-3 text-zinc-600 text-[10px]">Blank canvas</div>
+                          </button>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-zinc-600 text-xs">Or paste your own story in the <button onClick={() => setActiveTab("story")} className="text-white underline hover:text-zinc-300">Story tab</button> and let AI turn it into a branching adventure!</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 

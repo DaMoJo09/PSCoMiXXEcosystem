@@ -73,6 +73,235 @@ const TRANSITION_OPTIONS: { value: TransitionType; label: string }[] = [
   { value: "dissolve", label: "Dissolve" },
 ];
 
+const VN_TEMPLATES = [
+  {
+    id: "school",
+    emoji: "\u{1F3EB}",
+    title: "School Days",
+    desc: "Make friends, join clubs, and navigate the halls of Starlight Academy!",
+    gradient: "from-sky-500 to-blue-600",
+    characters: [
+      { id: "alex", name: "Alex", color: "#4ECDC4", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "maya", name: "Maya", color: "#FF6B9D", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "coach", name: "Coach Kim", color: "#FFD93D", sprites: [{ expression: "neutral", url: "" }] },
+    ],
+    scenes: [
+      {
+        id: "scene_1", name: "First Day", label: "first_day", background: "classroom", transition: "fade" as TransitionType,
+        characters: [{ id: "alex", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "It's your first day at Starlight Academy. The hallways are buzzing with students chatting and laughing." },
+          { speaker: "Alex", text: "Hey! You must be new here. I'm Alex \u{1F44B} Welcome to Starlight!" },
+          { speaker: "Narrator", text: "Alex seems friendly. They're wearing a badge that says 'Student Ambassador.'" },
+          { speaker: "Alex", text: "I can show you around if you want! There's the art room, the science lab, and oh \u2014 the rooftop garden is AMAZING." },
+          { speaker: "You", text: "That sounds great! Where should we go first?" },
+          { speaker: "Alex", text: "How about we check out the clubs? Sign-ups are today!", choices: [{ label: "\u{1F3A8} Visit the Art Club", target: "scene_2" }, { label: "\u{26BD} Check out the Sports Field", target: "scene_3" }] },
+        ],
+      },
+      {
+        id: "scene_2", name: "Art Club", label: "art_club", background: "classroom", transition: "slide-left" as TransitionType,
+        characters: [{ id: "maya", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The art room is filled with colorful paintings and half-finished sculptures. A girl with paint-stained overalls waves you over." },
+          { speaker: "Maya", text: "Another art lover! \u{1F3A8} I'm Maya, president of the Art Club. We're working on a mural for the school festival!" },
+          { speaker: "Maya", text: "Want to help? I could really use someone with fresh ideas! We have brushes, markers, even a digital drawing tablet." },
+          { speaker: "You", text: "I'd love to help!" },
+          { speaker: "Maya", text: "YES! This is going to be the best mural Starlight Academy has ever seen! \u{1F31F}" },
+        ],
+      },
+      {
+        id: "scene_3", name: "Sports Field", label: "sports", background: "park", transition: "slide-right" as TransitionType,
+        characters: [{ id: "coach", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The sports field is alive with energy. Students are playing soccer, running laps, and practicing gymnastics." },
+          { speaker: "Coach Kim", text: "New student! Perfect timing \u{23F0} We need one more player for the relay team. Think you can run fast?" },
+          { speaker: "You", text: "I'll give it my best shot!" },
+          { speaker: "Coach Kim", text: "That's the spirit! \u{1F4AA} Remember, it's not about being the fastest \u2014 it's about teamwork and having fun!" },
+          { speaker: "Narrator", text: "You join the relay team and make instant friends. This is going to be a great year at Starlight Academy! \u{2B50}" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "space",
+    emoji: "\u{1F680}",
+    title: "Star Explorers",
+    desc: "Captain your own spaceship and discover amazing new worlds!",
+    gradient: "from-violet-600 to-purple-700",
+    characters: [
+      { id: "nova", name: "Nova", color: "#A78BFA", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "bolt", name: "Bolt (Robot)", color: "#60A5FA", sprites: [{ expression: "neutral", url: "" }] },
+    ],
+    scenes: [
+      {
+        id: "scene_1", name: "Liftoff!", label: "liftoff", background: "night_city", transition: "fade" as TransitionType,
+        characters: [{ id: "nova", position: "left" as const, expression: "neutral", visible: true }, { id: "bolt", position: "right" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The year is 2525. You've been chosen as the youngest captain in the Space Explorer Program! \u{1F680}" },
+          { speaker: "Nova", text: "Captain! I'm Nova, your co-pilot. All systems are go for launch!" },
+          { speaker: "Bolt (Robot)", text: "BEEP BOOP! Navigation systems online. I have calculated three possible destinations, Captain!" },
+          { speaker: "You", text: "Let's see what's out there!" },
+          { speaker: "Nova", text: "We've got a crystal planet, a cloud city, or a floating garden in space. Your call, Captain!", choices: [{ label: "\u{1F48E} Crystal Planet", target: "scene_2" }, { label: "\u{2601}\u{FE0F} Cloud City", target: "scene_3" }] },
+        ],
+      },
+      {
+        id: "scene_2", name: "Crystal Planet", label: "crystal", background: "hallway", transition: "dissolve" as TransitionType,
+        characters: [{ id: "bolt", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The planet's surface sparkles like a giant diamond! Every step you take creates musical notes \u{1F3B5}" },
+          { speaker: "Bolt (Robot)", text: "AMAZING! These crystals vibrate at different frequencies. Captain, this entire planet is one giant musical instrument!" },
+          { speaker: "You", text: "Let's play a song!" },
+          { speaker: "Narrator", text: "You and Bolt compose a melody by touching different crystals. The music echoes through space, and ships from across the galaxy come to listen! \u{1F31F}" },
+        ],
+      },
+      {
+        id: "scene_3", name: "Cloud City", label: "clouds", background: "rooftop", transition: "dissolve" as TransitionType,
+        characters: [{ id: "nova", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "Cloud City floats on rainbow-colored clouds. The buildings are made of solidified light!" },
+          { speaker: "Nova", text: "Look! The Cloud People are having a festival! They're racing on cloud surfboards! \u{1F3C4}" },
+          { speaker: "You", text: "Can we join?" },
+          { speaker: "Nova", text: "They say anyone with a brave heart is welcome! Let's show them what Earth explorers can do!" },
+          { speaker: "Narrator", text: "You and Nova surf across the rainbow clouds, making friends with an entire civilization. Best. Mission. Ever! \u{2B50}" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "fantasy",
+    emoji: "\u{1F9D9}",
+    title: "Magic Academy",
+    desc: "Learn spells, tame dragons, and save the enchanted kingdom!",
+    gradient: "from-amber-500 to-orange-600",
+    characters: [
+      { id: "sage", name: "Professor Sage", color: "#D97706", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "pip", name: "Pip (Dragon)", color: "#10B981", sprites: [{ expression: "neutral", url: "" }] },
+    ],
+    scenes: [
+      {
+        id: "scene_1", name: "Welcome to Arcadia", label: "welcome", background: "classroom", transition: "fade" as TransitionType,
+        characters: [{ id: "sage", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "A golden letter floats through your window and lands on your desk. You've been accepted to Arcadia \u2014 the world's most magical school! \u{2728}" },
+          { speaker: "Professor Sage", text: "Welcome, young mage! I am Professor Sage. Today you'll discover your magical gift!" },
+          { speaker: "Professor Sage", text: "Hold out your hands and focus. What do you feel?", choices: [{ label: "\u{1F525} Warm tingling (Fire Magic)", target: "scene_2" }, { label: "\u{1F33F} Cool breeze (Nature Magic)", target: "scene_3" }] },
+        ],
+      },
+      {
+        id: "scene_2", name: "Fire Magic Class", label: "fire", background: "hallway", transition: "slide-left" as TransitionType,
+        characters: [{ id: "pip", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "In the Fire Magic classroom, a tiny dragon is struggling to breathe fire. It only manages little smoke puffs." },
+          { speaker: "Pip (Dragon)", text: "*puff puff* I can't do it! All the other dragons can breathe fire but me..." },
+          { speaker: "You", text: "Don't give up, Pip! Let's practice together!" },
+          { speaker: "Narrator", text: "You and Pip practice side by side. Your fire magic grows stronger, and Pip finally breathes a beautiful golden flame!" },
+          { speaker: "Pip (Dragon)", text: "WE DID IT! You're my best friend EVER! \u{1F525}\u{2764}\u{FE0F}" },
+        ],
+      },
+      {
+        id: "scene_3", name: "Nature Garden", label: "nature", background: "park", transition: "slide-right" as TransitionType,
+        characters: [{ id: "pip", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The Nature Garden is alive with glowing flowers and talking trees. A small dragon is hiding behind a rosebush." },
+          { speaker: "Pip (Dragon)", text: "Psst! Over here! I ran away from Fire class because I'm terrible at breathing fire. But I can make flowers grow! Watch!" },
+          { speaker: "Narrator", text: "Pip touches a seed and a beautiful rainbow flower springs up instantly!" },
+          { speaker: "You", text: "That's amazing, Pip! You have Nature magic, not Fire magic!" },
+          { speaker: "Pip (Dragon)", text: "Really?! I'm not broken? I'm just... DIFFERENT! That's so cool! Let's grow a whole garden together! \u{1F33A}" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "detective",
+    emoji: "\u{1F575}\u{FE0F}",
+    title: "Kid Detective",
+    desc: "Solve mysteries, find clues, and crack the case!",
+    gradient: "from-emerald-500 to-teal-600",
+    characters: [
+      { id: "watson", name: "Watson (Dog)", color: "#F59E0B", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "suspect", name: "The Baker", color: "#EC4899", sprites: [{ expression: "neutral", url: "" }] },
+    ],
+    scenes: [
+      {
+        id: "scene_1", name: "The Missing Cookies", label: "case", background: "classroom", transition: "fade" as TransitionType,
+        characters: [{ id: "watson", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "CASE FILE #42: The Great Cookie Caper! Someone ate ALL the cookies from the school bake sale \u{1F36A}" },
+          { speaker: "Watson (Dog)", text: "*sniff sniff* WOOF! I've found crumbs leading in two directions, Detective!" },
+          { speaker: "You", text: "Good boy, Watson! Let's follow the trail!" },
+          { speaker: "Watson (Dog)", text: "One trail goes to the kitchen, the other to the playground. Where first?", choices: [{ label: "\u{1F373} Follow crumbs to the kitchen", target: "scene_2" }, { label: "\u{1F3A0} Check the playground", target: "scene_3" }] },
+        ],
+      },
+      {
+        id: "scene_2", name: "Kitchen Clues", label: "kitchen", background: "hallway", transition: "slide-left" as TransitionType,
+        characters: [{ id: "suspect", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "In the kitchen, you find The Baker looking nervous. There's chocolate on their apron!" },
+          { speaker: "The Baker", text: "Oh! Detective! I was just... um... making MORE cookies! Yes, that's it!" },
+          { speaker: "You", text: "But those look like the same cookies from the bake sale..." },
+          { speaker: "The Baker", text: "OK, OK! I accidentally burned the original batch and was trying to secretly replace them before anyone noticed! I'm so sorry! \u{1F62D}" },
+          { speaker: "Narrator", text: "Mystery solved! It wasn't stealing \u2014 just a baking mishap! You help The Baker make even BETTER cookies for the sale. Case closed! \u{1F3C6}" },
+        ],
+      },
+      {
+        id: "scene_3", name: "Playground Discovery", label: "playground", background: "park", transition: "slide-right" as TransitionType,
+        characters: [{ id: "watson", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "On the playground, Watson sniffs out a trail of cookie crumbs leading to... a squirrel nest!" },
+          { speaker: "Watson (Dog)", text: "WOOF WOOF! *tail wagging* The squirrels have been collecting crumbs!" },
+          { speaker: "You", text: "The squirrels didn't take the cookies \u2014 they just followed the crumb trail!" },
+          { speaker: "Narrator", text: "This clue tells you the real cookie trail leads back to the kitchen! The crumbs fell when someone carried them in a hurry." },
+          { speaker: "Watson (Dog)", text: "To the kitchen! I can smell chocolate! \u{1F36B}", choices: [{ label: "\u{1F373} Head to the kitchen!", target: "scene_2" }] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "animals",
+    emoji: "\u{1F43E}",
+    title: "Animal Rescue",
+    desc: "Run a rescue center and help animals find their forever homes!",
+    gradient: "from-pink-500 to-rose-600",
+    characters: [
+      { id: "luna", name: "Luna (Cat)", color: "#C084FC", sprites: [{ expression: "neutral", url: "" }] },
+      { id: "buddy", name: "Buddy (Dog)", color: "#FB923C", sprites: [{ expression: "neutral", url: "" }] },
+    ],
+    scenes: [
+      {
+        id: "scene_1", name: "Opening Day", label: "opening", background: "park", transition: "fade" as TransitionType,
+        characters: [{ id: "luna", position: "left" as const, expression: "neutral", visible: true }, { id: "buddy", position: "right" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "Welcome to Paws & Hearts Animal Rescue! Today is opening day, and two special animals are your first guests \u{2764}\u{FE0F}" },
+          { speaker: "Luna (Cat)", text: "*purrrr* Hello, human. I am Luna. I require exactly three chin scratches and one sunny windowsill, please. \u{1F431}" },
+          { speaker: "Buddy (Dog)", text: "HI HI HI! I'M BUDDY! I LOVE EVERYONE! CAN WE PLAY?! \u{1F436}" },
+          { speaker: "You", text: "You're both wonderful! Let's get you settled in!" },
+          { speaker: "Narrator", text: "A family walks in looking for a pet!", choices: [{ label: "\u{1F431} Introduce them to Luna", target: "scene_2" }, { label: "\u{1F436} Introduce them to Buddy", target: "scene_3" }] },
+        ],
+      },
+      {
+        id: "scene_2", name: "Luna's Match", label: "luna_match", background: "classroom", transition: "dissolve" as TransitionType,
+        characters: [{ id: "luna", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The family has a quiet little girl who loves reading. Luna immediately jumps onto her lap and starts purring!" },
+          { speaker: "Luna (Cat)", text: "*purrrrrr* This human is warm and quiet. I approve. She may adopt me. \u{1F4DA}" },
+          { speaker: "You", text: "Looks like Luna chose HER!" },
+          { speaker: "Narrator", text: "The girl hugs Luna gently. 'Can we really take her home?' she whispers. It's a perfect match! \u{1F49C}" },
+        ],
+      },
+      {
+        id: "scene_3", name: "Buddy's Day", label: "buddy_day", background: "park", transition: "dissolve" as TransitionType,
+        characters: [{ id: "buddy", position: "center" as const, expression: "neutral", visible: true }],
+        dialogue: [
+          { speaker: "Narrator", text: "The family has two energetic kids who love playing outside. Buddy immediately starts running circles around them!" },
+          { speaker: "Buddy (Dog)", text: "BEST DAY EVER! They want to PLAY! And RUN! And PLAY MORE! \u{1F389}" },
+          { speaker: "You", text: "Buddy, I think you found your family!" },
+          { speaker: "Narrator", text: "The kids tackle-hug Buddy and he licks every face he can reach. Another perfect match at Paws & Hearts! \u{1F9E1}" },
+        ],
+      },
+    ],
+  },
+];
+
 function TypewriterText({ text, speed = 30, onComplete }: { text: string; speed?: number; onComplete?: () => void }) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
@@ -238,6 +467,7 @@ export default function VNCreator() {
   const [title, setTitle] = useState("Untitled Visual Novel");
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
@@ -812,6 +1042,13 @@ if(S.length>0)showS(0);
             >
               <Plus className="w-4 h-4" /> New
             </button>
+            <button
+              onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+              className={`px-3 py-2 border text-sm font-medium flex items-center gap-2 ${showTemplatePicker ? "bg-white text-black border-white" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
+              data-testid="button-vn-templates"
+            >
+              <BookOpen className="w-4 h-4" /> Templates
+            </button>
             <div className="relative">
               <button onClick={() => setShowExportMenu(!showExportMenu)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2" data-testid="button-export">
                 <Download className="w-4 h-4" /> Export
@@ -836,14 +1073,23 @@ if(S.length>0)showS(0);
         <div className="flex-1 flex overflow-hidden">
           <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="border-b border-zinc-800 p-1 flex">
-              {(["scenes", "characters", "backgrounds"] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{tab}</button>
+              {([
+                { key: "scenes" as const, label: "\u{1F3AC} Scenes", hint: "Build your story scene by scene" },
+                { key: "characters" as const, label: "\u{1F464} Cast", hint: "Create your characters" },
+                { key: "backgrounds" as const, label: "\u{1F5BC}\u{FE0F} Worlds", hint: "Design your backdrops" },
+              ]).map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)} title={tab.hint} className={`flex-1 py-2 text-xs font-bold transition-all ${activeTab === tab.key ? "bg-white text-black scale-[1.02]" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>{tab.label}</button>
               ))}
             </div>
 
             <div className="flex-1 overflow-auto p-2 space-y-2">
               {activeTab === "scenes" && (
                 <>
+                  {scenes.length <= 2 && (
+                    <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+                      <p className="text-[11px] text-sky-300">{"\u{1F4A1}"} <strong>Tip:</strong> Each scene is a moment in your story. Add dialogue, pick a backdrop, and place characters on stage!</p>
+                    </div>
+                  )}
                   {scenes.map((scene, idx) => (
                     <div key={scene.id} onClick={() => { setSelectedScene(scene.id); if (isPlaying && scene.transition && scene.transition !== "none") { setTransitionClass(`vn-transition-${scene.transition}`); setTimeout(() => setTransitionClass(""), 800); } }}
                       className={`p-3 border cursor-pointer group ${selectedScene === scene.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700 hover:border-zinc-500"}`}>
@@ -885,12 +1131,17 @@ if(S.length>0)showS(0);
                       )}
                     </div>
                   ))}
-                  <button onClick={addScene} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-scene"><Plus className="w-4 h-4" /> Add Scene</button>
+                  <button onClick={addScene} className="w-full p-3 border border-dashed border-zinc-700 hover:border-sky-400 hover:bg-sky-500/10 text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]" data-testid="button-add-scene"><Plus className="w-4 h-4" /> Add a New Scene</button>
                 </>
               )}
 
               {activeTab === "characters" && (
                 <>
+                  {characters.length <= 2 && (
+                    <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                      <p className="text-[11px] text-purple-300">{"\u{2728}"} <strong>Your cast!</strong> Give each character a name and color. Upload sprites or use AI to create their look!</p>
+                    </div>
+                  )}
                   {characters.map((char) => (
                     <div key={char.id} className={`p-3 border cursor-pointer group ${selectedCharacter === char.id ? "bg-white text-black border-white" : "bg-zinc-800 border-zinc-700"}`} onClick={() => setSelectedCharacter(char.id)}>
                       <div className="flex items-center gap-2">
@@ -918,15 +1169,18 @@ if(S.length>0)showS(0);
                       )}
                     </div>
                   ))}
-                  <button onClick={addCharacter} className="w-full p-3 border border-dashed border-zinc-700 hover:border-white text-sm flex items-center justify-center gap-2" data-testid="button-add-character"><Plus className="w-4 h-4" /> Add Character</button>
+                  <button onClick={addCharacter} className="w-full p-3 border border-dashed border-zinc-700 hover:border-purple-400 hover:bg-purple-500/10 text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]" data-testid="button-add-character"><Plus className="w-4 h-4" /> Add a New Character</button>
                 </>
               )}
 
               {activeTab === "backgrounds" && (
                 <>
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg mb-2">
+                    <p className="text-[11px] text-emerald-300">{"\u{1F5BC}\u{FE0F}"} <strong>Set the scene!</strong> Pick a backdrop, then click any scene to assign it. Use AI to create custom worlds!</p>
+                  </div>
                   <div className="flex gap-2 mb-2">
-                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700"><Upload className="w-3 h-3" /> Import</button>
-                    <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-white text-black text-xs flex items-center justify-center gap-1"><Wand2 className="w-3 h-3" /> AI Gen</button>
+                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 p-2 bg-zinc-800 text-xs flex items-center justify-center gap-1 hover:bg-zinc-700 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Upload className="w-3 h-3" /> Upload Art</button>
+                    <button onClick={() => { setAiTarget("background"); setShowAIGen(true); }} className="flex-1 p-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"><Wand2 className="w-3 h-3" /> AI Magic</button>
                   </div>
                   {backgrounds.map((bg) => (
                     <div key={bg.id} onClick={() => currentScene && updateScene(currentScene.id, { background: bg.id })} className={`p-2 border cursor-pointer relative group ${currentScene?.background === bg.id ? "border-white" : "border-zinc-700 hover:border-zinc-500"}`}>
@@ -965,6 +1219,51 @@ if(S.length>0)showS(0);
           </div>
 
           <div className="flex-1 flex flex-col">
+            {showTemplatePicker && (
+              <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-sm overflow-auto flex items-center justify-center p-8">
+                <div className="max-w-4xl w-full">
+                  <div className="text-center mb-8">
+                    <div className="text-6xl mb-4">{"\u{1F3AC}"}</div>
+                    <h2 className="text-3xl font-display font-bold mb-3 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Story Templates</h2>
+                    <p className="text-zinc-400 text-sm">Pick a template to jumpstart your visual novel! You can customize everything after.</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {VN_TEMPLATES.map(template => (
+                      <button
+                        key={template.id}
+                        onClick={() => {
+                          setScenes(template.scenes as VNScene[]);
+                          setCharacters(template.characters as VNCharacter[]);
+                          setTitle(template.title);
+                          setSelectedScene(template.scenes[0].id);
+                          setShowTemplatePicker(false);
+                          toast.success(`"${template.title}" loaded! Click Playtest to see it in action.`);
+                        }}
+                        className={`group p-5 rounded-xl bg-gradient-to-br ${template.gradient} text-left transition-all hover:scale-[1.03] hover:shadow-2xl active:scale-[0.98]`}
+                        data-testid={`button-vn-template-${template.id}`}
+                      >
+                        <div className="text-4xl mb-3 group-hover:animate-bounce">{template.emoji}</div>
+                        <h3 className="font-bold text-lg text-white mb-1">{template.title}</h3>
+                        <p className="text-white/70 text-xs leading-relaxed">{template.desc}</p>
+                        <div className="mt-3 flex items-center gap-2 text-white/50 text-[10px]">
+                          <span>{template.scenes.length} scenes</span>
+                          <span>{"\u2022"}</span>
+                          <span>{template.characters.length} characters</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-center">
+                    <button
+                      onClick={() => setShowTemplatePicker(false)}
+                      className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <ContextMenu>
               <ContextMenuTrigger asChild>
                 <div className="relative">
@@ -981,9 +1280,10 @@ if(S.length>0)showS(0);
                       })}
                       <div className="absolute bottom-0 left-0 right-0 p-8" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.9) 30%)" }}>
                         <div className="text-center text-zinc-500">
-                          <MessageSquare className="w-8 h-8 mx-auto mb-2" />
-                          <p className="text-sm">Click Playtest to preview your visual novel</p>
-                          <p className="text-xs text-zinc-600 mt-1">Space/Enter advance • ← rollback • L log • A auto • H hide • Esc quit</p>
+                          <div className="text-4xl mb-3">{"\u{1F3AC}"}</div>
+                          <p className="text-sm font-medium text-zinc-400">Ready to see your story come alive?</p>
+                          <p className="text-xs text-zinc-500 mt-1">Hit the <strong>Playtest</strong> button above to watch your visual novel play out!</p>
+                          <p className="text-[10px] text-zinc-600 mt-2">Space/Enter = next line {"\u2022"} {"\u2190"} = go back {"\u2022"} H = hide text {"\u2022"} Esc = quit</p>
                         </div>
                       </div>
                       {currentScene && (
