@@ -3,12 +3,15 @@ export interface ScriptElement {
   character?: string;
   content?: string;
   imageId?: string;
+  style?: "normal" | "shout" | "whisper" | "thought";
+  intensity?: "small" | "medium" | "large";
 }
 
 export interface ScriptPanel {
   panelNumber: number;
   action?: string;
   elements: ScriptElement[];
+  suggestedLayout?: { size?: string; aspect?: string };
 }
 
 export interface ScriptPage {
@@ -20,13 +23,187 @@ export interface ScriptAsset {
   name: string;
   dataUrl: string;
   tag: string;
-  source: string;
+  source?: string;
+  refKey?: string;
 }
 
 export interface ScriptData {
   title: string;
   pages: ScriptPage[];
   assets: ScriptAsset[];
+  version?: number;
+  metadata?: {
+    total_pages?: number;
+    total_panels?: number;
+    total_dialogue_lines?: number;
+    total_sfx?: number;
+    total_narrations?: number;
+    total_img_refs?: number;
+    characters?: string[];
+  };
+  modeHints?: {
+    comic?: Record<string, any>;
+    vn?: Record<string, any>;
+    cyoa?: Record<string, any>;
+  };
+}
+
+interface PressPlaysDialogue {
+  character: string;
+  line: string;
+  style?: "normal" | "shout" | "whisper" | "thought";
+}
+
+interface PressPlaysSfx {
+  text: string;
+  intensity?: "small" | "medium" | "large";
+}
+
+interface PressPlaysPanel {
+  panel_number: number;
+  description?: string;
+  dialogue?: PressPlaysDialogue[];
+  sfx?: PressPlaysSfx[];
+  narrations?: string[];
+  img_refs?: string[];
+  suggested_layout?: { size?: string; aspect?: string };
+}
+
+interface PressPlaysPage {
+  page_number: number;
+  panels: PressPlaysPanel[];
+}
+
+interface PressPlaysAsset {
+  ref_key?: string;
+  name: string;
+  data_url: string;
+  asset_tag?: string;
+  tag?: string;
+}
+
+interface PressPlaysScriptData {
+  title: string;
+  version?: number;
+  created_at?: string;
+  updated_at?: string;
+  pages: PressPlaysPage[];
+  assets?: PressPlaysAsset[];
+  metadata?: {
+    total_pages?: number;
+    total_panels?: number;
+    total_dialogue_lines?: number;
+    total_sfx?: number;
+    total_narrations?: number;
+    total_img_refs?: number;
+    characters?: string[];
+  };
+}
+
+function isPressPlaysFormat(data: any): boolean {
+  if (!data?.pages?.[0]) return false;
+  const firstPage = data.pages[0];
+  return 'page_number' in firstPage ||
+    (firstPage.panels?.[0] && ('dialogue' in firstPage.panels[0] || 'sfx' in firstPage.panels[0] || 'narrations' in firstPage.panels[0]));
+}
+
+function normalizePressPlaysPanel(pp: PressPlaysPanel): ScriptPanel {
+  const elements: ScriptElement[] = [];
+
+  if (pp.dialogue) {
+    for (const d of pp.dialogue) {
+      elements.push({
+        type: "dialog",
+        character: d.character,
+        content: d.line,
+        style: d.style || "normal",
+      });
+    }
+  }
+
+  if (pp.sfx) {
+    for (const s of pp.sfx) {
+      elements.push({
+        type: "sfx",
+        content: s.text,
+        intensity: s.intensity,
+      });
+    }
+  }
+
+  if (pp.narrations) {
+    for (const n of pp.narrations) {
+      elements.push({
+        type: "narration",
+        content: n,
+      });
+    }
+  }
+
+  if (pp.img_refs) {
+    for (const ref of pp.img_refs) {
+      elements.push({
+        type: "image",
+        imageId: ref,
+      });
+    }
+  }
+
+  return {
+    panelNumber: pp.panel_number,
+    action: pp.description,
+    elements,
+    suggestedLayout: pp.suggested_layout,
+  };
+}
+
+function normalizePressPlaysAsset(a: PressPlaysAsset): ScriptAsset {
+  return {
+    name: a.ref_key || a.name,
+    dataUrl: a.data_url,
+    tag: a.asset_tag || a.tag || "interior-page",
+    refKey: a.ref_key,
+  };
+}
+
+export function normalizeScriptData(raw: any): ScriptData {
+  if (!raw) return { title: "Untitled", pages: [], assets: [] };
+
+  if (isPressPlaysFormat(raw)) {
+    const pp = raw as PressPlaysScriptData;
+    return {
+      title: pp.title || "Untitled",
+      version: pp.version,
+      pages: (pp.pages || []).map(page => ({
+        pageNumber: page.page_number,
+        panels: (page.panels || []).map(normalizePressPlaysPanel),
+      })),
+      assets: (pp.assets || []).map(normalizePressPlaysAsset),
+      metadata: pp.metadata,
+    };
+  }
+
+  const sd = raw as ScriptData;
+  return {
+    title: sd.title || "Untitled",
+    version: sd.version,
+    pages: (sd.pages || []).map(p => ({
+      pageNumber: p.pageNumber ?? (p as any).page_number ?? 0,
+      panels: (p.panels || []).map(pn => ({
+        panelNumber: pn.panelNumber ?? (pn as any).panel_number ?? 0,
+        action: pn.action ?? (pn as any).description,
+        elements: pn.elements || [],
+        suggestedLayout: pn.suggestedLayout ?? (pn as any).suggested_layout,
+      })),
+    })),
+    assets: (sd.assets || []).map(a => ({
+      name: a.name || (a as any).ref_key || "",
+      dataUrl: a.dataUrl || (a as any).data_url || "",
+      tag: a.tag || (a as any).asset_tag || "interior-page",
+      refKey: (a as any).ref_key || (a as any).refKey,
+    })),
+    metadata: sd.metadata,
+  };
 }
 
 interface CYOANode {
@@ -118,12 +295,23 @@ const CHARACTER_COLORS = [
   "#fb923c", "#22d3ee", "#e879f9", "#4ade80", "#f87171",
 ];
 
+const STYLE_TO_BUBBLE: Record<string, string> = {
+  normal: "speech",
+  shout: "shout",
+  whisper: "whisper",
+  thought: "thought",
+};
+
 function resolveAssetUrl(imageId: string, assets: ScriptAsset[]): string | undefined {
-  const asset = assets.find(a => a.name === imageId);
+  const asset = assets.find(a => a.name === imageId || a.refKey === imageId);
   return asset?.dataUrl;
 }
 
 function extractCharacters(scriptData: ScriptData): string[] {
+  if (scriptData.metadata?.characters?.length) {
+    return scriptData.metadata.characters;
+  }
+
   const charMap = new Map<string, string>();
   for (const page of scriptData.pages) {
     for (const panel of page.panels) {
@@ -152,7 +340,8 @@ export function scriptToCYOA(scriptData: ScriptData): { nodes: CYOANode[]; varia
 
       for (const el of panel.elements) {
         if (el.type === "dialog" && el.character && el.content) {
-          dialogParts.push(`**${el.character}**: "${el.content}"`);
+          const prefix = el.style === "shout" ? "!" : el.style === "whisper" ? "~" : el.style === "thought" ? "*" : "";
+          dialogParts.push(`**${el.character}**: "${prefix}${el.content}${prefix}"`);
         } else if (el.type === "narration" && el.content) {
           dialogParts.push(el.content);
         } else if (el.type === "caption" && el.content) {
@@ -160,7 +349,7 @@ export function scriptToCYOA(scriptData: ScriptData): { nodes: CYOANode[]; varia
         } else if (el.type === "sfx" && el.content) {
           dialogParts.push(`[${el.content}]`);
         } else if (el.type === "image" && el.imageId) {
-          image = resolveAssetUrl(el.imageId, scriptData.assets);
+          if (!image) image = resolveAssetUrl(el.imageId, scriptData.assets);
         }
       }
 
@@ -217,6 +406,7 @@ export function scriptToVN(scriptData: ScriptData): {
       const bgId = `bg_${asset.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
       backgrounds.push({ id: bgId, name: asset.name, url: asset.dataUrl });
       bgMap.set(asset.name, bgId);
+      if (asset.refKey) bgMap.set(asset.refKey, bgId);
     }
   }
 
@@ -275,10 +465,10 @@ export function scriptToVN(scriptData: ScriptData): {
       }
 
       const charPlacements = Array.from(presentChars).slice(0, 3).map((name, i) => {
-        const char = characters.find(c => c.name === name);
+        const char = characters.find(c => c.name.toLowerCase() === name.toLowerCase());
         const positions: ("left" | "center" | "right")[] = ["left", "center", "right"];
         return {
-          id: char?.id || `char_${name.toLowerCase()}`,
+          id: char?.id || `char_${name.toLowerCase().replace(/\s+/g, "_")}`,
           position: positions[i % 3],
           expression: "neutral",
           visible: true,
@@ -307,7 +497,7 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
   for (const page of scriptData.pages) {
     const panelCount = page.panels.length;
 
-    const layoutPanels = generatePanelLayout(panelCount);
+    const layoutPanels = generatePanelLayout(panelCount, page.panels);
 
     const comicPanels: Panel[] = layoutPanels.map((layout, i) => {
       const scriptPanel = page.panels[i];
@@ -330,24 +520,26 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
               });
             }
           } else if (el.type === "dialog" && el.character && el.content) {
+            const bubbleStyle = STYLE_TO_BUBBLE[el.style || "normal"] || "speech";
             contents.push({
               id: `content_${Date.now()}_${contentIndex++}`,
               type: "bubble",
-              transform: { x: 10, y: 10, width: layout.width * 3, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
+              transform: { x: 10, y: 10 + contentIndex * 20, width: layout.width * 3, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
               data: {
                 text: el.content,
-                bubbleStyle: "speech",
+                bubbleStyle,
                 fontFamily: "'Bangers', cursive",
                 fontSize: 14,
                 color: "#000000",
                 backgroundColor: "#ffffff",
                 padding: 12,
-                borderRadius: 20,
+                borderRadius: bubbleStyle === "shout" ? 0 : 20,
               },
               zIndex: contentIndex + 10,
               locked: false,
             });
           } else if (el.type === "sfx" && el.content) {
+            const fontSize = el.intensity === "large" ? 32 : el.intensity === "medium" ? 24 : 18;
             contents.push({
               id: `content_${Date.now()}_${contentIndex++}`,
               type: "text",
@@ -355,7 +547,7 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
               data: {
                 text: el.content,
                 fontFamily: "'Bangers', cursive",
-                fontSize: 24,
+                fontSize,
                 color: "#ff0000",
                 textEffect: "comic",
               },
@@ -429,12 +621,23 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
   return spreads;
 }
 
-function generatePanelLayout(count: number): { x: number; y: number; width: number; height: number }[] {
+function generatePanelLayout(count: number, panels?: ScriptPanel[]): { x: number; y: number; width: number; height: number }[] {
+  if (panels?.length === 1 && panels[0].suggestedLayout?.size === "splash") {
+    return [{ x: 2, y: 2, width: 96, height: 96 }];
+  }
+
   const gap = 2;
   if (count <= 1) {
     return [{ x: gap, y: gap, width: 100 - gap * 2, height: 100 - gap * 2 }];
   }
   if (count === 2) {
+    const hasSplash = panels?.some(p => p.suggestedLayout?.size === "large" || p.suggestedLayout?.size === "splash");
+    if (hasSplash) {
+      return [
+        { x: gap, y: gap, width: 100 - gap * 2, height: 65 - gap },
+        { x: gap, y: 67, width: 100 - gap * 2, height: 33 - gap },
+      ];
+    }
     return [
       { x: gap, y: gap, width: 100 - gap * 2, height: 50 - gap * 1.5 },
       { x: gap, y: 50 + gap * 0.5, width: 100 - gap * 2, height: 50 - gap * 1.5 },
@@ -459,18 +662,18 @@ function generatePanelLayout(count: number): { x: number; y: number; width: numb
   const rows = Math.ceil(count / cols);
   const cellW = (100 - gap * (cols + 1)) / cols;
   const cellH = (100 - gap * (rows + 1)) / rows;
-  const panels: { x: number; y: number; width: number; height: number }[] = [];
+  const result: { x: number; y: number; width: number; height: number }[] = [];
   for (let i = 0; i < count; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    panels.push({
+    result.push({
       x: gap + col * (cellW + gap),
       y: gap + row * (cellH + gap),
       width: cellW,
       height: cellH,
     });
   }
-  return panels;
+  return result;
 }
 
 function redistributePanels(panels: Panel[]) {
@@ -487,11 +690,26 @@ function redistributePanels(panels: Panel[]) {
 }
 
 export function getScriptStats(scriptData: ScriptData) {
+  if (scriptData.metadata?.characters?.length) {
+    return {
+      title: scriptData.title,
+      pageCount: scriptData.metadata.total_pages || scriptData.pages.length,
+      panelCount: scriptData.metadata.total_panels || scriptData.pages.reduce((s, p) => s + p.panels.length, 0),
+      dialogueCount: scriptData.metadata.total_dialogue_lines || 0,
+      sfxCount: scriptData.metadata.total_sfx || 0,
+      imageCount: scriptData.metadata.total_img_refs || 0,
+      narrationCount: scriptData.metadata.total_narrations || 0,
+      assetCount: scriptData.assets.length,
+      characters: scriptData.metadata.characters,
+    };
+  }
+
   const characters = extractCharacters(scriptData);
   let totalPanels = 0;
   let totalDialogue = 0;
   let totalSfx = 0;
   let totalImages = 0;
+  let totalNarrations = 0;
 
   for (const page of scriptData.pages) {
     totalPanels += page.panels.length;
@@ -500,6 +718,7 @@ export function getScriptStats(scriptData: ScriptData) {
         if (el.type === "dialog") totalDialogue++;
         if (el.type === "sfx") totalSfx++;
         if (el.type === "image") totalImages++;
+        if (el.type === "narration") totalNarrations++;
       }
     }
   }
@@ -511,6 +730,7 @@ export function getScriptStats(scriptData: ScriptData) {
     dialogueCount: totalDialogue,
     sfxCount: totalSfx,
     imageCount: totalImages,
+    narrationCount: totalNarrations,
     assetCount: scriptData.assets.length,
     characters,
   };

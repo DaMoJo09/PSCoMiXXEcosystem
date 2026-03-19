@@ -12,7 +12,7 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-import { scriptToComic, type ScriptData } from "@/lib/scriptImport";
+import { scriptToComic, normalizeScriptData, type ScriptData } from "@/lib/scriptImport";
 import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, CaseSensitive } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -685,7 +685,8 @@ export default function ComicCreator() {
       const eff = Array.isArray(effect) ? effect[0] : effect;
       if (!eff) return;
       const metadata = eff.metadata || {};
-      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const raw = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const sd = normalizeScriptData(raw);
       const importedSpreads = scriptToComic(sd);
       if (importedSpreads.length > 0) {
         setSpreadsRaw(importedSpreads);

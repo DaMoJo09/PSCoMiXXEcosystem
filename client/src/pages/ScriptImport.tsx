@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
-import { getScriptStats, scriptToCYOA, scriptToVN, scriptToComic, type ScriptData } from "@/lib/scriptImport";
+import { getScriptStats, scriptToCYOA, scriptToVN, scriptToComic, normalizeScriptData, type ScriptData } from "@/lib/scriptImport";
 import { useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 import { FileText, BookOpen, GitBranch, Layers, Users, MessageSquare, Sparkles, Zap, ImageIcon, ArrowRight, RotateCcw } from "lucide-react";
@@ -52,14 +52,9 @@ export default function ScriptImport() {
   const parseScriptFromEffect = (effect: FxEffect) => {
     try {
       const metadata = effect.metadata || {};
-      const sd: ScriptData = metadata.script_data || {
-        title: effect.name || "Untitled Script",
-        pages: metadata.pages || [],
-        assets: metadata.assets || [],
-      };
-      if (!sd.title) sd.title = effect.name || "Untitled";
-      if (!sd.pages) sd.pages = [];
-      if (!sd.assets) sd.assets = [];
+      const raw = metadata.script_data || { title: effect.name || "Untitled Script", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const sd = normalizeScriptData(raw);
+      if (!sd.title || sd.title === "Untitled") sd.title = effect.name || "Untitled Script";
       setScriptData(sd);
     } catch {
       toast.error("Could not parse script data");

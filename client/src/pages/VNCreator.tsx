@@ -14,7 +14,7 @@ import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { fxStudioApi } from "@/lib/api";
-import { scriptToVN, type ScriptData } from "@/lib/scriptImport";
+import { scriptToVN, normalizeScriptData, type ScriptData } from "@/lib/scriptImport";
 import { toast } from "sonner";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import {
@@ -572,7 +572,8 @@ export default function VNCreator() {
       const eff = Array.isArray(effect) ? effect[0] : effect;
       if (!eff) return;
       const metadata = eff.metadata || {};
-      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const raw = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const sd = normalizeScriptData(raw);
       const { scenes: importedScenes, characters: importedChars, backgrounds: importedBgs } = scriptToVN(sd);
       if (importedScenes.length > 0) setScenes(importedScenes);
       if (importedChars.length > 0) setCharacters(importedChars);

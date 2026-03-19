@@ -14,7 +14,7 @@ import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProje
 import { toast } from "sonner";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { fxStudioApi } from "@/lib/api";
-import { scriptToCYOA, type ScriptData } from "@/lib/scriptImport";
+import { scriptToCYOA, normalizeScriptData, type ScriptData } from "@/lib/scriptImport";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -496,7 +496,8 @@ export default function CYOABuilder() {
       const eff = Array.isArray(effect) ? effect[0] : effect;
       if (!eff) return;
       const metadata = eff.metadata || {};
-      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const raw = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const sd = normalizeScriptData(raw);
       const { nodes: importedNodes, variables } = scriptToCYOA(sd);
       setNodes(importedNodes);
       setStoryVariables(variables);
