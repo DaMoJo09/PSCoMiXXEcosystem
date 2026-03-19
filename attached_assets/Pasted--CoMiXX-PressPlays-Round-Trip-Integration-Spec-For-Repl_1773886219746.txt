@@ -1,0 +1,454 @@
+# CoMiXX ↔ PressPlays Round-Trip Integration Spec
+
+> **For**: Replit / CoMiXX Team  
+> **From**: PressPlays FX Studio (pressplays.site)  
+> **Date**: 2026-03-18  
+> **Status**: Ready for implementation
+
+---
+
+## 🎯 Vision: Seamless Round-Trip Asset Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      THE CREATIVE LOOP                              │
+│                                                                     │
+│  CoMiXX (pscomixx.com)          PressPlays (pressplays.site)       │
+│  ┌───────────────┐              ┌──────────────────────┐           │
+│  │ Comic Project │──── EXPORT ──→│ FX Studio / Filters  │           │
+│  │ • Pages       │   panel(s)   │ • Add effects        │           │
+│  │ • Panels      │              │ • Apply filters      │           │
+│  │ • Assets      │←── IMPORT ───│ • Create overlays    │           │
+│  │               │  tagged PNG  │ • Generate chars     │           │
+│  └───────────────┘              └──────────────────────┘           │
+│         │                                │                         │
+│         ▼                                ▼                         │
+│  ┌───────────────┐              ┌──────────────────────┐           │
+│  │ Final Polish  │              │ Asset Browser         │           │
+│  │ • Publish     │              │ • Browse by tag       │           │
+│  │ • Share       │              │ • Filter by project   │           │
+│  │ • Stream/LMS  │              │ • Drag into panels    │           │
+│  └───────────────┘              └──────────────────────┘           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 1. Asset Tag Taxonomy (21 Tags)
+
+Every asset flowing between the two apps carries an `asset_tag` field for auto-routing:
+
+```typescript
+type AssetTag =
+  | "cover"           // Front cover artwork
+  | "back-cover"      // Back cover artwork
+  | "interior-page"   // Standard interior comic page
+  | "splash-page"     // Full-bleed splash/hero page
+  | "price-tag"       // Corner box / price tag overlay
+  | "barcode"         // UPC/ISBN barcode block
+  | "logo"            // Series/publisher logo
+  | "title-block"     // Issue title / masthead
+  | "character-art"   // Standalone character (from /character)
+  | "background"      // Background art (from /bgfx)
+  | "fx-overlay"      // Transparent FX layer (from /studio)
+  | "speech-bubble"   // Dialog bubble asset
+  | "sfx-text"        // Sound effect text overlay
+  | "graffiti"        // Graffiti/sticker art (from /draw)
+  | "filter-output"   // Post-processed filtered image (from /filters)
+  | "panel-strip"     // Horizontal comic strip export
+  | "variant-cover"   // Alternate cover artwork
+  | "credits-page"    // Credits/colophon page
+  | "ad-page"         // Advertisement page placeholder
+  | "pin-up"          // Pin-up / bonus art page
+  | "chapter-break";  // Chapter divider page
+```
+
+### Auto-Tag Defaults by PressPlays Mode
+
+| PressPlays Mode | Route | Default `asset_tag` |
+|---|---|---|
+| FX Studio | /studio | `fx-overlay` |
+| Character Creator | /character | `character-art` |
+| Graffiti Mode | /draw | `graffiti` |
+| BG FX Studio | /bgfx | `background` |
+| Price Tag Maker | /pricetag | `price-tag` |
+| Image Filters | /filters | `filter-output` |
+| Layout (Cover) | /layout | `cover` |
+| Layout (Interior) | /layout | `interior-page` |
+| Script Mode | /script | varies per asset |
+
+---
+
+## 2. Shared API (Already Live)
+
+**Base URL**: `https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects`  
+**Auth Header**: `apikey: <anon_key>`
+
+### 2A. Export TO CoMiXX — `POST /get-effects`
+
+PressPlays already sends this payload from every mode:
+
+```json
+{
+  "name": "HERO-POSE-01",
+  "asset_tag": "character-art",
+  "target_page": null,
+  "project_id": null,
+  "layers": [],
+  "canvas_background": "transparent",
+  "preview_data_url": "data:image/png;base64,iVBOR...",
+  "total_frames": 1,
+  "fps": 1,
+  "type": "static-asset",
+  "description": "Hero character front pose",
+  "layer_count": 0
+}
+```
+
+**New fields CoMiXX should read:**
+| Field | Type | Purpose |
+|---|---|---|
+| `asset_tag` | string | Route to correct folder/slot in CoMiXX asset browser |
+| `target_page` | number \| null | Specific page number for interior pages |
+| `project_id` | string \| null | CoMiXX project to sync into (for direct placement) |
+
+### 2B. Import FROM CoMiXX — `GET /get-effects`
+
+**CoMiXX needs to support these query params:**
+
+```
+GET /get-effects
+GET /get-effects?type=static-asset
+GET /get-effects?asset_tag=character-art
+GET /get-effects?asset_tag=fx-overlay&project_id=abc123
+GET /get-effects?search=hero&limit=20&offset=0
+```
+
+**Expected response:**
+```json
+{
+  "effects": [
+    {
+      "id": "uuid",
+      "name": "HERO-POSE-01",
+      "asset_tag": "character-art",
+      "type": "static-asset",
+      "preview_data_url": "data:image/png;base64,...",
+      "created_at": "2026-03-18T...",
+      "description": "Hero character front pose"
+    }
+  ],
+  "total": 42,
+  "offset": 0,
+  "limit": 20
+}
+```
+
+---
+
+## 3. CoMiXX Asset Browser Structure
+
+The CoMiXX app should structure its asset browser to mirror the tag taxonomy:
+
+```
+ASSET BROWSER (CoMiXX side)
+├── 📁 COVERS
+│   ├── cover
+│   ├── back-cover
+│   └── variant-cover
+├── 📁 PAGES
+│   ├── interior-page
+│   ├── splash-page
+│   ├── credits-page
+│   ├── ad-page
+│   ├── pin-up
+│   └── chapter-break
+├── 📁 OVERLAYS
+│   ├── fx-overlay
+│   ├── speech-bubble
+│   ├── sfx-text
+│   └── graffiti
+├── 📁 ART ASSETS
+│   ├── character-art
+│   ├── background
+│   └── filter-output
+├── 📁 BRANDING
+│   ├── price-tag
+│   ├── barcode
+│   ├── logo
+│   └── title-block
+└── 📁 ALL (unfiltered view)
+```
+
+Each folder auto-populates by filtering on `asset_tag`. When a user exports from PressPlays with `asset_tag: "character-art"`, it appears in the **ART ASSETS → character-art** folder automatically.
+
+---
+
+## 4. Export Panel FROM CoMiXX → PressPlays (The Cool Part 🔥)
+
+### Flow: "Send panel to FX app for effects"
+
+1. User is editing a comic page in CoMiXX
+2. Right-clicks a panel (or clicks "Add FX" button)
+3. CoMiXX opens PressPlays in a new tab/iframe with the panel image:
+
+**Option A — URL with query params:**
+```
+https://pressplays.site/studio?import=<effect_id>&returnTo=comixx&project=<project_id>&page=<page_num>&panel=<panel_num>
+```
+
+**Option B — PostMessage (if iframe):**
+```javascript
+// CoMiXX sends to PressPlays iframe
+iframe.contentWindow.postMessage({
+  type: "COMIXX_IMPORT_PANEL",
+  payload: {
+    imageDataUrl: "data:image/png;base64,...",
+    panelId: "panel-3",
+    pageNumber: 2,
+    projectId: "abc123",
+    projectName: "Batman Issue 42",
+    returnUrl: "https://pscomixx.com/project/abc123/page/2"
+  }
+}, "https://pressplays.site");
+```
+
+**Option C — Shared DB (simplest, recommended):**
+```
+1. CoMiXX saves panel image to effects table with type: "comixx-panel-export"
+2. CoMiXX opens: https://pressplays.site/studio?import=<effect_id>
+3. PressPlays fetches the image via GET /get-effects/<effect_id>
+4. User adds FX in PressPlays Studio
+5. User clicks "→ Send Back to CoMiXX" 
+6. PressPlays POSTs the finished panel back with:
+   {
+     "asset_tag": "fx-overlay",
+     "target_page": 2,
+     "project_id": "abc123",
+     "source_panel_id": "panel-3",
+     "type": "panel-fx-return"
+   }
+7. CoMiXX polls/subscribes for new assets with project_id match
+8. Auto-places the FX'd panel back onto Page 2, Panel 3
+```
+
+### PressPlays Already Supports (our side):
+- ✅ Import image via URL query param (`?import=<id>`)
+- ✅ Import image via router state (`navigate("/studio", { state: { importImage } })`)
+- ✅ Export back via `useSyncToCoMiXX` with metadata
+- ✅ `asset_tag` field in sync payload
+- ✅ `target_page` field in sync payload
+
+### What CoMiXX Needs to Build:
+- [ ] "Send to FX App" button on panels/pages
+- [ ] Save panel image to shared effects table (or use PostMessage)
+- [ ] Listen for returning assets (`type: "panel-fx-return"`) 
+- [ ] Auto-place returned assets back on correct page/panel
+- [ ] Real-time subscription on effects table for instant updates
+
+---
+
+## 5. Import Back into CoMiXX (Return Flow)
+
+When a PressPlays user clicks "→ CoMiXX" export, the payload includes return routing:
+
+```json
+{
+  "name": "Page2-Panel3-FX",
+  "asset_tag": "fx-overlay",
+  "target_page": 2,
+  "project_id": "abc123",
+  "source_panel_id": "panel-3",
+  "type": "panel-fx-return",
+  "preview_data_url": "data:image/png;base64,...",
+  "canvas_background": "transparent",
+  "layers": [],
+  "total_frames": 1,
+  "fps": 1,
+  "layer_count": 0
+}
+```
+
+**CoMiXX should:**
+1. Match `project_id` + `source_panel_id` to find the original panel
+2. Overlay/replace the panel content with the FX'd version
+3. Show a notification: "Panel 3 updated with FX from PressPlays"
+4. Keep the original panel image as a version (for undo)
+
+---
+
+## 6. Database Schema Update (effects table)
+
+The shared `effects` table needs these columns added:
+
+```sql
+ALTER TABLE effects ADD COLUMN IF NOT EXISTS asset_tag text DEFAULT 'fx-overlay';
+ALTER TABLE effects ADD COLUMN IF NOT EXISTS target_page integer DEFAULT NULL;
+ALTER TABLE effects ADD COLUMN IF NOT EXISTS project_id text DEFAULT NULL;
+ALTER TABLE effects ADD COLUMN IF NOT EXISTS source_panel_id text DEFAULT NULL;
+
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_effects_asset_tag ON effects(asset_tag);
+CREATE INDEX IF NOT EXISTS idx_effects_project_id ON effects(project_id);
+CREATE INDEX IF NOT EXISTS idx_effects_type ON effects(type);
+
+-- Enable realtime for live updates
+ALTER PUBLICATION supabase_realtime ADD TABLE effects;
+```
+
+---
+
+## 7. Script Mode → CoMiXX Integration
+
+Script Mode exports a structured payload with the full screenplay + linked assets:
+
+```json
+{
+  "name": "Batman Issue 42 Script",
+  "type": "comic-script",
+  "asset_tag": "interior-page",
+  "script_data": {
+    "title": "BATMAN: DARK DESCENT",
+    "pages": [
+      {
+        "pageNumber": 1,
+        "panels": [
+          {
+            "panelNumber": 1,
+            "action": "Wide shot of Gotham skyline at night",
+            "elements": [
+              { "type": "dialog", "character": "BATMAN", "content": "This city never sleeps." },
+              { "type": "sfx", "content": "WHOOOOSH" },
+              { "type": "image", "imageId": "gotham-skyline" }
+            ]
+          }
+        ]
+      }
+    ],
+    "assets": [
+      {
+        "name": "gotham-skyline",
+        "dataUrl": "data:image/png;base64,...",
+        "tag": "background",
+        "source": "upload"
+      }
+    ]
+  }
+}
+```
+
+**CoMiXX should:**
+1. Parse `script_data.pages` to auto-generate page/panel structure
+2. Place `script_data.assets` into matching panels via `imageId` references
+3. Create speech bubbles from `dialog` elements
+4. Create SFX text overlays from `sfx` elements
+5. Use `action` text as panel descriptions/notes
+
+---
+
+## 8. Streaming App & LMS Integration
+
+After final polish in CoMiXX:
+
+### Streaming App (reading experience)
+```json
+{
+  "type": "published-comic",
+  "title": "Batman: Dark Descent #42",
+  "pages": [
+    { "pageNumber": 1, "imageUrl": "https://storage.../page1.png", "panels": [...] }
+  ],
+  "metadata": {
+    "creator": "user123",
+    "publishDate": "2026-03-18",
+    "genre": ["superhero", "noir"],
+    "rating": "T"
+  }
+}
+```
+
+### LMS App (educational content)
+```json
+{
+  "type": "lesson-comic",
+  "title": "How to Draw Dynamic Poses",
+  "steps": [
+    {
+      "pageNumber": 1,
+      "instruction": "Start with the action line",
+      "panelImage": "https://storage.../step1.png",
+      "toolUsed": "character-creator",
+      "toolLink": "https://pressplays.site/character"
+    }
+  ]
+}
+```
+
+---
+
+## 9. Implementation Priority for CoMiXX
+
+### Phase 1 — Asset Browser with Tag Folders ⭐
+1. Add `asset_tag`, `project_id`, `target_page`, `source_panel_id` columns to effects table
+2. Build asset browser UI with folder structure matching Section 3
+3. Support `GET /get-effects?asset_tag=X&project_id=Y` filtering
+4. Display thumbnails from `preview_data_url`
+
+### Phase 2 — Send Panel to PressPlays ⭐⭐
+1. Add "Send to FX App" button on panel context menu
+2. Save panel image to effects table with `type: "comixx-panel-export"`
+3. Open `pressplays.site/studio?import=<id>` in new tab
+4. Subscribe to effects table for `type: "panel-fx-return"` with matching `project_id`
+
+### Phase 3 — Auto-Place Returning Assets ⭐⭐⭐
+1. When a `panel-fx-return` asset arrives, match to original panel
+2. Overlay/replace panel content
+3. Show real-time notification
+4. Version history for panel states
+
+### Phase 4 — Script Import
+1. Parse `type: "comic-script"` payloads
+2. Auto-generate pages/panels from script structure
+3. Place referenced assets into panels
+4. Generate bubble/SFX overlays from dialog elements
+
+### Phase 5 — Publish Pipeline
+1. Export finalized comic to streaming app format
+2. Generate LMS lesson format from creation history
+3. Share links and embed codes
+
+---
+
+## 10. PressPlays Changes (Our Side — Already Done / In Progress)
+
+| Feature | Status |
+|---|---|
+| `useSyncToCoMiXX` hook with metadata | ✅ Live |
+| `asset_tag` field in export payload | ✅ Live |
+| `target_page` field in export payload | ✅ Live |
+| Import via URL query param | ✅ Live |
+| Import via router state | ✅ Live |
+| Script Mode with asset gallery | ✅ Live |
+| Send To menu (cross-mode) | ✅ Live |
+| "Send to Script" in SendToMenu | 🔜 Next |
+| Import from CoMiXX browser | 🔜 Next |
+| `project_id` in sync payload | 🔜 Next |
+| `source_panel_id` return routing | 🔜 Next |
+
+---
+
+## Quick Reference: API Endpoints
+
+| Action | Method | Endpoint | Key Params |
+|---|---|---|---|
+| Export asset to CoMiXX | POST | `/get-effects` | `asset_tag`, `target_page`, `project_id` |
+| Browse CoMiXX assets | GET | `/get-effects` | `?asset_tag=X&project_id=Y&limit=20` |
+| Get single asset | GET | `/get-effects?id=<uuid>` | — |
+| Return FX'd panel | POST | `/get-effects` | `type: "panel-fx-return"`, `source_panel_id` |
+| Export script | POST | `/get-effects` | `type: "comic-script"`, `script_data: {...}` |
+
+**Auth for all**: `apikey: eyJhbGci...` (anon key in header)
+
+---
+
+*This spec is designed so both teams can work in parallel. PressPlays handles the creation/FX side, CoMiXX handles the publishing/composition side, and the shared effects table + tag system keeps everything in sync.*
