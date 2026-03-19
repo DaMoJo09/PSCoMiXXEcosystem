@@ -6113,6 +6113,13 @@ Sitemap: https://pressstart.space/sitemap.xml`
         { loc: "/marketplace", priority: "0.8", changefreq: "daily" },
         { loc: "/pricing", priority: "0.7", changefreq: "weekly" },
         { loc: "/auth", priority: "0.6", changefreq: "monthly" },
+        { loc: "/terms", priority: "0.5", changefreq: "monthly" },
+        { loc: "/privacy", priority: "0.5", changefreq: "monthly" },
+        { loc: "/disclaimer", priority: "0.4", changefreq: "monthly" },
+        { loc: "/dmca", priority: "0.4", changefreq: "monthly" },
+        { loc: "/compliance", priority: "0.4", changefreq: "monthly" },
+        { loc: "/security", priority: "0.4", changefreq: "monthly" },
+        { loc: "/accessibility-statement", priority: "0.4", changefreq: "monthly" },
       ];
 
       const communityComics = await storage.getCommunityComics({ sort: "newest", limit: 200 });
@@ -6471,65 +6478,100 @@ Sitemap: https://pressstart.space/sitemap.xml`
   app.get("/api/legal/privacy-policy", (_req, res) => {
     res.json({
       title: "Privacy Policy",
-      version: "1.0",
+      version: "2.0",
       effectiveDate: "2025-01-01",
-      lastUpdated: "2025-03-01",
+      lastUpdated: "2026-03-19",
       content: {
-        introduction: "Press Start CoMiXX (\"we\", \"us\", \"our\") is committed to protecting the privacy of all users, with special attention to users under 18 (\"Students\"). This Privacy Policy describes how we collect, use, disclose, and safeguard your information when you use our platform.",
+        introduction: "Press Start CoMiXX, operated by MADMixedMedia (\"we\", \"us\", \"our\"), is committed to protecting the privacy of all users, with special attention to users under 18 (\"Students\"). This Privacy Policy describes how we collect, use, disclose, and safeguard your information when you use our platform at pressstart.space and any related services. By using the platform, you consent to the practices described in this policy.",
         dataCollection: {
           title: "Information We Collect",
           items: [
-            "Account information: name, email address, account type (Student/Creator), age range",
-            "Content created: comics, cards, motion graphics, visual novels, and other creative works",
-            "Usage data: features used, projects created, AI generations, login timestamps",
-            "Device information: browser type, operating system, IP address (for security)",
-            "Communications: direct messages (stored encrypted), social posts, comments"
+            "Account information: name or username, email address, account type (Student/Creator), age range for age-gating purposes",
+            "Content created: comics, trading cards, motion graphics, visual novels, choose-your-own-adventure stories, and other creative works you produce using our tools",
+            "Usage data: features accessed, projects created, AI generation requests, XP earned, login timestamps, and session duration for improving the platform experience",
+            "Device information: browser type, operating system, screen resolution, and IP address (collected for security and abuse prevention only)",
+            "Communications: social posts, comments, and community interactions within the platform",
+            "Payment information: processed securely through Stripe; we do not store credit card numbers on our servers"
           ]
         },
         studentData: {
-          title: "Student Data Protection (COPPA/FERPA)",
+          title: "Student Data Protection (COPPA/FERPA Compliance)",
           items: [
-            "We collect minimal data necessary for educational purposes",
-            "Parental consent is required for users under 13",
-            "Student data is never sold or shared with third parties for advertising",
-            "Teachers and school administrators can review student activity",
-            "AI-generated content for students includes safety filters",
-            "Student accounts have restricted access to marketplace and social features",
-            "Schools can request complete data deletion at any time"
+            "We comply with the Children's Online Privacy Protection Act (COPPA) and the Family Educational Rights and Privacy Act (FERPA)",
+            "We collect only the minimum data necessary to provide educational and creative services",
+            "Verifiable parental consent is required before creating accounts for users under 13 years of age",
+            "Student data is NEVER sold, rented, leased, or shared with third parties for advertising, marketing, or any non-educational purpose",
+            "Teachers and authorized school administrators may review student activity and progress within the platform",
+            "AI-generated content for student accounts includes mandatory safety filters and content moderation",
+            "Student accounts have restricted access to marketplace features, monetization, direct messaging, and social features",
+            "Schools and parents/guardians can request complete data export or deletion at any time by contacting districts@pressstart.space",
+            "We do not use student data for behavioral targeting, profiling, or building advertising profiles",
+            "We do not permit students under 13 to make purchases or engage in financial transactions on the platform"
           ]
         },
         dataRetention: {
           title: "Data Retention",
           items: [
-            "Active accounts: data retained while account is active",
-            "School accounts: per Data Processing Agreement (default 2 years post-enrollment)",
-            "Deleted accounts: data purged within 30 days of deletion request",
-            "Audit logs: retained for 7 years per compliance requirements",
-            "AI generation logs: retained for 1 year for safety review"
+            "Active accounts: data is retained while the account is active and in good standing",
+            "School-administered accounts: data is retained per the Data Processing Agreement, with a default of 2 years post-enrollment unless otherwise specified",
+            "Deleted accounts: all personally identifiable data is purged within 30 days of a deletion request",
+            "Audit logs: retained for up to 7 years per regulatory compliance requirements",
+            "AI generation logs: retained for up to 1 year for safety review and content moderation purposes, then permanently deleted"
           ]
         },
         dataRights: {
           title: "Your Rights",
           items: [
-            "Access: Request a copy of your data via Settings > Export Data",
-            "Deletion: Delete your account and all data via Settings > Delete Account",
-            "Correction: Update your profile information at any time",
-            "Portability: Export your data in machine-readable JSON format",
-            "Opt-out: Disable analytics tracking in Settings"
+            "Access: You may request a copy of all data we hold about you via Settings or by emailing privacy@pressstart.space",
+            "Deletion: You may delete your account and request removal of all associated data via Settings > Delete Account",
+            "Correction: You may update or correct your profile information at any time",
+            "Portability: You may export your projects, assets, and data in standard formats (JSON, PNG, PDF)",
+            "Opt-out: You may disable optional analytics and tracking in Settings",
+            "Parental access: Parents/guardians of users under 18 may request access to or deletion of their child's account and data at any time"
           ]
         },
         security: {
           title: "Security Measures",
           items: [
-            "Passwords hashed using scrypt with per-user salts",
-            "HTTPS/TLS encryption for all data in transit",
-            "Content Security Policy (CSP) headers",
-            "Rate limiting on all API endpoints",
-            "Session-based authentication with secure cookies",
-            "Regular security audits and penetration testing"
+            "Passwords hashed using scrypt with unique per-user salts; we never store plaintext passwords",
+            "HTTPS/TLS encryption for all data transmitted between your browser and our servers",
+            "Content Security Policy (CSP), X-Frame-Options, and other security headers enforced via Helmet.js",
+            "Rate limiting on all API endpoints to prevent abuse and denial-of-service attacks",
+            "Session-based authentication with secure, httpOnly, SameSite cookies",
+            "Regular security assessments and code reviews",
+            "Input sanitization and prompt safety filtering on all AI generation requests"
           ]
         },
-        contact: "For privacy inquiries: privacy@pressstart.space | For school/district data requests: districts@pressstart.space"
+        noSell: {
+          title: "We Do NOT Sell Your Data",
+          items: [
+            "MADMixedMedia does not sell, rent, lease, or trade personal information of any user to any third party, for any purpose, under any circumstances",
+            "We do not share user data with advertisers or data brokers",
+            "We do not use personal information for targeted advertising",
+            "We do not build or contribute to advertising profiles about our users",
+            "Any third-party services we use (database hosting, payment processing, AI generation) are bound by data processing agreements and are prohibited from using your data beyond what is necessary to provide their service"
+          ]
+        },
+        thirdParty: {
+          title: "Third-Party Services",
+          items: [
+            "Neon Database (PostgreSQL hosting) - United States - Stores user accounts, projects, and platform data",
+            "Stripe (Payment processing) - United States - Processes Creator account payments; no student data is shared with Stripe",
+            "Pollinations.ai (AI generation) - European Union - Processes image and text generation requests; no personally identifiable user data is sent",
+            "Resend (Email delivery) - United States - Sends transactional emails such as password resets",
+            "Google Fonts (Typography) - Serves web fonts; subject to Google's Privacy Policy"
+          ]
+        },
+        cookies: {
+          title: "Cookies & Local Storage",
+          items: [
+            "We use essential session cookies for authentication; these are required for the platform to function",
+            "We use localStorage and IndexedDB for offline project saving and PWA functionality",
+            "We do not use third-party tracking cookies, advertising cookies, or cross-site tracking pixels",
+            "You may clear cookies and local storage through your browser settings; doing so may require you to log in again"
+          ]
+        },
+        contact: "For privacy inquiries: privacy@pressstart.space | For school/district data requests: districts@pressstart.space | For COPPA-related requests: coppa@pressstart.space | MADMixedMedia, pressstart.space"
       }
     });
   });
@@ -6537,16 +6579,23 @@ Sitemap: https://pressstart.space/sitemap.xml`
   app.get("/api/legal/terms", (_req, res) => {
     res.json({
       title: "Terms of Service",
-      version: "1.0",
+      version: "2.0",
       effectiveDate: "2025-01-01",
-      lastUpdated: "2025-03-01",
+      lastUpdated: "2026-03-19",
       content: {
-        acceptance: "By creating an account or using Press Start CoMiXX, you agree to these Terms of Service. If you are under 18, you represent that your parent or legal guardian has reviewed and agreed to these Terms.",
-        eligibility: "Student accounts (ages 6-17) require parental consent. Creator accounts require users to be 18 or older. School-administered accounts are managed per the Data Processing Agreement.",
-        content: "You retain all rights to content you create. By publishing content, you grant us a limited license to display and distribute it through the platform. AI-generated content is subject to our Acceptable Use Policy.",
-        prohibited: "Users may not: upload illegal content, harass other users, attempt to circumvent safety filters, share personal information of minors, use the platform for unauthorized commercial purposes, or violate applicable laws.",
-        termination: "We may suspend or terminate accounts that violate these Terms. Users may delete their account at any time through Settings.",
-        liability: "Press Start CoMiXX is provided 'as is'. We are not liable for user-generated content or third-party integrations.",
+        acceptance: "By creating an account, accessing, or using Press Start CoMiXX (the \"Platform\"), operated by MADMixedMedia, you agree to be bound by these Terms of Service (\"Terms\"). If you are under 18, you represent that your parent, legal guardian, or authorized school administrator has reviewed, understood, and agreed to these Terms on your behalf. If you do not agree to these Terms, you must not access or use the Platform.",
+        eligibility: "Student accounts are available for users ages 6-17 and require verifiable parental consent or school administrator authorization. Creator accounts require users to be 18 years of age or older. School-administered accounts are governed by a separate Data Processing Agreement (DPA) between MADMixedMedia and the institution. Users must provide accurate information during registration. Accounts created with false information may be terminated without notice.",
+        content: "You retain full ownership of all original content you create using the Platform, including but not limited to comics, visual novels, trading cards, CYOA stories, motion graphics, and other creative works (\"User Content\"). By publishing or sharing User Content on the Platform, you grant MADMixedMedia a limited, non-exclusive, royalty-free, worldwide license to display, distribute, and promote your User Content within the Platform and its associated marketing channels. This license exists solely to operate and promote the Platform and does not transfer ownership. You may revoke this license at any time by removing your User Content or deleting your account. AI-generated content created through Platform tools is subject to our Acceptable Use Policy. You are responsible for ensuring your User Content does not infringe on the intellectual property rights of others.",
+        platformIP: "All platform tools, systems, user interface designs, code, mechanics, templates, asset packs, FX libraries, XP systems, AI integration pipelines, and branding (including but not limited to the names \"Press Start,\" \"CoMiXX,\" \"MADMixedMedia,\" and \"Press Play Festival\") remain the exclusive intellectual property of MADMixedMedia. Users are granted a limited, non-exclusive, non-transferable, revocable license to use these tools and assets solely within the Platform for personal or educational use. This license does not grant any rights to sublicense, redistribute, reverse-engineer, decompile, disassemble, or create derivative works based on Platform tools, assets, or code. Pre-made asset packs, templates, and effects provided by the Platform may not be extracted, resold, or redistributed outside the Platform without written permission from MADMixedMedia.",
+        prohibited: "Users may not: (a) upload, publish, or transmit content that is illegal, harmful, threatening, abusive, harassing, defamatory, obscene, or otherwise objectionable; (b) upload content that infringes any patent, trademark, copyright, trade secret, or other intellectual property right of any party; (c) harass, bully, stalk, or intimidate other users; (d) attempt to circumvent, disable, or interfere with any safety filters, content moderation, or security features of the Platform; (e) share, solicit, or expose personal information of minors; (f) use the Platform for unauthorized commercial purposes, spam, or unsolicited advertising; (g) reverse-engineer, decompile, disassemble, or attempt to derive the source code of any Platform software; (h) scrape, crawl, or use automated means to access or collect data from the Platform; (i) impersonate any person or entity or misrepresent your affiliation with any person or entity; (j) introduce viruses, malware, or other harmful code; or (k) violate any applicable local, state, national, or international law or regulation.",
+        dmca: "MADMixedMedia respects the intellectual property rights of others and expects our users to do the same. If you believe that your copyrighted work has been copied or used in a way that constitutes copyright infringement, please submit a DMCA takedown notice to dmca@pressstart.space with: (1) a description of the copyrighted work you claim has been infringed; (2) identification of the material that is claimed to be infringing and its location on the Platform; (3) your contact information (name, address, email, phone); (4) a statement that you have a good faith belief that the use is not authorized by the copyright owner; (5) a statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf; and (6) your physical or electronic signature. We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material. Repeat infringers will have their accounts terminated.",
+        termination: "We reserve the right to suspend or terminate any account that violates these Terms, engages in prohibited conduct, or poses a risk to the safety of other users, at our sole discretion and without prior notice. Upon termination for cause, your license to use the Platform is immediately revoked. Users may voluntarily delete their account at any time through Settings > Delete Account. Upon voluntary deletion, we will remove your data within 30 days in accordance with our Privacy Policy. Provisions of these Terms that by their nature should survive termination (including but not limited to intellectual property, limitation of liability, and indemnification) shall survive.",
+        liability: "THE PLATFORM IS PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY. MADMIXEDMEDIA DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. MADMIXEDMEDIA IS NOT RESPONSIBLE FOR: (A) USER-GENERATED CONTENT POSTED BY USERS; (B) ANY LOSS, DAMAGE, OR HARM ARISING FROM THE USE OF OR INABILITY TO USE THE PLATFORM; (C) CONTENT OR CONDUCT OF ANY THIRD PARTY ON THE PLATFORM; (D) ANY UNAUTHORIZED ACCESS TO YOUR ACCOUNT; (E) INTERRUPTIONS, DELAYS, OR DEFECTS IN THE PLATFORM. IN NO EVENT SHALL MADMIXEDMEDIA'S TOTAL LIABILITY EXCEED THE AMOUNT YOU PAID TO MADMIXEDMEDIA IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR $100, WHICHEVER IS GREATER. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES OR LIMITATION OF LIABILITY, SO SOME OF THE ABOVE MAY NOT APPLY TO YOU.",
+        indemnification: "You agree to indemnify, defend, and hold harmless MADMixedMedia, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising from: (a) your use of the Platform; (b) your User Content; (c) your violation of these Terms; or (d) your violation of any rights of any third party.",
+        dispute: "These Terms are governed by the laws of the United States. Any dispute arising from these Terms or the use of the Platform shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, except that either party may seek injunctive relief in any court of competent jurisdiction for intellectual property disputes. You agree to waive any right to a jury trial or to participate in a class action.",
+        modifications: "MADMixedMedia reserves the right to modify these Terms at any time. Material changes will be communicated through the Platform with at least 30 days' notice. Continued use of the Platform after changes take effect constitutes acceptance of the revised Terms. If you do not agree with the revised Terms, you must stop using the Platform and delete your account.",
+        minorSafety: "For users under 18: The Platform implements age-appropriate content filtering, restricted social features, and educator oversight capabilities. Users under 13 require verifiable parental consent. Schools and teachers act as supervising authorities for school-administered accounts. Direct messaging between minor users is subject to moderation. Student accounts cannot access monetization features, make purchases, or sell content on the Marketplace. Parents/guardians may review, restrict, or delete their child's account at any time.",
+        schoolAgreement: "Schools and educational institutions using the Platform agree that: (a) they are responsible for obtaining necessary parental consents for student use; (b) they act as the supervising authority for student activity during school-sponsored use; (c) they will comply with applicable student privacy laws; (d) MADMixedMedia is not liable for classroom misuse or unauthorized student access outside of school hours; (e) the institution's Data Processing Agreement governs the handling of student education records."
       }
     });
   });

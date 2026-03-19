@@ -507,6 +507,20 @@ export default function LandingPage() {
                 Terms
               </a>
               <a
+                data-testid="link-disclaimer"
+                href="/disclaimer"
+                className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors cursor-pointer"
+              >
+                Disclaimer
+              </a>
+              <a
+                data-testid="link-dmca"
+                href="/dmca"
+                className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors cursor-pointer"
+              >
+                DMCA
+              </a>
+              <a
                 data-testid="link-compliance"
                 href="/compliance"
                 className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors cursor-pointer"
@@ -518,7 +532,7 @@ export default function LandingPage() {
 
           <div className="mt-8 pt-8 border-t border-white/5 text-center">
             <p className="text-xs text-zinc-700 font-mono uppercase tracking-wider">
-              &copy; {new Date().getFullYear()} Press Start Comixx. All rights reserved.
+              &copy; {new Date().getFullYear()} MADMixedMedia / Press Start CoMiXX. All rights reserved.
             </p>
           </div>
         </div>

@@ -73,6 +73,8 @@ import TeacherDashboard from "@/pages/TeacherDashboard";
 import CompliancePage from "@/pages/CompliancePage";
 import AccessibilityPage from "@/pages/AccessibilityPage";
 import SecurityPage from "@/pages/SecurityPage";
+import DisclaimerPage from "@/pages/DisclaimerPage";
+import DMCAPage from "@/pages/DMCAPage";
 import PrintStudio from "@/pages/PrintStudio";
 import ExportDashboard from "@/pages/ExportDashboard";
 import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
@@ -114,7 +116,7 @@ function ProtectedRouter() {
     return <ResetPassword />;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
@@ -123,6 +125,8 @@ function ProtectedRouter() {
         <Route path="/portfolio/:userId" component={PortfolioPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
+        <Route path="/disclaimer" component={DisclaimerPage} />
+        <Route path="/dmca" component={DMCAPage} />
         <Route path="/compliance" component={CompliancePage} />
         <Route path="/accessibility-statement" component={AccessibilityPage} />
         <Route path="/security" component={SecurityPage} />
@@ -200,6 +204,8 @@ function ProtectedRouter() {
         <Route path="/marketplace/listing/:id" component={MarketplaceListingPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
+        <Route path="/disclaimer" component={DisclaimerPage} />
+        <Route path="/dmca" component={DMCAPage} />
         <Route path="/teacher" component={TeacherDashboard} />
         <Route path="/compliance" component={CompliancePage} />
         <Route path="/accessibility-statement" component={AccessibilityPage} />

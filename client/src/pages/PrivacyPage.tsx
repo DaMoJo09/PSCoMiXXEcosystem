@@ -1,7 +1,30 @@
 import { Layout } from "@/components/layout/Layout";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, ArrowLeft, Lock, Users, Clock, UserCheck, ShieldCheck, Mail } from "lucide-react";
+import { Shield, ArrowLeft, Lock, Users, Clock, UserCheck, ShieldCheck, Mail, Ban, Globe, Cookie } from "lucide-react";
 import { Link } from "wouter";
+
+function LegalSection({ id, title, icon: Icon, color, borderColor, items }: {
+  id: string; title: string; icon: any; color: string; borderColor?: string; items: string[];
+}) {
+  return (
+    <section className="space-y-4" data-testid={`section-${id}`}>
+      <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
+        <Icon className={`w-5 h-5 ${color}`} />
+        <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{title}</h2>
+      </div>
+      <div className={`p-6 border-2 ${borderColor || "border-zinc-700"} bg-zinc-900`}>
+        <ul className="space-y-3">
+          {items.map((item: string, i: number) => (
+            <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-${id}-${i}`}>
+              <span className={`${color} font-black mt-0.5`}>&#9654;</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
 
 export default function PrivacyPage() {
   const { data, isLoading, error } = useQuery({
@@ -58,90 +81,14 @@ export default function PrivacyPage() {
                 </div>
               </section>
 
-              <section className="space-y-4" data-testid="section-data-collection">
-                <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
-                  <Lock className="w-5 h-5 text-cyan-400" />
-                  <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data.content.dataCollection.title}</h2>
-                </div>
-                <div className="p-6 border-2 border-zinc-700 bg-zinc-900">
-                  <ul className="space-y-3">
-                    {data.content.dataCollection.items.map((item: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-data-collection-${i}`}>
-                        <span className="text-cyan-400 font-black mt-0.5">▸</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
-
-              <section className="space-y-4" data-testid="section-student-data">
-                <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
-                  <Users className="w-5 h-5 text-amber-400" />
-                  <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data.content.studentData.title}</h2>
-                </div>
-                <div className="p-6 border-2 border-amber-500/30 bg-zinc-900">
-                  <ul className="space-y-3">
-                    {data.content.studentData.items.map((item: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-student-data-${i}`}>
-                        <span className="text-amber-400 font-black mt-0.5">▸</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
-
-              <section className="space-y-4" data-testid="section-data-retention">
-                <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
-                  <Clock className="w-5 h-5 text-purple-400" />
-                  <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data.content.dataRetention.title}</h2>
-                </div>
-                <div className="p-6 border-2 border-zinc-700 bg-zinc-900">
-                  <ul className="space-y-3">
-                    {data.content.dataRetention.items.map((item: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-data-retention-${i}`}>
-                        <span className="text-purple-400 font-black mt-0.5">▸</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
-
-              <section className="space-y-4" data-testid="section-data-rights">
-                <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
-                  <UserCheck className="w-5 h-5 text-emerald-400" />
-                  <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data.content.dataRights.title}</h2>
-                </div>
-                <div className="p-6 border-2 border-zinc-700 bg-zinc-900">
-                  <ul className="space-y-3">
-                    {data.content.dataRights.items.map((item: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-data-rights-${i}`}>
-                        <span className="text-emerald-400 font-black mt-0.5">▸</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
-
-              <section className="space-y-4" data-testid="section-security">
-                <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
-                  <ShieldCheck className="w-5 h-5 text-cyan-400" />
-                  <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data.content.security.title}</h2>
-                </div>
-                <div className="p-6 border-2 border-zinc-700 bg-zinc-900">
-                  <ul className="space-y-3">
-                    {data.content.security.items.map((item: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-300" data-testid={`text-security-${i}`}>
-                        <span className="text-cyan-400 font-black mt-0.5">▸</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </section>
+              <LegalSection id="data-collection" title={data.content.dataCollection.title} icon={Lock} color="text-cyan-400" items={data.content.dataCollection.items} />
+              <LegalSection id="student-data" title={data.content.studentData.title} icon={Users} color="text-amber-400" borderColor="border-amber-500/30" items={data.content.studentData.items} />
+              <LegalSection id="no-sell" title={data.content.noSell.title} icon={Ban} color="text-red-400" borderColor="border-red-500/30" items={data.content.noSell.items} />
+              <LegalSection id="data-retention" title={data.content.dataRetention.title} icon={Clock} color="text-purple-400" items={data.content.dataRetention.items} />
+              <LegalSection id="data-rights" title={data.content.dataRights.title} icon={UserCheck} color="text-emerald-400" items={data.content.dataRights.items} />
+              <LegalSection id="security" title={data.content.security.title} icon={ShieldCheck} color="text-cyan-400" items={data.content.security.items} />
+              <LegalSection id="third-party" title={data.content.thirdParty.title} icon={Globe} color="text-purple-400" items={data.content.thirdParty.items} />
+              <LegalSection id="cookies" title={data.content.cookies.title} icon={Cookie} color="text-amber-400" items={data.content.cookies.items} />
 
               <section className="space-y-4" data-testid="section-contact">
                 <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
@@ -149,9 +96,13 @@ export default function PrivacyPage() {
                   <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Contact</h2>
                 </div>
                 <div className="p-6 border-2 border-emerald-500/30 bg-zinc-900">
-                  <p className="text-zinc-300 leading-relaxed" data-testid="text-contact">{data.content.contact}</p>
+                  <p className="text-zinc-300 leading-relaxed whitespace-pre-line" data-testid="text-contact">{data.content.contact.split(" | ").join("\n")}</p>
                 </div>
               </section>
+
+              <div className="text-center text-xs text-zinc-600 pt-4 border-t-2 border-zinc-800" data-testid="text-legal-links">
+                <p>See also: <Link href="/terms" className="text-emerald-400 hover:underline">Terms of Service</Link> · <Link href="/disclaimer" className="text-emerald-400 hover:underline">Disclaimer</Link> · <Link href="/dmca" className="text-emerald-400 hover:underline">DMCA Policy</Link> · <Link href="/compliance" className="text-emerald-400 hover:underline">Compliance</Link></p>
+              </div>
             </>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { useQuery } from "@tanstack/react-query";
-import { Scale, ArrowLeft, FileText, UserCheck, Pencil, ShieldAlert, XCircle, AlertTriangle } from "lucide-react";
+import { Scale, ArrowLeft, FileText, UserCheck, Pencil, ShieldAlert, XCircle, AlertTriangle, Copyright, Gavel, Shield, BookOpen, Users, HandshakeIcon } from "lucide-react";
 import { Link } from "wouter";
 
 export default function TermsPage() {
@@ -14,12 +14,19 @@ export default function TermsPage() {
   });
 
   const sections = data ? [
-    { key: "acceptance", title: "Acceptance of Terms", icon: FileText, color: "text-emerald-400", borderColor: "border-emerald-500/30", content: data.content.acceptance },
-    { key: "eligibility", title: "Eligibility", icon: UserCheck, color: "text-cyan-400", borderColor: "border-zinc-700", content: data.content.eligibility },
-    { key: "content", title: "Content & Intellectual Property", icon: Pencil, color: "text-purple-400", borderColor: "border-zinc-700", content: data.content.content },
-    { key: "prohibited", title: "Prohibited Conduct", icon: ShieldAlert, color: "text-red-400", borderColor: "border-red-500/30", content: data.content.prohibited },
-    { key: "termination", title: "Termination", icon: XCircle, color: "text-amber-400", borderColor: "border-zinc-700", content: data.content.termination },
-    { key: "liability", title: "Limitation of Liability", icon: AlertTriangle, color: "text-zinc-400", borderColor: "border-zinc-700", content: data.content.liability },
+    { key: "acceptance", title: "Acceptance of Terms", icon: FileText, color: "text-emerald-400", borderColor: "border-emerald-500/30" },
+    { key: "eligibility", title: "Eligibility", icon: UserCheck, color: "text-cyan-400", borderColor: "border-zinc-700" },
+    { key: "content", title: "Content Ownership & License", icon: Pencil, color: "text-purple-400", borderColor: "border-zinc-700" },
+    { key: "platformIP", title: "Platform Intellectual Property", icon: Copyright, color: "text-amber-400", borderColor: "border-amber-500/30" },
+    { key: "prohibited", title: "Prohibited Conduct", icon: ShieldAlert, color: "text-red-400", borderColor: "border-red-500/30" },
+    { key: "dmca", title: "DMCA & Copyright Claims", icon: Gavel, color: "text-cyan-400", borderColor: "border-zinc-700" },
+    { key: "minorSafety", title: "Minor Safety & Child Protection", icon: Shield, color: "text-amber-400", borderColor: "border-amber-500/30" },
+    { key: "schoolAgreement", title: "School & Institution Agreement", icon: Users, color: "text-purple-400", borderColor: "border-zinc-700" },
+    { key: "termination", title: "Termination", icon: XCircle, color: "text-red-400", borderColor: "border-zinc-700" },
+    { key: "liability", title: "Limitation of Liability & Disclaimer", icon: AlertTriangle, color: "text-zinc-400", borderColor: "border-zinc-700" },
+    { key: "indemnification", title: "Indemnification", icon: HandshakeIcon, color: "text-emerald-400", borderColor: "border-zinc-700" },
+    { key: "dispute", title: "Dispute Resolution & Governing Law", icon: BookOpen, color: "text-cyan-400", borderColor: "border-zinc-700" },
+    { key: "modifications", title: "Modifications to Terms", icon: FileText, color: "text-zinc-400", borderColor: "border-zinc-700" },
   ] : [];
 
   return (
@@ -55,17 +62,23 @@ export default function TermsPage() {
             </div>
           )}
 
-          {sections.map(({ key, title, icon: Icon, color, borderColor, content }) => (
+          {sections.map(({ key, title, icon: Icon, color, borderColor }) => (
             <section key={key} className="space-y-4" data-testid={`section-${key}`}>
               <div className="flex items-center gap-2 border-b-2 border-zinc-700 pb-2">
                 <Icon className={`w-5 h-5 ${color}`} />
                 <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{title}</h2>
               </div>
               <div className={`p-6 border-2 ${borderColor} bg-zinc-900`}>
-                <p className="text-zinc-300 leading-relaxed" data-testid={`text-${key}`}>{content}</p>
+                <p className="text-zinc-300 leading-relaxed" data-testid={`text-${key}`}>{data?.content[key]}</p>
               </div>
             </section>
           ))}
+
+          {data && (
+            <div className="text-center text-xs text-zinc-600 pt-4 border-t-2 border-zinc-800" data-testid="text-legal-links">
+              <p>See also: <Link href="/privacy" className="text-emerald-400 hover:underline">Privacy Policy</Link> · <Link href="/disclaimer" className="text-emerald-400 hover:underline">Disclaimer</Link> · <Link href="/dmca" className="text-emerald-400 hover:underline">DMCA Policy</Link> · <Link href="/compliance" className="text-emerald-400 hover:underline">Compliance</Link></p>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
