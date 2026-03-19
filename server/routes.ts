@@ -295,18 +295,21 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       
       let adminUser = await storage.getUserByEmail(adminEmail);
+      const hashedPassword = await hashPassword(adminPassword);
       
       if (!adminUser) {
-        const hashedPassword = await hashPassword(adminPassword);
         adminUser = await storage.createUser({
           email: adminEmail,
           password: hashedPassword,
           name: "Administrator",
           role: "admin",
         });
-      } else if (adminUser.role !== "admin") {
-        await storage.updateUserRole(adminUser.id, "admin");
-        adminUser = { ...adminUser, role: "admin" };
+      } else {
+        if (adminUser.role !== "admin") {
+          await storage.updateUserRole(adminUser.id, "admin");
+        }
+        await storage.updateUserPassword(adminUser.id, hashedPassword);
+        adminUser = { ...adminUser, role: "admin", password: hashedPassword };
       }
       
       req.login(adminUser, (err) => {
