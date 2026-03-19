@@ -226,9 +226,10 @@ export default function ScriptImport() {
                   </div>
                 )}
 
-                {stats && (stats.sfxCount > 0 || stats.imageCount > 0 || stats.assetCount > 0) && (
+                {stats && (stats.sfxCount > 0 || stats.imageCount > 0 || stats.assetCount > 0 || stats.narrationCount > 0) && (
                   <div className="flex gap-3 text-[10px] text-zinc-500">
                     {stats.sfxCount > 0 && <span>{stats.sfxCount} SFX</span>}
+                    {stats.narrationCount > 0 && <span>{stats.narrationCount} narrations</span>}
                     {stats.imageCount > 0 && <span>{stats.imageCount} images</span>}
                     {stats.assetCount > 0 && <span>{stats.assetCount} assets</span>}
                   </div>
