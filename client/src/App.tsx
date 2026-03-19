@@ -55,6 +55,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ProfileCard from "@/pages/ProfileCard";
 import ImportCenter from "@/pages/ImportCenter";
+import ScriptImport from "@/pages/ScriptImport";
 import AdminModeration from "@/pages/AdminModeration";
 import AdminControlRoom from "@/pages/AdminControlRoom";
 import AdminReviewQueue from "@/pages/AdminReviewQueue";
@@ -188,6 +189,7 @@ function ProtectedRouter() {
         <Route path="/social/notifications" component={Notifications} />
         <Route path="/social/search" component={UserSearch} />
         <Route path="/tools/import" component={ImportCenter} />
+        <Route path="/import/script" component={ScriptImport} />
         <Route path="/print-studio" component={PrintStudio} />
         <Route path="/print-studio/export" component={ExportDashboard} />
         <Route path="/print-studio/quote" component={PrintQuoteRequest} />

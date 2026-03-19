@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Target, CornerDownLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Target, CornerDownLeft, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
+import { useLocation } from "wouter";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
 import { type AssetTag, ASSET_TAG_LABELS, ASSET_FOLDER_GROUPS } from "@/types/asset-tags";
@@ -20,6 +21,7 @@ type FolderSelection = AssetTag | "all" | "project" | "returns";
 const POLL_INTERVAL_MS = 15000;
 
 export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onReturnToPanel, useLabel = "Use Effect", projectId, activeTag }: FxBrowserPanelProps) {
+  const [, navigate] = useLocation();
   const [fxEffects, setFxEffects] = useState<FxEffect[]>([]);
   const [fxLoading, setFxLoading] = useState(false);
   const [fxSearchQuery, setFxSearchQuery] = useState("");
@@ -312,6 +314,16 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                       )}
                       Library
                     </button>
+                    {effect.type === "comic-script" && (
+                      <button
+                        onClick={() => navigate(`/import/script?id=${effect.id}`)}
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium text-green-400 hover:bg-green-900/20 transition border-l border-zinc-700"
+                        data-testid={`button-fx-import-script-${effect.id}`}
+                      >
+                        <FileText className="w-3 h-3" />
+                        Import Script
+                      </button>
+                    )}
                     {onReturnToPanel && hasReturnableEffect(effect) && (
                       <button
                         onClick={() => onReturnToPanel(effect, getReturnPanelId(effect)!, getReturnPageSide(effect))}

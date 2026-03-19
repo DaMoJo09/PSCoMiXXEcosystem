@@ -13,6 +13,8 @@ import { useLocation, useSearch, Link } from "wouter";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { fxStudioApi } from "@/lib/api";
+import { scriptToVN, type ScriptData } from "@/lib/scriptImport";
 import { toast } from "sonner";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import {
@@ -562,6 +564,23 @@ export default function VNCreator() {
   }, [project]);
 
   useEffect(() => { if (scenes.length > 0 && !selectedScene) setSelectedScene(scenes[0].id); }, [scenes, selectedScene]);
+
+  useEffect(() => {
+    const fromScript = searchParams.get('fromScript');
+    if (!fromScript) return;
+    fxStudioApi.getEffect(fromScript).then((effect: any) => {
+      const eff = Array.isArray(effect) ? effect[0] : effect;
+      if (!eff) return;
+      const metadata = eff.metadata || {};
+      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const { scenes: importedScenes, characters: importedChars, backgrounds: importedBgs } = scriptToVN(sd);
+      if (importedScenes.length > 0) setScenes(importedScenes);
+      if (importedChars.length > 0) setCharacters(importedChars);
+      if (importedBgs.length > 0) setBackgrounds(importedBgs);
+      setTitle(sd.title || "Imported Script");
+      toast.success("Script imported to Visual Novel");
+    }).catch(() => toast.error("Failed to load script"));
+  }, []);
 
   useEffect(() => {
     const importData = localStorage.getItem("vn_import_data");

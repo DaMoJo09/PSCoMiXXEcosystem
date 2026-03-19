@@ -12,6 +12,7 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
+import { scriptToComic, type ScriptData } from "@/lib/scriptImport";
 import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, CaseSensitive } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -676,6 +677,25 @@ export default function ComicCreator() {
       }
     }
   }, [project]);
+
+  useEffect(() => {
+    const fromScript = searchParams.get('fromScript');
+    if (!fromScript) return;
+    fxStudioApi.getEffect(fromScript).then((effect: any) => {
+      const eff = Array.isArray(effect) ? effect[0] : effect;
+      if (!eff) return;
+      const metadata = eff.metadata || {};
+      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const importedSpreads = scriptToComic(sd);
+      if (importedSpreads.length > 0) {
+        setSpreadsRaw(importedSpreads);
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+      }
+      setTitle(sd.title || "Imported Script");
+      toast.success("Script imported to Comic Creator");
+    }).catch(() => toast.error("Failed to load script"));
+  }, []);
 
   const isValidCoverSrc = (src: string | undefined | null): src is string =>
     !!src && (src.startsWith("data:") || src.startsWith("http") || src.startsWith("blob:") || src.startsWith("/"));

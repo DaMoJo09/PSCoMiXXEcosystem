@@ -13,6 +13,8 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
+import { fxStudioApi } from "@/lib/api";
+import { scriptToCYOA, type ScriptData } from "@/lib/scriptImport";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -486,6 +488,22 @@ export default function CYOABuilder() {
       initialLoadDoneRef.current = true;
     }
   }, [project]);
+
+  useEffect(() => {
+    const fromScript = searchParams.get('fromScript');
+    if (!fromScript) return;
+    fxStudioApi.getEffect(fromScript).then((effect: any) => {
+      const eff = Array.isArray(effect) ? effect[0] : effect;
+      if (!eff) return;
+      const metadata = eff.metadata || {};
+      const sd: ScriptData = metadata.script_data || { title: eff.name || "Untitled", pages: metadata.pages || [], assets: metadata.assets || [] };
+      const { nodes: importedNodes, variables } = scriptToCYOA(sd);
+      setNodes(importedNodes);
+      setStoryVariables(variables);
+      setTitle(sd.title || "Imported Script");
+      toast.success("Script imported to CYOA Builder");
+    }).catch(() => toast.error("Failed to load script"));
+  }, []);
 
   useEffect(() => { if (!effectiveProjectId || !initialLoadDoneRef.current) return; pendingSaveRef.current = true; }, [nodes, title, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, effectiveProjectId]);
 

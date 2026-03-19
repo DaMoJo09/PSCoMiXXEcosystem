@@ -73,6 +73,17 @@ Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange 
 - **Tag Folders**: Hierarchical folder groups (Covers, Pages, Overlays, Art Assets, Branding) matching the shared PressPlays asset tag taxonomy, plus "My Project" and "FX Returns" project-scoped folders.
 - **Shared API**: GET proxy forwards `asset_tag`, `project_id`, `type`, `search`, `limit`, `offset` params to Supabase. POST forwards `source_panel_id` and `type` fields.
 
+**Script Import Pipeline (PressPlays → CoMiXX):**
+- PressPlays Script Mode exports scripts with `type: "comic-script"` containing `script_data` (title, pages, panels, elements, assets)
+- Script Import page at `/import/script` fetches available scripts, shows preview stats (pages, panels, characters, dialogue count), and lets user choose destination tool
+- Three converter utilities in `client/src/lib/scriptImport.ts`:
+  - `scriptToCYOA`: Panels → CYOA nodes with dialogue text, "Continue" choices linking sequentially, ending node marked
+  - `scriptToVN`: Panels → VN scenes with characters auto-placed on stage, dialogue lines, backgrounds from assets
+  - `scriptToComic`: Pages → spreads with auto-laid panels, dialogue → speech bubbles, SFX → text overlays, narration → caption boxes
+- FxBrowserPanel shows "Import Script" button for `comic-script` type effects
+- Each creator tool supports `?fromScript=<effectId>` query param for direct script import
+- Creates a new project with converted data and navigates to the chosen tool
+
 **Integration Points:**
 - **Comic Creator**: FX Studio tab in Asset Library dialog with Apply to Panel + Return to Panel actions, panel context menu "Send to FX Studio", sidebar shortcut to pressplays.site
 - **Motion Studio**: Floating FX browser panel with per-frame effect application
