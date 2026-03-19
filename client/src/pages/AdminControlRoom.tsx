@@ -6,7 +6,8 @@ import { Layout } from "@/components/layout/Layout";
 import { 
   Shield, Users, Mail, Key, Gift, Settings, Activity, 
   ToggleLeft, ToggleRight, Check, X, Plus, Trash2, 
-  Download, RefreshCw, Clock, ChevronDown, ChevronRight, ArrowLeft
+  Download, RefreshCw, Clock, ChevronDown, ChevronRight, ArrowLeft,
+  UserPlus, Crown, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -272,6 +273,9 @@ export default function AdminControlRoom() {
             </TabsTrigger>
             <TabsTrigger value="logs" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-logs">
               <Clock className="w-4 h-4 mr-2" /> Activity Logs
+            </TabsTrigger>
+            <TabsTrigger value="team-access" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-team-access">
+              <Crown className="w-4 h-4 mr-2" /> Team Access
             </TabsTrigger>
           </TabsList>
 
@@ -715,9 +719,215 @@ export default function AdminControlRoom() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="team-access">
+            <TeamAccessPanel />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
     </Layout>
+  );
+}
+
+function TeamAccessPanel() {
+  const [searchEmail, setSearchEmail] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: allSubs = [], isLoading: loadingSubs } = useQuery({
+    queryKey: ["/api/admin/subscriptions"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/subscriptions");
+      if (!res.ok) throw new Error("Failed to load subscriptions");
+      return res.json();
+    },
+  });
+
+  const fullAccessUsers = allSubs.filter((s: any) => s.subscription?.tier === "lifetime" && s.subscription?.status === "active");
+
+  async function handleSearch() {
+    if (!searchEmail.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("Failed");
+      const users = await res.json();
+      const matches = users.filter((u: any) =>
+        u.email.toLowerCase().includes(searchEmail.toLowerCase()) ||
+        u.name?.toLowerCase().includes(searchEmail.toLowerCase())
+      );
+      setSearchResults(matches);
+    } catch {
+      toast.error("Failed to search users");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function grantFullAccess(userId: string, email: string) {
+    setGrantingId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tier: "lifetime",
+          status: "active",
+          entitlements: { export: true, commercial: true, ai: true, batch: true },
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(`Full access granted to ${email}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] });
+      setSearchResults([]);
+      setSearchEmail("");
+    } catch {
+      toast.error("Failed to grant access");
+    } finally {
+      setGrantingId(null);
+    }
+  }
+
+  async function revokeAccess(userId: string, email: string) {
+    setRevokingId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tier: "free",
+          status: "active",
+          entitlements: { export: false, commercial: false, ai: false, batch: false },
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(`Access revoked for ${email}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscriptions"] });
+    } catch {
+      toast.error("Failed to revoke access");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-zinc-950 border-4 border-white shadow-[6px_6px_0_#fff]">
+        <CardHeader>
+          <CardTitle className="font-space-grotesk flex items-center gap-2">
+            <UserPlus className="w-5 h-5" /> GRANT FULL ACCESS
+          </CardTitle>
+          <p className="text-sm text-zinc-400">Search by email or name to give someone lifetime all-access (no payment needed)</p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Input
+              placeholder="Search by email or name..."
+              value={searchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="bg-zinc-900 border-2 border-zinc-700 text-white flex-1"
+              data-testid="input-team-search"
+            />
+            <Button
+              onClick={handleSearch}
+              disabled={searching || !searchEmail.trim()}
+              className="bg-white text-black hover:bg-zinc-200 border-2 border-white font-bold"
+              data-testid="button-team-search"
+            >
+              <Search className="w-4 h-4 mr-2" /> {searching ? "Searching..." : "Search"}
+            </Button>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {searchResults.map((user: any) => {
+                const existingSub = allSubs.find((s: any) => s.userId === user.id);
+                const hasFullAccess = existingSub?.subscription?.tier === "lifetime" && existingSub?.subscription?.status === "active";
+                return (
+                  <div key={user.id} className="flex items-center justify-between p-4 bg-zinc-900 border-2 border-zinc-700" data-testid={`team-result-${user.id}`}>
+                    <div>
+                      <p className="font-bold text-white">{user.name || "No name"}</p>
+                      <p className="text-sm text-zinc-400">{user.email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className={`text-xs ${user.role === "admin" ? "border-amber-400 text-amber-400" : "border-zinc-600 text-zinc-400"}`}>
+                          {user.role}
+                        </Badge>
+                        {existingSub && (
+                          <Badge variant="outline" className={`text-xs ${hasFullAccess ? "border-emerald-400 text-emerald-400" : "border-zinc-600 text-zinc-400"}`}>
+                            {existingSub.subscription?.tier || "free"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    {hasFullAccess ? (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500">
+                        <Check className="w-3 h-3 mr-1" /> Full Access
+                      </Badge>
+                    ) : (
+                      <Button
+                        onClick={() => grantFullAccess(user.id, user.email)}
+                        disabled={grantingId === user.id}
+                        className="bg-emerald-500 text-black hover:bg-emerald-400 font-bold border-2 border-emerald-400"
+                        data-testid={`button-grant-${user.id}`}
+                      >
+                        <Crown className="w-4 h-4 mr-2" /> {grantingId === user.id ? "Granting..." : "Grant Full Access"}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {searchResults.length === 0 && searchEmail && !searching && (
+            <p className="mt-4 text-center text-zinc-500 text-sm">No results. Try searching by email or name.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-zinc-950 border-4 border-white shadow-[6px_6px_0_#fff]">
+        <CardHeader>
+          <CardTitle className="font-space-grotesk flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-400" /> CURRENT FULL ACCESS USERS
+          </CardTitle>
+          <p className="text-sm text-zinc-400">{fullAccessUsers.length} user{fullAccessUsers.length !== 1 ? "s" : ""} with lifetime all-access</p>
+        </CardHeader>
+        <CardContent>
+          {loadingSubs ? (
+            <p className="text-center py-4 text-zinc-400">Loading...</p>
+          ) : fullAccessUsers.length === 0 ? (
+            <p className="text-center py-4 text-zinc-500">No full access users yet</p>
+          ) : (
+            <div className="space-y-2">
+              {fullAccessUsers.map((sub: any) => (
+                <div key={sub.userId} className="flex items-center justify-between p-4 bg-zinc-900 border-2 border-zinc-700" data-testid={`team-user-${sub.userId}`}>
+                  <div>
+                    <p className="font-bold text-white">{sub.name || "Unknown"}</p>
+                    <p className="text-sm text-zinc-400">{sub.email}</p>
+                    <Badge variant="outline" className="text-xs border-amber-400 text-amber-400 mt-1">
+                      LIFETIME
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={() => revokeAccess(sub.userId, sub.email)}
+                    disabled={revokingId === sub.userId}
+                    variant="outline"
+                    className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white font-bold"
+                    data-testid={`button-revoke-${sub.userId}`}
+                  >
+                    <X className="w-4 h-4 mr-2" /> {revokingId === sub.userId ? "Revoking..." : "Revoke"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
