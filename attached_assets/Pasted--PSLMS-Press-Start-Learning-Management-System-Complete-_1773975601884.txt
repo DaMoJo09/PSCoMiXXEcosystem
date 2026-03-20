@@ -1,0 +1,333 @@
+"# PSLMS (Press Start Learning Management System) — Complete Feature List
+## For: PSStreaming Chat & CoMiXX Chat Reference
+## Live at: https://learn-and-create.preview.emergentagent.com
+## Domain: pressstart.tech (DNS pending reconnection)
+
+---
+
+## PLATFORM OVERVIEW
+
+PSLMS is the **central brain** of the Press Start ecosystem. It's where all student data, XP, grades, portfolios, and progress converge from three connected apps:
+
+1. **PSLMS** (this app) — pressstart.tech — Learning, grading, XP, portfolios
+2. **CoMiXX** — pressstart.space — Comic/card/visual novel creation
+3. **PSStreaming** — psstreaming.com — Video streaming & publishing
+
+All three apps share the same API keys and match users by **email address**.
+
+---
+
+## COMPLETE FEATURE LIST
+
+### 1. AUTHENTICATION & ROLES
+- Google OAuth (Emergent-managed) + email/password with bcrypt
+- 5 roles: **Student, Teacher, School Admin, District Admin, Super Admin**
+- Class join codes for students
+- Auto-create student accounts when webhooks arrive from CoMiXX/Streaming
+- Session management with httpOnly cookies (7-day expiry)
+
+### 2. XP SYSTEM (The Core)
+- **Event-based XP ledger** — never stores totals, always calculates from events
+- **7 skill categories**: Animation, Game Design, Illustration, Storytelling, Video, AI Tools, Collaboration
+- **XP sources**:
+  - Assignment completion (teacher awards per rubric)
+  - CoMiXX submissions: +50 XP per project
+  - Streaming publications: +75 XP per video
+  - Time tracking: 10 min = 25 XP
+  - Peer reviews given: +10 XP
+  - Streak challenges: +50 to +1,000 XP
+  - Admin manual awards
+- **Level system**: Level = 1 + (total_xp / 100)
+- **Rank titles**: Novice → Apprentice → Developing → Skilled → Expert → Master → Epic → Legendary
+- **Grade conversion**: A+ (9,500+ XP) through F (<5,000 XP)
+
+### 3. COURSE SYSTEM
+- Hierarchical: **Course → Units → Lessons → Assignments**
+- **Pre-loaded**: 18-unit Creative Digital Media Production curriculum (36 weeks, 10,000 XP)
+  - Unit 1: Foundations & AI Literacy (500 XP)
+  - Unit 2: Character Design — CC4 (600 XP)
+  - Unit 3: Digital Illustration — Wacom (500 XP)
+  - Unit 4: Storyboarding — CoMiXX (500 XP)
+  - Unit 5: Comic Creation — CoMiXX (800 XP)
+  - Unit 6: 2D Animation — CA5 (600 XP)
+  - Unit 7: 3D Animation & Facial Mocap — iClone (900 XP)
+  - Unit 8: Motion Graphics — AE/C4D (600 XP)
+  - Unit 9: VFX & Compositing — Houdini (800 XP)
+  - Unit 10: Video Production — CapCut (500 XP)
+  - Unit 11: Sound Design, VO & SFX — Audition/ElevenLabs (800 XP)
+  - Unit 12: Level & Environment Design — UE5 (600 XP)
+  - Unit 13: Game Design & UI — UE5 (600 XP)
+  - Unit 14: Virtual Production — UE5/VP (700 XP)
+  - Unit 15: AI Workflow Integration (600 XP)
+  - Unit 16: Capstone Project (1,000 XP)
+  - Unit 17: Professional Portfolio Development (400 XP)
+  - Unit 18: Industry Preparation (400 XP)
+- Full CRUD on courses, units, lessons, assignments
+- Enrollment system with progress tracking
+- Course search and filtering
+
+### 4. CURRICULUM BUILDER (Teacher Tool)
+- Teachers create **custom courses for ANY subject** (not just CTE)
+- Add units with weekly pacing, XP values, and tool references
+- Add assignments with rubrics, XP, skill categories
+- Expanded skill categories: Math, Science, English, History, Music, Business, Coding (beyond the 7 creative ones)
+- Submission types: file upload, text response, external link, CoMiXX submission, streaming submission
+
+### 5. ASSIGNMENT ENGINE
+- **Submission types**: File upload (from device), text response, URL link, CoMiXX submission, streaming submission
+- **File upload**: Images, videos, PDFs up to 50MB direct from device
+- **Teacher grading**: Manual grade + XP award + written feedback
+- **AI Grading Assistant**: GPT-5.2 analyzes student work → returns letter grade, XP recommendation, strengths, improvements, encouragement
+- **Batch AI grading**: \"AI Grade All\" button processes all pending submissions
+- **Rubric builder**: Teachers create rubrics with criteria, point values, and quality levels
+
+### 6. AI FEATURES (GPT-5.2 Powered)
+- **AI Tutor** (/ai-tutor) — 24/7 chatbot for students
+  - Answers questions about animation, game design, VFX, illustration, sound design, AI tools, comic creation
+  - Chat history persisted in MongoDB
+  - Suggestion pills for common questions
+  - \"Online\" status indicator
+- **AI Grading Assistant** (POST /api/ai/grade)
+  - Teachers send student work + rubric → AI returns structured JSON
+  - Grade, XP, strengths array, improvements array, encouragement
+- **AI Lesson Generator** (POST /api/ai/lesson-generate)
+  - Full lesson content generation by topic, subject, duration, grade level
+  - Returns structured JSON: title, objectives, materials, timed sections, assessment, homework
+
+### 7. PORTFOLIO SYSTEM
+- Aggregates work from **all three platforms**: PSLMS uploads, CoMiXX comics/cards, Streaming videos
+- **Visibility controls**: Private, Class Showcase, Public
+- **File upload from device**: Images, videos, PDFs
+- **\"Sync from CoMiXX\" button**: Fetches student's comics by email from pressstart.space API
+- **\"Sync from Streaming\" button**: Fetches student's videos by email from psstreaming.com API
+- **CoMiXX import banner**: Cyan gradient, \"Sync from CoMiXX\" + \"Upload Manually\" buttons
+- **Streaming import banner**: Pink gradient, \"Sync from Streaming\" + \"Open Mad Mixed Media\" buttons
+- **Peer review**: Public/class portfolio items show peer review panel with star ratings
+- Public items appear in the Gallery (/gallery)
+- All project types supported: comic, card, vn, cyoa, motion, cover, video, animation, game, image
+
+### 8. PEER REVIEW SYSTEM
+- Students review each other's submissions and portfolio items
+- **Star rating** (1-5)
+- **Feedback fields**: Strengths + Areas for improvement
+- **Reviewer earns +10 XP** (collaboration skill)
+- **Work owner gets notified**
+- Available on submitted assignments and public/class portfolio items
+
+### 9. DISCUSSION SYSTEM
+- **Threaded comments** on any course, unit, or assignment page
+- Post text comments
+- **Like system** with toggle
+- Shows user avatar, name, and timestamp
+- Appears at bottom of Unit Detail pages
+
+### 10. LEADERBOARD
+- **Podium** for top 3: Crown for #1 \"LEGENDARY\", silver medal for #2, bronze for #3
+- **Top 10 XP Race** bar chart (gold/silver/bronze/purple bars)
+- **Individual rows** with XP progress bars, level indicators, \"(you)\" highlight
+- **Filtering**: Global, Class (dropdown selector), School (dropdown selector)
+- Real data from all ecosystem XP events
+
+### 11. STREAK CHALLENGES & CLASS QUESTS
+- **Streak Challenges**: 3-day (+50 XP), 7-day (+150 XP), 14-day (+400 XP), 30-day (+1,000 XP)
+- Animated glow when streak is earned, \"Claim Reward!\" button
+- **Class Quests**: Teachers create class-wide XP goals (e.g., \"Earn 5,000 XP as a class this week\")
+- Progress bars with participant count
+- Quest reward XP distributed to all participants
+
+### 12. BADGES
+- 10+ badges with XP thresholds:
+  - First Steps (1 XP), Rising Star (100), Skilled Creator (500), Master Artist (1,000), Epic Creator (5,000), Legendary (10,000)
+  - Skill-specific: Animator (200 animation XP), Illustrator (200 illustration XP), Game Designer (200 game XP), Storyteller (200 storytelling XP)
+- **Achievement celebrations**: Full-screen confetti + burst animation on badge unlock
+- Auto-check on dashboard load
+
+### 13. STUDIOS (Creative Teams)
+- Students create project or class studios
+- Join/leave studios
+- Member tracking
+- Foundation for team submissions and shared XP
+
+### 14. NOTIFICATIONS
+- **Bell icon** with unread count badge (top-right of every page)
+- **Dropdown** with notification list
+- **\"Mark all read\"** button
+- Notifications for: XP awards, CoMiXX imports, streaming imports, peer reviews, badge unlocks
+- Polls every 30 seconds for new notifications
+
+### 15. STUDENT DASHBOARD
+- **Welcome hero** with animated trading card showing level, rank, top skills
+- **4 stat cards**: Total XP, Skills unlocked, Badges earned, Projects
+- **Level progress bar** with gradient shimmer animation and pulse-glow
+- **3 gradient stat cards**: Total Study Time, Total XP Earned, Projects Completed
+- **Ecosystem quick-launch cards**: \"Open CoMiXX\" (+50 XP) and \"Mad Mixed Media\" (+75 XP)
+- **Weekly Activity** bar chart (XP per day)
+- **Skill Radar** chart (spider/radar visualization of all 7 skills)
+- **Recent Badges** with floating animation
+- **Particle grid background**
+- **Auto attendance check-in** on dashboard visit
+
+### 16. TEACHER DASHBOARD
+- **4 stat cards**: Classes, Students, Pending submissions, Graded
+- **Submissions tab**: View pending work, per-submission \"AI Grade\" button, batch \"AI Grade All\" button, manual grade + XP + feedback, \"Confirm & Award XP\"
+- **Classes tab**: Create classes with auto join codes, view student count
+- **Tools & Links tab**: 12 industry software partner cards (Reallusion CC4, iClone, CA5, UE5, C4D, Houdini, Adobe, ElevenLabs, CoMiXX, Claude, CapCut, Faceware) with direct links
+- **Analytics tab**: CSV grade export, CSV student export, analytics placeholder
+
+### 17. ADMIN DASHBOARD
+- **8 stat cards**: Total Users, Students, Teachers, Schools, Classes, Courses, Submissions, Total XP Awarded
+- **Manage Users tab**: Add students (name, email, password, role), user list with role badges
+- **Assign XP tab**: Select student dropdown, XP amount, skill category, reason
+- **Exports tab**: 3 CSV download cards (Grades, Students, District Report)
+- **\"Create Demo District\"** button: One-click creates school + 3 classes + 30 students with varied XP
+
+### 18. PROFILE SETTINGS
+- **Avatar upload from device** (camera icon overlay on hover)
+- Basic info: Name, Age, Bio (500 char limit)
+- Additional: Location, Timezone, Interests, Favorite Tools
+- Social links: Twitter, Instagram, YouTube, Portfolio URL
+- **\"Generate Parent Link\"** button → creates shareable parent portal URL
+- Save button
+
+### 19. PARENT PORTAL (/parent/{shareCode})
+- **No login required** — just a shareable link
+- Shows: Student name + avatar, Total XP, Level, Day Streak, Badges count
+- **Skill breakdown** donut chart
+- **Recent attendance** calendar (green squares)
+- **Portfolio highlights** (public/class items with thumbnails)
+- Branded \"Press Start\" header
+
+### 20. CREATIVE NETWORK (/network)
+- **Animated particle canvas** header (network visualization)
+- **3 stat cards**: Creative Apprentices, Creative Projects, Network Links
+- **Category filter pills**: All Projects, Animation, Game Design, Illustration, Comic, Video, VFX, AI Tools
+- **Search bar** for projects and creators
+- **Project showcase grid** with student avatars, thumbnails, type badges, source labels
+
+### 21. NEURAL NETWORK MAP (/network-map)
+- **Full Obsidian-style force-directed graph** visualization
+- Canvas-based with force simulation (repulsion + attraction + center gravity + damping)
+- **Real user nodes** with names displayed (39+ nodes from demo district)
+- **Connection lines** between nodes (Mentor/Peer/Student types)
+- **Sidebar**: Search, Level filter, Network Stats (Total Nodes, Connections, Online, Avg Level), Connection Types legend
+- **Top nav**: \"Neural Network\" branding with Social/Challenges/Network Map tabs
+- **Bottom controls**: \"Reset View\" and \"View Social Network\" buttons
+- **Grid background** for spatial reference
+
+### 22. SOFTWARE PLATFORM GUIDES (/platforms)
+- **12 industry tool cards** with gradient buttons:
+  - Unreal Engine 5.6, Houdini, Blender, Cinema 4D, Character Creator 4, iClone 8, Cartoon Animator 5, After Effects, Audacity, DaVinci Resolve, ElevenLabs, CapCut
+- Click \"Open Guide\" → **modal with 4 tabs**: Quick Keys, Shortcuts, Quick Tips, Gotchas
+- Direct links to software websites
+
+### 23. LESSON GENERATOR (/lesson-generator)
+- **Quick Access**: One-click 5-min lesson template
+- **Generate Template**: Title + category + template type (5min/15min/30min) → generates structured lesson with timed segments
+- **Upload Content**: File upload for lesson materials
+- **Categories**: Character Design, Animation, VFX, Game Design, Video Production, Sound Design, AI Tools, Storyboarding, Comic Creation, Digital Illustration, Motion Graphics, Virtual Production, General
+
+### 24. WELLNESS (/wellness)
+- **3-slide carousel**:
+  - Slide 1: Micro-Break Loop (Physical Movement, Box Breathing 4-4-4-4, Eye Care 20-20-20 rule)
+  - Slide 2: Creator Posture & Setup (chair, monitor, input devices, movement tips)
+  - Slide 3: Focus & Flow State (pre-session ritual, Pomodoro, hydration)
+- \"start_activity\" button with text-to-speech
+- Carousel navigation dots and arrows
+
+### 25. CHALLENGES & QUESTS (/challenges)
+- **Streak Challenges**: 4 milestones with lock/unlock/claim states, animated glow on earned
+- **Class Quests**: Teacher creates quests with title, XP goal, XP reward, class assignment, progress bar
+- Current streak display with fire animation
+
+### 26. PUBLIC GALLERY (/gallery)
+- **No login required**
+- Shows all public portfolio items with student names, avatars, type badges
+- Image/video thumbnails with hover zoom
+- \"CoMiXX\" source badge on imported comics
+- Student showcase header with total count
+
+### 27. DISTRICT BRIEF SALES PAGE (/districts)
+- **Public sales page** with \"Download Brief\" button
+- Hero, Three Platforms section, Student Journey (6 steps), XP Grading scale, 12-feature grid, Industry Partners, Standards Compliance, CTA
+- Downloadable markdown document via /api/district-brief
+
+### 28. LANDING PAGE (/)
+- **Video background** (pslmsbg.mp4) in hero section
+- D.R.E.A.M. Framework, XP Grading, 36-Week Curriculum Map, Ecosystem section (3 platform cards), L.E.A.P. Framework, Career Pathways, District Demo Walkthrough video section
+- \"For Districts\" link in nav bar
+- \"Start Learning\", \"Open CoMiXX\", \"Watch Streams\" hero buttons
+
+### 29. STUDENT ONBOARDING TOUR
+- **6-step welcome flow** on first login
+- Steps: Welcome, XP System, CoMiXX, Streaming, Leaderboard, Portfolio
+- Animated cards with progress dots
+- \"Skip Tour\" option, remembers via localStorage
+
+### 30. STUDENT TRADING CARDS
+- **Auto-generated cards** showing avatar, level, rank, top 3 skills, XP
+- Full and compact versions
+- **Holographic shine animation** (card-shine CSS)
+- Gradient backgrounds based on student name
+- Shown on student dashboard welcome hero
+
+### 31. ATTENDANCE TRACKING
+- **Auto check-in** when student visits dashboard
+- **Day streak** tracking (increments on consecutive days)
+- **Best streak** record
+- Visible in: sidebar streak card, parent portal, admin reports
+
+### 32. FILE UPLOAD SYSTEM
+- **Direct device upload**: Images, videos, PDFs up to 50MB
+- Categories: avatars, submissions, portfolio, lessons, general
+- Served via /api/uploads/{category}/{filename}
+- Used in: profile avatar, assignment submissions, portfolio items, lesson content
+
+### 33. CSV EXPORTS
+- **Grades export**: Student ID, Name, Assignment, Grade, XP, Feedback, Date
+- **Students export**: User ID, Name, Email, School, Classes, Created
+- **District report**: Name, Email, Total XP, Level, Submissions, Enrollments, Skills breakdown
+
+### 34. ECOSYSTEM WEBHOOKS (All Live)
+- `POST /api/webhooks/comixx` — HMAC-SHA256 verified, handles comic.submitted + time.spent
+- `POST /api/webhooks/comixx/portfolio` — API key + HMAC auth, legacy endpoint
+- `POST /api/webhooks/streaming` — API key + HMAC auth, handles video.published/viewed/liked
+- `POST /api/webhooks/streaming/portfolio` — Full portfolio submission with dedup
+- `POST /api/comixx/sync` — PSLMS fetches comics from CoMiXX by email
+- `POST /api/streaming/sync` — PSLMS fetches videos from streaming by email
+- `GET /api/ecosystem/status` — Shows connection health of all apps
+
+### 35. ECOSYSTEM STATUS
+- CoMiXX: **CONNECTED** (health check returns configured: true)
+- Streaming: Webhook receiver ready, needs /api/pslms/projects endpoint for sync
+
+---
+
+## SHARED API KEYS
+
+| Key | Value |
+|-----|-------|
+| PSLMS_API_KEY | `pslms_sk_594640c608c21671c701f704ccfb615635aa809c3d45f006` |
+| PSLMS_WEBHOOK_SECRET | `pslms_wh_ccca0506e8f5a244b0a44317b3e0d0ca3f84d372f9b91a08` |
+
+---
+
+## TECH STACK
+- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI + Recharts + react-force-graph
+- **Backend**: FastAPI (Python) + Motor (async MongoDB)
+- **Database**: MongoDB
+- **AI**: GPT-5.2 via Emergent LLM Key (emergentintegrations library)
+- **Auth**: Emergent Google OAuth + JWT/bcrypt
+- **Design**: \"Midnight Arcade\" dark theme — Obsidian (#030305), Electric Violet (#7C3AED), Neon Pink (#DB2777), Cyber Cyan (#06B6D4)
+- **Fonts**: Outfit (headings), Manrope (body), JetBrains Mono (data/code)
+
+---
+
+## TEST ACCOUNTS
+| Role | Email | Password |
+|------|-------|----------|
+| Student | student@test.com | test123 |
+| Teacher | teacher@test.com | test123 |
+| Admin | admin@test.com | test123 |
+| Demo Teacher | demo.teacher@pressstart.tech | demo123 |
+| Demo Students (30) | demo.student1-30@pressstart.tech | student123 |
+"

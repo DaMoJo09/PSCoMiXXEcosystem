@@ -18,3 +18,9 @@ id = "JSy4kkuv4WCpxYtOXIBUv"
 uri = "file://.local/emergent-lms-integration-note.md"
 type = "text"
 title = "Integration Note for Emergent — LMS (pressstart.tech)"
+
+[[outputs]]
+id = "un0gkQ1E2Ctukn2ym0l0A"
+uri = "file://.local/emergent-lms-sync-note.md"
+type = "text"
+title = "LMS Sync Note — What Both Sides Need to Connect"
