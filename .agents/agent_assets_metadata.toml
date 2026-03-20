@@ -30,3 +30,9 @@ id = "jtmej2pn93TPWEJgnrHnY"
 uri = "file://.local/lovable-lms-stat-tracker-note.md"
 type = "text"
 title = "Note for Lovable — LMS Stat Tracker (Synced with CoMiXX)"
+
+[[outputs]]
+id = "fgaoJv-5ikUdanwklbInW"
+uri = "file://.local/lovable-fx-studio-stat-tracker-note.md"
+type = "text"
+title = "Note for Lovable — FX Studio Stat Tracker (Synced with CoMiXX)"
