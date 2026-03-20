@@ -249,6 +249,22 @@ const panelTemplates = [
   { id: "classic_6panel", name: "Classic 6-Panel", category: "classic", panels: [{x:1,y:1,width:48,height:31},{x:51,y:1,width:48,height:31},{x:1,y:34,width:48,height:31},{x:51,y:34,width:48,height:31},{x:1,y:67,width:48,height:32},{x:51,y:67,width:48,height:32}] },
   { id: "classic_splash_bottom", name: "Splash + Bottom", category: "classic", panels: [{x:0,y:0,width:100,height:70},{x:0,y:70,width:50,height:30},{x:50,y:70,width:50,height:30}] },
   { id: "classic_top_splash", name: "Top + Splash", category: "classic", panels: [{x:0,y:0,width:50,height:30},{x:50,y:0,width:50,height:30},{x:0,y:30,width:100,height:70}] },
+
+  // Kids Book Layouts - large illustrations with text areas
+  { id: "kids_full_page", name: "Full Page Illustration", category: "kidsbook", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "kids_art_top_text_bottom", name: "Art Top / Text Bottom", category: "kidsbook", panels: [{x:0,y:0,width:100,height:70},{x:0,y:70,width:100,height:30}] },
+  { id: "kids_text_top_art_bottom", name: "Text Top / Art Bottom", category: "kidsbook", panels: [{x:0,y:0,width:100,height:25},{x:0,y:25,width:100,height:75}] },
+  { id: "kids_art_left_text_right", name: "Art Left / Text Right", category: "kidsbook", panels: [{x:0,y:0,width:60,height:100},{x:60,y:0,width:40,height:100}] },
+  { id: "kids_text_left_art_right", name: "Text Left / Art Right", category: "kidsbook", panels: [{x:0,y:0,width:40,height:100},{x:40,y:0,width:60,height:100}] },
+  { id: "kids_big_art_small_strip", name: "Big Art + Strip", category: "kidsbook", panels: [{x:0,y:0,width:100,height:75},{x:0,y:75,width:third,height:25},{x:third,y:75,width:third,height:25},{x:twoThird,y:75,width:third,height:25}] },
+  { id: "kids_two_scene", name: "Two Scenes", category: "kidsbook", panels: [{x:0,y:0,width:100,height:50},{x:0,y:50,width:100,height:50}] },
+  { id: "kids_spot_illustration", name: "Spot Illustration", category: "kidsbook", panels: [{x:0,y:0,width:100,height:20},{x:15,y:20,width:70,height:55},{x:0,y:75,width:100,height:25}] },
+  { id: "kids_border_frame", name: "Border Frame", category: "kidsbook", panels: [{x:5,y:5,width:90,height:70},{x:5,y:78,width:90,height:18}] },
+  { id: "kids_storyboard", name: "Storyboard (4 Panels)", category: "kidsbook", panels: [{x:2,y:2,width:46,height:46},{x:52,y:2,width:46,height:46},{x:2,y:52,width:46,height:46},{x:52,y:52,width:46,height:46}] },
+  { id: "kids_title_page", name: "Title Page", category: "kidsbook", panels: [{x:10,y:5,width:80,height:20},{x:10,y:28,width:80,height:60},{x:10,y:90,width:80,height:8}] },
+  { id: "kids_vignette", name: "Vignette", category: "kidsbook", panels: [{x:0,y:0,width:100,height:30},{x:20,y:30,width:60,height:40},{x:0,y:70,width:100,height:30}] },
+  { id: "kids_photo_album", name: "Photo Album", category: "kidsbook", panels: [{x:5,y:3,width:42,height:44},{x:53,y:3,width:42,height:44},{x:5,y:53,width:42,height:44},{x:53,y:53,width:42,height:21},{x:53,y:77,width:42,height:20}] },
+  { id: "kids_early_reader", name: "Early Reader", category: "kidsbook", panels: [{x:0,y:0,width:100,height:15},{x:0,y:15,width:100,height:55},{x:0,y:70,width:100,height:15},{x:0,y:85,width:100,height:15}] },
 ];
 
 // Template categories for UI organization
@@ -262,6 +278,7 @@ const templateCategories = [
   { id: "cinematic", name: "Cinematic" },
   { id: "creative", name: "Creative" },
   { id: "classic", name: "Classic" },
+  { id: "kidsbook", name: "Kids Book" },
 ];
 
 const FONT_OPTIONS = [
@@ -483,6 +500,7 @@ export default function ComicCreator() {
   const [drawCurrent, setDrawCurrent] = useState({ x: 0, y: 0 });
   
   const [showTemplates, setShowTemplates] = useState(false);
+  const [templateFilter, setTemplateFilter] = useState("all");
   const [showLayers, setShowLayers] = useState(true);
   const [showPanelContents, setShowPanelContents] = useState(true);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
@@ -3541,7 +3559,7 @@ export default function ComicCreator() {
               <Plus className="w-4 h-4" /> New
             </button>
             <button
-              onClick={() => setShowTemplates(!showTemplates)}
+              onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setTemplateFilter("all"); }}
               className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
             >
               <LayoutGrid className="w-4 h-4" /> Templates
@@ -5140,26 +5158,47 @@ export default function ComicCreator() {
 
         {showTemplates && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-zinc-900 border border-zinc-700 p-6 w-[600px] max-h-[80vh] overflow-auto">
+            <div className="bg-zinc-900 border-2 border-white p-6 w-[700px] max-h-[85vh] flex flex-col">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg">Panel Templates</h3>
-                <button onClick={() => setShowTemplates(false)} className="p-2 hover:bg-zinc-800">
+                <h3 className="font-bold text-lg font-space-grotesk">PANEL TEMPLATES</h3>
+                <button onClick={() => setShowTemplates(false)} className="p-2 hover:bg-zinc-800" data-testid="button-close-templates">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {panelTemplates.map(template => (
-                  <div key={template.id} className="border border-zinc-700 p-4 hover:border-white cursor-pointer group">
+              <div className="flex gap-1 flex-wrap mb-4 border-b border-zinc-700 pb-3">
+                <button
+                  onClick={() => setTemplateFilter("all")}
+                  className={`px-3 py-1 text-xs font-bold uppercase ${templateFilter === "all" ? "bg-white text-black" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"}`}
+                  data-testid="button-template-filter-all"
+                >
+                  All
+                </button>
+                {templateCategories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setTemplateFilter(cat.id)}
+                    className={`px-3 py-1 text-xs font-bold uppercase ${templateFilter === cat.id ? "bg-white text-black" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"}`}
+                    data-testid={`button-template-filter-${cat.id}`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3 overflow-y-auto flex-1">
+                {panelTemplates
+                  .filter(t => templateFilter === "all" || t.category === templateFilter)
+                  .map(template => (
+                  <div key={template.id} className="border border-zinc-700 p-3 hover:border-white cursor-pointer group" data-testid={`template-${template.id}`}>
                     <div className="aspect-[3/4] bg-white mb-2 relative">
                       {template.panels.map((p, i) => (
-                        <div key={i} className="absolute border border-black" 
+                        <div key={i} className="absolute bg-zinc-200 border border-zinc-400" 
                              style={{ left: `${p.x}%`, top: `${p.y}%`, width: `${p.width}%`, height: `${p.height}%` }} />
                       ))}
                     </div>
-                    <p className="text-sm font-medium">{template.name}</p>
-                    <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100">
-                      <button onClick={() => applyTemplate(template, "left")} className="flex-1 py-1 bg-zinc-800 text-xs">Left</button>
-                      <button onClick={() => applyTemplate(template, "right")} className="flex-1 py-1 bg-zinc-800 text-xs">Right</button>
+                    <p className="text-xs font-bold">{template.name}</p>
+                    <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100">
+                      <button onClick={() => applyTemplate(template, "left")} className="flex-1 py-1 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold" data-testid={`button-apply-left-${template.id}`}>Left</button>
+                      <button onClick={() => applyTemplate(template, "right")} className="flex-1 py-1 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold" data-testid={`button-apply-right-${template.id}`}>Right</button>
                     </div>
                   </div>
                 ))}
