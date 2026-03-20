@@ -403,7 +403,45 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     publish: 100,
   };
   const actionCooldowns = new Map<string, number>();
-  
+
+  const PSSTREAMING_WEBHOOK_URL = "https://psstreaming.com/api/webhooks/time-spent";
+  const PSSTREAMING_API_KEY = process.env.PSLMS_API_KEY || "";
+
+  async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number) {
+    if (!PSSTREAMING_API_KEY) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(PSSTREAMING_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": PSSTREAMING_API_KEY,
+        },
+        body: JSON.stringify({
+          event: "time.spent",
+          user_email: userEmail,
+          minutes,
+          xp,
+          source: "comixx",
+          timestamp: new Date().toISOString(),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        console.error(`[PSStreaming sync] HTTP ${res.status} forwarding XP for ${userEmail}`);
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        console.error("[PSStreaming sync] Request timed out");
+      } else {
+        console.error("[PSStreaming sync] Failed to forward XP:", err.message);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   app.post("/api/xp/heartbeat", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
@@ -430,6 +468,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         totalMinutes: newTotalMinutes,
         lastXpHeartbeat: now,
       } as any);
+
+      forwardXpToStreaming(user.email, minutesToCredit, xpGained);
 
       res.json({ xp: newXp, level: newLevel, totalMinutes: newTotalMinutes, xpGained });
     } catch (error: any) {
@@ -464,6 +504,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         xp: newXp,
         level: newLevel,
       } as any);
+
+      forwardXpToStreaming(user.email, 0, xpGained);
 
       res.json({ xp: newXp, level: newLevel, xpGained, action });
     } catch (error: any) {

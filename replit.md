@@ -67,7 +67,7 @@ Supports video/GIF export with progress tracking via Web Worker for GIF encoding
 An admin-only dashboard providing 40+ KPIs across 7 tabs (Overview, Growth, Engagement, Content, Revenue, AI & Platform, User Health). Uses `recharts` and aggregates data via `GET /api/analytics/platform`.
 
 ### FX Studio Integration (Bidirectional Pipeline)
-Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools via the `FxBrowserPanel`.
+Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools via the `FxBrowserPanel`. XP heartbeat and action events are forwarded to PSStreaming (`POST https://psstreaming.com/api/webhooks/time-spent`) via fire-and-forget with 5s timeout, using the shared `PSLMS_API_KEY` in the `X-API-Key` header — so time/XP earned in CoMiXX is synced to the streaming platform.
 - **Bidirectional Pipeline (Comic Creator):** Allows exporting panels to FX Studio and importing effects back into panels, handling cover-aware insertion and versioning.
 - **Script Import Pipeline (PressPlays → CoMiXX):** Imports `comic-script` type assets from PressPlays, converting them into CYOA nodes, VN scenes, or comic spreads, and creating new projects.
 - **Integration Points:** FX browser panels and context menus are available in Comic Creator, Motion Studio, Visual Novel Creator, and CYOA Builder for context-specific asset application.
