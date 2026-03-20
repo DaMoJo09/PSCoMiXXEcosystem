@@ -1,8 +1,8 @@
 import { captureElement } from "@/lib/canvasCapture";
 import {
-  Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye,
+  Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, EyeOff,
   RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen,
-  Undo2, Redo2, Ruler, FileText,
+  Undo2, Redo2, Ruler, FileText, GripVertical, Lock, Unlock,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   ChevronsUp, ChevronsDown, ChevronUp, ChevronDown
@@ -328,7 +328,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   });
 
   const [activeView, setActiveView] = useState<"front" | "back" | "spine" | "spread">("front");
-  const [activeSection, setActiveSection] = useState<"content" | "style" | "images">("content");
+  const [activeSection, setActiveSection] = useState<"content" | "style" | "images" | "layers">("content");
   const [showAIGen, setShowAIGen] = useState(false);
   const [showDrawing, setShowDrawing] = useState(false);
   const [drawingTarget, setDrawingTarget] = useState<"front" | "back" | "spine">("front");
@@ -866,7 +866,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
           {view === "front" && (
             <>
-              {coverData.bannerBgColor && coverData.bannerBgColor !== "transparent" && (
+              {!(coverData.hiddenElements || []).includes("master-banner") && coverData.bannerBgColor && coverData.bannerBgColor !== "transparent" && (
                 <TransformableElement
                   id="master-banner"
                   initialTransform={coverData.bannerTransform || { x: 0, y: 0, width: 600, height: 32, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -894,7 +894,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 </TransformableElement>
               )}
 
-              {coverData.showPriceBox && (
+              {!(coverData.hiddenElements || []).includes("master-price") && coverData.showPriceBox && (
                 <TransformableElement
                   id="master-price"
                   initialTransform={coverData.priceBoxTransform || { x: 540, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -915,7 +915,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 </TransformableElement>
               )}
 
-              {coverData.issueNumber && (
+              {!(coverData.hiddenElements || []).includes("master-issue") && coverData.issueNumber && (
                 <TransformableElement
                   id="master-issue"
                   initialTransform={coverData.issueNumberTransform || { x: 4, y: 4, width: 60, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -938,6 +938,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 </TransformableElement>
               )}
 
+              {!(coverData.hiddenElements || []).includes("master-title") && (
               <TransformableElement
                 id="master-title"
                 initialTransform={coverData.titleTransform || { x: 100, y: 80, width: 400, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -962,7 +963,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
+              {!(coverData.hiddenElements || []).includes("master-subtitle") && (
               <TransformableElement
                 id="master-subtitle"
                 initialTransform={coverData.subtitleTransform || { x: 150, y: 170, width: 300, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -987,7 +990,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
+              {!(coverData.hiddenElements || []).includes("master-author") && (
               <TransformableElement
                 id="master-author"
                 initialTransform={coverData.authorTransform || { x: 100, y: 650, width: 400, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -1012,11 +1017,13 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
             </>
           )}
 
           {view === "back" && (
             <>
+              {!(coverData.hiddenElements || []).includes("master-back-title") && (
               <TransformableElement
                 id="master-back-title"
                 initialTransform={coverData.backTitleTransform || { x: 50, y: 60, width: 500, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -1038,7 +1045,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
+              {!(coverData.hiddenElements || []).includes("master-blurb") && (
               <TransformableElement
                 id="master-blurb"
                 initialTransform={coverData.backBlurbTransform || { x: 80, y: 130, width: 440, height: 200, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -1060,7 +1069,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
+              {!(coverData.hiddenElements || []).includes("master-back-author") && (
               <TransformableElement
                 id="master-back-author"
                 initialTransform={coverData.backAuthorTransform || { x: 150, y: 380, width: 300, height: 30, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -1082,7 +1093,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
+              {!(coverData.hiddenElements || []).includes("master-back-publisher") && (
               <TransformableElement
                 id="master-back-publisher"
                 initialTransform={coverData.backPublisherTransform || { x: 150, y: 440, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 }}
@@ -1104,6 +1117,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+              )}
 
               <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
                 {coverData.isbn && generateEAN13Barcode(coverData.isbn) ? (
@@ -1141,6 +1155,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
           {(() => {
             const zOrder = coverData.elementZOrder || [];
+            const hiddenLayerSet = new Set(coverData.hiddenElements || []);
             const imgMap = new Map(imageLayers.map(il => [il.id, il]));
             const txtMap = new Map(layers.map(tl => [tl.id, tl]));
             const allIds = new Set([...imageLayers.map(il => il.id), ...layers.map(tl => tl.id)]);
@@ -1148,6 +1163,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
             allIds.forEach(id => { if (!orderedIds.includes(id)) orderedIds.push(id); });
 
             return orderedIds.map((id) => {
+              if (hiddenLayerSet.has(id)) return null;
               const globalIdx = zOrder.indexOf(id);
               const zIdx = (globalIdx >= 0 ? globalIdx : zOrder.length) + 10;
               const imgLayer = imgMap.get(id);
@@ -1271,9 +1287,10 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
       <div className="flex-1 flex overflow-hidden">
         <div className="w-80 p-4 overflow-auto border-r border-zinc-800 bg-zinc-900 space-y-4">
           <div className="flex border-b border-zinc-700">
-            {["content", "style", "images"].map(section => (
+            {["content", "style", "images", "layers"].map(section => (
               <button key={section} onClick={() => setActiveSection(section as any)}
-                className={`flex-1 py-2 text-xs font-bold uppercase ${activeSection === section ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{section}</button>
+                className={`flex-1 py-2 text-[10px] font-bold uppercase ${activeSection === section ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}
+                data-testid={`tab-${section}`}>{section}</button>
             ))}
           </div>
 
@@ -1628,6 +1645,129 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
               </div>
             </div>
           )}
+
+          {activeSection === "layers" && (() => {
+            const viewKey = activeView === "spread" ? "front" : activeView;
+            const isFrontOrSpread = viewKey === "front" || activeView === "spread";
+            const masterElements = isFrontOrSpread ? [
+              { id: "master-banner", label: "Banner (+ Publisher/Tagline)", type: "master" as const },
+              { id: "master-issue", label: "Issue #", type: "master" as const },
+              { id: "master-price", label: "Price Box", type: "master" as const },
+              { id: "master-title", label: "Title", type: "master" as const },
+              { id: "master-subtitle", label: "Subtitle", type: "master" as const },
+              { id: "master-author", label: "Author", type: "master" as const },
+            ] : viewKey === "back" ? [
+              { id: "master-back-title", label: "Back Title", type: "master" as const },
+              { id: "master-blurb", label: "Back Blurb", type: "master" as const },
+              { id: "master-back-author", label: "Back Author", type: "master" as const },
+              { id: "master-back-publisher", label: "Back Publisher", type: "master" as const },
+            ] : [];
+            const textLayers = (coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[] || []).map(l => ({
+              id: l.id, label: l.text || "Text Layer", type: "text" as const
+            }));
+            const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[] || []).map(l => ({
+              id: l.id, label: l.name || "Image Layer", type: "image" as const
+            }));
+            const bgLayer = coverData[`${viewKey}Image` as keyof CoverData]
+              ? [{ id: `bg-${viewKey}`, label: "Background Image", type: "bg" as const }] : [];
+
+            const allLayerMeta = [...masterElements, ...textLayers, ...imgLayers, ...bgLayer];
+            const allIds = new Set(allLayerMeta.map(l => l.id));
+            const zOrder = coverData.elementZOrder || [];
+            const ordered = [...zOrder.filter(id => allIds.has(id))];
+            allIds.forEach(id => { if (!ordered.includes(id)) ordered.push(id); });
+            const orderedLayers = ordered.map(id => allLayerMeta.find(l => l.id === id)).filter(Boolean) as typeof allLayerMeta;
+            const reversedLayers = [...orderedLayers].reverse();
+
+            const hiddenSet = new Set(coverData.hiddenElements || []);
+            const toggleVisibility = (id: string) => {
+              const hidden = [...(coverData.hiddenElements || [])];
+              const idx = hidden.indexOf(id);
+              if (idx >= 0) hidden.splice(idx, 1); else hidden.push(id);
+              updateCover({ hiddenElements: hidden });
+            };
+
+            return (
+              <div className="space-y-3" data-testid="layers-panel">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase text-zinc-400">Layer Stack</label>
+                  <span className="text-[10px] text-zinc-600">{reversedLayers.length} layers</span>
+                </div>
+                <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Use arrows to reorder.</p>
+                <div className="space-y-1">
+                  {reversedLayers.map((layer, revIdx) => {
+                    const isHidden = hiddenSet.has(layer.id);
+                    const isSelected = selectedLayerId === layer.id || selectedLayerIds.includes(layer.id);
+                    const typeIcon = layer.type === "text" ? "T" : layer.type === "image" ? "I" : layer.type === "bg" ? "BG" : "M";
+                    const typeBg = layer.type === "text" ? "bg-cyan-900/40" : layer.type === "image" ? "bg-violet-900/40" : layer.type === "bg" ? "bg-green-900/40" : "bg-zinc-800";
+                    return (
+                      <div key={layer.id}
+                        onClick={() => setSelectedLayerId(layer.id)}
+                        className={`flex items-center gap-1.5 p-1.5 border cursor-pointer transition-colors ${
+                          isSelected ? "border-cyan-500 bg-zinc-800" : "border-zinc-700/50 hover:border-zinc-600"
+                        } ${isHidden ? "opacity-40" : ""}`}
+                        data-testid={`layer-stack-item-${layer.id}`}>
+                        <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-bold ${typeBg} text-zinc-300 shrink-0`}>{typeIcon}</span>
+                        <span className="text-xs truncate flex-1 min-w-0">{layer.label}</span>
+                        <button onClick={(e) => { e.stopPropagation(); toggleVisibility(layer.id); }}
+                          className="p-0.5 hover:text-white text-zinc-500 shrink-0" data-testid={`toggle-visibility-${layer.id}`}>
+                          {isHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                        <div className="flex flex-col shrink-0">
+                          <button onClick={(e) => { e.stopPropagation(); moveLayerOrder(layer.id, revIdx === 0 ? "front" : "forward"); }}
+                            disabled={revIdx === 0}
+                            className="p-0 hover:text-white text-zinc-500 disabled:opacity-20" data-testid={`move-up-${layer.id}`}>
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); moveLayerOrder(layer.id, revIdx === reversedLayers.length - 1 ? "back" : "backward"); }}
+                            disabled={revIdx === reversedLayers.length - 1}
+                            className="p-0 hover:text-white text-zinc-500 disabled:opacity-20" data-testid={`move-down-${layer.id}`}>
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectedLayerId && (
+                  <div className="pt-3 border-t border-zinc-700 space-y-2">
+                    <label className="text-[10px] font-bold uppercase text-zinc-500">Quick Actions</label>
+                    <div className="grid grid-cols-4 gap-1">
+                      <button onClick={() => moveLayerOrder(selectedLayerId, "front")}
+                        className="py-1.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex flex-col items-center" data-testid="button-bring-front">
+                        <ChevronsUp className="w-3 h-3 mb-0.5" />Front
+                      </button>
+                      <button onClick={() => moveLayerOrder(selectedLayerId, "forward")}
+                        className="py-1.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex flex-col items-center" data-testid="button-move-forward">
+                        <ChevronUp className="w-3 h-3 mb-0.5" />Up
+                      </button>
+                      <button onClick={() => moveLayerOrder(selectedLayerId, "backward")}
+                        className="py-1.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex flex-col items-center" data-testid="button-move-backward">
+                        <ChevronDown className="w-3 h-3 mb-0.5" />Down
+                      </button>
+                      <button onClick={() => moveLayerOrder(selectedLayerId, "back")}
+                        className="py-1.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex flex-col items-center" data-testid="button-send-back">
+                        <ChevronsDown className="w-3 h-3 mb-0.5" />Back
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="pt-3 border-t border-zinc-700 space-y-2">
+                  <label className="text-[10px] font-bold uppercase text-zinc-500">Add Layer</label>
+                  <div className="flex gap-2">
+                    <button onClick={() => addTextLayer(viewKey)}
+                      className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-add-text-layer-stack">
+                      <Type className="w-3 h-3" /> Text
+                    </button>
+                    <button onClick={() => setShowAssetBrowser(true)}
+                      className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-add-image-layer-stack">
+                      <ImageIcon className="w-3 h-3" /> Image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <ContextMenu>
