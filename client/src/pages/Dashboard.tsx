@@ -306,7 +306,7 @@ export default function Dashboard() {
                     <img 
                       src={project.thumbnail || typeImages[project.type] || noirComic} 
                       alt={project.title}
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                      className="w-full h-full object-contain bg-black/50 grayscale group-hover:grayscale-0 transition-all duration-500"
                     />
                     <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ThumbnailPicker
