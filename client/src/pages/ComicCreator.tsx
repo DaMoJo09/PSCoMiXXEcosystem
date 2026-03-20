@@ -1240,40 +1240,67 @@ export default function ComicCreator() {
             ctx.restore();
           };
 
-          let currentY = panelY;
+          const drawRightText = (text: string, x: number, y: number, font: string, color: string, size: number, opts?: { bold?: boolean; uppercase?: boolean }) => {
+            ctx.save();
+            ctx.fillStyle = color;
+            const weight = opts?.bold ? 'bold ' : '';
+            ctx.font = `${weight}${size}px ${font.replace(/'/g, '"')}`;
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            ctx.fillText(opts?.uppercase ? text.toUpperCase() : text, x, y);
+            ctx.restore();
+          };
+
+          const bannerH = scaleFont(28);
           if (cd.bannerText && !hiddenEls.has("master-banner")) {
-            ctx.fillStyle = cd.bannerBgColor || '#000';
-            const bannerH = scaleFont(30);
-            ctx.fillRect(panelX, currentY, panelW, bannerH);
-            drawLeftText(cd.bannerText, panelX + scaleFont(10), currentY + bannerH * 0.25, "Inter, sans-serif", cd.titleColor, scaleFont(12), { bold: true, uppercase: true });
-            currentY += bannerH;
+            ctx.fillStyle = cd.bannerBgColor || '#c0392b';
+            ctx.fillRect(panelX + panelW * 0.18, panelY, panelW * 0.82, bannerH);
+            const publisherLine = cd.publisherName ? `${cd.publisherName} ${cd.bannerText}` : cd.bannerText;
+            drawCenterText(publisherLine, panelY + bannerH * 0.2, "Inter, sans-serif", '#FFFFFF', scaleFont(11), { bold: true, uppercase: true });
           }
-          if (cd.publisherName && !hiddenEls.has("master-publisher")) {
-            currentY += scaleFont(6);
-            drawLeftText(cd.publisherName, panelX + scaleFont(10), currentY, "Inter, sans-serif", cd.titleColor, scaleFont(11), { bold: true, uppercase: true });
-            currentY += scaleFont(16);
-          }
-          if (cd.issueNumber && !hiddenEls.has("master-issue")) {
-            drawLeftText(cd.issueNumber, panelX + scaleFont(10), currentY, "Inter, sans-serif", cd.titleColor, scaleFont(14), { bold: true });
-            if (cd.issueDate) {
-              drawLeftText(cd.issueDate, panelX + scaleFont(10), currentY + scaleFont(16), "Inter, sans-serif", cd.titleColor, scaleFont(9));
+
+          if (cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
+            const boxW = scaleFont(46);
+            const boxH = scaleFont(44);
+            const bx = panelX + scaleFont(6);
+            const by = panelY + scaleFont(4);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(bx, by, boxW, boxH);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx, by, boxW, boxH);
+            ctx.fillStyle = '#000';
+            ctx.font = `bold ${scaleFont(12)}px Inter`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText(cd.priceText, bx + boxW / 2, by + scaleFont(4));
+            if (cd.issueNumber && !hiddenEls.has("master-issue")) {
+              ctx.font = `bold ${scaleFont(14)}px Inter`;
+              ctx.fillText(cd.issueNumber.replace('#', ''), bx + boxW / 2, by + scaleFont(18));
             }
-            currentY += scaleFont(22);
+            if (cd.issueDate) {
+              ctx.font = `${scaleFont(8)}px Inter`;
+              ctx.fillText(cd.issueDate, bx + boxW / 2, by + scaleFont(34));
+            }
           }
-          const titleY = panelY + panelH * 0.28;
+
+          const subtitleY = panelY + bannerH + scaleFont(20);
+          if (cd.subtitle && !hiddenEls.has("master-subtitle")) {
+            drawCenterText(cd.subtitle, subtitleY, cd.subtitleFont, cd.subtitleColor, scaleFont(cd.subtitleSize), { bold: true, uppercase: true });
+          }
+
+          const titleY = subtitleY + scaleFont(cd.subtitleSize + 6);
           if (!hiddenEls.has("master-title")) {
             drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
           }
-          if (cd.subtitle && !hiddenEls.has("master-subtitle")) {
-            drawCenterText(cd.subtitle, titleY + scaleFont(cd.titleSize + 10), cd.subtitleFont, cd.subtitleColor, scaleFont(cd.subtitleSize));
-          }
+
           if (cd.tagline && !hiddenEls.has("master-tagline")) {
-            drawCenterText(cd.tagline, titleY + scaleFont(cd.titleSize + cd.subtitleSize + 20), "Inter, sans-serif", cd.subtitleColor, scaleFont(11), { uppercase: true });
+            drawCenterText(cd.tagline, panelY + panelH - scaleFont(50), "Inter, sans-serif", cd.subtitleColor, scaleFont(11), { uppercase: true });
           }
           if (!hiddenEls.has("master-author")) {
-            drawCenterText(cd.author || "Author", panelY + panelH * 0.75, cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+            drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(30), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           }
-          if (cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
+          if (false && cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
             const boxS = scaleFont(36);
             const bx = panelX + panelW - boxS - scaleFont(10);
             const by = panelY + scaleFont(10);
