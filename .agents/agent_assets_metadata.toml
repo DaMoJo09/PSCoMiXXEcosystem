@@ -6,3 +6,9 @@ id = "SCxjgwINvNTVVXEozAJAg"
 uri = "file://.local/pslms-integration-scope.md"
 type = "text"
 title = "Press Start LMS ↔ CoMiXX Full Integration Scope"
+
+[[outputs]]
+id = "AkH0nSu7jAhNKTBDQy0oM"
+uri = "file://.local/emergent-integration-note.md"
+type = "text"
+title = "Integration Note for Emergent Team"
