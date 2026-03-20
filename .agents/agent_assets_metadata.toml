@@ -12,3 +12,9 @@ id = "AkH0nSu7jAhNKTBDQy0oM"
 uri = "file://.local/emergent-integration-note.md"
 type = "text"
 title = "Integration Note for Emergent Team"
+
+[[outputs]]
+id = "JSy4kkuv4WCpxYtOXIBUv"
+uri = "file://.local/emergent-lms-integration-note.md"
+type = "text"
+title = "Integration Note for Emergent — LMS (pressstart.tech)"
