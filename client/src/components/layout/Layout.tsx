@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppSidebar } from "./AppSidebar";
-import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor } from "lucide-react";
+import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -37,6 +38,9 @@ export function Layout({ children }: LayoutProps) {
   const [desktopBannerDismissed, setDesktopBannerDismissed] = useState(false);
   const [location] = useLocation();
   const isMobile = useIsMobile();
+  const { enabled: marketplaceEnabled } = useFeatureFlag("marketplace_enabled");
+  const { enabled: communityEnabled } = useFeatureFlag("community_enabled");
+  const { enabled: aiToolsEnabled } = useFeatureFlag("ai_tools_enabled");
 
   const isExpanded = sidebarHovered || sidebarPinned;
   const isCreatorTool = CREATOR_TOOL_PATHS.some(
@@ -136,9 +140,10 @@ export function Layout({ children }: LayoutProps) {
             data-testid="mobile-bottom-nav"
           >
             <MobileNavItem href="/" icon={Home} label="Home" current={location === "/"} />
-            <MobileNavItem href="/community" icon={Users} label="Community" current={location.startsWith("/community")} />
-            <MobileNavItem href="/marketplace" icon={ShoppingBag} label="Market" current={location.startsWith("/marketplace")} />
-            <MobileNavItem href="/tools/prompt" icon={Sparkles} label="AI Tools" current={location.startsWith("/tools/")} />
+            {communityEnabled && <MobileNavItem href="/community" icon={Users} label="Community" current={location.startsWith("/community")} />}
+            {marketplaceEnabled && <MobileNavItem href="/marketplace" icon={ShoppingBag} label="Market" current={location.startsWith("/marketplace")} />}
+            {aiToolsEnabled && <MobileNavItem href="/tools/prompt" icon={Sparkles} label="AI Tools" current={location.startsWith("/tools/")} />}
+            {!communityEnabled && <MobileNavItem href="/library" icon={Layers} label="Library" current={location === "/library"} />}
             <MobileNavItem href="/portfolio" icon={User} label="Portfolio" current={location === "/portfolio"} />
           </nav>
         </>

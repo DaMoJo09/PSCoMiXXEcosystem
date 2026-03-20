@@ -3820,6 +3820,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.put("/api/admin/feature-flags/:key", isAdmin, async (req, res) => {
     try {
       const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ message: "enabled must be a boolean" });
+      }
       const flag = await storage.setFeatureFlag(req.params.key, enabled, req.user!.id);
       await storage.createAdminLog({
         adminId: req.user!.id,
@@ -4341,6 +4344,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/stripe/checkout", isAuthenticated, async (req, res) => {
     try {
+      const paymentsFlag = await storage.getFeatureFlag("payments_enabled");
+      if (!paymentsFlag?.enabled) {
+        return res.status(403).json({ message: "Payments are not currently enabled" });
+      }
+
       const { priceId } = req.body;
       const user = await storage.getUser(req.user!.id);
       
@@ -5458,6 +5466,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (req.user!.role === "admin") {
         return res.json({ allowed: true, remaining: -1 });
       }
+
+      const exportFlag = await storage.getFeatureFlag("export_restrictions");
+      if (exportFlag && !exportFlag.enabled) {
+        return res.json({ allowed: true, remaining: -1 });
+      }
+
       const subscription = await storage.getUserSubscription(userId);
       const tier = (subscription?.tier || "free") as TierName;
       const entitlements = tierEntitlements[tier] || tierEntitlements.free;

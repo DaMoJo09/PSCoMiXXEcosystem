@@ -20,6 +20,9 @@ PostgreSQL, hosted via Neon serverless, is the primary database, accessed throug
 ### Security
 The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features, AI resilience, audit logging, and SSO support.
 
+### Feature Flags System
+11 feature flags stored in the `feature_flags` DB table, toggled from Admin Control Room. The `useFeatureFlag(key)` hook (in `client/src/hooks/useFeatureFlag.ts`) queries the public endpoint `GET /api/feature-flags/:key` and defaults to `false` (fail-closed) when a flag is missing. Sidebar sections (Marketplace, Print Studio, Social, AI Tools, Community, Motion Studio) are conditionally rendered based on flags. Backend gates: `payments_enabled` blocks Stripe checkout; `export_restrictions` enforces export quotas (fail-closed when missing). Other flags: `appsumo_redemption`, `early_adopter_gate`, `invite_system`.
+
 ### Subscription & Usage Tracking
 Supports Free, Creator, Pro, Studio, and Lifetime subscription tiers with limits on AI generations, exports, projects, and storage. Usage is tracked server-side, with frontend feature gates prompting upgrades.
 

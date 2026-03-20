@@ -50,6 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount, getLastSyncTime, startBackgroundSync, subscribeSyncStatus, type SyncStatus, type ConflictInfo, resolveConflict } from "@/lib/offlineStorage";
 
 interface AppSidebarProps {
@@ -225,6 +226,12 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { theme, toggleTheme } = useTheme();
   const { canInstall, isInstalled, install } = useInstallPrompt();
   const { online, pendingSync, lastSyncTime, isSyncing, conflicts, handleResolveConflict } = useOnlineStatus();
+  const { enabled: marketplaceEnabled } = useFeatureFlag("marketplace_enabled");
+  const { enabled: printStudioEnabled } = useFeatureFlag("print_studio_enabled");
+  const { enabled: socialEnabled } = useFeatureFlag("social_enabled");
+  const { enabled: aiToolsEnabled } = useFeatureFlag("ai_tools_enabled");
+  const { enabled: communityEnabled } = useFeatureFlag("community_enabled");
+  const { enabled: motionStudioEnabled } = useFeatureFlag("motion_studio_enabled");
   const xp = user?.xp || 0;
   const level = getLevel(xp);
   const xpNeeded = xpForLevel(level);
@@ -337,26 +344,46 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
       )} role="navigation" aria-label="Site navigation">
         {isExpanded && <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>}
         {!isExpanded && <div className="h-2" />}
-        {creatorTools.map((item) => renderNavLink(item))}
+        {creatorTools.filter(item => item.href !== "/creator/motion" || motionStudioEnabled).map((item) => renderNavLink(item))}
         
-        {renderSectionLabel("AI Tools")}
-        {aiTools.map((item) => renderNavLink(item))}
+        {aiToolsEnabled && (
+          <>
+            {renderSectionLabel("AI Tools")}
+            {aiTools.map((item) => renderNavLink(item))}
+          </>
+        )}
 
         {renderSectionLabel("My Work")}
         {galleryTools.map((item) => renderNavLink(item))}
 
-        {renderSectionLabel("Marketplace")}
-        {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+        {marketplaceEnabled && (
+          <>
+            {renderSectionLabel("Marketplace")}
+            {marketplaceTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+          </>
+        )}
 
-        {renderSectionLabel("Print Studio")}
-        {printStudioTools.map((item) => renderNavLink(item))}
+        {printStudioEnabled && (
+          <>
+            {renderSectionLabel("Print Studio")}
+            {printStudioTools.map((item) => renderNavLink(item))}
+          </>
+        )}
 
-        {renderSectionLabel("Community", "community-nav-label")}
-        {communityTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
-        {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+        {communityEnabled && (
+          <>
+            {renderSectionLabel("Community", "community-nav-label")}
+            {communityTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+            {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+          </>
+        )}
 
-        {renderSectionLabel("Social", "social-nav-label")}
-        {socialTools.map((item) => renderNavLink(item, true))}
+        {socialEnabled && (
+          <>
+            {renderSectionLabel("Social", "social-nav-label")}
+            {socialTools.map((item) => renderNavLink(item, true))}
+          </>
+        )}
         
         <div className="pt-4 mt-4 border-t border-border space-y-1">
           <button
