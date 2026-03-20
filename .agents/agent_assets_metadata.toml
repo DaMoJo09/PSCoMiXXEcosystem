@@ -24,3 +24,9 @@ id = "un0gkQ1E2Ctukn2ym0l0A"
 uri = "file://.local/emergent-lms-sync-note.md"
 type = "text"
 title = "LMS Sync Note — What Both Sides Need to Connect"
+
+[[outputs]]
+id = "jtmej2pn93TPWEJgnrHnY"
+uri = "file://.local/lovable-lms-stat-tracker-note.md"
+type = "text"
+title = "Note for Lovable — LMS Stat Tracker (Synced with CoMiXX)"
