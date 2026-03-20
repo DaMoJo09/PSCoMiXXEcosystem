@@ -1229,38 +1229,49 @@ export default function ComicCreator() {
         const scaleFont = (baseSize: number) => Math.round(baseSize * (panelW / 600));
 
         if (isFront) {
+          const drawLeftText = (text: string, x: number, y: number, font: string, color: string, size: number, opts?: { bold?: boolean; uppercase?: boolean }) => {
+            ctx.save();
+            ctx.fillStyle = color;
+            const weight = opts?.bold ? 'bold ' : '';
+            ctx.font = `${weight}${size}px ${font.replace(/'/g, '"')}`;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillText(opts?.uppercase ? text.toUpperCase() : text, x, y);
+            ctx.restore();
+          };
+
           let currentY = panelY;
           if (cd.bannerText && !hiddenEls.has("master-banner")) {
             ctx.fillStyle = cd.bannerBgColor || '#000';
             const bannerH = scaleFont(30);
             ctx.fillRect(panelX, currentY, panelW, bannerH);
-            drawCenterText(cd.bannerText, currentY + bannerH * 0.2, "Inter, sans-serif", cd.titleColor, scaleFont(14), { bold: true, uppercase: true });
+            drawLeftText(cd.bannerText, panelX + scaleFont(10), currentY + bannerH * 0.25, "Inter, sans-serif", cd.titleColor, scaleFont(12), { bold: true, uppercase: true });
             currentY += bannerH;
           }
           if (cd.publisherName && !hiddenEls.has("master-publisher")) {
-            currentY += scaleFont(8);
-            drawCenterText(cd.publisherName, currentY, "Inter, sans-serif", cd.titleColor, scaleFont(12), { bold: true, uppercase: true });
-            currentY += scaleFont(18);
+            currentY += scaleFont(6);
+            drawLeftText(cd.publisherName, panelX + scaleFont(10), currentY, "Inter, sans-serif", cd.titleColor, scaleFont(11), { bold: true, uppercase: true });
+            currentY += scaleFont(16);
           }
           if (cd.issueNumber && !hiddenEls.has("master-issue")) {
-            drawCenterText(cd.issueNumber, currentY, "Inter, sans-serif", cd.titleColor, scaleFont(16), { bold: true });
+            drawLeftText(cd.issueNumber, panelX + scaleFont(10), currentY, "Inter, sans-serif", cd.titleColor, scaleFont(14), { bold: true });
             if (cd.issueDate) {
-              drawCenterText(cd.issueDate, currentY + scaleFont(18), "Inter, sans-serif", cd.titleColor, scaleFont(10));
+              drawLeftText(cd.issueDate, panelX + scaleFont(10), currentY + scaleFont(16), "Inter, sans-serif", cd.titleColor, scaleFont(9));
             }
             currentY += scaleFont(22);
           }
-          const titleY = panelY + panelH * 0.3;
+          const titleY = panelY + panelH * 0.28;
           if (!hiddenEls.has("master-title")) {
             drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
           }
           if (cd.subtitle && !hiddenEls.has("master-subtitle")) {
-            drawCenterText(cd.subtitle, titleY + scaleFont(cd.titleSize + 8), cd.subtitleFont, cd.subtitleColor, scaleFont(cd.subtitleSize));
+            drawCenterText(cd.subtitle, titleY + scaleFont(cd.titleSize + 10), cd.subtitleFont, cd.subtitleColor, scaleFont(cd.subtitleSize));
           }
           if (cd.tagline && !hiddenEls.has("master-tagline")) {
-            drawCenterText(cd.tagline, titleY + scaleFont(cd.titleSize + cd.subtitleSize + 16), "Inter, sans-serif", cd.subtitleColor, scaleFont(12));
+            drawCenterText(cd.tagline, titleY + scaleFont(cd.titleSize + cd.subtitleSize + 20), "Inter, sans-serif", cd.subtitleColor, scaleFont(11), { uppercase: true });
           }
           if (!hiddenEls.has("master-author")) {
-            drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(40), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+            drawCenterText(cd.author || "Author", panelY + panelH * 0.75, cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           }
           if (cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
             const boxS = scaleFont(36);
@@ -1299,7 +1310,7 @@ export default function ComicCreator() {
           }
         } else {
           if (!hiddenEls.has("master-back-title")) {
-            drawCenterText(cd.title || "TITLE", panelY + scaleFont(20), cd.titleFont, cd.titleColor, scaleFont(cd.titleSize * 0.6), { bold: true, uppercase: true });
+            drawCenterText(cd.title || "TITLE", panelY + panelH * 0.08, cd.titleFont, cd.titleColor, scaleFont(Math.max(cd.titleSize * 0.6, 20)), { bold: true, uppercase: true });
           }
           if (cd.backBlurb && !hiddenEls.has("master-blurb")) {
             ctx.save();
@@ -1309,8 +1320,8 @@ export default function ComicCreator() {
             ctx.textBaseline = "top";
             const words = cd.backBlurb.split(' ');
             let line = '';
-            let y = panelY + scaleFont(60);
-            const maxW = panelW * 0.8;
+            let y = panelY + panelH * 0.18;
+            const maxW = panelW * 0.75;
             for (const word of words) {
               const testLine = line + word + ' ';
               if (ctx.measureText(testLine).width > maxW && line) {
@@ -1325,7 +1336,10 @@ export default function ComicCreator() {
             ctx.restore();
           }
           if (!hiddenEls.has("master-back-author")) {
-            drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH - scaleFont(60), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+            drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH * 0.55, cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+          }
+          if (cd.publisherName && !hiddenEls.has("master-back-publisher")) {
+            drawCenterText(cd.publisherName, panelY + panelH * 0.62, "Inter, sans-serif", cd.subtitleColor, scaleFont(12), { bold: true, uppercase: true });
           }
           if (cd.isbn && !hiddenEls.has("master-isbn")) {
             if (cd.showBarcode !== false) {

@@ -295,19 +295,19 @@ export const defaultCover: CoverData = {
   filters: { ...FILTER_PRESETS },
   elementZOrder: ["master-banner", "master-publisher", "master-issue", "master-price", "master-title", "master-subtitle", "master-tagline", "master-author"],
   hiddenElements: [],
-  bannerTransform: { x: 0, y: 0, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
-  publisherTransform: { x: 8, y: 28, width: 120, height: 16, rotation: 0, scaleX: 1, scaleY: 1 },
-  issueNumberTransform: { x: 8, y: 46, width: 60, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
-  priceBoxTransform: { x: 256, y: 2, width: 38, height: 38, rotation: 0, scaleX: 1, scaleY: 1 },
-  titleTransform: { x: 10, y: 120, width: 280, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
-  subtitleTransform: { x: 40, y: 184, width: 220, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
-  taglineTransform: { x: 30, y: 210, width: 240, height: 18, rotation: 0, scaleX: 1, scaleY: 1 },
-  authorTransform: { x: 50, y: 380, width: 200, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
-  backTitleTransform: { x: 20, y: 20, width: 260, height: 35, rotation: 0, scaleX: 1, scaleY: 1 },
-  backBlurbTransform: { x: 20, y: 70, width: 260, height: 140, rotation: 0, scaleX: 1, scaleY: 1 },
-  backAuthorTransform: { x: 50, y: 220, width: 200, height: 22, rotation: 0, scaleX: 1, scaleY: 1 },
-  isbnTransform: { x: 70, y: 320, width: 160, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
-  backPublisherTransform: { x: 60, y: 380, width: 180, height: 18, rotation: 0, scaleX: 1, scaleY: 1 },
+  bannerTransform: { x: 0, y: 0, width: 600, height: 32, rotation: 0, scaleX: 1, scaleY: 1 },
+  publisherTransform: { x: 10, y: 36, width: 200, height: 20, rotation: 0, scaleX: 1, scaleY: 1 },
+  issueNumberTransform: { x: 10, y: 58, width: 80, height: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+  priceBoxTransform: { x: 540, y: 4, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+  titleTransform: { x: 100, y: 200, width: 400, height: 80, rotation: 0, scaleX: 1, scaleY: 1 },
+  subtitleTransform: { x: 150, y: 290, width: 300, height: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+  taglineTransform: { x: 100, y: 325, width: 400, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
+  authorTransform: { x: 100, y: 750, width: 400, height: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+  backTitleTransform: { x: 50, y: 60, width: 500, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+  backBlurbTransform: { x: 80, y: 130, width: 440, height: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+  backAuthorTransform: { x: 150, y: 380, width: 300, height: 30, rotation: 0, scaleX: 1, scaleY: 1 },
+  isbnTransform: { x: 200, y: 750, width: 200, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
+  backPublisherTransform: { x: 150, y: 440, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 },
 };
 
 export interface CoverEditorPanelProps {
@@ -1018,8 +1018,30 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
           {view === "back" && (
             <>
               <TransformableElement
+                id="master-back-title"
+                initialTransform={coverData.backTitleTransform || { x: 50, y: 60, width: 500, height: 50, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerIds.includes("master-back-title")}
+                onSelect={(id) => handleShiftSelect(id)}
+                onTransformChange={(_, transform) => updateCover({ backTitleTransform: transform })}
+                locked={false} containerRef={canvasRef} containerScale={scale}
+              >
+                <div className="w-full h-full flex items-center justify-center text-center">
+                  {editingMasterId === "master-back-title" ? (
+                    <input autoFocus className="font-bold uppercase tracking-tight bg-transparent outline-none border-b-2 border-white/50 w-full text-center"
+                      style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${Math.max(coverData.titleSize * 0.6, 20)}px` }}
+                      value={coverData.title} onChange={(e) => updateCover({ title: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }} />
+                  ) : (
+                    <span className="font-bold uppercase tracking-tight cursor-text"
+                      style={{ fontFamily: coverData.titleFont, color: coverData.titleColor, fontSize: `${Math.max(coverData.titleSize * 0.6, 20)}px` }}
+                      onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-back-title"); }}>{coverData.title}</span>
+                  )}
+                </div>
+              </TransformableElement>
+
+              <TransformableElement
                 id="master-blurb"
-                initialTransform={coverData.backBlurbTransform || { x: 50, y: 100, width: 500, height: 500, rotation: 0, scaleX: 1, scaleY: 1 }}
+                initialTransform={coverData.backBlurbTransform || { x: 80, y: 130, width: 440, height: 200, rotation: 0, scaleX: 1, scaleY: 1 }}
                 isSelected={selectedLayerIds.includes("master-blurb")}
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
@@ -1038,6 +1060,51 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </TransformableElement>
+
+              <TransformableElement
+                id="master-back-author"
+                initialTransform={coverData.backAuthorTransform || { x: 150, y: 380, width: 300, height: 30, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerIds.includes("master-back-author")}
+                onSelect={(id) => handleShiftSelect(id)}
+                onTransformChange={(_, transform) => updateCover({ backAuthorTransform: transform })}
+                locked={false} containerRef={canvasRef} containerScale={scale}
+              >
+                <div className="w-full h-full flex items-center justify-center text-center">
+                  {editingMasterId === "master-back-author" ? (
+                    <input autoFocus className="bg-transparent outline-none border-b border-white/50 w-full text-center"
+                      style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                      value={coverData.author} onChange={(e) => updateCover({ author: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }} />
+                  ) : (
+                    <span className="cursor-text"
+                      style={{ fontFamily: coverData.authorFont, color: coverData.authorColor, fontSize: `${coverData.authorSize}px` }}
+                      onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-back-author"); }}>by {coverData.author}</span>
+                  )}
+                </div>
+              </TransformableElement>
+
+              <TransformableElement
+                id="master-back-publisher"
+                initialTransform={coverData.backPublisherTransform || { x: 150, y: 440, width: 300, height: 24, rotation: 0, scaleX: 1, scaleY: 1 }}
+                isSelected={selectedLayerIds.includes("master-back-publisher")}
+                onSelect={(id) => handleShiftSelect(id)}
+                onTransformChange={(_, transform) => updateCover({ backPublisherTransform: transform })}
+                locked={false} containerRef={canvasRef} containerScale={scale}
+              >
+                <div className="w-full h-full flex items-center justify-center text-center">
+                  {editingMasterId === "master-back-publisher" ? (
+                    <input autoFocus className="font-bold uppercase tracking-widest bg-transparent outline-none border-b border-white/50 w-full text-center"
+                      style={{ fontFamily: coverData.authorFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize * 0.8}px` }}
+                      value={coverData.publisherName} onChange={(e) => updateCover({ publisherName: e.target.value })}
+                      onBlur={() => setEditingMasterId(null)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }} />
+                  ) : (
+                    <span className="font-bold uppercase tracking-widest cursor-text"
+                      style={{ fontFamily: coverData.authorFont, color: coverData.subtitleColor, fontSize: `${coverData.subtitleSize * 0.8}px` }}
+                      onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-back-publisher"); }}>{coverData.publisherName}</span>
+                  )}
+                </div>
+              </TransformableElement>
+
               <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
                 {coverData.isbn && generateEAN13Barcode(coverData.isbn) ? (
                   <img src={generateEAN13Barcode(coverData.isbn)} alt="ISBN Barcode" className="h-16 object-contain" />
