@@ -152,7 +152,7 @@ export default function AuthPage() {
                   <Input
                     id="login-email"
                     type="email"
-                    placeholder="creator@pressstart.space"
+                    placeholder="creator@pscomixx.com"
                     value={loginData.email}
                     onChange={(e) =>
                       setLoginData({ ...loginData, email: e.target.value })
@@ -225,7 +225,7 @@ export default function AuthPage() {
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="creator@pressstart.space"
+                    placeholder="creator@pscomixx.com"
                     value={signupData.email}
                     onChange={(e) =>
                       setSignupData({ ...signupData, email: e.target.value })

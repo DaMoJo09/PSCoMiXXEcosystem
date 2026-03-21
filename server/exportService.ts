@@ -238,8 +238,8 @@ export async function exportProjectAsScene(projectId: string): Promise<SceneExpo
   });
 
   const profileUrl = user?.username
-    ? `https://pressstart.space/creator/${user.username}`
-    : `https://pressstart.space/portfolio/${user?.id || "unknown"}`;
+    ? `https://pscomixx.com/creator/${user.username}`
+    : `https://pscomixx.com/portfolio/${user?.id || "unknown"}`;
 
   return {
     format: "pscomixx-scene-v1",
@@ -272,7 +272,7 @@ export async function exportProjectAsScene(projectId: string): Promise<SceneExpo
       engine: {
         name: "PSCoMiXX",
         version: "1.0.0",
-        url: "https://pressstart.space",
+        url: "https://pscomixx.com",
       },
     },
   };

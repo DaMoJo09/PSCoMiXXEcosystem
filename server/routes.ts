@@ -565,7 +565,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
         const { sendPasswordResetEmail } = await import("./email");
         const baseUrl = req.headers.origin || (process.env.REPLIT_DEPLOYMENT 
-          ? "https://pressstart.space" 
+          ? "https://pscomixx.com" 
           : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
         
         try {
@@ -5329,7 +5329,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const baseUrl = req.headers.origin || (process.env.REPLIT_DEPLOYMENT
-        ? "https://pressstart.space"
+        ? "https://pscomixx.com"
         : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
 
       const stripe = await getUncachableStripeClient();
@@ -6266,13 +6266,13 @@ Disallow: /tools/
 Disallow: /social/
 Disallow: /admin/
 Disallow: /library
-Sitemap: https://pressstart.space/sitemap.xml`
+Sitemap: https://pscomixx.com/sitemap.xml`
     );
   });
 
   app.get("/sitemap.xml", async (_req, res) => {
     try {
-      const baseUrl = "https://pressstart.space";
+      const baseUrl = "https://pscomixx.com";
       const staticPages = [
         { loc: "/", priority: "1.0", changefreq: "daily" },
         { loc: "/community", priority: "0.9", changefreq: "daily" },
@@ -6337,7 +6337,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
       res.json({
         title: `${comic.title} | Press Start CoMixx`,
         description: `Read "${comic.title}" by ${(comic as any).creator?.name || "a creator"} on Press Start CoMixx`,
-        image: comic.thumbnail || "https://pressstart.space/og-image.png",
+        image: comic.thumbnail || "https://pscomixx.com/og-image.png",
         type: "article",
       });
     } catch {
@@ -6352,7 +6352,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
       res.json({
         title: `${user.name}'s Portfolio | Press Start CoMixx`,
         description: `Check out ${user.name}'s creative portfolio on Press Start CoMixx`,
-        image: user.avatar || "https://pressstart.space/og-image.png",
+        image: user.avatar || "https://pscomixx.com/og-image.png",
         type: "profile",
       });
     } catch {
@@ -6368,7 +6368,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
       res.json({
         title: `${listing.title} (${price}) | Press Start CoMixx Marketplace`,
         description: listing.description || `Get "${listing.title}" on Press Start CoMixx Marketplace`,
-        image: listing.coverImage || "https://pressstart.space/og-image.png",
+        image: listing.coverImage || "https://pscomixx.com/og-image.png",
         type: "product",
       });
     } catch {
@@ -6675,7 +6675,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
       effectiveDate: "2025-01-01",
       lastUpdated: "2026-03-21",
       content: {
-        introduction: "MADMixedMedia LLC (\"MADMixedMedia,\" \"we,\" \"us,\" \"our\") operates an integrated ecosystem of creative, educational, streaming, and technology platforms (collectively, the \"Ecosystem\"). This Privacy Policy applies to all users of the Ecosystem, including but not limited to the following platforms and any successor, affiliated, or white-labeled versions thereof: Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, or embedded experiences that link to this Privacy Policy. By creating an account on, accessing, or using any Ecosystem platform, you acknowledge that you have read, understood, and agree to the practices described in this Privacy Policy. If you do not agree, you must not access or use any Ecosystem platform.",
+        introduction: "MADMixedMedia LLC (\"MADMixedMedia,\" \"we,\" \"us,\" \"our\") operates an integrated ecosystem of creative, educational, streaming, and technology platforms (collectively, the \"Ecosystem\"). This Privacy Policy applies to all users of the Ecosystem, including but not limited to the following platforms and any successor, affiliated, or white-labeled versions thereof: Press Start CoMiXX (pscomixx.com, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, or embedded experiences that link to this Privacy Policy. By creating an account on, accessing, or using any Ecosystem platform, you acknowledge that you have read, understood, and agree to the practices described in this Privacy Policy. If you do not agree, you must not access or use any Ecosystem platform.",
         dataCollection: {
           title: "Information We Collect",
           items: [
@@ -6712,7 +6712,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
             "Teachers and authorized school administrators may review student activity and progress within any Ecosystem platform used by their institution",
             "AI-generated content for student accounts includes mandatory safety filters and content moderation on all Ecosystem platforms",
             "Student accounts have restricted access to marketplace features, monetization, direct messaging, and social features across all Ecosystem platforms",
-            "Schools and parents/guardians can request complete data export or deletion across all Ecosystem platforms at any time by contacting districts@pressstart.space",
+            "Schools and parents/guardians can request complete data export or deletion across all Ecosystem platforms at any time by contacting districts@pscomixx.com",
             "We do not use student data for behavioral targeting, profiling, or building advertising profiles on any Ecosystem platform",
             "We do not permit students under 13 to make purchases or engage in financial transactions on any Ecosystem platform",
             "Cross-platform SSO for student accounts is limited to platforms authorized by the student's institution or parent/guardian"
@@ -6733,7 +6733,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
         dataRights: {
           title: "Your Rights",
           items: [
-            "Access: You may request a copy of all data we hold about you across all Ecosystem platforms via Settings or by emailing privacy@pressstart.space",
+            "Access: You may request a copy of all data we hold about you across all Ecosystem platforms via Settings or by emailing privacy@pscomixx.com",
             "Deletion: You may delete your account and request removal of all associated data from all Ecosystem platforms via Settings > Delete Account on any platform",
             "Correction: You may update or correct your profile information at any time; changes propagate across the Ecosystem",
             "Portability: You may export your projects, assets, and data in standard formats (JSON, PNG, PDF, .rpy)",
@@ -6788,7 +6788,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
             "You may clear cookies and local storage through your browser settings; doing so may require you to log in again and may affect offline project data"
           ]
         },
-        contact: "For privacy inquiries: privacy@pressstart.space | For school/district data requests: districts@pressstart.space | For COPPA-related requests: coppa@pressstart.space | MADMixedMedia LLC | Ecosystem platforms: pressstart.space, pressplays.site, psstreaming.com, pressstart.tech"
+        contact: "For privacy inquiries: privacy@pscomixx.com | For school/district data requests: districts@pscomixx.com | For COPPA-related requests: coppa@pscomixx.com | MADMixedMedia LLC | Ecosystem platforms: pscomixx.com, pressplays.site, psstreaming.com, pressstart.tech"
       }
     });
   });
@@ -6800,12 +6800,12 @@ Sitemap: https://pressstart.space/sitemap.xml`
       effectiveDate: "2025-01-01",
       lastUpdated: "2026-03-21",
       content: {
-        acceptance: "By creating an account, accessing, or using any platform within the MADMixedMedia Ecosystem (collectively, the \"Ecosystem\"), you agree to be bound by these Terms of Service (\"Terms\"). The Ecosystem includes, but is not limited to: Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, embedded experiences, or successor platforms operated by MADMixedMedia LLC. These Terms apply equally to all Ecosystem platforms. An account created on any Ecosystem platform may grant you access to other Ecosystem platforms via single sign-on (SSO). By using SSO to access additional platforms, you agree that these Terms govern your use of those platforms as well. If you are under 18, you represent that your parent, legal guardian, or authorized school administrator has reviewed, understood, and agreed to these Terms on your behalf. If you do not agree to these Terms, you must not access or use any Ecosystem platform.",
+        acceptance: "By creating an account, accessing, or using any platform within the MADMixedMedia Ecosystem (collectively, the \"Ecosystem\"), you agree to be bound by these Terms of Service (\"Terms\"). The Ecosystem includes, but is not limited to: Press Start CoMiXX (pscomixx.com, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, embedded experiences, or successor platforms operated by MADMixedMedia LLC. These Terms apply equally to all Ecosystem platforms. An account created on any Ecosystem platform may grant you access to other Ecosystem platforms via single sign-on (SSO). By using SSO to access additional platforms, you agree that these Terms govern your use of those platforms as well. If you are under 18, you represent that your parent, legal guardian, or authorized school administrator has reviewed, understood, and agreed to these Terms on your behalf. If you do not agree to these Terms, you must not access or use any Ecosystem platform.",
         eligibility: "Student accounts are available for users ages 6-17 and require verifiable parental consent or school administrator authorization. Creator accounts require users to be 18 years of age or older. School-administered accounts are governed by a separate Data Processing Agreement (DPA) between MADMixedMedia and the institution. These eligibility requirements apply uniformly across all Ecosystem platforms. Users must provide accurate information during registration. Accounts created with false information may be terminated without notice. An account created on one Ecosystem platform is valid across all platforms, and suspension or termination on one platform may result in suspension or termination across the entire Ecosystem.",
         content: "You retain full ownership of all original content you create using any Ecosystem platform, including but not limited to comics, visual novels, trading cards, CYOA stories, motion graphics, FX assets, scripts, video projects, and other creative works (\"User Content\"). By publishing or sharing User Content on any Ecosystem platform, you grant MADMixedMedia a limited, non-exclusive, royalty-free, worldwide license to display, distribute, stream, and promote your User Content within the Ecosystem and its associated marketing channels. This includes the right to display your content on other Ecosystem platforms (e.g., content created on CoMiXX may be streamed on PS Streaming, or FX assets created on PressPlays may be referenced in CoMiXX). This license exists solely to operate and promote the Ecosystem and does not transfer ownership. You may revoke this license at any time by removing your User Content or deleting your account; removal from one platform will be propagated across the Ecosystem within a reasonable timeframe. AI-generated content created through Ecosystem tools is subject to our Acceptable Use Policy. You are responsible for ensuring your User Content does not infringe on the intellectual property rights of others.",
         platformIP: "All Ecosystem platform tools, systems, user interface designs, code, mechanics, templates, asset packs, FX libraries, XP systems, AI integration pipelines, streaming infrastructure, LMS frameworks, and branding (including but not limited to the names \"Press Start,\" \"CoMiXX,\" \"PressPlays,\" \"FX Studio,\" \"Mad Mixed Media,\" \"PS Streaming,\" \"MADMixedMedia,\" and \"Press Play Festival\") remain the exclusive intellectual property of MADMixedMedia LLC. Users are granted a limited, non-exclusive, non-transferable, revocable license to use these tools and assets solely within the Ecosystem for personal or educational use. This license does not grant any rights to sublicense, redistribute, reverse-engineer, decompile, disassemble, or create derivative works based on Ecosystem tools, assets, or code. Pre-made asset packs, templates, effects, and FX libraries provided by any Ecosystem platform may not be extracted, resold, or redistributed outside the Ecosystem without written permission from MADMixedMedia.",
         prohibited: "The following conduct is prohibited across all Ecosystem platforms. Users may not: (a) upload, publish, or transmit content that is illegal, harmful, threatening, abusive, harassing, defamatory, obscene, or otherwise objectionable; (b) upload content that infringes any patent, trademark, copyright, trade secret, or other intellectual property right of any party; (c) harass, bully, stalk, or intimidate other users on any Ecosystem platform; (d) attempt to circumvent, disable, or interfere with any safety filters, content moderation, SSO authentication, or security features of any Ecosystem platform; (e) share, solicit, or expose personal information of minors; (f) use any Ecosystem platform for unauthorized commercial purposes, spam, or unsolicited advertising; (g) reverse-engineer, decompile, disassemble, or attempt to derive the source code of any Ecosystem software; (h) scrape, crawl, or use automated means to access or collect data from any Ecosystem platform; (i) impersonate any person or entity or misrepresent your affiliation with any person or entity; (j) introduce viruses, malware, or other harmful code to any Ecosystem platform; (k) exploit SSO or cross-platform integrations to access platforms or features you are not authorized to use; (l) circumvent subscription tier restrictions, usage limits, or payment requirements; or (m) violate any applicable local, state, national, or international law or regulation. Violations on any single Ecosystem platform may result in enforcement action across the entire Ecosystem.",
-        dmca: "MADMixedMedia respects the intellectual property rights of others and expects our users to do the same across all Ecosystem platforms. If you believe that your copyrighted work has been copied or used in a way that constitutes copyright infringement on any Ecosystem platform, please submit a DMCA takedown notice to dmca@pressstart.space with: (1) a description of the copyrighted work you claim has been infringed; (2) identification of the material that is claimed to be infringing, including which Ecosystem platform it appears on and its location; (3) your contact information (name, address, email, phone); (4) a statement that you have a good faith belief that the use is not authorized by the copyright owner; (5) a statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf; and (6) your physical or electronic signature. We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material across all relevant Ecosystem platforms. Repeat infringers will have their accounts terminated across the entire Ecosystem.",
+        dmca: "MADMixedMedia respects the intellectual property rights of others and expects our users to do the same across all Ecosystem platforms. If you believe that your copyrighted work has been copied or used in a way that constitutes copyright infringement on any Ecosystem platform, please submit a DMCA takedown notice to dmca@pscomixx.com with: (1) a description of the copyrighted work you claim has been infringed; (2) identification of the material that is claimed to be infringing, including which Ecosystem platform it appears on and its location; (3) your contact information (name, address, email, phone); (4) a statement that you have a good faith belief that the use is not authorized by the copyright owner; (5) a statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf; and (6) your physical or electronic signature. We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material across all relevant Ecosystem platforms. Repeat infringers will have their accounts terminated across the entire Ecosystem.",
         termination: "We reserve the right to suspend or terminate any account that violates these Terms, engages in prohibited conduct, or poses a risk to the safety of other users, at our sole discretion and without prior notice. Termination or suspension may apply to a single Ecosystem platform or to all Ecosystem platforms simultaneously, at MADMixedMedia's discretion. Upon termination for cause, your license to use all Ecosystem platforms is immediately revoked. Users may voluntarily delete their account at any time through Settings > Delete Account on any Ecosystem platform. Voluntary account deletion will remove your account and data from all Ecosystem platforms within 30 days in accordance with our Privacy Policy. Provisions of these Terms that by their nature should survive termination (including but not limited to intellectual property, limitation of liability, and indemnification) shall survive.",
         liability: "THE ECOSYSTEM PLATFORMS ARE PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY. MADMIXEDMEDIA DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT, WITH RESPECT TO ALL ECOSYSTEM PLATFORMS. MADMIXEDMEDIA IS NOT RESPONSIBLE FOR: (A) USER-GENERATED CONTENT POSTED BY USERS ON ANY ECOSYSTEM PLATFORM; (B) ANY LOSS, DAMAGE, OR HARM ARISING FROM THE USE OF OR INABILITY TO USE ANY ECOSYSTEM PLATFORM; (C) CONTENT OR CONDUCT OF ANY THIRD PARTY ON ANY ECOSYSTEM PLATFORM; (D) ANY UNAUTHORIZED ACCESS TO YOUR ACCOUNT ON ANY ECOSYSTEM PLATFORM; (E) INTERRUPTIONS, DELAYS, OR DEFECTS IN ANY ECOSYSTEM PLATFORM; (F) LOSS OF DATA DURING CROSS-PLATFORM SYNCHRONIZATION OR SSO AUTHENTICATION; (G) THIRD-PARTY CONTENT STREAMED OR DISTRIBUTED THROUGH PS STREAMING. IN NO EVENT SHALL MADMIXEDMEDIA'S TOTAL LIABILITY FOR CLAIMS ARISING FROM THE USE OF ALL ECOSYSTEM PLATFORMS COMBINED EXCEED THE AMOUNT YOU PAID TO MADMIXEDMEDIA IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR $100, WHICHEVER IS GREATER. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES OR LIMITATION OF LIABILITY, SO SOME OF THE ABOVE MAY NOT APPLY TO YOU.",
         indemnification: "You agree to indemnify, defend, and hold harmless MADMixedMedia LLC, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising from: (a) your use of any Ecosystem platform; (b) your User Content on any Ecosystem platform; (c) your violation of these Terms on any Ecosystem platform; (d) your violation of any rights of any third party; or (e) your use of cross-platform features, SSO, or integrations between Ecosystem platforms.",
@@ -6824,7 +6824,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
       effectiveDate: "2025-01-01",
       lastUpdated: "2026-03-21",
       content: {
-        purpose: "This Data Processing Agreement (\"DPA\") supplements the Terms of Service and applies when any platform within the MADMixedMedia Ecosystem processes Student Education Records on behalf of a School or School District (\"Institution\"). The Ecosystem includes Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online), PressPlays / FX Studio (pressplays.site), PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online), Press Start LMS (pressstart.tech), and any successor or affiliated platforms. This DPA governs the processing of Student Education Records across all Ecosystem platforms authorized by the Institution for student use.",
+        purpose: "This Data Processing Agreement (\"DPA\") supplements the Terms of Service and applies when any platform within the MADMixedMedia Ecosystem processes Student Education Records on behalf of a School or School District (\"Institution\"). The Ecosystem includes Press Start CoMiXX (pscomixx.com, pscomixx.com, comixx.website, pscomixx.online), PressPlays / FX Studio (pressplays.site), PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online), Press Start LMS (pressstart.tech), and any successor or affiliated platforms. This DPA governs the processing of Student Education Records across all Ecosystem platforms authorized by the Institution for student use.",
         definitions: {
           "Student Education Records": "Any information directly related to a student that is maintained by the Institution, as defined under FERPA (20 U.S.C. § 1232g).",
           "School Official": "A person with a legitimate educational interest, designated by the Institution, who uses any Ecosystem platform to support educational activities.",
@@ -6851,7 +6851,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
           { name: "Stripe", purpose: "Payment processing (Creator accounts only; never used for student accounts)", location: "United States" },
           { name: "Resend", purpose: "Transactional email delivery (assignment notifications, grade notifications)", location: "United States" }
         ],
-        contact: "For DPA execution or questions: districts@pressstart.space | For data breach notifications: security@pressstart.space | MADMixedMedia LLC"
+        contact: "For DPA execution or questions: districts@pscomixx.com | For data breach notifications: security@pscomixx.com | MADMixedMedia LLC"
       }
     });
   });
@@ -6934,7 +6934,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
           "5. Remediation - Vulnerabilities patched and systems hardened",
           "6. Post-Incident Review - Lessons learned documented and shared",
         ],
-        contact: "security@pressstart.space",
+        contact: "security@pscomixx.com",
         emergencyPhone: "Available upon DPA execution",
       },
       lastAuditDate: "2025-02-15",
@@ -6967,7 +6967,7 @@ Sitemap: https://pressstart.space/sitemap.xml`
         "Screen reader compatible navigation",
         "Skip-to-content link for keyboard users",
       ],
-      contact: "accessibility@pressstart.space",
+      contact: "accessibility@pscomixx.com",
     });
   });
 

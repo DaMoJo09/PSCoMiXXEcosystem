@@ -67,7 +67,7 @@ export default function DMCAPage() {
               <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Designated Agent</h2>
             </div>
             <div className="p-6 border-2 border-amber-500/30 bg-zinc-900 space-y-2">
-              <p className="text-zinc-300" data-testid="text-agent-email"><span className="text-amber-400 font-bold">Email:</span> dmca@pressstart.space</p>
+              <p className="text-zinc-300" data-testid="text-agent-email"><span className="text-amber-400 font-bold">Email:</span> dmca@pscomixx.com</p>
               <p className="text-zinc-300" data-testid="text-agent-subject"><span className="text-amber-400 font-bold">Subject Line:</span> DMCA Takedown Notice - [Description]</p>
               <p className="text-zinc-300 text-sm mt-4" data-testid="text-agent-response">We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material.</p>
             </div>

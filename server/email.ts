@@ -34,7 +34,7 @@ export async function getResendClient() {
   const { apiKey, fromEmail } = await getCredentials();
   return {
     client: new Resend(apiKey),
-    fromEmail: fromEmail || 'noreply@pressstart.space'
+    fromEmail: fromEmail || 'noreply@pscomixx.com'
   };
 }
 
@@ -42,7 +42,7 @@ const BRAND = {
   name: "Press Start CoMiXX",
   color: "#22d3ee",
   dark: "#09090b",
-  url: "https://pressstart.space",
+  url: "https://pscomixx.com",
 };
 
 function emailWrapper(title: string, content: string): string {
@@ -243,7 +243,7 @@ export async function sendNewChapterNotification(
     const { client, fromEmail } = await getResendClient();
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "https://pressstart.space";
+      : "https://pscomixx.com";
     const safeName = escapeHtml(name);
     const safeSeriesTitle = escapeHtml(seriesTitle);
     const safeChapterTitle = escapeHtml(chapterTitle);

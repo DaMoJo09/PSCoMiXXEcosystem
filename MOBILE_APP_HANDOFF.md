@@ -551,7 +551,7 @@ padding-right: env(safe-area-inset-right);
 
 ## Deployment:
 - **Platform**: Replit
-- **Domain**: pressstart.space (custom domain)
+- **Domain**: pscomixx.com (custom domain)
 
 ---
 

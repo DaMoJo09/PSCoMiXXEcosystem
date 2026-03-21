@@ -42,8 +42,8 @@ I am particularly interested in how traditional comic art and illustration can e
   ],
   socialLinks: {
     instagram: "https://instagram.com/pressstartstudio",
-    website: "https://pressstart.space",
-    email: "hello@pressstart.space"
+    website: "https://pscomixx.com",
+    email: "hello@pscomixx.com"
   },
   availableForCommissions: true
 };

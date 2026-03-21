@@ -1,5 +1,5 @@
 # Press Start CoMixx - Robots.txt
-# https://pressstart.space
+# https://pscomixx.com
 
 User-agent: *
 Allow: /
@@ -17,7 +17,7 @@ Allow: /social/
 Allow: /feed
 
 # Sitemap location
-Sitemap: https://pressstart.space/sitemap.xml
+Sitemap: https://pscomixx.com/sitemap.xml
 
 # Crawl-delay for polite crawling
 Crawl-delay: 1

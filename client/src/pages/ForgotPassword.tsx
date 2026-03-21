@@ -87,7 +87,7 @@ export default function ForgotPassword() {
               <Input
                 id="email"
                 type="email"
-                placeholder="creator@pressstart.space"
+                placeholder="creator@pscomixx.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

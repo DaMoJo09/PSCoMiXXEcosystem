@@ -575,7 +575,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-medium truncate">{user?.name || "Creator"}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pressstart.space"}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email || "guest@pscomixx.com"}</p>
               </div>
               <button 
                 onClick={logout}

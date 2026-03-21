@@ -364,7 +364,7 @@ export function LegalGate({ children }: LegalGateProps) {
                 <section>
                   <h3 className="text-lg font-bold mb-3 border-b border-gray-700 pb-2">9. CONTACT</h3>
                   <p className="text-gray-300 leading-relaxed">
-                    For questions about these Terms, please contact us at legal@pressstart.space
+                    For questions about these Terms, please contact us at legal@pscomixx.com
                   </p>
                 </section>
               </div>
