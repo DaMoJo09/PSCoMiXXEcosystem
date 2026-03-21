@@ -82,6 +82,9 @@ export default function PrivacyPage() {
               </section>
 
               <LegalSection id="data-collection" title={data.content.dataCollection.title} icon={Lock} color="text-cyan-400" items={data.content.dataCollection.items} />
+              {data.content.crossPlatform && (
+                <LegalSection id="cross-platform" title={data.content.crossPlatform.title} icon={Globe} color="text-blue-400" borderColor="border-blue-500/30" items={data.content.crossPlatform.items} />
+              )}
               <LegalSection id="student-data" title={data.content.studentData.title} icon={Users} color="text-amber-400" borderColor="border-amber-500/30" items={data.content.studentData.items} />
               <LegalSection id="no-sell" title={data.content.noSell.title} icon={Ban} color="text-red-400" borderColor="border-red-500/30" items={data.content.noSell.items} />
               <LegalSection id="data-retention" title={data.content.dataRetention.title} icon={Clock} color="text-purple-400" items={data.content.dataRetention.items} />

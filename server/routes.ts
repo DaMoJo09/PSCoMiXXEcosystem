@@ -6580,66 +6580,87 @@ Sitemap: https://pressstart.space/sitemap.xml`
   app.get("/api/legal/privacy-policy", (_req, res) => {
     res.json({
       title: "Privacy Policy",
-      version: "2.0",
+      version: "3.0",
       effectiveDate: "2025-01-01",
-      lastUpdated: "2026-03-19",
+      lastUpdated: "2026-03-21",
       content: {
-        introduction: "Press Start CoMiXX, operated by MADMixedMedia (\"we\", \"us\", \"our\"), is committed to protecting the privacy of all users, with special attention to users under 18 (\"Students\"). This Privacy Policy describes how we collect, use, disclose, and safeguard your information when you use our platform at pressstart.space and any related services. By using the platform, you consent to the practices described in this policy.",
+        introduction: "MADMixedMedia LLC (\"MADMixedMedia,\" \"we,\" \"us,\" \"our\") operates an integrated ecosystem of creative, educational, streaming, and technology platforms (collectively, the \"Ecosystem\"). This Privacy Policy applies to all users of the Ecosystem, including but not limited to the following platforms and any successor, affiliated, or white-labeled versions thereof: Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, or embedded experiences that link to this Privacy Policy. By creating an account on, accessing, or using any Ecosystem platform, you acknowledge that you have read, understood, and agree to the practices described in this Privacy Policy. If you do not agree, you must not access or use any Ecosystem platform.",
         dataCollection: {
           title: "Information We Collect",
           items: [
-            "Account information: name or username, email address, account type (Student/Creator), age range for age-gating purposes",
-            "Content created: comics, trading cards, motion graphics, visual novels, choose-your-own-adventure stories, and other creative works you produce using our tools",
-            "Usage data: features accessed, projects created, AI generation requests, XP earned, login timestamps, and session duration for improving the platform experience",
+            "Account information: name or username, email address, account type (Student/Creator/Teacher/Admin), age range for age-gating purposes, and profile details you choose to provide",
+            "Single Sign-On (SSO) data: when you use one Ecosystem account to access another platform, we share your user ID, email, display name, role, subscription tier, and originating platform to authenticate you seamlessly",
+            "Content created: comics, trading cards, motion graphics, visual novels, choose-your-own-adventure stories, FX assets, scripts, video projects, and other creative works you produce using our tools across any Ecosystem platform",
+            "Usage data: features accessed, projects created, AI generation requests, XP earned, login timestamps, session duration, tool interactions, and cross-platform navigation patterns for improving the Ecosystem experience",
             "Device information: browser type, operating system, screen resolution, and IP address (collected for security and abuse prevention only)",
-            "Communications: social posts, comments, and community interactions within the platform",
-            "Payment information: processed securely through Stripe; we do not store credit card numbers on our servers"
+            "Communications: social posts, comments, direct messages, collaboration requests, and community interactions within any Ecosystem platform",
+            "Payment information: processed securely through Stripe; we do not store credit card numbers on our servers",
+            "Streaming and viewing data: content you watch, listen to, or interact with on PS Streaming / Mad Mixed Media, including view counts, watch time, and bookmarks",
+            "Educational data: assignment submissions, grades, portfolio items, teacher feedback, and class participation data processed through Press Start LMS",
+            "Webhook and integration data: event data (e.g., project published, export completed, XP milestones) transmitted between Ecosystem platforms and to authorized third-party integrations"
+          ]
+        },
+        crossPlatform: {
+          title: "Cross-Platform Data Sharing Within the Ecosystem",
+          items: [
+            "Your Ecosystem account enables single sign-on (SSO) access across all MADMixedMedia platforms. When you sign in to one platform, your identity (user ID, email, display name, role, tier, and originating platform) may be shared with other Ecosystem platforms to authenticate your session",
+            "Content you create on one platform (e.g., comics on CoMiXX, FX assets on PressPlays) may be referenced, displayed, or streamed on other Ecosystem platforms (e.g., published to PS Streaming) when you choose to publish or share it",
+            "XP, leveling progress, and activity data earned on any Ecosystem platform may be synchronized across platforms to maintain a unified creator profile and leaderboard",
+            "Subscription tier and entitlements are shared across the Ecosystem so that a subscription purchased on one platform grants the appropriate access on all platforms",
+            "You may control cross-platform sharing preferences in your account Settings on any Ecosystem platform. Opting out of cross-platform sharing may limit functionality on some platforms",
+            "We do not share your data with platforms or services outside the MADMixedMedia Ecosystem except as described in the Third-Party Services section below"
           ]
         },
         studentData: {
           title: "Student Data Protection (COPPA/FERPA Compliance)",
           items: [
-            "We comply with the Children's Online Privacy Protection Act (COPPA) and the Family Educational Rights and Privacy Act (FERPA)",
+            "We comply with the Children's Online Privacy Protection Act (COPPA) and the Family Educational Rights and Privacy Act (FERPA) across all Ecosystem platforms",
             "We collect only the minimum data necessary to provide educational and creative services",
-            "Verifiable parental consent is required before creating accounts for users under 13 years of age",
-            "Student data is NEVER sold, rented, leased, or shared with third parties for advertising, marketing, or any non-educational purpose",
-            "Teachers and authorized school administrators may review student activity and progress within the platform",
-            "AI-generated content for student accounts includes mandatory safety filters and content moderation",
-            "Student accounts have restricted access to marketplace features, monetization, direct messaging, and social features",
-            "Schools and parents/guardians can request complete data export or deletion at any time by contacting districts@pressstart.space",
-            "We do not use student data for behavioral targeting, profiling, or building advertising profiles",
-            "We do not permit students under 13 to make purchases or engage in financial transactions on the platform"
+            "Verifiable parental consent is required before creating accounts for users under 13 years of age on any Ecosystem platform",
+            "Student data is NEVER sold, rented, leased, or shared with third parties for advertising, marketing, or any non-educational purpose — this applies across all Ecosystem platforms without exception",
+            "Teachers and authorized school administrators may review student activity and progress within any Ecosystem platform used by their institution",
+            "AI-generated content for student accounts includes mandatory safety filters and content moderation on all Ecosystem platforms",
+            "Student accounts have restricted access to marketplace features, monetization, direct messaging, and social features across all Ecosystem platforms",
+            "Schools and parents/guardians can request complete data export or deletion across all Ecosystem platforms at any time by contacting districts@pressstart.space",
+            "We do not use student data for behavioral targeting, profiling, or building advertising profiles on any Ecosystem platform",
+            "We do not permit students under 13 to make purchases or engage in financial transactions on any Ecosystem platform",
+            "Cross-platform SSO for student accounts is limited to platforms authorized by the student's institution or parent/guardian"
           ]
         },
         dataRetention: {
           title: "Data Retention",
           items: [
-            "Active accounts: data is retained while the account is active and in good standing",
+            "Active accounts: data is retained across all Ecosystem platforms while the account is active and in good standing",
             "School-administered accounts: data is retained per the Data Processing Agreement, with a default of 2 years post-enrollment unless otherwise specified",
-            "Deleted accounts: all personally identifiable data is purged within 30 days of a deletion request",
+            "Deleted accounts: all personally identifiable data is purged from all Ecosystem platforms within 30 days of a deletion request",
             "Audit logs: retained for up to 7 years per regulatory compliance requirements",
-            "AI generation logs: retained for up to 1 year for safety review and content moderation purposes, then permanently deleted"
+            "AI generation logs: retained for up to 1 year for safety review and content moderation purposes, then permanently deleted",
+            "Streaming and viewing history: retained while your account is active; deleted within 30 days of account deletion",
+            "Webhook delivery logs: retained for up to 90 days for debugging and audit purposes"
           ]
         },
         dataRights: {
           title: "Your Rights",
           items: [
-            "Access: You may request a copy of all data we hold about you via Settings or by emailing privacy@pressstart.space",
-            "Deletion: You may delete your account and request removal of all associated data via Settings > Delete Account",
-            "Correction: You may update or correct your profile information at any time",
-            "Portability: You may export your projects, assets, and data in standard formats (JSON, PNG, PDF)",
-            "Opt-out: You may disable optional analytics and tracking in Settings",
-            "Parental access: Parents/guardians of users under 18 may request access to or deletion of their child's account and data at any time"
+            "Access: You may request a copy of all data we hold about you across all Ecosystem platforms via Settings or by emailing privacy@pressstart.space",
+            "Deletion: You may delete your account and request removal of all associated data from all Ecosystem platforms via Settings > Delete Account on any platform",
+            "Correction: You may update or correct your profile information at any time; changes propagate across the Ecosystem",
+            "Portability: You may export your projects, assets, and data in standard formats (JSON, PNG, PDF, .rpy)",
+            "Opt-out: You may disable optional analytics, cross-platform data sharing, and tracking in Settings",
+            "Parental access: Parents/guardians of users under 18 may request access to or deletion of their child's account and data across all Ecosystem platforms at any time",
+            "California residents: Under the CCPA, you have the right to know what personal information we collect, request deletion, and opt out of any sale of personal information (we do not sell personal information)"
           ]
         },
         security: {
           title: "Security Measures",
           items: [
             "Passwords hashed using scrypt with unique per-user salts; we never store plaintext passwords",
-            "HTTPS/TLS encryption for all data transmitted between your browser and our servers",
-            "Content Security Policy (CSP), X-Frame-Options, and other security headers enforced via Helmet.js",
-            "Rate limiting on all API endpoints to prevent abuse and denial-of-service attacks",
+            "HTTPS/TLS encryption for all data transmitted between your browser and our servers across all Ecosystem platforms",
+            "Content Security Policy (CSP), X-Frame-Options, and other security headers enforced on all Ecosystem platforms",
+            "Rate limiting on all API endpoints across all platforms to prevent abuse and denial-of-service attacks",
             "Session-based authentication with secure, httpOnly, SameSite cookies",
+            "JWT-based single sign-on tokens with expiration, audience validation, and origin verification for cross-platform authentication",
+            "Content moderation including perceptual hash matching and SHA-256 exact hash matching to detect and block prohibited content",
             "Regular security assessments and code reviews",
             "Input sanitization and prompt safety filtering on all AI generation requests"
           ]
@@ -6647,33 +6668,36 @@ Sitemap: https://pressstart.space/sitemap.xml`
         noSell: {
           title: "We Do NOT Sell Your Data",
           items: [
-            "MADMixedMedia does not sell, rent, lease, or trade personal information of any user to any third party, for any purpose, under any circumstances",
+            "MADMixedMedia does not sell, rent, lease, or trade personal information of any user to any third party, for any purpose, under any circumstances — this applies across all Ecosystem platforms",
             "We do not share user data with advertisers or data brokers",
-            "We do not use personal information for targeted advertising",
+            "We do not use personal information for targeted advertising on any Ecosystem platform",
             "We do not build or contribute to advertising profiles about our users",
-            "Any third-party services we use (database hosting, payment processing, AI generation) are bound by data processing agreements and are prohibited from using your data beyond what is necessary to provide their service"
+            "Any third-party services we use (database hosting, payment processing, AI generation, email delivery) are bound by data processing agreements and are prohibited from using your data beyond what is necessary to provide their service",
+            "Data shared between Ecosystem platforms is used solely for providing Ecosystem services and is never shared externally for non-service purposes"
           ]
         },
         thirdParty: {
           title: "Third-Party Services",
           items: [
-            "Neon Database (PostgreSQL hosting) - United States - Stores user accounts, projects, and platform data",
-            "Stripe (Payment processing) - United States - Processes Creator account payments; no student data is shared with Stripe",
+            "Neon Database (PostgreSQL hosting) - United States - Stores user accounts, projects, and platform data for Ecosystem platforms",
+            "Stripe (Payment processing) - United States - Processes Creator account payments and subscriptions; no student data is shared with Stripe",
             "Pollinations.ai (AI generation) - European Union - Processes image and text generation requests; no personally identifiable user data is sent",
-            "Resend (Email delivery) - United States - Sends transactional emails such as password resets",
-            "Google Fonts (Typography) - Serves web fonts; subject to Google's Privacy Policy"
+            "Resend (Email delivery) - United States - Sends transactional emails including welcome messages, purchase confirmations, and assignment notifications",
+            "Google Fonts (Typography) - Serves web fonts across Ecosystem platforms; subject to Google's Privacy Policy",
+            "Emergent / PS Streaming (Content delivery) - United States - Streams and distributes published content within the Ecosystem"
           ]
         },
         cookies: {
           title: "Cookies & Local Storage",
           items: [
-            "We use essential session cookies for authentication; these are required for the platform to function",
+            "We use essential session cookies for authentication on each Ecosystem platform; these are required for the platforms to function",
             "We use localStorage and IndexedDB for offline project saving and PWA functionality",
-            "We do not use third-party tracking cookies, advertising cookies, or cross-site tracking pixels",
-            "You may clear cookies and local storage through your browser settings; doing so may require you to log in again"
+            "Cross-platform SSO uses secure JWT tokens stored in memory or httpOnly cookies; these tokens are not used for tracking",
+            "We do not use third-party tracking cookies, advertising cookies, or cross-site tracking pixels on any Ecosystem platform",
+            "You may clear cookies and local storage through your browser settings; doing so may require you to log in again and may affect offline project data"
           ]
         },
-        contact: "For privacy inquiries: privacy@pressstart.space | For school/district data requests: districts@pressstart.space | For COPPA-related requests: coppa@pressstart.space | MADMixedMedia, pressstart.space"
+        contact: "For privacy inquiries: privacy@pressstart.space | For school/district data requests: districts@pressstart.space | For COPPA-related requests: coppa@pressstart.space | MADMixedMedia LLC | Ecosystem platforms: pressstart.space, pressplays.site, psstreaming.com, pressstart.tech"
       }
     });
   });
@@ -6681,23 +6705,23 @@ Sitemap: https://pressstart.space/sitemap.xml`
   app.get("/api/legal/terms", (_req, res) => {
     res.json({
       title: "Terms of Service",
-      version: "2.0",
+      version: "3.0",
       effectiveDate: "2025-01-01",
-      lastUpdated: "2026-03-19",
+      lastUpdated: "2026-03-21",
       content: {
-        acceptance: "By creating an account, accessing, or using Press Start CoMiXX (the \"Platform\"), operated by MADMixedMedia, you agree to be bound by these Terms of Service (\"Terms\"). If you are under 18, you represent that your parent, legal guardian, or authorized school administrator has reviewed, understood, and agreed to these Terms on your behalf. If you do not agree to these Terms, you must not access or use the Platform.",
-        eligibility: "Student accounts are available for users ages 6-17 and require verifiable parental consent or school administrator authorization. Creator accounts require users to be 18 years of age or older. School-administered accounts are governed by a separate Data Processing Agreement (DPA) between MADMixedMedia and the institution. Users must provide accurate information during registration. Accounts created with false information may be terminated without notice.",
-        content: "You retain full ownership of all original content you create using the Platform, including but not limited to comics, visual novels, trading cards, CYOA stories, motion graphics, and other creative works (\"User Content\"). By publishing or sharing User Content on the Platform, you grant MADMixedMedia a limited, non-exclusive, royalty-free, worldwide license to display, distribute, and promote your User Content within the Platform and its associated marketing channels. This license exists solely to operate and promote the Platform and does not transfer ownership. You may revoke this license at any time by removing your User Content or deleting your account. AI-generated content created through Platform tools is subject to our Acceptable Use Policy. You are responsible for ensuring your User Content does not infringe on the intellectual property rights of others.",
-        platformIP: "All platform tools, systems, user interface designs, code, mechanics, templates, asset packs, FX libraries, XP systems, AI integration pipelines, and branding (including but not limited to the names \"Press Start,\" \"CoMiXX,\" \"MADMixedMedia,\" and \"Press Play Festival\") remain the exclusive intellectual property of MADMixedMedia. Users are granted a limited, non-exclusive, non-transferable, revocable license to use these tools and assets solely within the Platform for personal or educational use. This license does not grant any rights to sublicense, redistribute, reverse-engineer, decompile, disassemble, or create derivative works based on Platform tools, assets, or code. Pre-made asset packs, templates, and effects provided by the Platform may not be extracted, resold, or redistributed outside the Platform without written permission from MADMixedMedia.",
-        prohibited: "Users may not: (a) upload, publish, or transmit content that is illegal, harmful, threatening, abusive, harassing, defamatory, obscene, or otherwise objectionable; (b) upload content that infringes any patent, trademark, copyright, trade secret, or other intellectual property right of any party; (c) harass, bully, stalk, or intimidate other users; (d) attempt to circumvent, disable, or interfere with any safety filters, content moderation, or security features of the Platform; (e) share, solicit, or expose personal information of minors; (f) use the Platform for unauthorized commercial purposes, spam, or unsolicited advertising; (g) reverse-engineer, decompile, disassemble, or attempt to derive the source code of any Platform software; (h) scrape, crawl, or use automated means to access or collect data from the Platform; (i) impersonate any person or entity or misrepresent your affiliation with any person or entity; (j) introduce viruses, malware, or other harmful code; or (k) violate any applicable local, state, national, or international law or regulation.",
-        dmca: "MADMixedMedia respects the intellectual property rights of others and expects our users to do the same. If you believe that your copyrighted work has been copied or used in a way that constitutes copyright infringement, please submit a DMCA takedown notice to dmca@pressstart.space with: (1) a description of the copyrighted work you claim has been infringed; (2) identification of the material that is claimed to be infringing and its location on the Platform; (3) your contact information (name, address, email, phone); (4) a statement that you have a good faith belief that the use is not authorized by the copyright owner; (5) a statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf; and (6) your physical or electronic signature. We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material. Repeat infringers will have their accounts terminated.",
-        termination: "We reserve the right to suspend or terminate any account that violates these Terms, engages in prohibited conduct, or poses a risk to the safety of other users, at our sole discretion and without prior notice. Upon termination for cause, your license to use the Platform is immediately revoked. Users may voluntarily delete their account at any time through Settings > Delete Account. Upon voluntary deletion, we will remove your data within 30 days in accordance with our Privacy Policy. Provisions of these Terms that by their nature should survive termination (including but not limited to intellectual property, limitation of liability, and indemnification) shall survive.",
-        liability: "THE PLATFORM IS PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY. MADMIXEDMEDIA DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. MADMIXEDMEDIA IS NOT RESPONSIBLE FOR: (A) USER-GENERATED CONTENT POSTED BY USERS; (B) ANY LOSS, DAMAGE, OR HARM ARISING FROM THE USE OF OR INABILITY TO USE THE PLATFORM; (C) CONTENT OR CONDUCT OF ANY THIRD PARTY ON THE PLATFORM; (D) ANY UNAUTHORIZED ACCESS TO YOUR ACCOUNT; (E) INTERRUPTIONS, DELAYS, OR DEFECTS IN THE PLATFORM. IN NO EVENT SHALL MADMIXEDMEDIA'S TOTAL LIABILITY EXCEED THE AMOUNT YOU PAID TO MADMIXEDMEDIA IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR $100, WHICHEVER IS GREATER. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES OR LIMITATION OF LIABILITY, SO SOME OF THE ABOVE MAY NOT APPLY TO YOU.",
-        indemnification: "You agree to indemnify, defend, and hold harmless MADMixedMedia, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising from: (a) your use of the Platform; (b) your User Content; (c) your violation of these Terms; or (d) your violation of any rights of any third party.",
-        dispute: "These Terms are governed by the laws of the United States. Any dispute arising from these Terms or the use of the Platform shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, except that either party may seek injunctive relief in any court of competent jurisdiction for intellectual property disputes. You agree to waive any right to a jury trial or to participate in a class action.",
-        modifications: "MADMixedMedia reserves the right to modify these Terms at any time. Material changes will be communicated through the Platform with at least 30 days' notice. Continued use of the Platform after changes take effect constitutes acceptance of the revised Terms. If you do not agree with the revised Terms, you must stop using the Platform and delete your account.",
-        minorSafety: "For users under 18: The Platform implements age-appropriate content filtering, restricted social features, and educator oversight capabilities. Users under 13 require verifiable parental consent. Schools and teachers act as supervising authorities for school-administered accounts. Direct messaging between minor users is subject to moderation. Student accounts cannot access monetization features, make purchases, or sell content on the Marketplace. Parents/guardians may review, restrict, or delete their child's account at any time.",
-        schoolAgreement: "Schools and educational institutions using the Platform agree that: (a) they are responsible for obtaining necessary parental consents for student use; (b) they act as the supervising authority for student activity during school-sponsored use; (c) they will comply with applicable student privacy laws; (d) MADMixedMedia is not liable for classroom misuse or unauthorized student access outside of school hours; (e) the institution's Data Processing Agreement governs the handling of student education records."
+        acceptance: "By creating an account, accessing, or using any platform within the MADMixedMedia Ecosystem (collectively, the \"Ecosystem\"), you agree to be bound by these Terms of Service (\"Terms\"). The Ecosystem includes, but is not limited to: Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online) — AI-powered creative studio; PressPlays / FX Studio (pressplays.site) — visual effects and media production; PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online) — content streaming and distribution; Press Start LMS (pressstart.tech) — learning management system; and any mobile applications, APIs, widgets, browser extensions, embedded experiences, or successor platforms operated by MADMixedMedia LLC. These Terms apply equally to all Ecosystem platforms. An account created on any Ecosystem platform may grant you access to other Ecosystem platforms via single sign-on (SSO). By using SSO to access additional platforms, you agree that these Terms govern your use of those platforms as well. If you are under 18, you represent that your parent, legal guardian, or authorized school administrator has reviewed, understood, and agreed to these Terms on your behalf. If you do not agree to these Terms, you must not access or use any Ecosystem platform.",
+        eligibility: "Student accounts are available for users ages 6-17 and require verifiable parental consent or school administrator authorization. Creator accounts require users to be 18 years of age or older. School-administered accounts are governed by a separate Data Processing Agreement (DPA) between MADMixedMedia and the institution. These eligibility requirements apply uniformly across all Ecosystem platforms. Users must provide accurate information during registration. Accounts created with false information may be terminated without notice. An account created on one Ecosystem platform is valid across all platforms, and suspension or termination on one platform may result in suspension or termination across the entire Ecosystem.",
+        content: "You retain full ownership of all original content you create using any Ecosystem platform, including but not limited to comics, visual novels, trading cards, CYOA stories, motion graphics, FX assets, scripts, video projects, and other creative works (\"User Content\"). By publishing or sharing User Content on any Ecosystem platform, you grant MADMixedMedia a limited, non-exclusive, royalty-free, worldwide license to display, distribute, stream, and promote your User Content within the Ecosystem and its associated marketing channels. This includes the right to display your content on other Ecosystem platforms (e.g., content created on CoMiXX may be streamed on PS Streaming, or FX assets created on PressPlays may be referenced in CoMiXX). This license exists solely to operate and promote the Ecosystem and does not transfer ownership. You may revoke this license at any time by removing your User Content or deleting your account; removal from one platform will be propagated across the Ecosystem within a reasonable timeframe. AI-generated content created through Ecosystem tools is subject to our Acceptable Use Policy. You are responsible for ensuring your User Content does not infringe on the intellectual property rights of others.",
+        platformIP: "All Ecosystem platform tools, systems, user interface designs, code, mechanics, templates, asset packs, FX libraries, XP systems, AI integration pipelines, streaming infrastructure, LMS frameworks, and branding (including but not limited to the names \"Press Start,\" \"CoMiXX,\" \"PressPlays,\" \"FX Studio,\" \"Mad Mixed Media,\" \"PS Streaming,\" \"MADMixedMedia,\" and \"Press Play Festival\") remain the exclusive intellectual property of MADMixedMedia LLC. Users are granted a limited, non-exclusive, non-transferable, revocable license to use these tools and assets solely within the Ecosystem for personal or educational use. This license does not grant any rights to sublicense, redistribute, reverse-engineer, decompile, disassemble, or create derivative works based on Ecosystem tools, assets, or code. Pre-made asset packs, templates, effects, and FX libraries provided by any Ecosystem platform may not be extracted, resold, or redistributed outside the Ecosystem without written permission from MADMixedMedia.",
+        prohibited: "The following conduct is prohibited across all Ecosystem platforms. Users may not: (a) upload, publish, or transmit content that is illegal, harmful, threatening, abusive, harassing, defamatory, obscene, or otherwise objectionable; (b) upload content that infringes any patent, trademark, copyright, trade secret, or other intellectual property right of any party; (c) harass, bully, stalk, or intimidate other users on any Ecosystem platform; (d) attempt to circumvent, disable, or interfere with any safety filters, content moderation, SSO authentication, or security features of any Ecosystem platform; (e) share, solicit, or expose personal information of minors; (f) use any Ecosystem platform for unauthorized commercial purposes, spam, or unsolicited advertising; (g) reverse-engineer, decompile, disassemble, or attempt to derive the source code of any Ecosystem software; (h) scrape, crawl, or use automated means to access or collect data from any Ecosystem platform; (i) impersonate any person or entity or misrepresent your affiliation with any person or entity; (j) introduce viruses, malware, or other harmful code to any Ecosystem platform; (k) exploit SSO or cross-platform integrations to access platforms or features you are not authorized to use; (l) circumvent subscription tier restrictions, usage limits, or payment requirements; or (m) violate any applicable local, state, national, or international law or regulation. Violations on any single Ecosystem platform may result in enforcement action across the entire Ecosystem.",
+        dmca: "MADMixedMedia respects the intellectual property rights of others and expects our users to do the same across all Ecosystem platforms. If you believe that your copyrighted work has been copied or used in a way that constitutes copyright infringement on any Ecosystem platform, please submit a DMCA takedown notice to dmca@pressstart.space with: (1) a description of the copyrighted work you claim has been infringed; (2) identification of the material that is claimed to be infringing, including which Ecosystem platform it appears on and its location; (3) your contact information (name, address, email, phone); (4) a statement that you have a good faith belief that the use is not authorized by the copyright owner; (5) a statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf; and (6) your physical or electronic signature. We will respond to valid DMCA notices within 72 hours and may remove or disable access to the allegedly infringing material across all relevant Ecosystem platforms. Repeat infringers will have their accounts terminated across the entire Ecosystem.",
+        termination: "We reserve the right to suspend or terminate any account that violates these Terms, engages in prohibited conduct, or poses a risk to the safety of other users, at our sole discretion and without prior notice. Termination or suspension may apply to a single Ecosystem platform or to all Ecosystem platforms simultaneously, at MADMixedMedia's discretion. Upon termination for cause, your license to use all Ecosystem platforms is immediately revoked. Users may voluntarily delete their account at any time through Settings > Delete Account on any Ecosystem platform. Voluntary account deletion will remove your account and data from all Ecosystem platforms within 30 days in accordance with our Privacy Policy. Provisions of these Terms that by their nature should survive termination (including but not limited to intellectual property, limitation of liability, and indemnification) shall survive.",
+        liability: "THE ECOSYSTEM PLATFORMS ARE PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY. MADMIXEDMEDIA DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT, WITH RESPECT TO ALL ECOSYSTEM PLATFORMS. MADMIXEDMEDIA IS NOT RESPONSIBLE FOR: (A) USER-GENERATED CONTENT POSTED BY USERS ON ANY ECOSYSTEM PLATFORM; (B) ANY LOSS, DAMAGE, OR HARM ARISING FROM THE USE OF OR INABILITY TO USE ANY ECOSYSTEM PLATFORM; (C) CONTENT OR CONDUCT OF ANY THIRD PARTY ON ANY ECOSYSTEM PLATFORM; (D) ANY UNAUTHORIZED ACCESS TO YOUR ACCOUNT ON ANY ECOSYSTEM PLATFORM; (E) INTERRUPTIONS, DELAYS, OR DEFECTS IN ANY ECOSYSTEM PLATFORM; (F) LOSS OF DATA DURING CROSS-PLATFORM SYNCHRONIZATION OR SSO AUTHENTICATION; (G) THIRD-PARTY CONTENT STREAMED OR DISTRIBUTED THROUGH PS STREAMING. IN NO EVENT SHALL MADMIXEDMEDIA'S TOTAL LIABILITY FOR CLAIMS ARISING FROM THE USE OF ALL ECOSYSTEM PLATFORMS COMBINED EXCEED THE AMOUNT YOU PAID TO MADMIXEDMEDIA IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR $100, WHICHEVER IS GREATER. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES OR LIMITATION OF LIABILITY, SO SOME OF THE ABOVE MAY NOT APPLY TO YOU.",
+        indemnification: "You agree to indemnify, defend, and hold harmless MADMixedMedia LLC, its officers, directors, employees, agents, and affiliates from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising from: (a) your use of any Ecosystem platform; (b) your User Content on any Ecosystem platform; (c) your violation of these Terms on any Ecosystem platform; (d) your violation of any rights of any third party; or (e) your use of cross-platform features, SSO, or integrations between Ecosystem platforms.",
+        dispute: "These Terms are governed by the laws of the United States. Any dispute arising from these Terms or the use of any Ecosystem platform shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, except that either party may seek injunctive relief in any court of competent jurisdiction for intellectual property disputes. You agree to waive any right to a jury trial or to participate in a class action. These dispute resolution provisions apply to disputes arising from the use of any and all Ecosystem platforms.",
+        modifications: "MADMixedMedia reserves the right to modify these Terms at any time. Material changes will be communicated through all Ecosystem platforms with at least 30 days' notice. Continued use of any Ecosystem platform after changes take effect constitutes acceptance of the revised Terms for all Ecosystem platforms. If you do not agree with the revised Terms, you must stop using all Ecosystem platforms and delete your account.",
+        minorSafety: "For users under 18 across all Ecosystem platforms: The Ecosystem implements age-appropriate content filtering, restricted social features, and educator oversight capabilities. Users under 13 require verifiable parental consent. Schools and teachers act as supervising authorities for school-administered accounts. Direct messaging between minor users is subject to moderation on all Ecosystem platforms. Student accounts cannot access monetization features, make purchases, or sell content on any Ecosystem marketplace. Parents/guardians may review, restrict, or delete their child's account across all Ecosystem platforms at any time. Student SSO access between Ecosystem platforms is limited to platforms authorized by the student's institution or parent/guardian.",
+        schoolAgreement: "Schools and educational institutions using any Ecosystem platform agree that: (a) they are responsible for obtaining necessary parental consents for student use across all Ecosystem platforms the institution authorizes; (b) they act as the supervising authority for student activity during school-sponsored use on any Ecosystem platform; (c) they will comply with applicable student privacy laws; (d) MADMixedMedia is not liable for classroom misuse or unauthorized student access outside of school hours on any Ecosystem platform; (e) the institution's Data Processing Agreement governs the handling of student education records across all Ecosystem platforms; (f) they will designate which Ecosystem platforms are authorized for student use, and student SSO access will be limited accordingly."
       }
     });
   });
@@ -6705,31 +6729,38 @@ Sitemap: https://pressstart.space/sitemap.xml`
   app.get("/api/legal/dpa", (_req, res) => {
     res.json({
       title: "Data Processing Agreement",
-      version: "1.0",
+      version: "2.0",
       effectiveDate: "2025-01-01",
+      lastUpdated: "2026-03-21",
       content: {
-        purpose: "This Data Processing Agreement (\"DPA\") supplements the Terms of Service and applies when Press Start CoMiXX processes Student Education Records on behalf of a School or School District (\"Institution\").",
+        purpose: "This Data Processing Agreement (\"DPA\") supplements the Terms of Service and applies when any platform within the MADMixedMedia Ecosystem processes Student Education Records on behalf of a School or School District (\"Institution\"). The Ecosystem includes Press Start CoMiXX (pressstart.space, pscomixx.com, comixx.website, pscomixx.online), PressPlays / FX Studio (pressplays.site), PS Streaming / Mad Mixed Media (psstreaming.com, psstreaming.online), Press Start LMS (pressstart.tech), and any successor or affiliated platforms. This DPA governs the processing of Student Education Records across all Ecosystem platforms authorized by the Institution for student use.",
         definitions: {
           "Student Education Records": "Any information directly related to a student that is maintained by the Institution, as defined under FERPA (20 U.S.C. § 1232g).",
-          "School Official": "A person with a legitimate educational interest, designated by the Institution, who uses Press Start CoMiXX to support educational activities.",
-          "De-identified Data": "Data from which all personally identifiable information has been removed or obscured."
+          "School Official": "A person with a legitimate educational interest, designated by the Institution, who uses any Ecosystem platform to support educational activities.",
+          "De-identified Data": "Data from which all personally identifiable information has been removed or obscured.",
+          "Ecosystem": "All platforms operated by MADMixedMedia LLC, including but not limited to Press Start CoMiXX, PressPlays / FX Studio, PS Streaming / Mad Mixed Media, and Press Start LMS.",
+          "Authorized Platforms": "The specific Ecosystem platforms designated by the Institution for student use under this DPA."
         },
         obligations: [
-          "We process Student Education Records solely for the purpose of providing educational services as directed by the Institution",
-          "We do not sell student data or use it for advertising or marketing purposes",
-          "We implement reasonable security measures to protect student data",
-          "We provide the Institution with access to, and the ability to delete, student data upon request",
-          "We notify the Institution within 72 hours of any data breach affecting student data",
-          "We return or delete student data within 30 days upon termination of the agreement",
-          "We comply with FERPA, COPPA, and applicable state student privacy laws"
+          "We process Student Education Records solely for the purpose of providing educational services as directed by the Institution across all Authorized Platforms",
+          "Student data is never sold, rented, leased, or shared with third parties for advertising, marketing, or any non-educational purpose on any Ecosystem platform",
+          "We implement reasonable security measures to protect student data across all Ecosystem platforms, including encryption in transit and at rest, access controls, and content moderation",
+          "We provide the Institution with access to, and the ability to delete, student data across all Authorized Platforms upon request",
+          "We notify the Institution within 72 hours of any data breach affecting student data on any Ecosystem platform",
+          "We return or delete student data from all Ecosystem platforms within 30 days upon termination of the agreement",
+          "We comply with FERPA, COPPA, and applicable state student privacy laws across all Ecosystem platforms",
+          "Cross-platform SSO for student accounts is restricted to Authorized Platforms only; students cannot access non-authorized Ecosystem platforms via SSO",
+          "Student data shared between Authorized Platforms via SSO or integrations is limited to the minimum necessary for authentication and educational service delivery",
+          "We maintain audit logs of all cross-platform student data access for institutional review"
         ],
-        dataRetention: "Student data is retained for the duration of the agreement plus 60 days. Institutions may specify shorter retention periods. Annual certification of data destruction is provided upon request.",
+        dataRetention: "Student data is retained across all Authorized Platforms for the duration of the agreement plus 60 days. Institutions may specify shorter retention periods. Upon termination, student data is purged from all Ecosystem platforms, including backups, within the specified timeframe. Annual certification of data destruction across all Ecosystem platforms is provided upon request.",
         subprocessors: [
-          { name: "Neon Database", purpose: "PostgreSQL database hosting", location: "United States" },
-          { name: "Pollinations.ai", purpose: "AI image and text generation (no student data stored)", location: "European Union" },
-          { name: "Stripe", purpose: "Payment processing (Creator accounts only, not used for student accounts)", location: "United States" }
+          { name: "Neon Database", purpose: "PostgreSQL database hosting for all Ecosystem platforms", location: "United States" },
+          { name: "Pollinations.ai", purpose: "AI image and text generation (no student PII is transmitted)", location: "European Union" },
+          { name: "Stripe", purpose: "Payment processing (Creator accounts only; never used for student accounts)", location: "United States" },
+          { name: "Resend", purpose: "Transactional email delivery (assignment notifications, grade notifications)", location: "United States" }
         ],
-        contact: "For DPA execution or questions: districts@pressstart.space"
+        contact: "For DPA execution or questions: districts@pressstart.space | For data breach notifications: security@pressstart.space | MADMixedMedia LLC"
       }
     });
   });
