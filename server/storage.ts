@@ -672,6 +672,24 @@ export class DatabaseStorage implements IStorage {
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users).orderBy(desc(users.createdAt));
   }
+
+  async getUserCounts(): Promise<{ totalUsers: number; adminCount: number; creatorCount: number }> {
+    const result = await db.select({
+      totalUsers: count(),
+      adminCount: sql<number>`count(*) filter (where ${users.role} = 'admin')`,
+      creatorCount: sql<number>`count(*) filter (where ${users.role} = 'creator')`,
+    }).from(users);
+    return result[0] || { totalUsers: 0, adminCount: 0, creatorCount: 0 };
+  }
+
+  async getWaitlistCounts(): Promise<{ pending: number; approved: number; rejected: number }> {
+    const result = await db.select({
+      pending: sql<number>`count(*) filter (where ${waitlist.status} = 'pending')`,
+      approved: sql<number>`count(*) filter (where ${waitlist.status} = 'approved')`,
+      rejected: sql<number>`count(*) filter (where ${waitlist.status} = 'rejected')`,
+    }).from(waitlist);
+    return result[0] || { pending: 0, approved: 0, rejected: 0 };
+  }
   
   async getAllProjects(): Promise<Project[]> {
     return db.select().from(projects).orderBy(desc(projects.createdAt));

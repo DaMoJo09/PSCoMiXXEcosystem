@@ -4311,21 +4311,21 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Admin dashboard stats
   app.get("/api/admin/dashboard", isAdmin, async (req, res) => {
     try {
-      const [users, waitlistEntries, featureFlagsData, settingsData, logs] = await Promise.all([
-        storage.getAllUsers(),
-        storage.getWaitlist(),
+      const [userCounts, waitlistCounts, featureFlagsData, settingsData, logs] = await Promise.all([
+        storage.getUserCounts(),
+        storage.getWaitlistCounts(),
         storage.getFeatureFlags(),
         storage.getAllPlatformSettings(),
         storage.getAdminLogs(10),
       ]);
 
       const stats = {
-        totalUsers: users.length,
-        adminCount: users.filter(u => u.role === "admin").length,
-        creatorCount: users.filter(u => u.role === "creator").length,
-        waitlistPending: waitlistEntries.filter(e => e.status === "pending").length,
-        waitlistApproved: waitlistEntries.filter(e => e.status === "approved").length,
-        waitlistRejected: waitlistEntries.filter(e => e.status === "rejected").length,
+        totalUsers: userCounts.totalUsers,
+        adminCount: userCounts.adminCount,
+        creatorCount: userCounts.creatorCount,
+        waitlistPending: waitlistCounts.pending,
+        waitlistApproved: waitlistCounts.approved,
+        waitlistRejected: waitlistCounts.rejected,
         featureFlags: featureFlagsData,
         settings: settingsData,
         recentLogs: logs,
