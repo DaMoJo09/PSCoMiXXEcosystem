@@ -2241,6 +2241,45 @@ export const webhookDeliveryLog = pgTable("webhook_delivery_log", {
 
 export type WebhookDeliveryLog = typeof webhookDeliveryLog.$inferSelect;
 
+export const exportedFiles = pgTable("exported_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  storagePath: text("storage_path").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+});
+
+export type ExportedFile = typeof exportedFiles.$inferSelect;
+
+export const imageHashes = pgTable("image_hashes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hash: text("hash").notNull(),
+  source: text("source").notNull().default("upload"),
+  status: text("status").notNull().default("allowed"),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  assetId: varchar("asset_id"),
+  flaggedReason: text("flagged_reason"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ImageHash = typeof imageHashes.$inferSelect;
+
+export const blockedHashes = pgTable("blocked_hashes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hash: text("hash").notNull().unique(),
+  reason: text("reason").notNull(),
+  addedBy: varchar("added_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type BlockedHash = typeof blockedHashes.$inferSelect;
+
 export const tierEntitlementsSchool = {
   school: {
     export: true,

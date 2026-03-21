@@ -443,6 +443,7 @@ export interface IStorage {
   exportUserData(userId: string): Promise<Record<string, any>>;
 
   // Teacher/classroom operations
+  getAssignment(id: string): Promise<any | undefined>;
   getTeacherAssignments(teacherId: string, schoolId: string): Promise<any[]>;
   createAssignment(data: { schoolId: string; teacherId: string; title: string; description?: string; projectType: string; dueDate?: Date; settings?: any }): Promise<any>;
   updateAssignment(id: string, updates: Record<string, any>): Promise<any>;
@@ -450,6 +451,8 @@ export interface IStorage {
   getAssignmentSubmissions(assignmentId: string): Promise<any[]>;
   submitAssignment(data: { assignmentId: string; studentId: string; projectId?: string }): Promise<any>;
   gradeSubmission(id: string, grade: string, feedback?: string): Promise<any>;
+  getSchoolMembership(userId: string, schoolId: string): Promise<any | undefined>;
+  getSchoolStudents(schoolId: string): Promise<any[]>;
   getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]>;
 
   // Username lookup
@@ -2800,6 +2803,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getAssignment(id: string): Promise<any | undefined> {
+    const [assignment] = await db.select().from(classroomAssignments).where(eq(classroomAssignments.id, id));
+    return assignment || undefined;
+  }
+
   async getTeacherAssignments(teacherId: string, schoolId: string): Promise<any[]> {
     return db.select().from(classroomAssignments)
       .where(and(eq(classroomAssignments.teacherId, teacherId), eq(classroomAssignments.schoolId, schoolId)))
@@ -2860,6 +2868,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(assignmentSubmissions.id, id))
       .returning();
     return submission || undefined;
+  }
+
+  async getSchoolMembership(userId: string, schoolId: string): Promise<any | undefined> {
+    const [membership] = await db.select().from(schoolMemberships)
+      .where(and(eq(schoolMemberships.userId, userId), eq(schoolMemberships.schoolId, schoolId)));
+    return membership || undefined;
+  }
+
+  async getSchoolStudents(schoolId: string): Promise<any[]> {
+    const memberships = await db.select({
+      user: { id: users.id, name: users.name, email: users.email },
+    })
+    .from(schoolMemberships)
+    .leftJoin(users, eq(schoolMemberships.userId, users.id))
+    .where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.role, "student")));
+    return memberships.map(m => m.user).filter(Boolean) as any[];
   }
 
   async getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]> {

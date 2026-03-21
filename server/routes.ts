@@ -18,6 +18,9 @@ import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreate
 import { dispatchWebhook, retryFailedWebhooks, getWebhookLogs, startWebhookRetryWorker } from "./webhookService";
 import { createExportJob, getExportJob, getProjectExports } from "./publishService";
 import { getProjectExportData } from "./exportService";
+import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
+import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
+import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation } from "./email";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -202,6 +205,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       req.login(user, (err) => {
         if (err) return next(err);
         logAuditEvent("account_created", { req, userId: user.id, metadata: { accountType: user.accountType } });
+        const baseUrl = `${req.protocol}://${req.get("host")}`;
+        sendWelcomeEmail(user.email, user.name, baseUrl);
         return res.json({
           id: user.id,
           email: user.email,
@@ -5290,6 +5295,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         salesCount: (listing as any).salesCount ? (listing as any).salesCount + 1 : 1,
       } as any);
 
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      sendPurchaseConfirmation((req.user as any).email, (req.user as any).name, listing.title, 0, baseUrl);
+
       res.json({ success: true, orderId: order.id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -5387,6 +5395,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
               salesCount: (listing.salesCount || 0) + 1,
               totalEarnings: (listing.totalEarnings || 0) + order.amountInCents,
             } as any);
+            const baseUrl = `${req.protocol}://${req.get("host")}`;
+            sendPurchaseConfirmation((req.user as any).email, (req.user as any).name, listing.title, order.amountInCents, baseUrl);
           }
         }
 
@@ -6466,6 +6476,13 @@ Sitemap: https://pressstart.space/sitemap.xml`
       const { schoolId, title, description, projectType, dueDate, settings } = req.body;
       if (!schoolId || !title || !projectType) return res.status(400).json({ message: "School ID, title, and project type required" });
 
+      if (user.role !== "admin") {
+        const membership = await storage.getSchoolMembership(user.id, schoolId);
+        if (!membership || (membership.role !== "teacher" && membership.role !== "admin")) {
+          return res.status(403).json({ message: "You are not authorized for this school" });
+        }
+      }
+
       const assignment = await storage.createAssignment({
         schoolId,
         teacherId: user.id,
@@ -6476,6 +6493,13 @@ Sitemap: https://pressstart.space/sitemap.xml`
         settings,
       });
       await auditAdmin("assignment_created", req, "assignment", assignment.id);
+      try {
+        const students = await storage.getSchoolStudents(schoolId);
+        const baseUrl = `${req.protocol}://${req.get("host")}`;
+        for (const student of students) {
+          sendAssignmentNotification(student.email, student.name, title, dueDate || null, user.name, baseUrl);
+        }
+      } catch (_e) {}
       res.json(assignment);
     } catch (err) {
       res.status(500).json({ message: "Error creating assignment" });
@@ -6519,6 +6543,11 @@ Sitemap: https://pressstart.space/sitemap.xml`
         projectId: req.body.projectId,
       });
       await auditStudent("assignment_submitted", req, "assignment_submission", submission.id);
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const assignment = await storage.getAssignment(req.params.id);
+      if (assignment) {
+        sendSubmissionConfirmation(user.email, user.name, assignment.title, baseUrl);
+      }
       res.json(submission);
     } catch (err) {
       res.status(500).json({ message: "Error submitting assignment" });
@@ -6532,6 +6561,14 @@ Sitemap: https://pressstart.space/sitemap.xml`
       const submission = await storage.gradeSubmission(req.params.id, grade, feedback);
       if (!submission) return res.status(404).json({ message: "Submission not found" });
       await auditAdmin("submission_graded", req, "assignment_submission", req.params.id);
+      try {
+        const student = await storage.getUser(submission.studentId);
+        const assignment = await storage.getAssignment(submission.assignmentId);
+        if (student && assignment) {
+          const baseUrl = `${req.protocol}://${req.get("host")}`;
+          sendGradeNotification(student.email, student.name, assignment.title, grade, feedback || "", baseUrl);
+        }
+      } catch (_e) {}
       res.json(submission);
     } catch (err) {
       res.status(500).json({ message: "Error grading submission" });
@@ -7269,6 +7306,136 @@ Sitemap: https://pressstart.space/sitemap.xml`
       res.json({ exportJob: job });
     } catch (err) {
       res.status(500).json({ error: "Error publishing project" });
+    }
+  });
+
+  // ==================== FILE STORAGE ENDPOINTS ====================
+
+  app.post("/api/files/upload", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { data, filename, mimeType, projectId } = req.body;
+      if (!data || !filename || !mimeType) {
+        return res.status(400).json({ message: "data, filename, and mimeType are required" });
+      }
+
+      if (mimeType.startsWith("image/") || isImageData(data)) {
+        const scanResult = await scanImage(data, user.id);
+        if (!scanResult.allowed) {
+          return res.status(403).json({ message: "Image blocked by content moderation", reason: scanResult.reason });
+        }
+      }
+
+      const result = await saveBase64File(user.id, data, filename, mimeType, projectId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/files", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const files = await getUserFiles(user.id);
+      res.json(files);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/files/usage", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const usage = await getUserStorageUsage(user.id);
+      res.json({ usedBytes: usage });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/files/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const file = await getFile(req.params.id, user.id);
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      res.json(file);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/files/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const deleted = await deleteFile(req.params.id, user.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==================== CONTENT MODERATION ENDPOINTS (Admin) ====================
+
+  app.get("/api/admin/moderation/flagged", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const flagged = await getFlaggedImages();
+      res.json(flagged);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/moderation/blocked", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const blocked = await getBlockedHashes();
+      res.json(blocked);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/moderation/block", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { hash, reason } = req.body;
+      if (!hash || !reason) {
+        return res.status(400).json({ message: "hash and reason are required" });
+      }
+      const user = req.user as any;
+      await addBlockedHash(hash, reason, user.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/moderation/block/:hash", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const removed = await removeBlockedHash(req.params.hash);
+      if (!removed) {
+        return res.status(404).json({ message: "Hash not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/moderation/review/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status || !["allowed", "blocked"].includes(status)) {
+        return res.status(400).json({ message: "status must be 'allowed' or 'blocked'" });
+      }
+      const user = req.user as any;
+      await reviewImage(req.params.id, status, user.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 

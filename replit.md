@@ -110,6 +110,15 @@ A marketing landing page at `/landing` and `/welcome` featuring a glitch-effect 
 ### New User Onboarding
 An `OnboardingWizard` guides new users through a 3-step flow (Welcome → Pick Your Tools → Quick Tips → Dashboard) on their first login, with progress stored via `localStorage`.
 
+### File Storage (server/fileStorage.ts)
+Local disk storage at `uploads/` directory with DB tracking via `exported_files` table. Supports base64 upload, 50MB max file size, MIME type allowlist. API endpoints: `POST /api/files/upload`, `GET /api/files`, `GET /api/files/:id`, `GET /api/files/usage`, `DELETE /api/files/:id`. All endpoints require authentication; uploads are scanned by content moderation before saving.
+
+### Content Moderation (server/contentModeration.ts)
+SHA-256 exact hash + perceptual hash (Hamming distance ≤4) matching against `blocked_hashes` DB table. Scans all image uploads automatically. Scan logs stored in `image_hashes` table. Admin endpoints: `GET /api/admin/moderation/flagged`, `GET /api/admin/moderation/blocked`, `POST /api/admin/moderation/block`, `DELETE /api/admin/moderation/block/:hash`, `POST /api/admin/moderation/review/:id`.
+
+### Transactional Emails (server/email.ts)
+Branded HTML email templates sent via Resend integration. Templates: welcome (on signup), assignment notification (on assignment creation, sent to all school students), submission confirmation (on assignment submit), grade notification (on grading), purchase confirmation (on marketplace claim-free and paid purchase verification), subscription confirmation. All emails fire-and-forget (non-blocking).
+
 ## External Dependencies
 
 ### AI Services
