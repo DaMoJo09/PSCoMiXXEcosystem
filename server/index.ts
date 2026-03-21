@@ -10,6 +10,34 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import crypto from "crypto";
 import path from "path";
+import { db } from "./db";
+import { featureFlags } from "@shared/schema";
+import { sql } from "drizzle-orm";
+
+async function seedFeatureFlags() {
+  const defaults = [
+    { key: 'ai_tools_enabled', enabled: true, description: 'Show/hide AI Tools (Prompt Factory, Story Forge, Import Center, FX Studio link)' },
+    { key: 'appsumo_redemption', enabled: true, description: 'Allow AppSumo code redemption' },
+    { key: 'community_enabled', enabled: true, description: 'Show/hide Community Library and Ecosystem sections' },
+    { key: 'early_adopter_gate', enabled: true, description: 'Gate new signups behind waitlist/invite system' },
+    { key: 'export_restrictions', enabled: false, description: 'Require subscription for exports' },
+    { key: 'invite_system', enabled: true, description: 'Allow invite code usage' },
+    { key: 'marketplace_enabled', enabled: true, description: 'Show/hide the Marketplace section in sidebar and across the app' },
+    { key: 'motion_studio_enabled', enabled: true, description: 'Show/hide Motion Studio in Creator Tools' },
+    { key: 'payments_enabled', enabled: true, description: 'Enable Stripe payment processing' },
+    { key: 'print_studio_enabled', enabled: true, description: 'Show/hide the Print Studio section in sidebar' },
+    { key: 'social_enabled', enabled: true, description: 'Show/hide Social features (feed, messaging, collabs, chains)' },
+  ];
+
+  try {
+    for (const flag of defaults) {
+      await db.insert(featureFlags).values(flag).onConflictDoNothing({ target: featureFlags.key });
+    }
+    console.log("[feature-flags] Seeded default feature flags");
+  } catch (err) {
+    console.error("[feature-flags] Failed to seed:", err);
+  }
+}
 
 const app = express();
 
@@ -242,6 +270,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await initStripe();
+  await seedFeatureFlags();
   
   await registerRoutes(httpServer, app);
 
