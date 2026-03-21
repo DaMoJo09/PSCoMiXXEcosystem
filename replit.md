@@ -71,6 +71,9 @@ Stores ratings and review text with a "verified purchase" flag, facilitated by A
 ### Community Library
 A Webtoons-style browse page with search, sorting, a comic reader, "like" and comment features, view tracking, and bookmarking with reading progress. Includes series management and a follower system.
 
+### Comic Series System
+Creators can group comics into series with chapters. Features include: auto-numbering (chapters auto-increment when added), series subscriptions (readers can follow a series and receive email notifications when new chapters drop), featured series on the landing page (admin-toggled via `POST /api/admin/series/:id/featured`), and per-series stats for creators (total reads, subscriber count, chapter count, completion rate via `GET /api/series/:id/stats`). DB tables: `comic_series` (with `featured` column), `series_subscriptions`. The Series detail page shows subscriber count and subscribe/unsubscribe button. Community Library series cards display subscriber counts.
+
 ### Motion Studio
 Supports video/GIF export with progress tracking via Web Worker for GIF encoding. Features drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, and a virtualized frame list.
 

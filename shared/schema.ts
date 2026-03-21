@@ -2158,18 +2158,29 @@ export const comicSeries = pgTable("comic_series", {
   title: text("title").notNull(),
   description: text("description"),
   coverImage: text("cover_image"),
+  featured: boolean("featured").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertComicSeriesSchema = createInsertSchema(comicSeries).omit({
   id: true,
+  featured: true,
   createdAt: true,
   updatedAt: true,
 });
 
 export type InsertComicSeries = z.infer<typeof insertComicSeriesSchema>;
 export type ComicSeriesType = typeof comicSeries.$inferSelect;
+
+export const seriesSubscriptions = pgTable("series_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seriesId: varchar("series_id").notNull().references(() => comicSeries.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SeriesSubscription = typeof seriesSubscriptions.$inferSelect;
 
 export const printQuoteRequests = pgTable("print_quote_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

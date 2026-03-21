@@ -42,6 +42,7 @@ interface CommunitySeries {
   creatorName: string;
   creatorAvatar: string | null;
   comicCount: number;
+  subscriberCount?: number;
 }
 
 export default function CommunityLibrary() {
@@ -227,19 +228,26 @@ export default function CommunityLibrary() {
                         >
                           {series.title}
                         </h3>
-                        <div className="flex items-center gap-2">
-                          {series.creatorAvatar ? (
-                            <img
-                              src={series.creatorAvatar}
-                              alt={series.creatorName}
-                              className="w-4 h-4 rounded-full object-cover border border-zinc-700"
-                            />
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center">
-                              <Users className="w-2.5 h-2.5 text-zinc-500" />
-                            </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {series.creatorAvatar ? (
+                              <img
+                                src={series.creatorAvatar}
+                                alt={series.creatorName}
+                                className="w-4 h-4 rounded-full object-cover border border-zinc-700 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                <Users className="w-2.5 h-2.5 text-zinc-500" />
+                              </div>
+                            )}
+                            <span className="text-zinc-400 text-xs truncate">{series.creatorName}</span>
+                          </div>
+                          {(series.subscriberCount ?? 0) > 0 && (
+                            <span className="text-zinc-500 text-[10px] font-bold flex items-center gap-1 flex-shrink-0" data-testid={`text-series-subs-${series.id}`}>
+                              <Users className="w-3 h-3" /> {series.subscriberCount}
+                            </span>
                           )}
-                          <span className="text-zinc-400 text-xs truncate">{series.creatorName}</span>
                         </div>
                       </div>
                     </div>

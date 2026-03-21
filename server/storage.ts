@@ -37,6 +37,7 @@ import {
   comicComments,
   comicBookmarks,
   comicSeries,
+  seriesSubscriptions,
   printQuoteRequests,
   engagementEvents,
   type User, type InsertUser,
@@ -143,8 +144,18 @@ export interface IStorage {
   deleteSeries(id: string): Promise<boolean>;
   getSeriesComics(seriesId: string, publicOnly?: boolean): Promise<any[]>;
   getPublicSeriesList(): Promise<any[]>;
+  getFeaturedSeriesList(): Promise<any[]>;
   addProjectToSeries(projectId: string, seriesId: string, order: number): Promise<void>;
   removeProjectFromSeries(projectId: string): Promise<void>;
+  getNextSeriesOrder(seriesId: string): Promise<number>;
+  subscribeToSeries(userId: string, seriesId: string): Promise<any>;
+  unsubscribeFromSeries(userId: string, seriesId: string): Promise<boolean>;
+  isSubscribedToSeries(userId: string, seriesId: string): Promise<boolean>;
+  getSeriesSubscriberCount(seriesId: string): Promise<number>;
+  getSeriesSubscribers(seriesId: string): Promise<any[]>;
+  getUserSeriesSubscriptions(userId: string): Promise<any[]>;
+  getSeriesStats(seriesId: string): Promise<{ totalReads: number; subscriberCount: number; chapterCount: number; completionRate: number }>;
+  setSeriesFeatured(seriesId: string, featured: boolean): Promise<any | undefined>;
 
   // Follow helpers
   followUser(followerId: string, followingId: string): Promise<any>;
@@ -3135,7 +3146,10 @@ export class DatabaseStorage implements IStorage {
         ));
       const ct = comicCount[0]?.count ?? 0;
       if (ct > 0) {
-        result.push({ ...s, comicCount: ct });
+        const subCount = await db.select({ count: count() })
+          .from(seriesSubscriptions)
+          .where(eq(seriesSubscriptions.seriesId, s.id));
+        result.push({ ...s, comicCount: ct, subscriberCount: subCount[0]?.count ?? 0 });
       }
     }
     return result;
@@ -3151,6 +3165,136 @@ export class DatabaseStorage implements IStorage {
     await db.update(projects)
       .set({ seriesId: null, seriesOrder: null, updatedAt: new Date() })
       .where(eq(projects.id, projectId));
+  }
+
+  async getNextSeriesOrder(seriesId: string): Promise<number> {
+    const result = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${projects.seriesOrder}), 0)` })
+      .from(projects)
+      .where(eq(projects.seriesId, seriesId));
+    return (result[0]?.maxOrder ?? 0) + 1;
+  }
+
+  async getFeaturedSeriesList(): Promise<any[]> {
+    const seriesRows = await db.select({
+      id: comicSeries.id,
+      title: comicSeries.title,
+      description: comicSeries.description,
+      coverImage: comicSeries.coverImage,
+      featured: comicSeries.featured,
+      userId: comicSeries.userId,
+      createdAt: comicSeries.createdAt,
+      updatedAt: comicSeries.updatedAt,
+      creatorName: users.name,
+      creatorAvatar: users.avatar,
+    }).from(comicSeries)
+      .innerJoin(users, eq(comicSeries.userId, users.id))
+      .where(eq(comicSeries.featured, true))
+      .orderBy(desc(comicSeries.updatedAt))
+      .limit(10);
+
+    const result = [];
+    for (const s of seriesRows) {
+      const comicCount = await db.select({ count: count() })
+        .from(projects)
+        .where(and(
+          eq(projects.seriesId, s.id),
+          sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`,
+        ));
+      const ct = comicCount[0]?.count ?? 0;
+      const subCount = await db.select({ count: count() })
+        .from(seriesSubscriptions)
+        .where(eq(seriesSubscriptions.seriesId, s.id));
+      result.push({ ...s, comicCount: ct, subscriberCount: subCount[0]?.count ?? 0 });
+    }
+    return result;
+  }
+
+  async subscribeToSeries(userId: string, seriesId: string): Promise<any> {
+    const [result] = await db.insert(seriesSubscriptions)
+      .values({ userId, seriesId })
+      .onConflictDoNothing()
+      .returning();
+    if (!result) {
+      const [existing] = await db.select().from(seriesSubscriptions)
+        .where(and(eq(seriesSubscriptions.userId, userId), eq(seriesSubscriptions.seriesId, seriesId)));
+      return existing;
+    }
+    return result;
+  }
+
+  async unsubscribeFromSeries(userId: string, seriesId: string): Promise<boolean> {
+    await db.delete(seriesSubscriptions)
+      .where(and(eq(seriesSubscriptions.userId, userId), eq(seriesSubscriptions.seriesId, seriesId)));
+    return true;
+  }
+
+  async isSubscribedToSeries(userId: string, seriesId: string): Promise<boolean> {
+    const result = await db.select().from(seriesSubscriptions)
+      .where(and(eq(seriesSubscriptions.userId, userId), eq(seriesSubscriptions.seriesId, seriesId)));
+    return result.length > 0;
+  }
+
+  async getSeriesSubscriberCount(seriesId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(seriesSubscriptions)
+      .where(eq(seriesSubscriptions.seriesId, seriesId));
+    return result[0]?.count ?? 0;
+  }
+
+  async getSeriesSubscribers(seriesId: string): Promise<any[]> {
+    return db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+    }).from(seriesSubscriptions)
+      .innerJoin(users, eq(seriesSubscriptions.userId, users.id))
+      .where(eq(seriesSubscriptions.seriesId, seriesId));
+  }
+
+  async getUserSeriesSubscriptions(userId: string): Promise<any[]> {
+    return db.select({
+      id: comicSeries.id,
+      title: comicSeries.title,
+      coverImage: comicSeries.coverImage,
+      creatorName: users.name,
+    }).from(seriesSubscriptions)
+      .innerJoin(comicSeries, eq(seriesSubscriptions.seriesId, comicSeries.id))
+      .innerJoin(users, eq(comicSeries.userId, users.id))
+      .where(eq(seriesSubscriptions.userId, userId));
+  }
+
+  async getSeriesStats(seriesId: string): Promise<{ totalReads: number; subscriberCount: number; chapterCount: number; completionRate: number }> {
+    const comics = await db.select({
+      viewCount: projects.viewCount,
+      seriesOrder: projects.seriesOrder,
+    }).from(projects)
+      .where(and(
+        eq(projects.seriesId, seriesId),
+        sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`,
+      ))
+      .orderBy(projects.seriesOrder, projects.createdAt);
+    const chapterCount = comics.length;
+    const totalReads = comics.reduce((sum, c) => sum + (c.viewCount || 0), 0);
+
+    const subCount = await db.select({ count: count() }).from(seriesSubscriptions)
+      .where(eq(seriesSubscriptions.seriesId, seriesId));
+    const subscriberCount = subCount[0]?.count ?? 0;
+
+    let completionRate = 0;
+    if (chapterCount > 1 && totalReads > 0) {
+      const firstChapterReads = comics[0]?.viewCount || 1;
+      const lastChapterReads = comics[comics.length - 1]?.viewCount || 0;
+      completionRate = Math.min(100, Math.round((lastChapterReads / firstChapterReads) * 100));
+    }
+
+    return { totalReads, subscriberCount, chapterCount, completionRate };
+  }
+
+  async setSeriesFeatured(seriesId: string, featured: boolean): Promise<any | undefined> {
+    const [result] = await db.update(comicSeries)
+      .set({ featured, updatedAt: new Date() })
+      .where(eq(comicSeries.id, seriesId))
+      .returning();
+    return result || undefined;
   }
 
   async followUser(followerId: string, followingId: string): Promise<any> {

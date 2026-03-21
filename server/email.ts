@@ -228,6 +228,43 @@ export async function sendPurchaseConfirmation(
   }
 }
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export async function sendNewChapterNotification(
+  email: string,
+  name: string,
+  seriesTitle: string,
+  chapterTitle: string,
+  seriesId: string
+) {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : "https://pressstart.space";
+    const safeName = escapeHtml(name);
+    const safeSeriesTitle = escapeHtml(seriesTitle);
+    const safeChapterTitle = escapeHtml(chapterTitle);
+    await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `New Chapter: ${safeChapterTitle} — ${safeSeriesTitle}`,
+      html: emailWrapper(`New Chapter Available`, `
+        <p style="color: #a1a1aa; line-height: 1.6;">Hi ${safeName}, a new chapter has been added to a series you follow:</p>
+        <div style="background: #18181b; border: 2px solid ${BRAND.color}; padding: 20px; margin: 16px 0;">
+          <h3 style="color: #fff; margin: 0 0 4px 0;">${safeSeriesTitle}</h3>
+          <p style="color: ${BRAND.color}; font-size: 16px; font-weight: 900; margin: 4px 0 0 0;">${safeChapterTitle}</p>
+        </div>
+        ${buttonHtml("Read Now", `${baseUrl}/community/series/${seriesId}`)}
+      `)
+    });
+  } catch (err) {
+    console.error("[email] Failed to send new chapter notification:", err);
+  }
+}
+
 export async function sendSubscriptionConfirmation(
   email: string,
   name: string,

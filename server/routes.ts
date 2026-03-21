@@ -20,7 +20,7 @@ import { createExportJob, getExportJob, getProjectExports } from "./publishServi
 import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
-import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation } from "./email";
+import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification } from "./email";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -5952,8 +5952,27 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!projectId) {
         return res.status(400).json({ message: "projectId is required" });
       }
-      await storage.addProjectToSeries(projectId, req.params.id, order || 0);
-      res.json({ success: true });
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== (req.user as any).id) {
+        return res.status(403).json({ message: "You can only add your own projects to a series" });
+      }
+      let assignedOrder = order;
+      if (!assignedOrder || assignedOrder <= 0) {
+        assignedOrder = await storage.getNextSeriesOrder(req.params.id);
+      }
+      await storage.addProjectToSeries(projectId, req.params.id, assignedOrder);
+
+      if (project.status === "published" || project.status === "approved") {
+        const subscribers = await storage.getSeriesSubscribers(req.params.id);
+        const chapterTitle = project.title || `Chapter ${assignedOrder}`;
+        for (const sub of subscribers) {
+          if (sub.id !== (req.user as any).id && sub.email) {
+            sendNewChapterNotification(sub.email, sub.name || "Reader", existing.title, chapterTitle, req.params.id).catch(() => {});
+          }
+        }
+      }
+
+      res.json({ success: true, order: assignedOrder });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -5964,6 +5983,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const existing = await storage.getSeries(req.params.id);
       if (!existing || existing.userId !== (req.user as any).id) {
         return res.status(404).json({ message: "Series not found" });
+      }
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.userId !== (req.user as any).id || project.seriesId !== req.params.id) {
+        return res.status(403).json({ message: "Cannot remove this project from the series" });
       }
       await storage.removeProjectFromSeries(req.params.projectId);
       res.json({ success: true });
@@ -5988,7 +6011,75 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(404).json({ message: "Series not found" });
       }
       const comics = await storage.getSeriesComics(req.params.id, true);
-      res.json({ ...series, comics });
+      const subscriberCount = await storage.getSeriesSubscriberCount(req.params.id);
+      let isSubscribed = false;
+      if (req.isAuthenticated?.() && req.user) {
+        isSubscribed = await storage.isSubscribedToSeries((req.user as any).id, req.params.id);
+      }
+      res.json({ ...series, comics, subscriberCount, isSubscribed });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/series-featured", async (_req, res) => {
+    try {
+      const featured = await storage.getFeaturedSeriesList();
+      res.json(featured);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/series/:id/subscribe", isAuthenticated, async (req, res) => {
+    try {
+      const series = await storage.getSeries(req.params.id);
+      if (!series) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      const sub = await storage.subscribeToSeries((req.user as any).id, req.params.id);
+      res.json(sub);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/series/:id/subscribe", isAuthenticated, async (req, res) => {
+    try {
+      await storage.unsubscribeFromSeries((req.user as any).id, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/series/subscriptions", isAuthenticated, async (req, res) => {
+    try {
+      const subs = await storage.getUserSeriesSubscriptions((req.user as any).id);
+      res.json(subs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/series/:id/stats", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getSeries(req.params.id);
+      if (!existing || existing.userId !== (req.user as any).id) {
+        return res.status(404).json({ message: "Series not found" });
+      }
+      const stats = await storage.getSeriesStats(req.params.id);
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/series/:id/featured", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { featured } = req.body;
+      const result = await storage.setSeriesFeatured(req.params.id, !!featured);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

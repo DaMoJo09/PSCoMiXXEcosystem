@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
-import { BookOpen, ChevronRight, ArrowLeft, Users } from "lucide-react";
+import { BookOpen, ChevronRight, ArrowLeft, Users, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SeriesComic {
   id: string;
@@ -24,19 +25,41 @@ interface SeriesDetail {
   createdAt: string;
   updatedAt: string;
   comics: SeriesComic[];
+  subscriberCount?: number;
+  isSubscribed?: boolean;
 }
 
 export default function SeriesPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: series, isLoading, isError } = useQuery<SeriesDetail>({
     queryKey: ["community-series", id],
     queryFn: async () => {
-      const res = await fetch(`/api/community/series/${id}`);
+      const res = await fetch(`/api/community/series/${id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load series");
       return res.json();
     },
     enabled: !!id,
+  });
+
+  const subscribeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/series/${id}/subscribe`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to subscribe");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["community-series", id] }),
+  });
+
+  const unsubscribeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/series/${id}/subscribe`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to unsubscribe");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["community-series", id] }),
   });
 
   const comics = series?.comics ?? [];
@@ -80,9 +103,39 @@ export default function SeriesPage() {
                     {series.description}
                   </p>
                 )}
-                <p className="text-zinc-500 text-xs font-bold" data-testid="text-series-count">
-                  {comics.length} CHAPTER{comics.length !== 1 ? "S" : ""}
-                </p>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <p className="text-zinc-500 text-xs font-bold" data-testid="text-series-count">
+                    {comics.length} CHAPTER{comics.length !== 1 ? "S" : ""}
+                  </p>
+                  {(series?.subscriberCount ?? 0) > 0 && (
+                    <p className="text-zinc-500 text-xs font-bold flex items-center gap-1" data-testid="text-subscriber-count">
+                      <Users className="w-3 h-3" /> {series?.subscriberCount} SUBSCRIBER{series?.subscriberCount !== 1 ? "S" : ""}
+                    </p>
+                  )}
+                </div>
+                {user && series && user.id !== series.userId && (
+                  <div className="mt-3">
+                    {series.isSubscribed ? (
+                      <button
+                        onClick={() => unsubscribeMutation.mutate()}
+                        disabled={unsubscribeMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 border-2 border-zinc-600 text-zinc-400 hover:border-red-500 hover:text-red-400 text-xs font-bold uppercase tracking-wider transition-colors"
+                        data-testid="btn-unsubscribe"
+                      >
+                        <BellOff className="w-4 h-4" /> Subscribed
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => subscribeMutation.mutate()}
+                        disabled={subscribeMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 border-2 border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black text-xs font-bold uppercase tracking-wider transition-colors"
+                        data-testid="btn-subscribe"
+                      >
+                        <Bell className="w-4 h-4" /> Subscribe
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

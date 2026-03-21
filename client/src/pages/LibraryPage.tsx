@@ -5,13 +5,40 @@ import {
   BookOpen, Layers, Search, Clock, ChevronRight,
   FileText, Film, Gamepad2, BookMarked, Pencil, Plus,
   Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles,
-  X, Trash2, GripVertical, Check, Camera
+  X, Trash2, GripVertical, Check, Camera, Eye, Users, BarChart3
 } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+
+function SeriesStatsRow({ seriesId }: { seriesId: string }) {
+  const { data: stats } = useQuery<{ totalReads: number; subscriberCount: number; chapterCount: number; completionRate: number }>({
+    queryKey: ["series-stats", seriesId],
+    queryFn: async () => {
+      const res = await fetch(`/api/series/${seriesId}/stats`, { credentials: "include" });
+      if (!res.ok) return { totalReads: 0, subscriberCount: 0, chapterCount: 0, completionRate: 0 };
+      return res.json();
+    },
+  });
+
+  if (!stats || (stats.totalReads === 0 && stats.subscriberCount === 0)) return null;
+
+  return (
+    <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-zinc-500" data-testid={`series-stats-${seriesId}`}>
+      {stats.totalReads > 0 && (
+        <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {stats.totalReads} reads</span>
+      )}
+      {stats.subscriberCount > 0 && (
+        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {stats.subscriberCount} subs</span>
+      )}
+      {stats.chapterCount > 1 && stats.completionRate > 0 && (
+        <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" /> {stats.completionRate}% finish</span>
+      )}
+    </div>
+  );
+}
 
 interface Project {
   id: string;
@@ -382,6 +409,7 @@ export default function LibraryPage() {
                               {comicsInSeries.length} comic{comicsInSeries.length !== 1 ? "s" : ""}
                               {s.description && ` · ${s.description}`}
                             </p>
+                            <SeriesStatsRow seriesId={s.id} />
                           </div>
                           <div className="flex items-center gap-1">
                             <button

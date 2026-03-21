@@ -1,7 +1,93 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { ChevronRight, Gamepad2, Sparkles, Zap, Film, Book, Wand2, GraduationCap, Palette, Building2, ArrowRight, Upload, MousePointerClick, Download, Star, Quote } from "lucide-react";
+import { useLocation, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronRight, Gamepad2, Sparkles, Zap, Film, Book, Wand2, GraduationCap, Palette, Building2, ArrowRight, Upload, MousePointerClick, Download, Star, Quote, BookOpen, Users } from "lucide-react";
 import { EventCarousel } from "@/components/EventCarousel";
+
+interface FeaturedSeries {
+  id: string;
+  title: string;
+  description: string | null;
+  coverImage: string | null;
+  creatorName: string;
+  comicCount: number;
+  subscriberCount: number;
+}
+
+function FeaturedSeriesSection() {
+  const { data: series = [] } = useQuery<FeaturedSeries[]>({
+    queryKey: ["featured-series"],
+    queryFn: async () => {
+      const res = await fetch("/api/community/series-featured");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  if (series.length === 0) return null;
+
+  return (
+    <section className="relative z-10 py-16 sm:py-24 px-4 sm:px-8 bg-zinc-950 border-t-2 border-zinc-800" data-testid="section-featured-series">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10 text-center">
+          <span className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em] block mb-4">FROM THE COMMUNITY</span>
+          <h3
+            className="text-2xl sm:text-4xl font-black uppercase tracking-tight mb-4 text-white"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            FEATURED SERIES
+          </h3>
+          <div className="w-24 h-1 bg-cyan-500 mx-auto" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {series.map((s) => (
+            <Link key={s.id} href={`/community/series/${s.id}`}>
+              <div
+                className="group border-2 border-zinc-800 bg-zinc-900 hover:border-cyan-500 transition-all cursor-pointer"
+                data-testid={`featured-series-card-${s.id}`}
+              >
+                <div className="aspect-[3/2] overflow-hidden">
+                  {s.coverImage ? (
+                    <img
+                      src={s.coverImage}
+                      alt={s.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                      <BookOpen className="w-12 h-12 text-zinc-700" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <h4
+                    className="font-black text-white text-lg truncate group-hover:text-cyan-400 transition-colors"
+                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {s.title}
+                  </h4>
+                  {s.description && (
+                    <p className="text-zinc-500 text-sm mt-1 line-clamp-2">{s.description}</p>
+                  )}
+                  <div className="flex items-center justify-between mt-3 text-xs text-zinc-500 font-bold">
+                    <span>{s.creatorName}</span>
+                    <div className="flex items-center gap-3">
+                      <span>{s.comicCount} ch</span>
+                      {s.subscriberCount > 0 && (
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {s.subscriberCount}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
@@ -297,6 +383,8 @@ export default function LandingPage() {
           </span>
         </button>
       </section>
+
+      <FeaturedSeriesSection />
 
       <section className="relative z-10 py-20 sm:py-32 px-4 sm:px-8 bg-black" data-testid="section-features">
         <div className="max-w-6xl mx-auto">
