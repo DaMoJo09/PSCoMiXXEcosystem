@@ -399,23 +399,30 @@ export default function AdminControlRoom() {
                 <CardTitle className="font-space-grotesk">FEATURE FLAGS</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {dashboardStats?.featureFlags.map((flag) => (
-                  <div key={flag.key} className="flex items-center justify-between p-4 bg-zinc-900 border-2 border-zinc-700">
-                    <div className="flex-1">
-                      <p className="font-bold text-white font-space-grotesk">{flag.key}</p>
-                      <p className="text-sm text-zinc-400">{flag.description || "No description"}</p>
+                {loadingStats ? (
+                  <p className="text-center py-8 text-zinc-400">Loading feature flags...</p>
+                ) : !dashboardStats?.featureFlags || dashboardStats.featureFlags.length === 0 ? (
+                  <p className="text-center py-8 text-zinc-400">No feature flags found</p>
+                ) : (
+                  dashboardStats.featureFlags.map((flag) => (
+                    <div key={flag.key} className="flex items-center justify-between p-4 bg-zinc-900 border-2 border-zinc-700" data-testid={`flag-row-${flag.key}`}>
+                      <div className="flex-1">
+                        <p className="font-bold text-white font-space-grotesk">{flag.key.replace(/_/g, " ").toUpperCase()}</p>
+                        <p className="text-sm text-zinc-400">{flag.description || "No description"}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge variant={flag.enabled ? "default" : "secondary"} className={flag.enabled ? "bg-white text-black" : "bg-zinc-700"}>
+                          {flag.enabled ? "ENABLED" : "DISABLED"}
+                        </Badge>
+                        <Switch
+                          checked={flag.enabled}
+                          onCheckedChange={(enabled) => toggleFeatureMutation.mutate({ key: flag.key, enabled })}
+                          data-testid={`toggle-flag-${flag.key}`}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Badge variant={flag.enabled ? "default" : "secondary"} className={flag.enabled ? "bg-white text-black" : "bg-zinc-700"}>
-                        {flag.enabled ? "ENABLED" : "DISABLED"}
-                      </Badge>
-                      <Switch
-                        checked={flag.enabled}
-                        onCheckedChange={(enabled) => toggleFeatureMutation.mutate({ key: flag.key, enabled })}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
