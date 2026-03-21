@@ -36,3 +36,9 @@ id = "fgaoJv-5ikUdanwklbInW"
 uri = "file://.local/lovable-fx-studio-stat-tracker-note.md"
 type = "text"
 title = "Note for Lovable — FX Studio Stat Tracker (Synced with CoMiXX)"
+
+[[outputs]]
+id = "LBiEkfLDGwcH94UIxM565"
+uri = "file://.local/PSCoMiXX-Platform-Features.md"
+type = "text"
+title = "Press Start CoMiXX — Complete Platform Feature & Selling Point Guide"
