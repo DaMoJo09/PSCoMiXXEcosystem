@@ -70,6 +70,7 @@ import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import TeacherDashboard from "@/pages/TeacherDashboard";
+import CreatorProfilePage from "@/pages/CreatorProfilePage";
 import CompliancePage from "@/pages/CompliancePage";
 import AccessibilityPage from "@/pages/AccessibilityPage";
 import SecurityPage from "@/pages/SecurityPage";
@@ -116,13 +117,14 @@ function ProtectedRouter() {
     return <ResetPassword />;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
     return (
       <Switch>
         <Route path="/portfolio/:userId" component={PortfolioPage} />
+        <Route path="/creator/:username" component={CreatorProfilePage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/disclaimer" component={DisclaimerPage} />
@@ -207,6 +209,7 @@ function ProtectedRouter() {
         <Route path="/disclaimer" component={DisclaimerPage} />
         <Route path="/dmca" component={DMCAPage} />
         <Route path="/teacher" component={TeacherDashboard} />
+        <Route path="/creator/:username" component={CreatorProfilePage} />
         <Route path="/compliance" component={CompliancePage} />
         <Route path="/accessibility-statement" component={AccessibilityPage} />
         <Route path="/security" component={SecurityPage} />

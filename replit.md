@@ -20,11 +20,22 @@ PostgreSQL, hosted via Neon serverless, is the primary database, accessed throug
 ### Security
 The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features, AI resilience, audit logging, and SSO support.
 
+### Ecosystem SSO (server/sso.ts)
+JWT-based single sign-on across the PSCoMiXX ecosystem (pressplays.site, psstreaming.com, pressstart.tech). Issues ecosystem tokens via `POST /api/auth/sso/token`, validates inbound tokens via `POST /api/auth/sso/validate`, and provides SSO login at `POST /api/auth/sso/login`. Requires `ECOSYSTEM_JWT_SECRET` env var. Tokens carry user ID, email, name, role, tier, and origin.
+
+### Webhook Service (server/webhookService.ts)
+Standardized event dispatch system with delivery logging to `webhook_delivery_log` table. Supports retry queue with configurable attempts (3 retries, exponential backoff). Events: `project.published`, `project.exported`, `user.created`, `user.tier_changed`, `assignment.submitted`, `xp.milestone`. Retry worker runs on 60s interval, started in `registerRoutes()`.
+
+### Export Pipeline (server/exportService.ts + server/publishService.ts)
+- **ExportService:** Generates scene-json, timeline-json, and PNG layer exports for external tools (Unreal Engine, Reallusion iClone). Tracked via `export_jobs` DB table.
+- **PublishService:** Unified publish pipeline — bundles content to PS Content Bundle v1 format, validates, saves, syncs to Emergent streaming platform, and dispatches webhooks.
+- **API endpoints:** `POST /api/export` (internal), `POST /api/v1/projects/:id/export` (versioned API), `GET /api/v1/projects` (public listing), `GET /api/v1/projects/:id` (public detail).
+
 ### Feature Flags System
 11 feature flags stored in the `feature_flags` DB table, toggled from Admin Control Room. The `useFeatureFlag(key)` hook (in `client/src/hooks/useFeatureFlag.ts`) queries the public endpoint `GET /api/feature-flags/:key` and defaults to `false` (fail-closed) when a flag is missing. Sidebar sections (Marketplace, Print Studio, Social, AI Tools, Community, Motion Studio) are conditionally rendered based on flags. Backend gates: `payments_enabled` blocks Stripe checkout; `export_restrictions` enforces export quotas (fail-closed when missing). Other flags: `appsumo_redemption`, `early_adopter_gate`, `invite_system`.
 
 ### Subscription & Usage Tracking
-Supports Free, Creator, Pro, Studio, and Lifetime subscription tiers with limits on AI generations, exports, projects, and storage. Usage is tracked server-side, with frontend feature gates prompting upgrades.
+Supports Free, Creator, Pro, Studio, Lifetime, and School subscription tiers with limits on AI generations, exports, projects, and storage. Usage is tracked server-side, with frontend feature gates prompting upgrades. School tier supports bulk checkout and district inquiry endpoints.
 
 ### Content Publishing Pipeline
 Projects progress through draft, review, and publication stages, conforming to the PS Content Bundle v1 format. The pipeline handles validation, bundling, saving, synchronization with the Emergent streaming platform, version tracking, and admin review.
@@ -65,6 +76,15 @@ Supports video/GIF export with progress tracking via Web Worker for GIF encoding
 
 ### Platform Analytics Dashboard
 An admin-only dashboard providing 40+ KPIs across 7 tabs (Overview, Growth, Engagement, Content, Revenue, AI & Platform, User Health). Uses `recharts` and aggregates data via `GET /api/analytics/platform`.
+
+### Teacher Dashboard (client/src/pages/TeacherDashboard.tsx)
+Enhanced dashboard for teachers with 5 tabs: Student Roster (with last-active time, total minutes, XP, level), Assignments (CRUD), Submissions (grading with grade/feedback), Projects (all student projects), and Analytics (class-wide stats, top students by XP, projects by tool). Backend endpoints: `GET /api/teacher/students`, `GET /api/teacher/student-projects`, `GET /api/teacher/analytics`, assignment/submission CRUD.
+
+### Creator Profile (client/src/pages/CreatorProfilePage.tsx)
+Public creator profile at `/creator/:username` showing avatar, cover image, bio, tagline, creator class, XP progress, social links, follower/following counts, and published works grid. Backend endpoint: `GET /api/creator/:username`.
+
+### Assignment Submit Button (client/src/components/tools/AssignmentSubmitButton.tsx)
+Reusable component for student accounts to submit projects to active assignments. Fetches active assignments via `GET /api/student/active-assignments`, filters by project type, and submits via `POST /api/assignments/:id/submit`.
 
 ### FX Studio Integration (Bidirectional Pipeline)
 Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools via the `FxBrowserPanel`. XP heartbeat and action events are forwarded to PSStreaming (`POST https://psstreaming.com/api/webhooks/time-spent`) via fire-and-forget with 5s timeout, using the shared `PSLMS_API_KEY` in the `X-API-Key` header — so time/XP earned in CoMiXX is synced to the streaming platform.

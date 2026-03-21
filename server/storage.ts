@@ -452,6 +452,12 @@ export interface IStorage {
   gradeSubmission(id: string, grade: string, feedback?: string): Promise<any>;
   getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]>;
 
+  // Username lookup
+  getUserByUsername(username: string): Promise<User | undefined>;
+  
+  // Student assignment lookup
+  getStudentActiveAssignments(studentId: string): Promise<any[]>;
+
   // SSO operations
   getSsoConfigByDomain(domain: string): Promise<any | undefined>;
   createSsoConfig(config: any): Promise<any>;
@@ -478,6 +484,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     return user || undefined;
   }
 
@@ -2854,12 +2865,24 @@ export class DatabaseStorage implements IStorage {
   async getTeacherStudents(teacherId: string, schoolId: string): Promise<any[]> {
     const memberships = await db.select({
       membership: schoolMemberships,
-      user: { id: users.id, name: users.name, email: users.email, avatar: users.avatar, accountType: users.accountType, xp: users.xp, level: users.level },
+      user: { id: users.id, name: users.name, email: users.email, avatar: users.avatar, accountType: users.accountType, xp: users.xp, level: users.level, totalMinutes: users.totalMinutes, lastActiveAt: users.lastActiveAt },
     })
     .from(schoolMemberships)
     .leftJoin(users, eq(schoolMemberships.userId, users.id))
     .where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.role, "student")));
-    return memberships;
+    return memberships.map(m => ({ ...m.user, schoolRole: m.membership.role }));
+  }
+
+  async getStudentActiveAssignments(studentId: string): Promise<any[]> {
+    const memberSchools = await db.select({ schoolId: schoolMemberships.schoolId })
+      .from(schoolMemberships)
+      .where(eq(schoolMemberships.userId, studentId));
+    if (memberSchools.length === 0) return [];
+    const schoolIds = memberSchools.map(m => m.schoolId);
+    const allAssignments = await db.select()
+      .from(classroomAssignments)
+      .where(eq(classroomAssignments.status, "active"));
+    return allAssignments.filter(a => schoolIds.includes(a.schoolId));
   }
 
   async getSsoConfigByDomain(domain: string): Promise<any | undefined> {

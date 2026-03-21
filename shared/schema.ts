@@ -9,26 +9,25 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull().default("creator"), // creator | admin
+  username: varchar("username").unique(),
+  role: text("role").notNull().default("creator"), // creator | admin | teacher
   accountType: text("account_type").notNull().default("creator"), // student (6-17) | creator (18+)
   dateOfBirth: text("date_of_birth"), // YYYY-MM-DD format
-  // Profile fields
-  avatar: text("avatar"), // URL to profile image
-  coverImage: text("cover_image"), // URL to cover/banner image
-  tagline: text("tagline"), // Short catchphrase
-  bio: text("bio"), // Longer description
-  creatorClass: text("creator_class").default("Rookie"), // Rookie, Artist, Writer, etc.
-  xp: integer("xp").default(0), // Experience points
-  level: integer("level").default(1), // User level
-  totalMinutes: integer("total_minutes").default(0), // Total time spent in app (minutes)
-  lastXpHeartbeat: timestamp("last_xp_heartbeat"), // Last XP heartbeat timestamp
-  // Stats (persona card style)
+  avatar: text("avatar"),
+  coverImage: text("cover_image"),
+  tagline: text("tagline"),
+  bio: text("bio"),
+  creatorClass: text("creator_class").default("Rookie"),
+  xp: integer("xp").default(0),
+  level: integer("level").default(1),
+  totalMinutes: integer("total_minutes").default(0),
+  lastXpHeartbeat: timestamp("last_xp_heartbeat"),
+  lastActiveAt: timestamp("last_active_at"),
   statCreativity: integer("stat_creativity").default(10),
   statStorytelling: integer("stat_storytelling").default(10),
   statArtistry: integer("stat_artistry").default(10),
   statCollaboration: integer("stat_collaboration").default(10),
-  // Social links
-  socialLinks: jsonb("social_links"), // { twitter, instagram, website, etc. }
+  socialLinks: jsonb("social_links"),
   parentalConsentAt: timestamp("parental_consent_at"),
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
@@ -2203,3 +2202,54 @@ export const tosAcceptances = pgTable("tos_acceptances", {
   acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
   ipAddress: text("ip_address"),
 });
+
+export const exportJobs = pgTable("export_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  format: text("format").notNull(),
+  status: text("status").notNull().default("queued"),
+  fileUrl: text("file_url"),
+  metadata: jsonb("metadata"),
+  destinations: jsonb("destinations"),
+  retryCount: integer("retry_count").default(0),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertExportJobSchema = createInsertSchema(exportJobs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExportJob = z.infer<typeof insertExportJobSchema>;
+export type ExportJob = typeof exportJobs.$inferSelect;
+
+export const webhookDeliveryLog = pgTable("webhook_delivery_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventType: text("event_type").notNull(),
+  targetUrl: text("target_url").notNull(),
+  payload: jsonb("payload").notNull(),
+  status: text("status").notNull().default("pending"),
+  responseCode: integer("response_code"),
+  retryCount: integer("retry_count").default(0),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  deliveredAt: timestamp("delivered_at"),
+});
+
+export type WebhookDeliveryLog = typeof webhookDeliveryLog.$inferSelect;
+
+export const tierEntitlementsSchool = {
+  school: {
+    export: true,
+    commercial: false,
+    ai: true,
+    batch: true,
+    maxProjects: -1,
+    maxStorage: 50000,
+    aiGenerationsPerDay: 500,
+    exportsPerMonth: -1,
+  },
+} as const;

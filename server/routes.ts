@@ -7,12 +7,17 @@ import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking } from "@shared/schema";
 import { db } from "./db";
+import { sql } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 import { filterContent, isStudentSafe } from "./contentFilter";
 import { logAuditEvent, auditAuth, auditAdmin, auditStudent } from "./auditLogger";
+import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreateUserFromToken } from "./sso";
+import { dispatchWebhook, retryFailedWebhooks, getWebhookLogs, startWebhookRetryWorker } from "./webhookService";
+import { createExportJob, getExportJob, getProjectExports } from "./publishService";
+import { getProjectExportData } from "./exportService";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -467,6 +472,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         level: newLevel,
         totalMinutes: newTotalMinutes,
         lastXpHeartbeat: now,
+        lastActiveAt: now,
       } as any);
 
       forwardXpToStreaming(user.email, minutesToCredit, xpGained);
@@ -6879,6 +6885,395 @@ Sitemap: https://pressstart.space/sitemap.xml`
       res.status(500).json({ message: "Error updating quote request status" });
     }
   });
+
+  // =========== SSO / JWT Ecosystem Auth ===========
+
+  app.post("/api/auth/sso/token", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const token = issueEcosystemToken(user);
+      res.json({ token, expiresIn: 3600 });
+    } catch (err) {
+      res.status(500).json({ message: "Error issuing SSO token" });
+    }
+  });
+
+  app.post("/api/auth/sso/verify", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ message: "Token required" });
+      const payload = verifyEcosystemToken(token);
+      if (!payload) return res.status(401).json({ message: "Invalid or expired token" });
+      const user = await findOrCreateUserFromToken(payload);
+      if (!user) return res.status(404).json({ message: "User not found in this platform" });
+      res.json({
+        valid: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          accountType: user.accountType,
+          username: (user as any).username,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Error verifying SSO token" });
+    }
+  });
+
+  app.get("/api/auth/sso/redirect", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const target = req.query.target as string;
+      if (!target) return res.status(400).json({ message: "Target app required" });
+      const token = issueEcosystemToken(user);
+      const redirectUrl = getRedirectUrl(target, token);
+      if (!redirectUrl) return res.status(400).json({ message: "Invalid target app" });
+      res.json({ redirectUrl });
+    } catch (err) {
+      res.status(500).json({ message: "Error generating SSO redirect" });
+    }
+  });
+
+  // =========== Health Check ===========
+
+  app.get("/api/health", async (_req, res) => {
+    try {
+      const dbCheck = await db.execute(sql`SELECT 1`);
+      res.json({
+        status: "healthy",
+        db: "connected",
+        uptime: process.uptime(),
+        version: "1.0.0",
+        timestamp: new Date().toISOString(),
+        memory: process.memoryUsage(),
+      });
+    } catch (err) {
+      res.status(503).json({
+        status: "unhealthy",
+        db: "disconnected",
+        error: (err as Error).message,
+      });
+    }
+  });
+
+  // =========== Export Pipeline ===========
+
+  app.post("/api/export", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { projectId, format, publishToStreaming, sendToLms, metadata } = req.body;
+      if (!projectId || !format) return res.status(400).json({ message: "projectId and format required" });
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== user.id) return res.status(404).json({ message: "Project not found" });
+      const job = await createExportJob(projectId, user.id, {
+        format,
+        publishToStreaming,
+        sendToLms,
+        metadata,
+      });
+      res.json(job);
+    } catch (err) {
+      res.status(500).json({ message: "Error creating export job" });
+    }
+  });
+
+  app.get("/api/export/:id", isAuthenticated, async (req, res) => {
+    try {
+      const job = await getExportJob(req.params.id);
+      if (!job) return res.status(404).json({ message: "Export job not found" });
+      const user = req.user as any;
+      if (job.userId !== user.id && user.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      res.json(job);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching export job" });
+    }
+  });
+
+  app.get("/api/projects/:id/exports", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      const user = req.user as any;
+      if (project.userId !== user.id && user.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      const exports = await getProjectExports(req.params.id);
+      res.json(exports);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching export history" });
+    }
+  });
+
+  // =========== Webhook Admin ===========
+
+  app.get("/api/admin/webhook-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const logs = await getWebhookLogs(limit, offset);
+      res.json(logs);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching webhook logs" });
+    }
+  });
+
+  app.post("/api/admin/retry-failed-jobs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const retried = await retryFailedWebhooks();
+      res.json({ message: `Retried ${retried} failed webhooks` });
+    } catch (err) {
+      res.status(500).json({ message: "Error retrying failed webhooks" });
+    }
+  });
+
+  // =========== Creator Profile (Username) ===========
+
+  app.patch("/api/profile/username", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { username } = req.body;
+      if (!username || typeof username !== "string") return res.status(400).json({ message: "Username required" });
+      const clean = username.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30);
+      if (clean.length < 3) return res.status(400).json({ message: "Username must be at least 3 characters" });
+      const existing = await storage.getUserByUsername(clean);
+      if (existing && existing.id !== user.id) return res.status(409).json({ message: "Username already taken" });
+      const updated = await storage.updateUserProfile(user.id, { username: clean } as any);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: "Error updating username" });
+    }
+  });
+
+  app.get("/api/creator/:username", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) return res.status(404).json({ message: "Creator not found" });
+      const publishedProjects = await storage.getUserProjects(user.id);
+      const published = publishedProjects.filter((p: any) => p.status === "published");
+      const followerCount = await storage.getFollowerCount(user.id);
+      const followingCount = await storage.getFollowingCount(user.id);
+      res.json({
+        id: user.id,
+        name: user.name,
+        username: (user as any).username,
+        avatar: user.avatar,
+        coverImage: user.coverImage,
+        bio: user.bio,
+        tagline: user.tagline,
+        creatorClass: user.creatorClass,
+        xp: user.xp,
+        level: user.level,
+        socialLinks: user.socialLinks,
+        followerCount,
+        followingCount,
+        publishedWorks: published.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          thumbnail: p.thumbnail,
+          createdAt: p.createdAt,
+        })),
+        joinedAt: user.createdAt,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching creator profile" });
+    }
+  });
+
+  // =========== School/District Payment ===========
+
+  app.post("/api/stripe/school-checkout", isAuthenticated, isTeacherOrAdmin, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { priceId, seats } = req.body;
+      if (!priceId) return res.status(400).json({ message: "Price ID required" });
+      const session = await stripeService.createCheckoutSession(
+        user.id,
+        user.email,
+        priceId,
+        `${req.protocol}://${req.get("host")}/teacher?session_id={CHECKOUT_SESSION_ID}`,
+        `${req.protocol}://${req.get("host")}/pricing`
+      );
+      res.json({ url: session.url });
+    } catch (err) {
+      res.status(500).json({ message: "Error creating school checkout" });
+    }
+  });
+
+  app.post("/api/stripe/district-inquiry", async (req, res) => {
+    try {
+      const { name, email, district, studentCount, notes } = req.body;
+      if (!name || !email || !district) return res.status(400).json({ message: "Name, email, and district required" });
+      await auditAdmin("district_inquiry", req as any, "district", district);
+      res.json({ message: "District inquiry submitted. Our team will contact you within 2 business days." });
+    } catch (err) {
+      res.status(500).json({ message: "Error submitting district inquiry" });
+    }
+  });
+
+  // =========== Teacher Dashboard Enhanced ===========
+
+  app.get("/api/teacher/student-projects", isAuthenticated, isTeacherOrAdmin, async (req, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      if (!schoolId) return res.status(400).json({ message: "School ID required" });
+      const studentsList = await storage.getTeacherStudents((req.user as any).id, schoolId);
+      const allProjects: any[] = [];
+      for (const student of studentsList) {
+        const studentProjects = await storage.getUserProjects(student.id);
+        studentProjects.forEach((p: any) => {
+          allProjects.push({
+            ...p,
+            studentName: student.name,
+            studentAvatar: student.avatar,
+          });
+        });
+      }
+      res.json(allProjects);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching student projects" });
+    }
+  });
+
+  app.get("/api/teacher/analytics", isAuthenticated, isTeacherOrAdmin, async (req, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      if (!schoolId) return res.status(400).json({ message: "School ID required" });
+      const studentsList = await storage.getTeacherStudents((req.user as any).id, schoolId);
+      let totalXp = 0;
+      let totalMinutes = 0;
+      let activeToday = 0;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const toolUsage: Record<string, number> = {};
+
+      for (const student of studentsList) {
+        totalXp += student.xp || 0;
+        totalMinutes += student.totalMinutes || 0;
+        if (student.lastActiveAt && new Date(student.lastActiveAt) >= today) {
+          activeToday++;
+        }
+        const studentProjects = await storage.getUserProjects(student.id);
+        studentProjects.forEach((p: any) => {
+          toolUsage[p.type] = (toolUsage[p.type] || 0) + 1;
+        });
+      }
+
+      const topStudents = [...studentsList]
+        .sort((a: any, b: any) => (b.xp || 0) - (a.xp || 0))
+        .slice(0, 10)
+        .map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          avatar: s.avatar,
+          xp: s.xp || 0,
+          level: s.level || 1,
+        }));
+
+      res.json({
+        totalStudents: studentsList.length,
+        totalXp,
+        totalMinutes,
+        activeToday,
+        topStudents,
+        toolUsage,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching teacher analytics" });
+    }
+  });
+
+  app.get("/api/student/active-assignments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const assignments = await storage.getStudentActiveAssignments(user.id);
+      res.json(assignments);
+    } catch (err) {
+      res.status(500).json({ message: "Error fetching active assignments" });
+    }
+  });
+
+  // =========== API v1: External Export Endpoints ===========
+
+  app.get("/api/v1/projects", isApiAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).apiUser?.id;
+      if (!userId) return res.status(401).json({ error: "User not found" });
+      const userProjects = await storage.getUserProjects(userId);
+      res.json({
+        projects: userProjects.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          status: p.status,
+          thumbnail: p.thumbnail,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Error fetching projects" });
+    }
+  });
+
+  app.get("/api/v1/projects/:id", isApiAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const userId = (req as any).apiUser?.id;
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      res.json({ project });
+    } catch (err) {
+      res.status(500).json({ error: "Error fetching project" });
+    }
+  });
+
+  app.get("/api/v1/projects/:id/export", isApiAuthenticated, async (req, res) => {
+    try {
+      const format = (req.query.format as string) || "scene-json";
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const userId = (req as any).apiUser?.id;
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      const exportData = await getProjectExportData(req.params.id, format);
+      if (!exportData) return res.status(404).json({ error: "Export data not found" });
+      res.json(exportData);
+    } catch (err) {
+      res.status(500).json({ error: "Error generating export" });
+    }
+  });
+
+  app.get("/api/v1/assets/:id", isApiAuthenticated, async (req, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id);
+      if (!asset) return res.status(404).json({ error: "Asset not found" });
+      res.json({ asset });
+    } catch (err) {
+      res.status(500).json({ error: "Error fetching asset" });
+    }
+  });
+
+  app.post("/api/v1/projects/:id/publish", isApiAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const userId = (req as any).apiUser?.id;
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const job = await createExportJob(project.id, userId, {
+        format: "bundle",
+        publishToStreaming: true,
+        sendToLms: user.accountType === "student",
+      });
+      res.json({ exportJob: job });
+    } catch (err) {
+      res.status(500).json({ error: "Error publishing project" });
+    }
+  });
+
+  // Start webhook retry worker
+  startWebhookRetryWorker();
 
   return server;
 }
