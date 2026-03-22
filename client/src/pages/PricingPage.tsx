@@ -64,6 +64,7 @@ const TIERS = [
       "1 GB storage",
       "Export with watermark removal",
       "Starter asset packs",
+      "PressPlays / FX Studio included",
     ],
   },
   {
@@ -84,6 +85,7 @@ const TIERS = [
       "Commercial license",
       "Priority rendering",
       "Expanded asset library",
+      "PressPlays / FX Studio included",
     ],
   },
   {
@@ -102,6 +104,7 @@ const TIERS = [
       "Early access features",
       "API / plugin access",
       "Advanced workflow tools",
+      "PressPlays / FX Studio included",
     ],
   },
 ];
@@ -344,6 +347,7 @@ export default function PricingPage() {
                 <div className="flex flex-wrap gap-x-6 gap-y-1">
                   {[
                     "Lifetime Pro access",
+                    "PressPlays / FX Studio included",
                     "Founders badge",
                     "Early feature access",
                     "Exclusive asset drops",

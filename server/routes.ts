@@ -1494,6 +1494,38 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.get("/api/ecosystem/subscription-check", async (req, res) => {
+    try {
+      const apiKey = req.headers["x-api-key"];
+      if (!apiKey || apiKey !== process.env.PSLMS_API_KEY) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const email = (req.query.email as string || "").toLowerCase().trim();
+      if (!email) return res.status(400).json({ message: "email required" });
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.status(404).json({ message: "User not found", hasSubscription: false });
+
+      const subscription = await storage.getUserSubscription(user.id);
+      const tier = subscription?.tier || "free";
+      const hasActiveSubscription = tier !== "free" && subscription?.status === "active";
+
+      const { level, title: levelTitle } = getLevelFromXp(user.xp || 0);
+
+      res.json({
+        hasSubscription: hasActiveSubscription,
+        tier,
+        status: subscription?.status || "none",
+        xp: user.xp || 0,
+        level,
+        levelTitle,
+        totalMinutes: user.totalMinutes || 0,
+        pressplaysAccess: hasActiveSubscription,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/ecosystem/xp", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
