@@ -342,6 +342,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  const [replaceImageLayerId, setReplaceImageLayerId] = useState<string | null>(null);
   const [showGuides, setShowGuides] = useState(false);
 
   const historyRef = useRef<CoverData[]>([]);
@@ -788,7 +789,13 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
   const handleAssetSelected = (asset: AssetItem) => {
     const view = activeView === "spread" ? "front" : activeView;
-    addImageLayer(view, asset);
+    if (replaceImageLayerId) {
+      updateImageLayer(view, replaceImageLayerId, { url: asset.url, name: asset.name });
+      setReplaceImageLayerId(null);
+      toast.success(`Replaced image with "${asset.name}"`);
+    } else {
+      addImageLayer(view, asset);
+    }
     setShowAssetBrowser(false);
   };
 
@@ -1760,6 +1767,71 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                     </div>
                   </div>
                 )}
+                {(() => {
+                  if (!selectedLayerId) return null;
+                  const selImgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+                  const selImg = selImgLayers.find(l => l.id === selectedLayerId);
+                  if (!selImg) return null;
+                  return (
+                    <div className="pt-3 border-t border-zinc-700 space-y-3" data-testid="image-layer-properties">
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">Image Layer Properties</label>
+                      <div className="flex items-center gap-2">
+                        <img src={selImg.url} alt={selImg.name} className="w-10 h-10 object-contain bg-zinc-900 border border-zinc-700" />
+                        <span className="text-xs text-zinc-300 truncate flex-1">{selImg.name}</span>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 flex justify-between"><span>Opacity</span><span>{Math.round((selImg.opacity ?? 1) * 100)}%</span></label>
+                        <input type="range" min="0" max="1" step="0.05" value={selImg.opacity ?? 1}
+                          onChange={(e) => updateImageLayer(viewKey, selImg.id, { opacity: Number(e.target.value) })} className="w-full h-1.5 accent-violet-500" data-testid="layer-image-opacity" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-zinc-500">X</label>
+                          <input type="number" value={Math.round(selImg.transform.x)} onChange={(e) => updateImageLayer(viewKey, selImg.id, { transform: { ...selImg.transform, x: Number(e.target.value) } })}
+                            className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="layer-image-x" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-500">Y</label>
+                          <input type="number" value={Math.round(selImg.transform.y)} onChange={(e) => updateImageLayer(viewKey, selImg.id, { transform: { ...selImg.transform, y: Number(e.target.value) } })}
+                            className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="layer-image-y" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-500">Width</label>
+                          <input type="number" value={Math.round(selImg.transform.width)} onChange={(e) => updateImageLayer(viewKey, selImg.id, { transform: { ...selImg.transform, width: Number(e.target.value) } })}
+                            className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="layer-image-width" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-500">Height</label>
+                          <input type="number" value={Math.round(selImg.transform.height)} onChange={(e) => updateImageLayer(viewKey, selImg.id, { transform: { ...selImg.transform, height: Number(e.target.value) } })}
+                            className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="layer-image-height" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 flex justify-between"><span>Rotation</span><span>{selImg.transform.rotation || 0}°</span></label>
+                        <input type="range" min="0" max="360" step="1" value={selImg.transform.rotation || 0}
+                          onChange={(e) => updateImageLayer(viewKey, selImg.id, { transform: { ...selImg.transform, rotation: Number(e.target.value) } })} className="w-full h-1.5 accent-violet-500" data-testid="layer-image-rotation" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateImageLayer(viewKey, selImg.id, { locked: !selImg.locked })}
+                          className={`flex-1 py-1.5 text-xs border flex items-center justify-center gap-1 ${selImg.locked ? "bg-amber-900/30 border-amber-600 text-amber-400" : "bg-zinc-800 border-zinc-600 hover:bg-zinc-700"}`}
+                          data-testid="layer-image-lock">
+                          {selImg.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                          {selImg.locked ? "Locked" : "Unlocked"}
+                        </button>
+                        <button onClick={() => { setReplaceImageLayerId(selImg.id); setShowAssetBrowser(true); }}
+                          className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1"
+                          data-testid="layer-image-replace">
+                          <ImageIcon className="w-3 h-3" /> Replace
+                        </button>
+                        <button onClick={() => deleteImageLayer(viewKey, selImg.id)}
+                          className="py-1.5 px-2 text-xs bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 flex items-center justify-center"
+                          data-testid="layer-image-delete">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="pt-3 border-t border-zinc-700 space-y-2">
                   <label className="text-[10px] font-bold uppercase text-zinc-500">Add Layer</label>
                   <div className="flex gap-2">
@@ -1916,7 +1988,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
         </div>
       )}
 
-      <AssetBrowser isOpen={showAssetBrowser} onClose={() => setShowAssetBrowser(false)} onSelectAsset={handleAssetSelected} mode="insert" />
+      <AssetBrowser isOpen={showAssetBrowser} onClose={() => { setShowAssetBrowser(false); setReplaceImageLayerId(null); }} onSelectAsset={handleAssetSelected} mode="insert" />
     </div>
   );
 }
