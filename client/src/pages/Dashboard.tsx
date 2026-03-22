@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
+import { XPWidget } from "@/components/XPWidget";
 import {
   Dialog,
   DialogContent,
@@ -116,7 +117,7 @@ export default function Dashboard() {
       {!onboardingComplete && <OnboardingWizard onComplete={markOnboardingComplete} />}
       <div className="p-8 max-w-7xl mx-auto space-y-12">
         <EventCarousel className="mb-4" variant="dark" />
-        
+
         <div className="flex items-end justify-between border-b border-border pb-6">
           <div>
             <h1 className="text-4xl font-display font-bold uppercase tracking-tighter" data-testid="text-dashboard-title">
@@ -188,6 +189,8 @@ export default function Dashboard() {
             </Dialog>
           </div>
         </div>
+
+        <XPWidget />
 
         <section>
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">

@@ -1,14 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { useState, useEffect } from "react";
 import { 
-  Crown, 
-  Check, 
-  ArrowLeft,
-  Zap,
-  Star,
-  Rocket,
-  Sparkles,
-  ExternalLink
+  Crown, Check, ArrowLeft, Zap, Star, Rocket, Sparkles, ExternalLink, Shield, Trophy
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -39,38 +32,79 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
 }
 
-const tierFeatures: Record<string, string[]> = {
-  free: [
-    "Basic comic creation tools",
-    "5 projects limit",
-    "Standard export quality",
-    "Community access",
-  ],
-  creator: [
-    "Everything in Free",
-    "Unlimited projects",
-    "HD export quality",
-    "Priority support",
-    "Advanced AI assistance",
-    "Custom templates",
-  ],
-  studio: [
-    "Everything in Creator Pro",
-    "4K export quality",
-    "Team collaboration (5 seats)",
-    "White-label exports",
-    "API access",
-    "Dedicated support",
-    "Early feature access",
-  ],
-  lifetime: [
-    "All Studio Pro features",
-    "Lifetime access",
-    "No recurring payments",
-    "Founding member badge",
-    "Priority feature requests",
-  ],
-};
+const TIERS = [
+  {
+    key: "free",
+    name: "Free",
+    price: "$0",
+    interval: "forever",
+    icon: Zap,
+    badge: null,
+    features: [
+      "Basic comic creation tools",
+      "3 projects",
+      "3 AI generations / day",
+      "2 exports / month",
+      "Community access",
+      "XP progression + achievements",
+    ],
+  },
+  {
+    key: "creator",
+    name: "Creator",
+    price: "$9.99",
+    interval: "month",
+    icon: Star,
+    badge: null,
+    features: [
+      "Everything in Free",
+      "20 projects",
+      "50 AI generations / day",
+      "30 exports / month",
+      "1 GB storage",
+      "Export with watermark removal",
+      "Starter asset packs",
+    ],
+  },
+  {
+    key: "pro",
+    name: "Pro",
+    price: "$19.99",
+    interval: "month",
+    icon: Rocket,
+    badge: "Best Value",
+    features: [
+      "Everything in Creator",
+      "100 projects",
+      "200 AI generations / day",
+      "Unlimited exports",
+      "5 GB storage",
+      "No watermark",
+      "Motion comic + animation export",
+      "Commercial license",
+      "Priority rendering",
+      "Expanded asset library",
+    ],
+  },
+  {
+    key: "studio",
+    name: "Studio",
+    price: "$39.99",
+    interval: "month",
+    icon: Crown,
+    badge: null,
+    features: [
+      "Everything in Pro",
+      "Unlimited projects",
+      "Unlimited AI generations",
+      "20 GB storage",
+      "Collaboration tools (coming soon)",
+      "Early access features",
+      "API / plugin access",
+      "Advanced workflow tools",
+    ],
+  },
+];
 
 export default function PricingPage() {
   const { user } = useAuth();
@@ -126,14 +160,33 @@ export default function PricingPage() {
     }
   };
 
-  const formatPrice = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    }).format(amount / 100);
+  const getCurrentTier = () => subscription?.tier || "free";
+
+  const findProductPrice = (tierKey: string): { priceId: string; amount: number } | null => {
+    for (const product of products) {
+      const meta = product.metadata || {};
+      if (meta.tier === tierKey) {
+        const price = product.prices.find(p => p.active);
+        if (price) return { priceId: price.id, amount: price.unit_amount };
+      }
+    }
+    const nameMap: Record<string, string[]> = {
+      creator: ['creator'],
+      pro: ['pro'],
+      studio: ['studio'],
+      lifetime: ['lifetime', 'founder'],
+    };
+    const names = nameMap[tierKey] || [];
+    for (const product of products) {
+      if (names.some(n => product.name.toLowerCase().includes(n))) {
+        const price = product.prices.find(p => p.active);
+        if (price) return { priceId: price.id, amount: price.unit_amount };
+      }
+    }
+    return null;
   };
 
-  const getCurrentTier = () => subscription?.tier || "free";
+  const foundersProduct = findProductPrice('lifetime');
 
   return (
     <Layout>
@@ -162,17 +215,26 @@ export default function PricingPage() {
           )}
         </header>
 
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="max-w-7xl mx-auto p-6 md:p-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              Create. Level Up. Unlock More.
+            </h2>
+            <p className="text-zinc-400 mt-3 max-w-xl mx-auto text-sm">
+              Every plan includes XP progression, achievements, and unlockable content packs. Pick the tier that matches your ambition.
+            </p>
+          </div>
+
           {subscription && subscription.tier !== "free" && (
             <div className="mb-8 p-6 border-4 border-white bg-zinc-900">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="font-black text-xl uppercase">Current Plan: {subscription.tier.toUpperCase()}</h2>
+                  <h2 className="font-black text-xl uppercase" data-testid="text-current-plan">Current Plan: {subscription.tier.toUpperCase()}</h2>
                   <p className="text-zinc-400 mt-1">
                     Status: <span className={subscription.status === "active" ? "text-green-400" : "text-yellow-400"}>{subscription.status}</span>
                     {subscription.currentPeriodEnd && (
                       <span className="ml-2">
-                        • {subscription.cancelAtPeriodEnd ? "Cancels" : "Renews"} on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                        {subscription.cancelAtPeriodEnd ? "Cancels" : "Renews"} on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
                       </span>
                     )}
                   </p>
@@ -189,172 +251,130 @@ export default function PricingPage() {
               <Sparkles className="w-8 h-8 animate-spin" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="border-4 border-white bg-zinc-900 p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-4">
-                  <Zap className="w-6 h-6" />
-                  <h3 className="font-black text-xl uppercase">Free</h3>
-                </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-black">$0</span>
-                  <span className="text-zinc-400 ml-2">/forever</span>
-                </div>
-                <ul className="space-y-3 flex-1">
-                  {tierFeatures.free.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <Check className="w-4 h-4 mt-1 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  disabled={getCurrentTier() === "free"}
-                  className="mt-6 w-full py-3 border-2 border-white font-black uppercase text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:text-black transition-colors"
-                  data-testid="button-free-plan"
-                >
-                  {getCurrentTier() === "free" ? "Current Plan" : "Downgrade"}
-                </button>
-              </div>
-
-              {products.map((product) => {
-                const price = product.prices.find(p => p.active);
-                const isCreatorPro = product.name.toLowerCase().includes("creator");
-                const isStudioPro = product.name.toLowerCase().includes("studio");
-                const tierKey = isCreatorPro ? "creator" : isStudioPro ? "studio" : "creator";
-                const isCurrentPlan = getCurrentTier() === tierKey || (isCreatorPro && getCurrentTier() === "creator") || (isStudioPro && getCurrentTier() === "studio");
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {TIERS.map((tier) => {
+                const isCurrentPlan = getCurrentTier() === tier.key;
+                const productPrice = tier.key !== "free" ? findProductPrice(tier.key) : null;
+                const TierIcon = tier.icon;
+                const isPro = tier.key === "pro";
 
                 return (
-                  <div 
-                    key={product.id} 
-                    className={`border-4 bg-zinc-900 p-6 flex flex-col ${isStudioPro ? "border-white relative" : "border-white"}`}
+                  <div
+                    key={tier.key}
+                    className={`border-4 bg-zinc-900 p-6 flex flex-col relative ${isPro ? "border-green-500" : "border-white"}`}
+                    data-testid={`card-tier-${tier.key}`}
                   >
-                    {isStudioPro && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-black px-3 py-1 text-xs font-black uppercase">
-                        Most Popular
+                    {tier.badge && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-black px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+                        {tier.badge}
                       </div>
                     )}
                     <div className="flex items-center gap-3 mb-4">
-                      {isStudioPro ? <Rocket className="w-6 h-6" /> : <Star className="w-6 h-6" />}
-                      <h3 className="font-black text-xl uppercase">{product.name}</h3>
+                      <TierIcon className="w-5 h-5" />
+                      <h3 className="font-black text-lg uppercase">{tier.name}</h3>
                     </div>
-                    {price && (
-                      <div className="mb-6">
-                        <span className="text-4xl font-black">{formatPrice(price.unit_amount, price.currency)}</span>
-                        <span className="text-zinc-400 ml-2">/{price.recurring?.interval || "month"}</span>
-                      </div>
-                    )}
-                    <p className="text-sm text-zinc-400 mb-4">{product.description}</p>
-                    <ul className="space-y-3 flex-1">
-                      {tierFeatures[tierKey]?.map((feature, i) => (
+                    <div className="mb-5">
+                      <span className="text-3xl font-black">{productPrice ? `$${(productPrice.amount / 100).toFixed(2)}` : tier.price}</span>
+                      <span className="text-zinc-400 ml-1 text-sm">/{tier.interval}</span>
+                    </div>
+                    <ul className="space-y-2.5 flex-1">
+                      {tier.features.map((feature, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 mt-1 flex-shrink-0" />
-                          <span className="text-sm">{feature}</span>
+                          <Check className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isPro ? "text-green-400" : "text-zinc-400"}`} />
+                          <span className="text-xs text-zinc-300">{feature}</span>
                         </li>
                       ))}
                     </ul>
-                    <button
-                      onClick={() => price && handleCheckout(price.id)}
-                      disabled={isCurrentPlan || !price || checkoutLoading === price?.id}
-                      className={`mt-6 w-full py-3 font-black uppercase text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isStudioPro 
-                          ? "bg-white text-black border-2 border-white hover:bg-zinc-200" 
-                          : "border-2 border-white hover:bg-white hover:text-black"
-                      }`}
-                      data-testid={`button-${tierKey}-plan`}
-                    >
-                      {checkoutLoading === price?.id ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <Sparkles className="w-4 h-4 animate-spin" />
-                          Loading...
-                        </span>
-                      ) : isCurrentPlan ? (
-                        "Current Plan"
-                      ) : (
-                        "Upgrade Now"
-                      )}
-                    </button>
+                    {tier.key === "free" ? (
+                      <button
+                        disabled={isCurrentPlan}
+                        className="mt-5 w-full py-3 border-2 border-white font-black uppercase text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:text-black transition-colors"
+                        data-testid="button-free-plan"
+                      >
+                        {isCurrentPlan ? "Current Plan" : "Free Forever"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => productPrice && handleCheckout(productPrice.priceId)}
+                        disabled={isCurrentPlan || !productPrice || checkoutLoading === productPrice?.priceId}
+                        className={`mt-5 w-full py-3 font-black uppercase text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isPro
+                            ? "bg-green-500 text-black border-2 border-green-500 hover:bg-green-400"
+                            : "border-2 border-white hover:bg-white hover:text-black"
+                        }`}
+                        data-testid={`button-${tier.key}-plan`}
+                      >
+                        {checkoutLoading === productPrice?.priceId ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Sparkles className="w-4 h-4 animate-spin" />
+                            Loading...
+                          </span>
+                        ) : isCurrentPlan ? (
+                          "Current Plan"
+                        ) : !productPrice ? (
+                          "Coming Soon"
+                        ) : (
+                          "Get Started"
+                        )}
+                      </button>
+                    )}
                   </div>
                 );
               })}
-
-              {products.length === 0 && (
-                <>
-                  <div className="border-4 border-white bg-zinc-900 p-6 flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Star className="w-6 h-6" />
-                      <h3 className="font-black text-xl uppercase">Creator Pro</h3>
-                    </div>
-                    <div className="mb-6">
-                      <span className="text-4xl font-black">$19.99</span>
-                      <span className="text-zinc-400 ml-2">/month</span>
-                    </div>
-                    <ul className="space-y-3 flex-1">
-                      {tierFeatures.creator.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 mt-1 flex-shrink-0" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      disabled
-                      className="mt-6 w-full py-3 border-2 border-white font-black uppercase text-sm opacity-50 cursor-not-allowed"
-                      data-testid="button-creator-plan-pending"
-                    >
-                      Coming Soon
-                    </button>
-                  </div>
-                  <div className="border-4 border-white bg-zinc-900 p-6 flex flex-col relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-black px-3 py-1 text-xs font-black uppercase">
-                      Most Popular
-                    </div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <Rocket className="w-6 h-6" />
-                      <h3 className="font-black text-xl uppercase">Studio Pro</h3>
-                    </div>
-                    <div className="mb-6">
-                      <span className="text-4xl font-black">$49.99</span>
-                      <span className="text-zinc-400 ml-2">/month</span>
-                    </div>
-                    <ul className="space-y-3 flex-1">
-                      {tierFeatures.studio.map((feature, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 mt-1 flex-shrink-0" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      disabled
-                      className="mt-6 w-full py-3 bg-white text-black border-2 border-white font-black uppercase text-sm opacity-50 cursor-not-allowed"
-                      data-testid="button-studio-plan-pending"
-                    >
-                      Coming Soon
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
           )}
 
-          <div className="mt-12 p-6 border-4 border-white bg-zinc-900">
-            <div className="flex items-center gap-3 mb-4">
-              <Crown className="w-6 h-6" />
-              <h3 className="font-black text-xl uppercase">Lifetime License</h3>
+          <div className="mt-8 p-6 border-4 border-amber-500 bg-zinc-900 relative">
+            <div className="absolute -top-3 left-6 bg-amber-500 text-black px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+              Limited Drop
             </div>
-            <p className="text-zinc-400 mb-4">
-              Get lifetime access to all features with a one-time payment. Available exclusively through AppSumo deals.
-            </p>
-            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-              {tierFeatures.lifetime.map((feature, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <Check className="w-4 h-4 mt-1 flex-shrink-0" />
-                  <span className="text-sm">{feature}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm text-zinc-500">
-              Have an AppSumo code? Redeem it in your Settings page.
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <Trophy className="w-6 h-6 text-amber-400" />
+                  <h3 className="font-black text-xl uppercase">Founders Pass</h3>
+                  <span className="text-3xl font-black text-amber-400 ml-auto md:ml-4">
+                    {foundersProduct ? `$${(foundersProduct.amount / 100).toFixed(0)}` : "$199"}
+                  </span>
+                  <span className="text-zinc-400 text-sm">one-time</span>
+                </div>
+                <p className="text-zinc-400 text-sm mb-3">
+                  Lifetime Pro access for early believers. Limited to first 300 users.
+                </p>
+                <div className="flex flex-wrap gap-x-6 gap-y-1">
+                  {[
+                    "Lifetime Pro access",
+                    "Founders badge",
+                    "Early feature access",
+                    "Exclusive asset drops",
+                    "No recurring payments",
+                    "Priority feature requests",
+                  ].map((f, i) => (
+                    <span key={i} className="flex items-center gap-1.5 text-xs text-zinc-300">
+                      <Check className="w-3 h-3 text-amber-400" />{f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => foundersProduct && handleCheckout(foundersProduct.priceId)}
+                disabled={getCurrentTier() === "lifetime" || !foundersProduct || checkoutLoading === foundersProduct?.priceId}
+                className="px-8 py-3 bg-amber-500 text-black font-black uppercase text-sm hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                data-testid="button-founders-plan"
+              >
+                {getCurrentTier() === "lifetime" ? "You're a Founder" : !foundersProduct ? "Coming Soon" : "Claim Founders Pass"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 p-6 border-4 border-zinc-700 bg-zinc-900">
+            <div className="flex items-center gap-3 mb-4">
+              <Shield className="w-5 h-5 text-zinc-400" />
+              <h3 className="font-black uppercase text-sm text-zinc-400">Earn XP on Every Plan</h3>
+            </div>
+            <p className="text-zinc-500 text-sm">
+              Every user earns XP by creating, publishing, and engaging. Level up to unlock free content packs, bonus AI credits, 
+              achievement badges, and exclusive rewards. Your subscription controls your access level. XP controls your progression.
             </p>
           </div>
         </div>

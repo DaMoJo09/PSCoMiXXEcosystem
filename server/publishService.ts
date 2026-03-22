@@ -4,6 +4,7 @@ import { exportJobs, type ExportJob } from "@shared/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { buildPSContentBundle, runPublishPipeline } from "./publishPipeline";
 import { dispatchWebhook } from "./webhookService";
+import { processProgressionEvent } from "./progressionEngine";
 
 const PSLMS_API_KEY = process.env.PSLMS_API_KEY || "";
 const PSLMS_API_URL = process.env.PSLMS_API_URL || "https://pressstart.tech";
@@ -113,6 +114,8 @@ async function processExportJob(jobId: string): Promise<void> {
         completedAt: new Date(),
       })
       .where(eq(exportJobs.id, jobId));
+
+    processProgressionEvent(job.userId, "export_completed", job.projectId, "project").catch(() => {});
   } catch (error: any) {
     await db
       .update(exportJobs)

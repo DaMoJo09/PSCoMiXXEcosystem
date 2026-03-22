@@ -60,6 +60,8 @@ import AdminModeration from "@/pages/AdminModeration";
 import AdminControlRoom from "@/pages/AdminControlRoom";
 import AdminReviewQueue from "@/pages/AdminReviewQueue";
 import PricingPage from "@/pages/PricingPage";
+import AchievementsPage from "@/pages/AchievementsPage";
+import RewardsPage from "@/pages/RewardsPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import CommunityLibrary from "@/pages/CommunityLibrary";
 import ComicReader from "@/pages/ComicReader";
@@ -175,6 +177,8 @@ function ProtectedRouter() {
         <Route path="/admin/review-queue" component={AdminReviewQueue} />
         <Route path="/analytics" component={AnalyticsDashboard} />
         <Route path="/pricing" component={PricingPage} />
+        <Route path="/achievements" component={AchievementsPage} />
+        <Route path="/rewards" component={RewardsPage} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />
         <Route path="/ecosystem/learn" component={LearnModule} />

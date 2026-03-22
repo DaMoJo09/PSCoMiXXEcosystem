@@ -21,6 +21,8 @@ import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification } from "./email";
+import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
+import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable } from "@shared/schema";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -403,27 +405,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Each heartbeat = 1 minute of activity = 10 XP
   const XP_PER_MINUTE = 10;
 
-  function xpThresholdForLevel(level: number): number {
-    return (level * (level - 1)) / 2 * 1000;
-  }
-
-  function getLevelFromXp(xp: number): number {
-    let level = 1;
-    while (xpThresholdForLevel(level + 1) <= xp) {
-      level++;
-    }
-    return level;
-  }
-
-  function xpNeededForNextLevel(level: number): number {
-    return level * 1000;
-  }
-
-  const ACTION_XP: Record<string, number> = {
-    save: 25,
-    export: 50,
-    generate: 15,
-    publish: 100,
+  const ACTION_KEY_MAP: Record<string, string> = {
+    save: "save",
+    export: "export_completed",
+    generate: "ai_generation",
+    publish: "publish",
   };
   const actionCooldowns = new Map<string, number>();
 
@@ -483,7 +469,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const xpGained = minutesToCredit * XP_PER_MINUTE;
       const newXp = (user.xp || 0) + xpGained;
       const newTotalMinutes = (user.totalMinutes || 0) + minutesToCredit;
-      const newLevel = getLevelFromXp(newXp);
+      const { level: newLevel, title: levelTitle } = getLevelFromXp(newXp);
 
       await storage.updateUserProfile(userId, {
         xp: newXp,
@@ -495,7 +481,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       forwardXpToStreaming(user.email, minutesToCredit, xpGained);
 
-      res.json({ xp: newXp, level: newLevel, totalMinutes: newTotalMinutes, xpGained });
+      res.json({ xp: newXp, level: newLevel, levelTitle, totalMinutes: newTotalMinutes, xpGained });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -504,12 +490,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.post("/api/xp/action", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const { action } = req.body;
-      if (!action || !ACTION_XP[action]) {
+      const { action, referenceId, referenceType } = req.body;
+      
+      const validActions = ['save', 'export', 'generate', 'publish', 'project_created', 'export_completed', 
+        'ai_generation', 'profile_complete', 'first_login', 'daily_login', 'lesson_complete', 
+        'assignment_complete', 'challenge_participation', 'first_share', 'subscription_started'];
+      if (!action || !validActions.includes(action)) {
         return res.status(400).json({ message: "Invalid action type" });
       }
 
-      const cooldownKey = `${userId}:${action}`;
+      const normalizedAction = ACTION_KEY_MAP[action] || action;
+
+      const cooldownKey = `${userId}:${normalizedAction}`;
       const lastAction = actionCooldowns.get(cooldownKey) || 0;
       const now = Date.now();
       if (now - lastAction < 10000) {
@@ -517,21 +509,21 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       actionCooldowns.set(cooldownKey, now);
 
+      const result = await processProgressionEvent(userId, normalizedAction, referenceId, referenceType);
+      
       const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ message: "User not found" });
+      if (user) forwardXpToStreaming(user.email, 0, result.xpAwarded);
 
-      const xpGained = ACTION_XP[action];
-      const newXp = (user.xp || 0) + xpGained;
-      const newLevel = getLevelFromXp(newXp);
-
-      await storage.updateUserProfile(userId, {
-        xp: newXp,
-        level: newLevel,
-      } as any);
-
-      forwardXpToStreaming(user.email, 0, xpGained);
-
-      res.json({ xp: newXp, level: newLevel, xpGained, action });
+      res.json({
+        xp: result.newXp,
+        level: result.newLevel,
+        xpGained: result.xpAwarded,
+        action,
+        leveledUp: result.leveledUp,
+        levelTitle: result.levelTitle,
+        achievementsUnlocked: result.achievementsUnlocked,
+        rewardsUnlocked: result.rewardsUnlocked,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -542,17 +534,189 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const user = await storage.getUser(req.user!.id);
       if (!user) return res.status(404).json({ message: "User not found" });
       const xp = user.xp || 0;
-      const level = getLevelFromXp(xp);
-      const currentLevelThreshold = xpThresholdForLevel(level);
-      const needed = xpNeededForNextLevel(level);
-      const xpInCurrentLevel = xp - currentLevelThreshold;
+      const { level, title: levelTitle } = getLevelFromXp(xp);
+      const { current: currentThreshold, needed: nextThreshold } = getXpForNextLevel(level);
+      const xpInCurrentLevel = xp - currentThreshold;
+      const xpForNextLevel = nextThreshold - currentThreshold;
       res.json({
         xp,
         level,
+        levelTitle,
         totalMinutes: user.totalMinutes || 0,
         accountType: user.accountType,
-        xpForNextLevel: needed,
+        xpForNextLevel,
         xpInCurrentLevel,
+        xpProgress: xpForNextLevel > 0 ? Math.min(xpInCurrentLevel / xpForNextLevel, 1) : 1,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/xp/levels", async (_req, res) => {
+    try {
+      res.json(getLevelThresholds());
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/achievements", isAuthenticated, async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      const allAchievements = await db.select().from(achievements).where(eq(achievements.isActive, true));
+      const userEarned = await db.select().from(userAchievements).where(eq(userAchievements.userId, req.user!.id));
+      const earnedMap = new Map(userEarned.map(e => [e.achievementId, e]));
+
+      const result = allAchievements.map(a => ({
+        ...a,
+        earned: earnedMap.has(a.id),
+        earnedAt: earnedMap.get(a.id)?.earnedAt || null,
+        claimedAt: earnedMap.get(a.id)?.claimedAt || null,
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/rewards", isAuthenticated, async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      const allRewards = await db.select().from(rewards).where(eq(rewards.isActive, true));
+      const userRewardsList = await db.select().from(userRewards).where(eq(userRewards.userId, req.user!.id));
+      const rewardMap = new Map(userRewardsList.map(r => [r.rewardId, r]));
+
+      const user = await storage.getUser(req.user!.id);
+      const xp = user?.xp || 0;
+      const { level } = getLevelFromXp(xp);
+
+      const result = allRewards.map(r => {
+        const userReward = rewardMap.get(r.id);
+        const config = r.unlockConfig as any;
+        let progress = 0;
+        let requirement = '';
+        
+        if (r.unlockType === 'level') {
+          progress = Math.min(level / (config.level || 1), 1);
+          requirement = `Reach Level ${config.level}`;
+        } else if (r.unlockType === 'xp_total') {
+          progress = Math.min(xp / (config.xp || 1), 1);
+          requirement = `Earn ${config.xp} XP`;
+        } else if (r.unlockType === 'achievement') {
+          requirement = `Earn achievement: ${config.achievementKey}`;
+          progress = userReward ? 1 : 0;
+        }
+
+        return {
+          ...r,
+          unlocked: !!userReward,
+          status: userReward?.status || 'locked',
+          unlockedAt: userReward?.unlockedAt || null,
+          claimedAt: userReward?.claimedAt || null,
+          progress,
+          requirement,
+        };
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/progression/rewards/:rewardId/claim", isAuthenticated, async (req, res) => {
+    try {
+      const success = await claimReward(req.user!.id, req.params.rewardId);
+      if (!success) {
+        return res.status(400).json({ message: "Reward not available for claiming" });
+      }
+      res.json({ success: true, message: "Reward claimed!" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/content-packs", isAuthenticated, async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      const packs = await db.select().from(contentPacks).where(eq(contentPacks.isActive, true));
+      const entitlements = await db.select().from(userEntitlements)
+        .where(eq(userEntitlements.userId, req.user!.id));
+      const entitledKeys = new Set(entitlements.filter(e => e.entitlementType === 'content_pack').map(e => e.entitlementKey));
+
+      const result = packs.map(p => ({
+        ...p,
+        owned: entitledKeys.has(p.key),
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const { eq, desc } = await import('drizzle-orm');
+      const notifications = await db.select().from(progressionNotifications)
+        .where(eq(progressionNotifications.userId, req.user!.id))
+        .orderBy(desc(progressionNotifications.createdAt))
+        .limit(50);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/progression/notifications/read-all", isAuthenticated, async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      await db.update(progressionNotifications)
+        .set({ isRead: true })
+        .where(eq(progressionNotifications.userId, req.user!.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/summary", isAuthenticated, async (req, res) => {
+    try {
+      const { eq, and } = await import('drizzle-orm');
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const xp = user.xp || 0;
+      const { level, title: levelTitle } = getLevelFromXp(xp);
+      const { current: currentThreshold, needed: nextThreshold } = getXpForNextLevel(level);
+
+      const earnedAchievements = await db.select().from(userAchievements)
+        .where(eq(userAchievements.userId, req.user!.id));
+      const totalAchievements = await db.select().from(achievements)
+        .where(eq(achievements.isActive, true));
+      const unlockedRewards = await db.select().from(userRewards)
+        .where(eq(userRewards.userId, req.user!.id));
+      const claimable = unlockedRewards.filter(r => r.status === 'unlocked').length;
+      const unreadNotifs = await db.execute(
+        sql`SELECT COUNT(*) as cnt FROM progression_notifications WHERE user_id = ${req.user!.id} AND is_read = false`
+      );
+
+      res.json({
+        xp,
+        level,
+        levelTitle,
+        xpInCurrentLevel: xp - currentThreshold,
+        xpForNextLevel: nextThreshold - currentThreshold,
+        xpProgress: (nextThreshold - currentThreshold) > 0 ? Math.min((xp - currentThreshold) / (nextThreshold - currentThreshold), 1) : 1,
+        achievementsEarned: earnedAchievements.length,
+        achievementsTotal: totalAchievements.length,
+        rewardsUnlocked: unlockedRewards.length,
+        rewardsClaimable: claimable,
+        unreadNotifications: Number((unreadNotifs.rows[0] as any)?.cnt || 0),
+        totalMinutes: user.totalMinutes || 0,
+        accountType: user.accountType,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -769,6 +933,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const project = await storage.createProject(result.data);
+      processProgressionEvent(req.user!.id, "project_created", project.id, "project").catch(() => {});
       res.status(201).json(project);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -4672,6 +4837,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!result.success) {
         return res.status(400).json({ message: result.error });
       }
+      processProgressionEvent(req.user!.id, "publish", project.id, "project").catch(() => {});
       res.json({ jobId: result.jobId, message: "Publishing pipeline started" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -5650,6 +5816,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
           const text = await response.text();
           await storage.incrementUsage(userId, "ai_generation", "daily", getTodayKey());
+          processProgressionEvent(userId, "ai_generation", undefined, "ai").catch(() => {});
           logAuditEvent("ai_generation", { req, userId, resourceType: "ai_text", metadata: { promptLength: sanitizedPrompt.length, accountType: req.user?.accountType, status: "success" } });
           return res.json({ text });
         } catch (err: any) {

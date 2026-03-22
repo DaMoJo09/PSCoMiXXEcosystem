@@ -45,7 +45,9 @@ import {
   WifiOff,
   Printer,
   FileDown,
-  Package
+  Package,
+  Gift,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -104,6 +106,8 @@ const ecosystemToolsBase = [
   { icon: Rocket, label: "Publish", href: "/ecosystem/publish", studentOk: true },
   { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate", studentOk: true },
   { icon: Trophy, label: "Events", href: "/ecosystem/events", studentOk: true },
+  { icon: Target, label: "Achievements", href: "/achievements", studentOk: true },
+  { icon: Gift, label: "Rewards", href: "/rewards", studentOk: true },
   { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false },
   { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true },
 ];
@@ -118,20 +122,20 @@ const socialTools = [
   { icon: Search, label: "Find Creators", href: "/social/search" },
 ];
 
-function xpForLevel(level: number): number {
-  return level * 1000;
-}
+function useXpStatus() {
+  const [xpData, setXpData] = useState<{
+    xp: number; level: number; levelTitle: string;
+    xpInCurrentLevel: number; xpForNextLevel: number; xpProgress: number;
+  } | null>(null);
 
-function totalXpForLevel(level: number): number {
-  return (level * (level - 1)) / 2 * 1000;
-}
+  useEffect(() => {
+    fetch("/api/xp/status", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(setXpData)
+      .catch(() => {});
+  }, []);
 
-function getLevel(xp: number): number {
-  let level = 1;
-  while (totalXpForLevel(level + 1) <= xp) {
-    level++;
-  }
-  return level;
+  return xpData;
 }
 
 function useInstallPrompt() {
@@ -232,11 +236,13 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { enabled: aiToolsEnabled } = useFeatureFlag("ai_tools_enabled");
   const { enabled: communityEnabled } = useFeatureFlag("community_enabled");
   const { enabled: motionStudioEnabled } = useFeatureFlag("motion_studio_enabled");
-  const xp = user?.xp || 0;
-  const level = getLevel(xp);
-  const xpNeeded = xpForLevel(level);
-  const xpInLevel = xp - totalXpForLevel(level);
-  const xpProgress = xpNeeded > 0 ? Math.min((xpInLevel / xpNeeded) * 100, 100) : 0;
+  const xpStatus = useXpStatus();
+  const xp = xpStatus?.xp ?? (user?.xp || 0);
+  const level = xpStatus?.level ?? (user?.level || 1);
+  const levelTitle = xpStatus?.levelTitle ?? "";
+  const xpInLevel = xpStatus?.xpInCurrentLevel ?? 0;
+  const xpNeeded = xpStatus?.xpForNextLevel ?? 1000;
+  const xpProgress = xpStatus ? Math.round(xpStatus.xpProgress * 100) : 0;
 
   const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean }, matchPrefix = false) => {
     const isExternal = (item as any).external;

@@ -273,6 +273,9 @@ app.use((req, res, next) => {
 (async () => {
   await initStripe();
   await seedFeatureFlags();
+
+  const { seedProgressionData } = await import('./progressionEngine');
+  await seedProgressionData();
   
   await registerRoutes(httpServer, app);
 

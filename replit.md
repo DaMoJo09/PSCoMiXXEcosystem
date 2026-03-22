@@ -39,7 +39,7 @@ Supports Free, Creator, Pro, Studio, Lifetime, and School subscription tiers wit
 Projects progress through draft, review, and publication stages, conforming to the PS Content Bundle v1 format, handling validation, bundling, saving, synchronization, version tracking, and admin review.
 
 ### XP & Account System
-Supports Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling based on time and action-based rewards.
+Supports Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling based on time and action-based rewards. The progression engine (`server/progressionEngine.ts`) manages 30 levels with named thresholds, 15 achievements, 5 content packs, and 6 rewards. Progression events fire automatically on project creation, publishing, export completion, and AI generation. The sidebar and dashboard XP widget both pull live data from `/api/xp/status` and `/api/progression/summary`. Action keys are normalized (legacy `export`/`generate` map to `export_completed`/`ai_generation`) to match the engine's XP_VALUES. Pages: `/achievements` (AchievementsPage), `/rewards` (RewardsPage).
 
 ### PSLMS Integration
 Integrates with Press Start LMS, allowing students to submit creations and enabling PSLMS to fetch comics via API using a shared secret key and email-based user matching.

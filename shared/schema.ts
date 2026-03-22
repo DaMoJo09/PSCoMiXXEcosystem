@@ -2291,6 +2291,126 @@ export const blockedHashes = pgTable("blocked_hashes", {
 
 export type BlockedHash = typeof blockedHashes.$inferSelect;
 
+// ============================================
+// PROGRESSION SYSTEM
+// ============================================
+
+export const levelThresholds = pgTable("level_thresholds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  level: integer("level").notNull().unique(),
+  xpRequired: integer("xp_required").notNull(),
+  title: text("title"),
+  rewardId: varchar("reward_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type LevelThreshold = typeof levelThresholds.$inferSelect;
+
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  icon: text("icon"),
+  category: text("category").notNull(), // onboarding, creation, streak, membership, collection, community
+  rarity: text("rarity").notNull().default("common"), // common, uncommon, rare, epic, legendary
+  ruleType: text("rule_type").notNull(), // count, threshold, flag, tier
+  ruleConfig: jsonb("rule_config").notNull(), // { action: "project_created", count: 5 }
+  xpReward: integer("xp_reward").default(0),
+  rewardId: varchar("reward_id"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAchievementSchema = createInsertSchema(achievements).omit({ id: true, createdAt: true });
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+
+export const userAchievements = pgTable("user_achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  achievementId: varchar("achievement_id").notNull().references(() => achievements.id, { onDelete: "cascade" }),
+  progressValue: integer("progress_value").default(0),
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
+  claimedAt: timestamp("claimed_at"),
+});
+
+export type UserAchievement = typeof userAchievements.$inferSelect;
+
+export const rewards = pgTable("rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  rewardType: text("reward_type").notNull(), // content_pack, ai_credits, badge, title, template
+  rewardValue: jsonb("reward_value").notNull(), // { packKey: "starter_fx", credits: 25 }
+  unlockType: text("unlock_type").notNull(), // level, achievement, tier, xp_total
+  unlockConfig: jsonb("unlock_config").notNull(), // { level: 5 } or { achievementKey: "pack_hunter" }
+  isClaimable: boolean("is_claimable").default(true),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRewardSchema = createInsertSchema(rewards).omit({ id: true, createdAt: true });
+export type InsertReward = z.infer<typeof insertRewardSchema>;
+export type Reward = typeof rewards.$inferSelect;
+
+export const userRewards = pgTable("user_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rewardId: varchar("reward_id").notNull().references(() => rewards.id, { onDelete: "cascade" }),
+  unlockedAt: timestamp("unlocked_at").defaultNow().notNull(),
+  claimedAt: timestamp("claimed_at"),
+  status: text("status").notNull().default("unlocked"), // unlocked, claimed, expired
+});
+
+export type UserReward = typeof userRewards.$inferSelect;
+
+export const contentPacks = pgTable("content_packs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  packType: text("pack_type").notNull(), // fx, frames, characters, backgrounds, overlays, templates
+  tierRequired: text("tier_required"), // null = free, or creator/pro/studio
+  isXpUnlockable: boolean("is_xp_unlockable").default(false),
+  thumbnail: text("thumbnail"),
+  assets: jsonb("assets"), // array of asset URLs/data
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContentPackSchema = createInsertSchema(contentPacks).omit({ id: true, createdAt: true });
+export type InsertContentPack = z.infer<typeof insertContentPackSchema>;
+export type ContentPack = typeof contentPacks.$inferSelect;
+
+export const userEntitlements = pgTable("user_entitlements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  entitlementType: text("entitlement_type").notNull(), // content_pack, ai_credits, feature
+  entitlementKey: text("entitlement_key").notNull(),
+  sourceType: text("source_type").notNull(), // subscription, reward, achievement, admin, founder
+  sourceReferenceId: varchar("source_reference_id"),
+  grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+});
+
+export type UserEntitlement = typeof userEntitlements.$inferSelect;
+
+export const progressionNotifications = pgTable("progression_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // level_up, achievement, reward, streak
+  title: text("title").notNull(),
+  body: text("body"),
+  isRead: boolean("is_read").default(false),
+  referenceType: text("reference_type"),
+  referenceId: varchar("reference_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ProgressionNotification = typeof progressionNotifications.$inferSelect;
+
 export const tierEntitlementsSchool = {
   school: {
     export: true,

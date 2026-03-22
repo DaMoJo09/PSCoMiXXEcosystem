@@ -1,0 +1,1214 @@
+Press Start / CoMiXX
+XP + Levels + Achievements + Rewards + Stripe Tier System
+Replit Master Build Plan
+Product goal
+
+Build a unified progression system that works across the Press Start ecosystem for both:
+
+Students under 18
+18+ creators / adult users
+
+The system should make the platform feel like a living game ecosystem, not just a subscription app.
+
+Core principle:
+
+Paid tiers control platform access
+XP controls progression, unlocks, achievements, and retention
+Both students and adults earn XP
+Rewards differ based on user mode
+Architecture must be reusable across CoMiXX, LMS, streaming, and future marketplace features
+1. Core user model
+
+Every user should have:
+
+account
+age group or user mode
+subscription tier
+XP total
+current level
+achievements earned
+rewards unlocked
+rewards claimed
+streak status
+progression history
+User modes
+
+Support two main user modes:
+
+Student Mode
+
+For youth / school-based users
+
+Purpose:
+
+learning progression
+assignments
+classroom goals
+skill-based challenges
+school/community engagement
+Creator Mode
+
+For 18+ users
+
+Purpose:
+
+content creation progression
+loyalty retention
+creator identity
+free pack unlocks
+status/rank progression
+platform engagement incentives
+
+This should be stored as a clean field on the user record, not inferred every time.
+
+Recommended values:
+
+student
+creator
+
+Optional future:
+
+teacher
+admin
+school_partner
+2. Subscription and access model
+
+Stripe determines the paid tier through metadata.
+
+Supported tiers
+free
+creator
+pro
+studio
+lifetime
+Access principle
+
+Tier controls:
+
+core features
+AI usage limits
+watermark rules
+export permissions
+premium tools
+premium content access
+collaboration limits
+future plugin/API access
+
+XP controls:
+
+level progression
+achievement unlocks
+free content pack rewards
+bonus AI credits
+profile badges
+reward claims
+status/rank system
+
+Important:
+XP must never fully replace subscriptions.
+It should increase retention and value, not eliminate the need for paid tiers.
+
+3. Recommended feature access by tier
+Free
+limited trial access
+very low AI limits
+watermark on exports
+limited starter assets
+no premium packs by default
+Creator
+basic builder access
+moderate AI limits
+starter asset access
+some export options
+watermark present or partially removed depending on final business rule
+XP progression enabled
+unlockable free packs through XP
+Pro
+full builder access
+higher AI limits
+no watermark
+expanded exports
+expanded asset library
+XP progression enabled
+premium progression perks
+Studio
+everything in Pro
+highest AI limits
+advanced workflow features
+future collaboration features
+future pipeline/API/plugin benefits
+XP progression enabled
+highest progression/reward visibility
+Lifetime
+permanent Pro-equivalent access at minimum
+continues earning XP forever
+keeps achievements/rewards
+should be eligible for founder-specific badge logic if applicable
+4. XP system design
+XP purpose
+
+XP should reward meaningful engagement, not random clicking.
+
+XP sources
+Shared XP sources
+
+Available to most users:
+
+first login
+profile completion
+first project created
+first export
+first AI generation
+daily login
+multi-day streaks
+content publish/share
+challenge participation
+event participation
+Student XP sources
+assignment completion
+lesson/module completion
+quiz/task completion
+teacher milestone completion
+attendance/check-in
+classroom collaboration
+portfolio submission
+Creator XP sources
+project creation
+project completion
+export milestones
+AI tool usage milestones
+publishing work
+community participation
+prompt usage
+content pack use
+subscription start
+referral milestones
+marketplace actions later
+XP rules
+XP actions should be event-based
+XP values should be configurable from admin settings
+prevent abuse with cooldowns and duplication protection
+maintain full XP history log
+5. Level system design
+
+Levels should be computed automatically from total XP.
+
+Recommended launch model
+
+Use a simple progressive level curve.
+
+Example:
+
+Level 1: 0 XP
+Level 2: 100 XP
+Level 3: 250 XP
+Level 4: 450 XP
+Level 5: 700 XP
+Level 6: 1000 XP
+
+Then continue with a scaling curve.
+
+Replit can implement either:
+
+a lookup table
+or formula-based thresholds
+
+Best practice for launch:
+Use a configurable level threshold table so you can rebalance later without rewriting logic.
+
+Level rewards
+
+Levels should trigger:
+
+badge eligibility
+reward unlocks
+free pack unlocks
+AI bonus credits
+titles/ranks
+notification events
+6. Achievement system design
+
+Achievements should be rule-based and event-driven.
+
+Launch categories
+Onboarding
+First Login
+Profile Complete
+First Project Created
+First Export
+First AI Generation
+Creation milestones
+5 Projects Created
+10 Projects Created
+25 Projects Created
+100 Pages Built
+50 AI Generations
+Streaks
+3-Day Streak
+7-Day Streak
+30-Day Streak
+Membership / status
+Creator Member
+Pro Member
+Studio Member
+Founder Badge
+Lifetime Member
+Reward / collection
+First Pack Unlocked
+Pack Hunter
+Asset Collector
+World Builder
+Community / ecosystem
+Beta Tester
+Event Participant
+First Shared Project
+Challenge Champion
+Achievement fields
+
+Each achievement should support:
+
+title
+description
+icon
+category
+XP reward optional
+unlock condition
+visibility
+rarity
+reward linkage optional
+7. Rewards and unlock system
+
+This is where XP becomes exciting.
+
+Reward types
+
+Support these reward types from the beginning:
+
+content pack unlock
+template unlock
+overlay unlock
+bonus AI credits
+badge/title unlock
+coupon/discount placeholder
+feature flag unlock
+future event access flag
+Reward logic
+
+Rewards should be unlockable by:
+
+XP total
+reaching a specific level
+earning a specific achievement
+having a specific tier
+combinations of the above
+
+Example:
+
+Level 5 unlocks “Starter FX Pack”
+Achievement “Pack Hunter” unlocks “Rare Comic Frames Pack”
+Pro users at Level 10 unlock bonus credits
+Founders get exclusive founder pack
+Claim system
+
+Rewards should have two states:
+
+unlocked
+claimed
+
+This matters because users love seeing “you have rewards waiting.”
+
+8. Content entitlement model
+
+The app needs a clean system for deciding what a user can access.
+
+Access should come from multiple sources:
+
+base tier entitlement
+XP reward unlocks
+achievement reward unlocks
+founder/lifetime special grants
+future admin/manual grants
+
+So a content pack can be available because:
+
+it’s included in Pro
+or the user unlocked it through XP
+or an admin granted it
+
+This means content access should not rely only on Stripe.
+
+9. Database schema recommendation
+
+Here is the clean data architecture Replit should use.
+
+users
+
+Core account table
+
+Fields:
+
+id
+email
+username
+display_name
+date_of_birth or age_group flag
+user_mode
+current_tier
+subscription_status
+stripe_customer_id
+stripe_subscription_id
+total_xp
+current_level
+current_streak_days
+longest_streak_days
+last_active_at
+created_at
+updated_at
+subscriptions
+
+Tracks Stripe relationship
+
+Fields:
+
+id
+user_id
+stripe_customer_id
+stripe_subscription_id
+stripe_price_id
+stripe_product_id
+tier
+billing_interval
+status
+started_at
+ends_at
+cancel_at_period_end
+created_at
+updated_at
+xp_events
+
+Full XP history log
+
+Fields:
+
+id
+user_id
+source_type
+source_key
+source_reference_id nullable
+xp_amount
+description
+created_at
+
+Examples of source_type:
+
+login
+project_created
+export
+ai_generation
+lesson_complete
+streak_bonus
+achievement_reward
+manual_admin
+levels
+
+Configurable thresholds
+
+Fields:
+
+id
+level_number
+xp_required
+title optional
+reward_id nullable
+created_at
+updated_at
+achievements
+
+Master achievement definitions
+
+Fields:
+
+id
+key
+title
+description
+category
+icon
+rarity
+rule_type
+rule_config json
+xp_reward nullable
+reward_id nullable
+is_active
+created_at
+updated_at
+user_achievements
+
+Per-user earned achievements
+
+Fields:
+
+id
+user_id
+achievement_id
+earned_at
+progress_value optional
+claimed_at nullable
+rewards
+
+Master reward definitions
+
+Fields:
+
+id
+key
+title
+description
+reward_type
+reward_value json
+unlock_type
+unlock_config json
+is_claimable
+is_active
+created_at
+updated_at
+user_rewards
+
+Per-user reward state
+
+Fields:
+
+id
+user_id
+reward_id
+unlocked_at
+claimed_at nullable
+status
+
+Recommended status values:
+
+unlocked
+claimed
+expired
+content_packs
+
+Master content pack table
+
+Fields:
+
+id
+key
+title
+description
+pack_type
+tier_required nullable
+is_xp_unlockable
+is_active
+metadata json
+created_at
+updated_at
+user_entitlements
+
+Final access grants
+
+Fields:
+
+id
+user_id
+entitlement_type
+entitlement_key
+source_type
+source_reference_id nullable
+granted_at
+expires_at nullable
+
+Examples:
+
+entitlement_type: content_pack
+entitlement_key: starter_fx_pack
+
+Source examples:
+
+subscription
+reward
+achievement
+admin
+founder_bonus
+streaks or user_activity_summary
+
+You can either store on users or in a separate summary table.
+
+Recommended fields:
+
+user_id
+last_login_date
+current_streak_days
+longest_streak_days
+total_active_days
+updated_at
+notifications
+
+Progression notifications
+
+Fields:
+
+id
+user_id
+type
+title
+body
+is_read
+reference_type nullable
+reference_id nullable
+created_at
+10. Event-driven system recommendation
+
+Replit should build this as an event-driven progression system.
+
+When something happens, emit an event:
+
+user_logged_in
+project_created
+project_exported
+ai_generation_completed
+lesson_completed
+challenge_completed
+subscription_started
+streak_updated
+
+Then the progression engine should:
+
+award XP if applicable
+recalculate level
+check achievements
+unlock rewards
+grant entitlements
+create notifications
+
+That keeps the architecture scalable.
+
+11. Progression engine logic
+Flow example
+
+User exports first comic.
+
+System should:
+
+record export event
+award XP
+update total XP
+recalculate level
+check “First Export” achievement
+if achievement unlocked, save it
+check if reward unlocked by level or achievement
+grant reward
+grant any content pack entitlement
+notify user
+
+This should happen in one consistent progression service.
+
+12. UI / UX pages to build
+A. Dashboard
+
+Show:
+
+total XP
+current level
+progress to next level
+recent achievements
+claimable rewards
+streak
+current tier
+B. Profile
+
+Show:
+
+user badge/title
+tier badge
+level badge
+XP total
+achievement highlights
+unlocked pack count
+C. Achievements page
+
+Show:
+
+earned achievements
+locked achievements
+progress toward partial achievements
+categories and rarity
+D. Rewards page
+
+Show:
+
+unlocked rewards
+claimable rewards
+claimed rewards
+content packs unlocked
+bonus AI rewards
+E. Subscription / billing page
+
+Show:
+
+current plan
+upgrade options
+billing status
+benefits by tier
+lifetime/founder visibility if enabled
+F. Notifications center
+
+Show:
+
+level-up messages
+reward unlocks
+achievements earned
+streak milestones
+plan changes
+13. UI components to include
+
+Replit should build these reusable components:
+
+XP progress bar
+level badge
+streak chip
+tier badge
+achievement card
+reward card
+claim reward button
+unlock animation / modal
+next reward preview
+progression timeline widget
+14. Notifications to trigger
+
+At launch, support notifications for:
+
+level up
+achievement unlocked
+reward unlocked
+reward claimed
+streak milestone
+subscription activated
+subscription upgraded
+founder status granted
+15. Abuse prevention / fairness rules
+
+Replit should protect the XP system from farming and spam.
+
+Examples:
+
+daily login XP only once per day
+first export achievement only once
+repeated low-value events should have cooldowns
+limit XP from repetitive AI spam
+detect duplicate event awards
+maintain idempotent event processing
+
+This is important so the system remains meaningful.
+
+16. Admin tools needed
+
+Build a lightweight admin settings area for progression.
+
+Admin should be able to:
+
+change XP amounts
+change level thresholds
+activate/deactivate achievements
+edit reward mappings
+grant manual rewards
+grant manual entitlements
+review progression logs
+review suspicious XP farming patterns
+17. Launch scope recommendation
+
+To avoid slowing launch, I recommend Phase 1 include:
+
+Phase 1
+user mode support
+Stripe tier mapping
+XP total
+level progression
+10–15 achievements
+3–5 rewards
+3–5 unlockable content packs
+dashboard widgets
+achievements page
+rewards page
+notifications
+basic streaks
+Phase 2
+deeper achievement categories
+social/community achievements
+referral rewards
+pack rarity logic
+seasonal events
+creator titles
+rank ladders
+Phase 3
+cross-platform shared XP across CoMiXX, LMS, streaming
+marketplace rewards
+school competitions
+district leaderboards
+creator monetization ranks
+18. Recommended launch achievements
+
+Use these first:
+
+First Login
+Profile Complete
+First Project Created
+First Export
+First AI Generation
+3-Day Streak
+7-Day Streak
+5 Projects Created
+10 Projects Created
+Creator Member
+Pro Member
+Studio Member
+Founder Badge
+First Pack Unlocked
+World Builder
+19. Recommended launch rewards
+
+Use these first:
+
+Starter FX Pack
+Comic Frames Pack
+Bonus 25 AI Credits
+Founder Badge
+Creator Rank Title
+World Builder Pack
+20. Copy-paste Replit master prompt
+
+Paste this directly to Replit:
+
+Please update the app architecture and development plan to support a unified progression and monetization system across the platform.
+
+Build a shared XP, levels, achievements, rewards, and entitlement system that works for both:
+1. Student Mode users
+2. Creator Mode users (18+)
+
+Core product rules:
+- Keep one progression framework for all users
+- User mode determines how XP is earned and what types of rewards matter most
+- Paid subscription tier controls core feature access
+- XP controls progression, achievements, bonus rewards, and unlockable content
+- XP should not replace subscriptions
+- Tier access and XP rewards must work together cleanly
+
+Subscription tiers to support:
+- free
+- creator
+- pro
+- studio
+- lifetime
+
+Stripe integration:
+- Read Stripe product metadata key `tier`
+- Map users to creator, pro, studio, or lifetime access
+- Store Stripe customer/subscription/price identifiers
+- Support upgrades, downgrades, renewals, cancellations, and lifetime purchases
+- Lifetime users should continue to earn XP and unlock rewards
+
+Please build the following systems:
+
+1. User progression profile
+Each user should have:
+- user_mode
+- current_tier
+- total_xp
+- current_level
+- current_streak_days
+- longest_streak_days
+- achievements earned
+- rewards unlocked
+- rewards claimed
+
+2. XP system
+Support configurable XP awards for events such as:
+- first login
+- daily login
+- profile completion
+- project created
+- export completed
+- AI generation completed
+- challenge participation
+- event participation
+- lesson completion
+- assignment completion
+- streak milestones
+- subscription started
+- future marketplace actions
+
+Student Mode XP examples:
+- lessons
+- assignments
+- attendance/check-ins
+- teacher milestones
+
+Creator Mode XP examples:
+- project creation
+- exports
+- AI use
+- streaks
+- content publishing
+- subscription loyalty
+- challenge/event participation
+
+Please store a complete XP event log and prevent duplicate XP awards.
+
+3. Levels
+Implement automatic level calculation from XP using configurable level thresholds.
+Store levels in a configurable table or settings structure so thresholds can be rebalanced later.
+Support level-based unlocks and notifications.
+
+4. Achievements
+Build a configurable achievement system with categories such as:
+- onboarding
+- creation milestones
+- streaks
+- membership/status
+- rewards/collection
+- community/ecosystem
+
+Launch achievement examples:
+- First Login
+- Profile Complete
+- First Project Created
+- First Export
+- First AI Generation
+- 3-Day Streak
+- 7-Day Streak
+- 5 Projects Created
+- 10 Projects Created
+- Creator Member
+- Pro Member
+- Studio Member
+- Founder Badge
+- First Pack Unlocked
+- World Builder
+
+Achievements should support:
+- title
+- description
+- icon
+- category
+- rarity
+- unlock rule
+- optional XP reward
+- optional linked reward unlock
+
+5. Rewards and unlocks
+Build a reward system supporting:
+- content pack unlocks
+- template unlocks
+- overlay unlocks
+- bonus AI credits
+- badges/titles
+- feature flags
+- future discount/coupon compatibility
+
+Rewards should unlock by:
+- XP total
+- level reached
+- achievement earned
+- tier held
+- combinations of these
+
+Add claimed/unclaimed reward states and a rewards page in the UI.
+
+6. Entitlements
+Create a user entitlement system so access can come from:
+- subscription tier
+- XP reward unlock
+- achievement unlock
+- founder/lifetime grant
+- admin/manual grant
+
+This should support content packs and future gated features cleanly.
+
+7. Event-driven progression engine
+Implement the progression logic as an event-based system.
+When events such as project_created, export_completed, ai_generation_completed, lesson_completed, login_completed, or subscription_started occur, the system should:
+- award XP
+- recalculate level
+- check achievements
+- unlock rewards
+- grant entitlements
+- create notifications
+
+8. Database design
+Please create or update the database schema to include tables or equivalent models for:
+- users
+- subscriptions
+- xp_events
+- levels
+- achievements
+- user_achievements
+- rewards
+- user_rewards
+- content_packs
+- user_entitlements
+- notifications
+
+9. UI/UX
+Add the following UI areas/components:
+- XP progress bar
+- level badge
+- streak display
+- tier badge
+- dashboard progression summary
+- achievements page
+- rewards/unlocks page
+- claim reward flow
+- notifications for level up, achievement unlock, reward unlock, streak milestone, and plan changes
+
+10. Admin/configuration
+Add a lightweight admin or config structure so XP values, level thresholds, achievements, and reward mappings can be adjusted without rewriting core logic.
+
+11. Launch scope
+Prioritize a Phase 1 implementation that includes:
+- Stripe tier mapping
+- XP totals
+- levels
+- 10-15 achievements
+- 3-5 rewards
+- 3-5 unlockable content packs
+- streaks
+- achievements page
+- rewards page
+- notifications
+
+Build this in a way that can later expand across CoMiXX, LMS, streaming, and marketplace systems as one connected Press Start ecosystem.
+21. My strongest recommendation
+
+Tell Replit to build this as a modular progression service, not scattered logic inside random pages.
+
+That one decision will save you pain later when you connect:
+
+CoMiXX
+streaming
+LMS
+marketplace
+school dashboards
+
+Because then all those apps can feed the same XP brain.
+
+22. What I’d do right after this
+
+Once they confirm the architecture, the next thing to hand them is:
+
+a feature gating matrix that says exactly what Free, Creator, Pro, Studio, and Lifetime can access.
+
+That will control:
+
+AI limits
+exports
+watermark
+asset access
+premium packs
+future plugins
+
+That’s the next document that makes this whole thing airtight.
+
+i want kids to get the free packs and shit also, they just dont get paid till 18 , i think they can get the other XP features as 18 + aslo 
+
+That’s the move right there. 💯
+You’re basically saying:
+
+👉 Everyone earns. Everyone progresses.
+👉 Monetization unlocks at 18.
+
+That’s EXACTLY how you build a generational platform.
+
+Let me tighten this into something clean, scalable, and legally safe 👇
+
+🔥 FINAL XP + AGE SYSTEM (LOCK THIS IN)
+🧠 Core Rule
+
+All users (kids + adults):
+
+earn XP
+level up
+unlock packs
+earn achievements
+build identity
+
+Only 18+:
+
+can monetize
+can sell
+can withdraw money
+can access creator economy payouts
+🎮 WHAT KIDS CAN DO (UNDER 18)
+They CAN:
+earn XP
+level up
+unlock free content packs
+unlock templates, FX, assets
+earn badges + achievements
+build full comics / projects
+export their work
+participate in challenges
+build a profile/portfolio
+gain status (rank, titles)
+
+👉 They get the FULL GAME EXPERIENCE
+
+They CANNOT (IMPORTANT):
+cash out money
+connect Stripe payouts
+sell in marketplace (yet)
+🔐 What happens instead:
+💡 “Vault System” (THIS IS 🔥)
+
+Kids can:
+
+upload assets
+create packs
+“list” content
+
+BUT…
+
+👉 earnings go into a locked wallet / vault
+
+Then at 18:
+
+they unlock access
+OR convert to real payouts
+OR convert to credits
+
+This is how you:
+
+stay safe legally
+still motivate creators early
+💰 WHAT 18+ USERS GET
+
+Everything kids get PLUS:
+
+monetization enabled
+marketplace selling
+payouts (Stripe Connect later)
+referrals / affiliate earnings
+premium creator tools
+business-level features
+🧬 WHY THIS IS POWERFUL
+
+You just created:
+
+👉 A pipeline from student → creator → entrepreneur
+
+Kids don’t leave your platform at 18…
+
+They LEVEL UP INTO IT.
+
+That’s rare.
+
+⚖️ LEGAL / SAFETY (IMPORTANT BUT SIMPLE)
+
+You don’t need to overcomplicate this, just do:
+
+For under 18:
+mark account as minor
+disable payouts
+disable Stripe connect
+no financial withdrawal features
+add parental/guardian clause in ToS later
+Messaging:
+“Earnings unlock at 18”
+“Content and XP progression available to all users”
+🧱 UPDATED SYSTEM LOGIC
+Add to user model:
+age_group: minor | adult
+can_monetize: true | false
+wallet_locked: true | false
+Monetization rules:
+Feature	Minor	Adult
+XP	✅	✅
+Levels	✅	✅
+Achievements	✅	✅
+Free Packs	✅	✅
+Premium Packs (paid)	❌ (or gift only)	✅
+Sell Content	🚫 (vault only)	✅
+Earn Money	🔒 (vault)	✅
+Withdraw Money	❌	✅
+🧠 XP + REWARD ALIGNMENT (UPDATED)
+
+Now BOTH groups can:
+
+unlock packs via XP
+earn badges
+gain levels
+build identity
+
+Only difference is:
+👉 money layer is locked for minors
+
+🧱 UPDATE FOR REPLIT (PASTE THIS)
+Update the progression and monetization system to support age-based access rules.
+
+Core principle:
+- All users (including minors) should fully participate in XP, levels, achievements, and reward unlock systems
+- Monetization features must be restricted to 18+ users only
+
+Add age-based logic to user system:
+
+1. User attributes
+- age_group: minor or adult
+- can_monetize: boolean
+- wallet_locked: boolean
+
+2. XP system
+- XP earning should be identical for minors and adults
+- minors should be able to unlock content packs, achievements, and rewards the same as adults
+
+3. Rewards
+- minors should be able to unlock:
+  - content packs
+  - templates
+  - overlays
+  - AI credits
+  - badges
+  - titles
+- minors should NOT unlock payout-related rewards
+
+4. Monetization system (future-ready)
+- minors can create and submit content
+- minors can list content in a “vault” or locked marketplace state
+- any earnings should be tracked but NOT withdrawable
+- earnings remain locked until the user becomes 18+
+
+5. Adult users (18+)
+- full monetization enabled
+- can sell content
+- can receive payouts (Stripe Connect integration later)
+- can withdraw funds
+
+6. Entitlements
+- content packs unlocked via XP should work for all users
+- premium paid packs should only be accessible through subscription or purchase
+- minors cannot directly purchase unless future parental controls are implemented
+
+7. UI/UX
+- minors should see:
+  - XP progression
+  - levels
+  - achievements
+  - rewards
+  - unlocked packs
+- minors should NOT see payout or withdrawal UI
+- adults should see full creator dashboard including monetization
+
+8. Messaging
+- clearly communicate:
+  - “Earn XP and unlock rewards at any age”
+  - “Monetization features unlock at 18”
+
+9. Future scalability
+- design wallet system to support:
+  - locked balances for minors
+  - unlocked balances for adults
+  - conversion or activation when user turns 18
+
+Ensure this integrates cleanly with the existing XP, rewards, achievements, and Stripe tier system.
