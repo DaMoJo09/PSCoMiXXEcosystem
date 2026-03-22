@@ -1,7 +1,7 @@
 # PSCoMiXX Creator
 
 ## Overview
-PSCoMiXX Creator is a responsive web application that serves as an AI-assisted creative studio. It enables users to generate various digital content, including comics, trading cards, visual novels, and motion comics, integrating drawing tools and comprehensive project management. The platform aims to be the central content creation hub for the PSCoMiXX ecosystem, focusing on enhanced discoverability, optimized marketplace functionality, and scalable solutions for publishing, monetization, and community engagement.
+PSCoMiXX Creator is a responsive web application that functions as an AI-assisted creative studio. It allows users to generate various digital content, including comics, trading cards, visual novels, and motion comics, by integrating drawing tools and comprehensive project management. The platform aims to be the central content creation hub for the PSCoMiXX ecosystem, focusing on enhanced discoverability, optimized marketplace functionality, and scalable solutions for publishing, monetization, and community engagement.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,7 +9,7 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-The frontend is built with React, TypeScript, Vite, and Wouter, using TailwindCSS v4, Radix UI, and shadcn/ui for styling. It features a brutalist aesthetic with dark themes, hard shadows, and neon accents. State management relies on TanStack Query and React Context. Key principles include component composition, path aliases, separation of concerns, and mobile responsiveness.
+The frontend uses React, TypeScript, Vite, and Wouter, styled with TailwindCSS v4, Radix UI, and shadcn/ui. It features a brutalist aesthetic with dark themes, hard shadows, and neon accents. State management is handled by TanStack Query and React Context, emphasizing component composition, path aliases, separation of concerns, and mobile responsiveness.
 
 ### Backend
 The backend is an Express.js server on Node.js, utilizing session-based authentication with Passport.js (local strategy, scrypt hashing). It provides RESTful endpoints secured with middleware for authentication, role-based authorization, and rate limiting.
@@ -20,107 +20,102 @@ PostgreSQL, hosted via Neon serverless, is the primary database, accessed throug
 ### Security
 The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features, AI resilience, audit logging, and SSO support.
 
-### Ecosystem SSO (server/sso.ts)
-JWT-based single sign-on across the PSCoMiXX ecosystem (pressplays.site, psstreaming.com, pressstart.tech). Issues ecosystem tokens via `POST /api/auth/sso/token`, validates inbound tokens via `POST /api/auth/sso/validate`, and provides SSO login at `POST /api/auth/sso/login`. Requires `ECOSYSTEM_JWT_SECRET` env var. Tokens carry user ID, email, name, role, tier, and origin.
+### Ecosystem SSO
+JWT-based single sign-on is implemented across the PSCoMiXX ecosystem.
 
-### Webhook Service (server/webhookService.ts)
-Standardized event dispatch system with delivery logging to `webhook_delivery_log` table. Supports retry queue with configurable attempts (3 retries, exponential backoff). Events: `project.published`, `project.exported`, `user.created`, `user.tier_changed`, `assignment.submitted`, `xp.milestone`. Retry worker runs on 60s interval, started in `registerRoutes()`.
+### Webhook Service
+A standardized event dispatch system with delivery logging and a retry queue supports events like `project.published`, `project.exported`, `user.created`, and `user.tier_changed`.
 
-### Export Pipeline (server/exportService.ts + server/publishService.ts)
-- **ExportService:** Generates scene-json, timeline-json, and PNG layer exports for external tools (Unreal Engine, Reallusion iClone). Tracked via `export_jobs` DB table.
-- **PublishService:** Unified publish pipeline — bundles content to PS Content Bundle v1 format, validates, saves, syncs to Emergent streaming platform, and dispatches webhooks.
-- **API endpoints:** `POST /api/export` (internal), `POST /api/v1/projects/:id/export` (versioned API), `GET /api/v1/projects` (public listing), `GET /api/v1/projects/:id` (public detail).
+### Export & Publish Pipeline
+The ExportService generates scene-json, timeline-json, and PNG layer exports for external tools. The PublishService handles content bundling (PS Content Bundle v1), validation, saving, synchronization to the Emergent streaming platform, and webhook dispatch.
 
 ### Feature Flags System
-11 feature flags stored in the `feature_flags` DB table, toggled from Admin Control Room. The `useFeatureFlag(key)` hook (in `client/src/hooks/useFeatureFlag.ts`) queries the public endpoint `GET /api/feature-flags/:key` and defaults to `false` (fail-closed) when a flag is missing. Sidebar sections (Marketplace, Print Studio, Social, AI Tools, Community, Motion Studio) are conditionally rendered based on flags. Backend gates: `payments_enabled` blocks Stripe checkout; `export_restrictions` enforces export quotas (fail-closed when missing). Other flags: `appsumo_redemption`, `early_adopter_gate`, `invite_system`.
+Feature flags stored in the database allow dynamic toggling of features, affecting both frontend rendering and backend logic (e.g., `payments_enabled`, `export_restrictions`, `early_adopter_gate`).
 
 ### Subscription & Usage Tracking
-Supports Free, Creator, Pro, Studio, Lifetime, and School subscription tiers with limits on AI generations, exports, projects, and storage. Usage is tracked server-side, with frontend feature gates prompting upgrades. School tier supports bulk checkout and district inquiry endpoints.
+Supports Free, Creator, Pro, Studio, Lifetime, and School subscription tiers with server-side usage tracking and frontend feature gates for AI generations, exports, projects, and storage.
 
 ### Content Publishing Pipeline
-Projects progress through draft, review, and publication stages, conforming to the PS Content Bundle v1 format. The pipeline handles validation, bundling, saving, synchronization with the Emergent streaming platform, version tracking, and admin review.
+Projects progress through draft, review, and publication stages, conforming to the PS Content Bundle v1 format, handling validation, bundling, saving, synchronization, version tracking, and admin review.
 
 ### XP & Account System
-Supports Student (6-17) and Creator (18+) accounts, with students having restricted monetization. An XP system uses scaled leveling via time-based heartbeats and action-based rewards.
+Supports Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling based on time and action-based rewards.
 
 ### PSLMS Integration
-Integrates with Press Start LMS, allowing students to submit creations to portfolios and enabling PSLMS to fetch comics via API using a shared secret key and email-based user matching.
+Integrates with Press Start LMS, allowing students to submit creations and enabling PSLMS to fetch comics via API using a shared secret key and email-based user matching.
 
 ### UI/UX Design
-The UI/UX features a brutalist dark theme with neon accents, card-style containers, and gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono. A dynamic auto-hide sidebar provides navigation and PWA installation options.
+The UI/UX features a brutalist dark theme with neon accents, card-style containers, and gradient accents. Typography uses Space Grotesk, Inter, and JetBrains Mono. A dynamic auto-hide sidebar provides navigation.
 
 ### Project Persistence & Navigation
-Features smart project resumption, server-side deduplication (with `forceNew: true` bypass), and auto-save-on-unmount functionality using `navigator.sendBeacon` and `beforeunload` handlers. Invalid project IDs redirect to project discovery/creation.
+Features smart project resumption, server-side deduplication, and auto-save-on-unmount functionality.
 
 ### Creator Tools
-The suite includes:
-- **Comic Creator:** Supports direct drawing, CSS filters, advanced text formatting, auto-save, 50-level undo/redo, offline saving with IndexedDB, and export options (PNG, PDF, JSON). Integrated Cover Editor.
-- **Visual Novel Creator:** A Ren'Py-inspired engine with scenes, characters, backgrounds, dialogue editing, ADV/NVL text modes, scene transitions, rollback, and Ren'Py quick menu bar. Exports as Ren'Py .rpy and playable HTML.
-- **CYOA Builder:** An interactive fiction engine with story-to-CYOA generation, node editing, visual graph view, variables/flags system, conditional choices, "quick play from here," and playable HTML export.
-- **Card Creator:** Supports TCG and Sports modes with specific card types, fields, and a Pack Builder.
+A suite of tools includes:
+- **Comic Creator:** Supports drawing, CSS filters, text formatting, auto-save, undo/redo, offline saving, and various export options.
+- **Visual Novel Creator:** A Ren'Py-inspired engine with scenes, characters, dialogue, transitions, and export options.
+- **CYOA Builder:** An interactive fiction engine with story generation, node editing, variables, conditional choices, and HTML export.
+- **Card Creator:** Supports TCG and Sports modes with specific card types and a Pack Builder.
 
-### Print Studio (CoMiXX Print & Merch)
-Provides a creation-to-print pipeline with a landing page, export dashboard, print quote request form, and package offerings, supported by database and API endpoints.
+### Print Studio
+Provides a creation-to-print pipeline with an export dashboard, print quote request form, and package offerings.
 
 ### Creator Marketplace
-A public storefront for browsing and filtering content. Creators can list projects or asset packs for free or sale via Stripe Checkout, with content rating and student filtering.
+A public storefront for browsing, filtering, and selling projects or asset packs via Stripe Checkout, with content rating and student filtering.
 
 ### Marketplace Reviews
-Stores ratings and review text with a "verified purchase" flag, facilitated by API endpoints and displayed on listing pages.
+Stores ratings and review text with a "verified purchase" flag, displayed on listing pages.
 
 ### Community Library
 A Webtoons-style browse page with search, sorting, a comic reader, "like" and comment features, view tracking, and bookmarking with reading progress. Includes series management and a follower system.
 
 ### Comic Series System
-Creators can group comics into series with chapters. Features include: auto-numbering (chapters auto-increment when added), series subscriptions (readers can follow a series and receive email notifications when new chapters drop), featured series on the landing page (admin-toggled via `POST /api/admin/series/:id/featured`), and per-series stats for creators (total reads, subscriber count, chapter count, completion rate via `GET /api/series/:id/stats`). DB tables: `comic_series` (with `featured` column), `series_subscriptions`. The Series detail page shows subscriber count and subscribe/unsubscribe button. Community Library series cards display subscriber counts.
+Allows creators to group comics into series with chapters, supporting auto-numbering, series subscriptions, featured series, and per-series stats.
 
 ### Motion Studio
-Supports video/GIF export with progress tracking via Web Worker for GIF encoding. Features drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, and a virtualized frame list.
+Supports video/GIF export with progress tracking, drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, and a virtualized frame list.
 
 ### Platform Analytics Dashboard
-An admin-only dashboard providing 40+ KPIs across 7 tabs (Overview, Growth, Engagement, Content, Revenue, AI & Platform, User Health). Uses `recharts` and aggregates data via `GET /api/analytics/platform`.
+An admin-only dashboard providing 40+ KPIs across various tabs for growth, engagement, content, revenue, AI & platform, and user health.
 
-### Teacher Dashboard (client/src/pages/TeacherDashboard.tsx)
-Enhanced dashboard for teachers with 5 tabs: Student Roster (with last-active time, total minutes, XP, level), Assignments (CRUD), Submissions (grading with grade/feedback), Projects (all student projects), and Analytics (class-wide stats, top students by XP, projects by tool). Backend endpoints: `GET /api/teacher/students`, `GET /api/teacher/student-projects`, `GET /api/teacher/analytics`, assignment/submission CRUD.
+### Teacher Dashboard
+An enhanced dashboard for teachers with tabs for Student Roster, Assignments, Submissions, Projects, and Analytics.
 
-### Creator Profile (client/src/pages/CreatorProfilePage.tsx)
-Public creator profile at `/creator/:username` showing avatar, cover image, bio, tagline, creator class, XP progress, social links, follower/following counts, and published works grid. Backend endpoint: `GET /api/creator/:username`.
+### Creator Profile
+Public creator profiles display avatar, cover image, bio, XP progress, social links, follower/following counts, and published works.
 
-### Assignment Submit Button (client/src/components/tools/AssignmentSubmitButton.tsx)
-Reusable component for student accounts to submit projects to active assignments. Fetches active assignments via `GET /api/student/active-assignments`, filters by project type, and submits via `POST /api/assignments/:id/submit`.
+### Assignment Submit Button
+A reusable component for students to submit projects to active assignments.
 
-### FX Studio Integration (Bidirectional Pipeline)
-Integrates with FX Studio (pressplays.site) for bidirectional FX asset exchange across all creator tools via the `FxBrowserPanel`. XP heartbeat and action events are forwarded to PSStreaming (`POST https://psstreaming.com/api/webhooks/time-spent`) via fire-and-forget with 5s timeout, using the shared `PSLMS_API_KEY` in the `X-API-Key` header — so time/XP earned in CoMiXX is synced to the streaming platform.
-- **Bidirectional Pipeline (Comic Creator):** Allows exporting panels to FX Studio and importing effects back into panels, handling cover-aware insertion and versioning.
-- **Script Import Pipeline (PressPlays → CoMiXX):** Imports `comic-script` type assets from PressPlays, converting them into CYOA nodes, VN scenes, or comic spreads, and creating new projects.
-- **Integration Points:** FX browser panels and context menus are available in Comic Creator, Motion Studio, Visual Novel Creator, and CYOA Builder for context-specific asset application.
+### FX Studio Integration
+Integrates bidirectionally with FX Studio (pressplays.site) for asset exchange across all creator tools. XP and time spent events are forwarded to PSStreaming. Supports exporting panels to FX Studio and importing effects back into panels, and importing `comic-script` type assets from PressPlays into various creator tools.
 
 ### PWA & Offline Mode
-Includes a Service Worker for caching and offline use with IndexedDB. Features timestamp-based conflict resolution, background syncing, install prompts, network status, and update notifications.
+Includes a Service Worker for caching and offline use with IndexedDB, featuring conflict resolution, background syncing, and update notifications.
 
 ### Accessibility
 Features keyboard shortcuts, skip-to-content links, Aria labels, high-contrast mode, `prefers-reduced-motion` respect, and a global `ErrorBoundary`.
 
 ### Mobile Responsiveness
-Optimized for mobile with a top header, hamburger menu, bottom navigation bar, and slide-in drawer. Creator tools display desktop-recommended banners; public pages are fully responsive.
+Optimized for mobile with a top header, hamburger menu, bottom navigation bar, and slide-in drawer.
 
 ### SEO
 Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, and full SEO meta tags with JSON-LD structured data.
 
 ### Landing Page
-A marketing landing page at `/landing` and `/welcome` featuring a glitch-effect hero, feature showcase, audience sections, "How It Works," testimonials, pricing CTA, and legal links.
+A marketing landing page at `/landing` and `/welcome` showcasing features, audience sections, "How It Works," testimonials, pricing CTA, and legal links.
 
 ### New User Onboarding
-An `OnboardingWizard` guides new users through a 3-step flow (Welcome → Pick Your Tools → Quick Tips → Dashboard) on their first login, with progress stored via `localStorage`.
+An `OnboardingWizard` guides new users through a 3-step flow on their first login.
 
-### File Storage (server/fileStorage.ts)
-Local disk storage at `uploads/` directory with DB tracking via `exported_files` table. Supports base64 upload, 50MB max file size, MIME type allowlist. API endpoints: `POST /api/files/upload`, `GET /api/files`, `GET /api/files/:id`, `GET /api/files/usage`, `DELETE /api/files/:id`. All endpoints require authentication; uploads are scanned by content moderation before saving.
+### File Storage
+Local disk storage at `uploads/` directory with DB tracking via `exported_files` table. Supports base64 upload, max 50MB file size, and MIME type allowlist. Uploads are scanned by content moderation.
 
-### Content Moderation (server/contentModeration.ts)
-SHA-256 exact hash + perceptual hash (Hamming distance ≤4) matching against `blocked_hashes` DB table. Scans all image uploads automatically. Scan logs stored in `image_hashes` table. Admin endpoints: `GET /api/admin/moderation/flagged`, `GET /api/admin/moderation/blocked`, `POST /api/admin/moderation/block`, `DELETE /api/admin/moderation/block/:hash`, `POST /api/admin/moderation/review/:id`.
+### Content Moderation
+Uses SHA-256 and perceptual hashing against `blocked_hashes` DB table to scan all image uploads.
 
-### Transactional Emails (server/email.ts)
-Branded HTML email templates sent via Resend integration. Templates: welcome (on signup), assignment notification (on assignment creation, sent to all school students), submission confirmation (on assignment submit), grade notification (on grading), purchase confirmation (on marketplace claim-free and paid purchase verification), subscription confirmation. All emails fire-and-forget (non-blocking).
+### Transactional Emails
+Branded HTML email templates sent via Resend for welcome, assignment notifications, submission confirmations, grade notifications, purchase confirmations, and subscription confirmations.
 
 ## External Dependencies
 
@@ -150,5 +145,7 @@ Branded HTML email templates sent via Resend integration. Templates: welcome (on
 - Google Fonts: Space Grotesk, Inter, JetBrains Mono
 
 ### Other Integrations
+- **Resend:** For transactional emails.
+- **Stripe:** For payment processing (Stripe Checkout).
 - **Mad Mixed Media:** Streaming platform for content and creator profile synchronization.
 - **Ecosystem Integration Points:** `pscomixx.com`, `comixx.website`, `pscomixx.online`, `psstreaming.online`.

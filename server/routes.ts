@@ -149,6 +149,19 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Auth routes
   app.post("/api/auth/signup", async (req, res, next) => {
     try {
+      const earlyAdopterFlag = await storage.getFeatureFlag("early_adopter_gate");
+      if (earlyAdopterFlag?.enabled) {
+        const { email } = req.body;
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const waitlistEntry = await storage.getWaitlistEntry(normalizedEmail);
+        if (!waitlistEntry || waitlistEntry.status !== "approved") {
+          return res.status(403).json({ message: "Signups are currently limited to approved early adopters. Join the waitlist to get access." });
+        }
+      }
+
       const { dateOfBirth, parentalConsent, ...rest } = req.body;
 
       if (!dateOfBirth) {
@@ -3913,10 +3926,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/waitlist", async (req, res) => {
     try {
-      const { email, name, source, referredBy } = req.body;
-      if (!email) {
+      const { email: rawEmail, name, source, referredBy } = req.body;
+      if (!rawEmail) {
         return res.status(400).json({ message: "Email is required" });
       }
+      const email = rawEmail.trim().toLowerCase();
       
       const existing = await storage.getWaitlistEntry(email);
       if (existing) {
@@ -4479,7 +4493,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           );
           
           if (stripeSubscription) {
-            // Sync tier from Stripe if different
+            const previousTier = subscription.tier;
             if (subscription.tier !== stripeSubscription.tier || 
                 subscription.stripeSubscriptionId !== stripeSubscription.subscriptionId) {
               subscription = await storage.updateSubscription(req.user!.id, {
@@ -4489,6 +4503,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
                 currentPeriodEnd: stripeSubscription.currentPeriodEnd,
                 cancelAtPeriodEnd: stripeSubscription.cancelAtPeriodEnd,
               }) || subscription;
+
+              if (previousTier === 'free' && stripeSubscription.tier !== 'free') {
+                const user = await storage.getUser(req.user!.id);
+                if (user) {
+                  const tierLabel = stripeSubscription.tier.charAt(0).toUpperCase() + stripeSubscription.tier.slice(1);
+                  const baseUrl = `${req.protocol}://${req.get('host')}`;
+                  sendSubscriptionConfirmation(user.email, user.name || 'Creator', tierLabel, baseUrl);
+                }
+              }
             }
           } else if (subscription.tier !== 'free' && subscription.tier !== 'lifetime' && !subscription.appSumoCodeId) {
             // No active Stripe subscription and not lifetime/appsumo - downgrade to free

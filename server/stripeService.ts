@@ -151,19 +151,23 @@ export class StripeService {
         
         if (priceResult.rows.length > 0) {
           const priceRow = priceResult.rows[0] as any;
-          const metadata = priceRow.metadata || {};
+          let productMetadata: Record<string, any> = {};
+          try {
+            productMetadata = typeof priceRow.metadata === 'string' ? JSON.parse(priceRow.metadata || '{}') : (priceRow.metadata || {});
+          } catch { productMetadata = {}; }
           const productName = (priceRow.name || '').toLowerCase();
           
-          if (metadata.tier) {
-            tier = metadata.tier;
-          } else if (productName.includes('lifetime')) {
-            tier = 'lifetime';
-          } else if (productName.includes('studio')) {
-            tier = 'studio';
-          } else if (productName.includes('creator')) {
-            tier = 'creator';
-          } else if (productName.includes('pro')) {
-            tier = 'pro';
+          const validTiers = ['creator', 'pro', 'studio', 'lifetime', 'school'];
+          const metadataTier = (productMetadata.tier || '').toLowerCase();
+          if (metadataTier && validTiers.includes(metadataTier)) {
+            tier = metadataTier;
+          } else {
+            for (const t of ['lifetime', 'studio', 'pro', 'creator', 'school']) {
+              if (productName.includes(t)) {
+                tier = t;
+                break;
+              }
+            }
           }
         }
       }
