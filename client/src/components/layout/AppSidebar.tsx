@@ -454,14 +454,17 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               />
             </div>
             <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                isStudent 
-                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" 
-                  : "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-              }`} data-testid="text-account-type">
-                {isStudent ? "STUDENT" : "CREATOR"}
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 uppercase" data-testid="text-level-title">
+                {levelTitle || (isStudent ? "STUDENT" : "CREATOR")}
               </span>
-              <span className="text-[10px] text-muted-foreground">{user.totalMinutes || 0} min</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">
+                  {(user.totalMinutes || 0) >= 60 
+                    ? `${Math.floor((user.totalMinutes || 0) / 60)}h ${(user.totalMinutes || 0) % 60}m`
+                    : `${user.totalMinutes || 0} min`
+                  }
+                </span>
+              </div>
             </div>
           </div>
         )}

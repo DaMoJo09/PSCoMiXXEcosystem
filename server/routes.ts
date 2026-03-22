@@ -416,25 +416,32 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   const PSSTREAMING_WEBHOOK_URL = "https://psstreaming.com/api/webhooks/time-spent";
   const PSSTREAMING_API_KEY = process.env.PSLMS_API_KEY || "";
 
-  async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number) {
+  async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number, fullState?: { totalXp: number; level: number; levelTitle: string; totalMinutes: number }) {
     if (!PSSTREAMING_API_KEY) return;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     try {
+      const payload: Record<string, any> = {
+        event: "time.spent",
+        user_email: userEmail,
+        minutes,
+        xp,
+        source: "comixx",
+        timestamp: new Date().toISOString(),
+      };
+      if (fullState) {
+        payload.total_xp = fullState.totalXp;
+        payload.level = fullState.level;
+        payload.level_title = fullState.levelTitle;
+        payload.total_minutes = fullState.totalMinutes;
+      }
       const res = await fetch(PSSTREAMING_WEBHOOK_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-API-Key": PSSTREAMING_API_KEY,
         },
-        body: JSON.stringify({
-          event: "time.spent",
-          user_email: userEmail,
-          minutes,
-          xp,
-          source: "comixx",
-          timestamp: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       if (!res.ok) {
@@ -462,7 +469,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const minSinceLastBeat = lastBeat ? (now.getTime() - lastBeat.getTime()) / 60000 : 2;
 
       if (minSinceLastBeat < 0.5) {
-        return res.json({ xp: user.xp, level: user.level, totalMinutes: user.totalMinutes });
+        const { title: earlyTitle } = getLevelFromXp(user.xp || 0);
+        return res.json({ xp: user.xp, level: user.level, levelTitle: earlyTitle, totalMinutes: user.totalMinutes });
       }
 
       const minutesToCredit = Math.min(Math.floor(minSinceLastBeat), 5);
@@ -479,7 +487,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         lastActiveAt: now,
       } as any);
 
-      forwardXpToStreaming(user.email, minutesToCredit, xpGained);
+      forwardXpToStreaming(user.email, minutesToCredit, xpGained, {
+        totalXp: newXp,
+        level: newLevel,
+        levelTitle,
+        totalMinutes: newTotalMinutes,
+      });
 
       res.json({ xp: newXp, level: newLevel, levelTitle, totalMinutes: newTotalMinutes, xpGained });
     } catch (error: any) {
@@ -512,7 +525,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const result = await processProgressionEvent(userId, normalizedAction, referenceId, referenceType);
       
       const user = await storage.getUser(userId);
-      if (user) forwardXpToStreaming(user.email, 0, result.xpAwarded);
+      if (user) forwardXpToStreaming(user.email, 0, result.xpAwarded, {
+        totalXp: result.newXp,
+        level: result.newLevel,
+        levelTitle: result.levelTitle,
+        totalMinutes: user.totalMinutes || 0,
+      });
 
       res.json({
         xp: result.newXp,
@@ -1440,7 +1458,42 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  // Earn XP
+  app.post("/api/ecosystem/xp-sync", async (req, res) => {
+    try {
+      const apiKey = req.headers["x-api-key"];
+      if (!apiKey || apiKey !== process.env.PSLMS_API_KEY) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { user_email, total_xp, level, level_title, total_minutes, source } = req.body;
+      if (!user_email) return res.status(400).json({ message: "user_email required" });
+      const user = await storage.getUserByEmail(user_email);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const incomingXp = total_xp ?? 0;
+      const currentXp = user.xp || 0;
+      const mergedXp = Math.max(currentXp, incomingXp);
+      const mergedMinutes = Math.max(user.totalMinutes || 0, total_minutes || 0);
+      const { level: newLevel, title: newTitle } = getLevelFromXp(mergedXp);
+
+      await storage.updateUserProfile(user.id, {
+        xp: mergedXp,
+        level: newLevel,
+        totalMinutes: mergedMinutes,
+      } as any);
+
+      res.json({
+        synced: true,
+        xp: mergedXp,
+        level: newLevel,
+        levelTitle: newTitle,
+        totalMinutes: mergedMinutes,
+        source: source || "ecosystem",
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/ecosystem/xp", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;

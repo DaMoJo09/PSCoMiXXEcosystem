@@ -10,6 +10,7 @@ interface AuthUser {
   accountType: string;
   xp: number;
   level: number;
+  levelTitle: string;
   totalMinutes: number;
 }
 
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           if (res.ok) {
             const data = await res.json();
-            setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, totalMinutes: data.totalMinutes } : null);
+            setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, levelTitle: data.levelTitle || prev.levelTitle, totalMinutes: data.totalMinutes } : null);
           }
         } catch {}
       }, 60000);
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetch("/api/xp/heartbeat", { method: "POST", credentials: "include" })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
-          if (data) setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, totalMinutes: data.totalMinutes } : null);
+          if (data) setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, levelTitle: data.levelTitle || prev.levelTitle, totalMinutes: data.totalMinutes } : null);
         })
         .catch(() => {});
 
