@@ -1769,6 +1769,66 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 )}
                 {(() => {
                   if (!selectedLayerId) return null;
+                  if (selectedLayerId.startsWith("bg-")) {
+                    const bgView = selectedLayerId.replace("bg-", "") as "front" | "back" | "spine";
+                    const bgImg = coverData[`${bgView}Image` as keyof CoverData] as string;
+                    if (!bgImg) return null;
+                    const bgTransform = (coverData[`${bgView}BgTransform` as keyof CoverData] as any) || { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 };
+                    const inputRef = bgView === "front" ? frontInputRef : bgView === "back" ? backInputRef : spineInputRef;
+                    return (
+                      <div className="pt-3 border-t border-zinc-700 space-y-3" data-testid="bg-image-properties">
+                        <label className="text-[10px] font-bold uppercase text-zinc-500">{bgView.toUpperCase()} Background Properties</label>
+                        <div className="flex items-center gap-2">
+                          <img src={bgImg} alt={`${bgView} background`} className="w-10 h-10 object-cover bg-zinc-900 border border-zinc-700" />
+                          <span className="text-xs text-zinc-300 truncate flex-1">{bgView} cover image</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] text-zinc-500">X</label>
+                            <input type="number" value={Math.round(bgTransform.x)} onChange={(e) => updateCover({ [`${bgView}BgTransform`]: { ...bgTransform, x: Number(e.target.value) } })}
+                              className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="bg-image-x" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-zinc-500">Y</label>
+                            <input type="number" value={Math.round(bgTransform.y)} onChange={(e) => updateCover({ [`${bgView}BgTransform`]: { ...bgTransform, y: Number(e.target.value) } })}
+                              className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="bg-image-y" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-zinc-500">Width</label>
+                            <input type="number" value={Math.round(bgTransform.width)} onChange={(e) => updateCover({ [`${bgView}BgTransform`]: { ...bgTransform, width: Number(e.target.value) } })}
+                              className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="bg-image-width" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-zinc-500">Height</label>
+                            <input type="number" value={Math.round(bgTransform.height)} onChange={(e) => updateCover({ [`${bgView}BgTransform`]: { ...bgTransform, height: Number(e.target.value) } })}
+                              className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" data-testid="bg-image-height" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-500 flex justify-between"><span>Rotation</span><span>{bgTransform.rotation || 0}°</span></label>
+                          <input type="range" min="0" max="360" step="1" value={bgTransform.rotation || 0}
+                            onChange={(e) => updateCover({ [`${bgView}BgTransform`]: { ...bgTransform, rotation: Number(e.target.value) } })} className="w-full h-1.5 accent-green-500" data-testid="bg-image-rotation" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => inputRef.current?.click()}
+                            className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1"
+                            data-testid="bg-image-replace">
+                            <Upload className="w-3 h-3" /> Replace
+                          </button>
+                          <button onClick={() => { setAiTarget(bgView); setShowAIGen(true); }}
+                            className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1"
+                            data-testid="bg-image-ai">
+                            <Wand2 className="w-3 h-3" /> AI Gen
+                          </button>
+                          <button onClick={() => { updateCover({ [`${bgView}Image`]: null, [`${bgView}BgTransform`]: undefined }); setSelectedLayerId(null); }}
+                            className="py-1.5 px-2 text-xs bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 flex items-center justify-center"
+                            data-testid="bg-image-remove">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
                   const selImgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
                   const selImg = selImgLayers.find(l => l.id === selectedLayerId);
                   if (!selImg) return null;
