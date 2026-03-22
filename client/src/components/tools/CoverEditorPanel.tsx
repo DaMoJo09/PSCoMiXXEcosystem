@@ -1191,7 +1191,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                     onDelete={(lid) => deleteImageLayer(view, lid)}
                     locked={imgLayer.locked} containerRef={canvasRef} containerScale={scale} style={{ zIndex: zIdx }}>
                     <img src={imgLayer.url} alt={imgLayer.name} className="w-full h-full object-contain pointer-events-none select-none"
-                      style={{ opacity: imgLayer.opacity }} draggable={false} />
+                      style={{ opacity: imgLayer.opacity, ...getFilterStyle() }} draggable={false} />
                   </TransformableElement>
                 );
               }
