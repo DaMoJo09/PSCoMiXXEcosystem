@@ -12,8 +12,8 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-import { scriptToComic, normalizeScriptData, type ScriptData } from "@/lib/scriptImport";
-import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, CaseSensitive } from "lucide-react";
+import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
+import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -265,6 +265,13 @@ const panelTemplates = [
   { id: "kids_vignette", name: "Vignette", category: "kidsbook", panels: [{x:0,y:0,width:100,height:30},{x:20,y:30,width:60,height:40},{x:0,y:70,width:100,height:30}] },
   { id: "kids_photo_album", name: "Photo Album", category: "kidsbook", panels: [{x:5,y:3,width:42,height:44},{x:53,y:3,width:42,height:44},{x:5,y:53,width:42,height:44},{x:53,y:53,width:42,height:21},{x:53,y:77,width:42,height:20}] },
   { id: "kids_early_reader", name: "Early Reader", category: "kidsbook", panels: [{x:0,y:0,width:100,height:15},{x:0,y:15,width:100,height:55},{x:0,y:70,width:100,height:15},{x:0,y:85,width:100,height:15}] },
+
+  { id: "book_full_text", name: "Full Text Page", category: "book", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "book_chapter_header", name: "Chapter Header + Text", category: "book", panels: [{x:0,y:0,width:100,height:20},{x:0,y:20,width:100,height:80}] },
+  { id: "book_text_with_spot", name: "Text + Spot Art", category: "book", panels: [{x:0,y:0,width:100,height:65},{x:20,y:65,width:60,height:35}] },
+  { id: "book_two_column", name: "Two Columns", category: "book", panels: [{x:0,y:0,width:48,height:100},{x:52,y:0,width:48,height:100}] },
+  { id: "book_text_art_facing", name: "Text / Art Facing Pages", category: "book", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "book_graphic_novel", name: "Graphic Novel Panel", category: "book", panels: [{x:0,y:0,width:100,height:30},{x:0,y:30,width:50,height:40},{x:50,y:30,width:50,height:40},{x:0,y:70,width:100,height:30}] },
 ];
 
 // Template categories for UI organization
@@ -279,6 +286,7 @@ const templateCategories = [
   { id: "creative", name: "Creative" },
   { id: "classic", name: "Classic" },
   { id: "kidsbook", name: "Kids Book" },
+  { id: "book", name: "Book / Novel" },
 ];
 
 const FONT_OPTIONS = [
@@ -714,6 +722,25 @@ export default function ComicCreator() {
       setTitle(sd.title || "Imported Script");
       toast.success("Script imported to Comic Creator");
     }).catch(() => toast.error("Failed to load script"));
+  }, []);
+
+  useEffect(() => {
+    const fromLayout = searchParams.get('fromLayout');
+    if (!fromLayout) return;
+    fxStudioApi.getEffect(fromLayout).then((effect: any) => {
+      const eff = Array.isArray(effect) ? effect[0] : effect;
+      if (!eff) return;
+      const metadata = eff.metadata || {};
+      const raw: LayoutData = metadata.layout_data || { pages: metadata.pages || [], template: metadata.template };
+      const importedSpreads = layoutToSpreads(raw);
+      if (importedSpreads.length > 0) {
+        setSpreadsRaw(importedSpreads);
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+      }
+      setTitle(raw.title || eff.name || "Imported Layout");
+      toast.success("Layout imported from FX Studio");
+    }).catch(() => toast.error("Failed to load layout"));
   }, []);
 
   const isValidCoverSrc = (src: string | undefined | null): src is string =>
@@ -2034,7 +2061,8 @@ export default function ComicCreator() {
     toast.success("Panel tool selected - draw to create panels");
   };
   
-  const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">) => {
+  const addContentToPanel = (page: "left" | "right", panelId: string, content: Omit<PanelContent, "id" | "zIndex">, contentId?: string) => {
+    const id = contentId || `content_${Date.now()}`;
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
       const key = page === "left" ? "leftPage" : "rightPage";
@@ -2044,13 +2072,14 @@ export default function ComicCreator() {
           if (panel.id !== panelId) return panel;
           const newContent: PanelContent = {
             ...content,
-            id: `content_${Date.now()}`,
+            id,
             zIndex: panel.contents.length,
           };
           return { ...panel, contents: [...panel.contents, newContent] };
         })
       };
     }));
+    return id;
   };
 
   const updateContentTransform = (page: "left" | "right", panelId: string, contentId: string, transform: TransformState) => {
@@ -2115,7 +2144,7 @@ export default function ComicCreator() {
   const selectedContent = getSelectedContent();
 
   const addTextToPanel = (page: "left" | "right", panelId: string) => {
-    addContentToPanel(page, panelId, {
+    const newId = addContentToPanel(page, panelId, {
       type: "text",
       transform: { x: 50, y: 50, width: 300, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
       data: { 
@@ -2129,7 +2158,7 @@ export default function ComicCreator() {
       },
       locked: false,
     });
-    setEditingTextId(`content_${Date.now() - 1}`);
+    setEditingTextId(newId);
     toast.success("Text added - double-click to edit");
   };
 
@@ -2148,6 +2177,33 @@ export default function ComicCreator() {
       locked: false,
     });
     toast.success("Speech bubble added - double-click to edit");
+  };
+
+  const addTextPanelToPanel = (page: "left" | "right", panelId: string) => {
+    const spread = spreads[currentSpreadIndex];
+    const key = page === "left" ? "leftPage" : "rightPage";
+    const panel = spread[key].find(p => p.id === panelId);
+    const pw = panel ? panel.width * 4 : 380;
+    const ph = panel ? panel.height * 4 : 500;
+    const newId = addContentToPanel(page, panelId, {
+      type: "text",
+      transform: { x: 0, y: 0, width: pw, height: ph, rotation: 0, scaleX: 1, scaleY: 1 },
+      data: {
+        text: "Start writing your story here...",
+        textPanel: true,
+        fontFamily: "'Georgia', 'Times New Roman', serif",
+        fontSize: 16,
+        color: "#1a1a1a",
+        backgroundColor: "#ffffff",
+        padding: 32,
+        lineHeight: 1.8,
+        textAlign: "left",
+        textEffect: "none",
+      },
+      locked: false,
+    });
+    setEditingTextId(newId);
+    toast.success("Text page added - double-click to edit");
   };
 
   const addCaptionToPanel = (page: "left" | "right", panelId: string) => {
@@ -4021,6 +4077,11 @@ export default function ComicCreator() {
                       <Square className="w-4 h-4 mr-2" /> Add Caption Box
                     </ContextMenuItem>
                   )}
+                  {selectedPanelId && (
+                    <ContextMenuItem onClick={() => addTextPanelToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer" data-testid="menu-add-text-page-left">
+                      <AlignJustify className="w-4 h-4 mr-2" /> Add Text Page
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
                     <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -4357,6 +4418,11 @@ export default function ComicCreator() {
                       <Square className="w-4 h-4 mr-2" /> Add Caption Box
                     </ContextMenuItem>
                   )}
+                  {selectedPanelId && (
+                    <ContextMenuItem onClick={() => addTextPanelToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer" data-testid="menu-add-text-page-right">
+                      <AlignJustify className="w-4 h-4 mr-2" /> Add Text Page
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
                     <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -4675,7 +4741,7 @@ export default function ComicCreator() {
                       <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
                         {panel.contents.map((content, cIdx, contentArr) => {
                           const isContentActive = selectedContentId === content.id;
-                          const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? "Text" : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
+                          const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? (content.data?.textPanel ? "Text Page" : "Text") : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
                           return (
                           <div
                             key={content.id}

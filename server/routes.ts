@@ -6000,6 +6000,81 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   });
 
   // ==========================================
+  // FX STUDIO LAYOUT SYNC (public endpoint for SEND TO button)
+  // ==========================================
+
+  app.options("/api/fx-studio/layout-sync", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.sendStatus(204);
+  });
+
+  app.post("/api/fx-studio/layout-sync", async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    try {
+      const { pages, template, title, metadata, script_data } = req.body;
+
+      if (pages && !Array.isArray(pages)) {
+        return res.status(400).json({ message: "pages must be an array" });
+      }
+      if (!pages && !script_data) {
+        return res.status(400).json({ message: "Missing pages or script_data" });
+      }
+      if (pages) {
+        for (const page of pages) {
+          if (!page.panels || !Array.isArray(page.panels)) {
+            return res.status(400).json({ message: "Each page must have a panels array" });
+          }
+        }
+      }
+
+      const type = script_data ? "comic-script" : "panel-layout";
+      const name = title || `Layout ${new Date().toISOString().slice(0, 16)}`;
+
+      const payload: Record<string, any> = {
+        name,
+        type,
+        asset_tag: type === "comic-script" ? "comic-script" : "panel-layout",
+        metadata: {
+          ...(metadata || {}),
+          ...(pages ? { layout_data: { pages, template, title } } : {}),
+          ...(script_data ? { script_data } : {}),
+        },
+      };
+
+      const response = await fetch(FX_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "Unknown error");
+        return res.status(502).json({ message: `Upstream sync failed: ${errText}` });
+      }
+
+      const data = await response.json();
+      const effectId = Array.isArray(data) ? data[0]?.id : data?.id;
+
+      if (!effectId) {
+        return res.status(502).json({ message: "Upstream returned no effect ID" });
+      }
+
+      const paramKey = type === "comic-script" ? "fromScript" : "fromLayout";
+
+      res.json({
+        success: true,
+        effectId,
+        redirectUrl: `/comic?${paramKey}=${effectId}`,
+        message: `${type === "comic-script" ? "Script" : "Layout"} synced — open redirectUrl to apply`,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ==========================================
   // COMMUNITY LIBRARY
   // ==========================================
 

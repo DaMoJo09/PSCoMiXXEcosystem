@@ -52,7 +52,7 @@ Features smart project resumption, server-side deduplication, and auto-save-on-u
 
 ### Creator Tools
 A suite of tools includes:
-- **Comic Creator:** Supports drawing, CSS filters, text formatting, auto-save, undo/redo, offline saving, and various export options.
+- **Comic Creator:** Supports drawing, CSS filters, text formatting, auto-save, undo/redo, offline saving, and various export options. Includes a **Text Page** panel option for books, kids' books, and graphic novels (full-panel prose text with serif fonts, proper line height, and book-style padding). Panel templates include Book/Novel category (Full Text Page, Chapter Header + Text, Two Columns, Graphic Novel Panel, etc.).
 - **Visual Novel Creator:** A Ren'Py-inspired engine with scenes, characters, dialogue, transitions, and export options.
 - **CYOA Builder:** An interactive fiction engine with story generation, node editing, variables, conditional choices, and HTML export.
 - **Card Creator:** Supports TCG and Sports modes with specific card types and a Pack Builder.
@@ -88,7 +88,7 @@ Public creator profiles display avatar, cover image, bio, XP progress, social li
 A reusable component for students to submit projects to active assignments.
 
 ### FX Studio Integration
-Integrates bidirectionally with FX Studio (pressplays.site) for asset exchange across all creator tools. XP and time spent events are forwarded to PSStreaming. Supports exporting panels to FX Studio and importing effects back into panels, and importing `comic-script` type assets from PressPlays into various creator tools.
+Integrates bidirectionally with FX Studio (pressplays.site) for asset exchange across all creator tools. XP and time spent events are forwarded to PSStreaming. Supports exporting panels to FX Studio and importing effects back into panels, and importing `comic-script` type assets from PressPlays into various creator tools. **Layout Sync**: `POST /api/fx-studio/layout-sync` receives panel layout data (pages with panel positions) or script data from FX Studio's "SEND TO" button, stores it via the effects API, and returns a redirect URL (`/comic?fromLayout=ID` or `/comic?fromScript=ID`). The Comic Creator handles both `fromLayout` and `fromScript` URL params to auto-import layouts and scripts. `layoutToSpreads()` in `scriptImport.ts` converts layout data to comic spreads. The endpoint supports CORS for cross-origin calls from the Lovable-hosted FX Studio app.
 
 ### PWA & Offline Mode
 Includes a Service Worker for caching and offline use with IndexedDB, featuring conflict resolution, background syncing, and update notifications.

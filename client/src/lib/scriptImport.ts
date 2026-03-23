@@ -1,10 +1,31 @@
 export interface ScriptElement {
-  type: "dialog" | "sfx" | "image" | "narration" | "caption";
+  type: "dialog" | "sfx" | "image" | "narration" | "caption" | "text";
   character?: string;
   content?: string;
   imageId?: string;
   style?: "normal" | "shout" | "whisper" | "thought";
   intensity?: "small" | "medium" | "large";
+}
+
+export interface LayoutPanel {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type?: "rectangle" | "circle";
+  textPanel?: boolean;
+  text?: string;
+}
+
+export interface LayoutPage {
+  panels: LayoutPanel[];
+}
+
+export interface LayoutData {
+  template?: string;
+  pages: LayoutPage[];
+  title?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface ScriptPanel {
@@ -572,6 +593,26 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
               zIndex: contentIndex + 10,
               locked: false,
             });
+          } else if (el.type === "text" && el.content) {
+            contents.push({
+              id: `content_${Date.now()}_${contentIndex++}`,
+              type: "text",
+              transform: { x: 0, y: 0, width: layout.width * 4, height: layout.height * 4, rotation: 0, scaleX: 1, scaleY: 1 },
+              data: {
+                text: el.content,
+                textPanel: true,
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                fontSize: 16,
+                color: "#1a1a1a",
+                backgroundColor: "#ffffff",
+                padding: 32,
+                lineHeight: 1.8,
+                textAlign: "left",
+                textEffect: "none",
+              },
+              zIndex: 0,
+              locked: false,
+            });
           }
         }
       }
@@ -687,6 +728,120 @@ function redistributePanels(panels: Panel[]) {
     p.width = 100 - gap * 2;
     p.height = cellH;
   });
+}
+
+export function layoutToSpreads(layoutData: LayoutData): Spread[] {
+  const spreads: Spread[] = [];
+  const rawPages = layoutData.pages;
+  const pages = Array.isArray(rawPages) ? rawPages : [];
+
+  for (let i = 0; i < pages.length; i += 2) {
+    const leftPageData = pages[i];
+    const rightPageData = pages[i + 1];
+
+    const leftRawPanels = leftPageData?.panels;
+    const leftPanels: Panel[] = (Array.isArray(leftRawPanels) ? leftRawPanels : []).map((lp, j) => {
+      const contents: PanelContent[] = [];
+      if (lp.textPanel && lp.text) {
+        contents.push({
+          id: `content_tp_${Date.now()}_${i}_${j}`,
+          type: "text",
+          transform: { x: 0, y: 0, width: lp.width * 4, height: lp.height * 4, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: {
+            text: lp.text,
+            textPanel: true,
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+            fontSize: 16,
+            color: "#1a1a1a",
+            backgroundColor: "#ffffff",
+            padding: 32,
+            lineHeight: 1.8,
+            textAlign: "left",
+            textEffect: "none",
+          },
+          zIndex: 0,
+          locked: false,
+        });
+      }
+      return {
+        id: `panel_layout_${i}_${j}`,
+        x: lp.x,
+        y: lp.y,
+        width: lp.width,
+        height: lp.height,
+        rotation: 0,
+        type: (lp.type || "rectangle") as "rectangle" | "circle",
+        contents,
+        zIndex: j,
+        locked: false,
+        backgroundColor: lp.textPanel ? "#ffffff" : "#ffffff",
+        borderColor: "#000000",
+        borderWidth: lp.textPanel ? 0 : 3,
+      };
+    });
+
+    const rightRawPanels = rightPageData?.panels;
+    const rightPanels: Panel[] = (Array.isArray(rightRawPanels) ? rightRawPanels : []).map((lp, j) => {
+      const contents: PanelContent[] = [];
+      if (lp.textPanel && lp.text) {
+        contents.push({
+          id: `content_tp_${Date.now()}_${i + 1}_${j}`,
+          type: "text",
+          transform: { x: 0, y: 0, width: lp.width * 4, height: lp.height * 4, rotation: 0, scaleX: 1, scaleY: 1 },
+          data: {
+            text: lp.text,
+            textPanel: true,
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+            fontSize: 16,
+            color: "#1a1a1a",
+            backgroundColor: "#ffffff",
+            padding: 32,
+            lineHeight: 1.8,
+            textAlign: "left",
+            textEffect: "none",
+          },
+          zIndex: 0,
+          locked: false,
+        });
+      }
+      return {
+        id: `panel_layout_${i + 1}_${j}`,
+        x: lp.x,
+        y: lp.y,
+        width: lp.width,
+        height: lp.height,
+        rotation: 0,
+        type: (lp.type || "rectangle") as "rectangle" | "circle",
+        contents,
+        zIndex: j,
+        locked: false,
+        backgroundColor: lp.textPanel ? "#ffffff" : "#ffffff",
+        borderColor: "#000000",
+        borderWidth: lp.textPanel ? 0 : 3,
+      };
+    });
+
+    spreads.push({
+      id: `spread_layout_${Math.floor(i / 2)}`,
+      leftPage: leftPanels,
+      rightPage: rightPanels,
+    });
+  }
+
+  if (spreads.length === 0) {
+    spreads.push({
+      id: "spread_layout_0",
+      leftPage: [{
+        id: "panel_default",
+        x: 2, y: 2, width: 96, height: 96, rotation: 0,
+        type: "rectangle", contents: [], zIndex: 0, locked: false,
+        backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 3,
+      }],
+      rightPage: [],
+    });
+  }
+
+  return spreads;
 }
 
 export function getScriptStats(scriptData: ScriptData) {
