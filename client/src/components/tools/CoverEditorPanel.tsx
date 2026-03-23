@@ -836,9 +836,17 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
     return (
       <div
-        className="relative overflow-hidden border-2 border-black shadow-xl"
+        className={`relative border-2 border-black shadow-xl ${selectedLayerIds.length > 0 ? '' : 'overflow-hidden'}`}
         style={{ width, height, backgroundColor: bgColor }}
-        onClick={(e) => { if (!e.shiftKey) setSelectedLayerIds([]); setEditingMasterId(null); setActiveView(view); }}
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          const isTransformable = target.closest('[data-testid^="transformable-"]');
+          if (!isTransformable) {
+            if (!e.shiftKey) setSelectedLayerIds([]);
+            setEditingMasterId(null);
+          }
+          setActiveView(view);
+        }}
       >
         <div className="absolute origin-top-left" style={{ top: 0, left: 0, width: needsScale ? `${designW}px` : '100%', height: needsScale ? `${designH}px` : '100%', transform: needsScale ? `scale(${scale})` : 'none' }}>
           {bgImage && !(coverData.hiddenElements || []).includes(`bg-${view}`) && (
