@@ -308,7 +308,7 @@ export function TransformableElement({
   return (
     <div
       ref={elementRef}
-      className={`absolute transition-shadow ${isSelected ? 'z-50' : ''}`}
+      className="absolute transition-shadow"
       style={{
         left: transform.x,
         top: transform.y,
@@ -317,6 +317,7 @@ export function TransformableElement({
         transform: `rotate(${transform.rotation}deg)`,
         cursor: locked ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
         ...extraStyle,
+        ...(isSelected ? { zIndex: 999 } : {}),
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); onSelect?.(id); }}
