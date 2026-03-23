@@ -12,7 +12,7 @@ import crypto from "crypto";
 import path from "path";
 import { db } from "./db";
 import { featureFlags } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 async function seedFeatureFlags() {
   const defaults = [
@@ -33,6 +33,7 @@ async function seedFeatureFlags() {
     for (const flag of defaults) {
       await db.insert(featureFlags).values(flag).onConflictDoNothing({ target: featureFlags.key });
     }
+    await db.update(featureFlags).set({ enabled: false }).where(eq(featureFlags.key, 'early_adopter_gate'));
     console.log("[feature-flags] Seeded default feature flags");
   } catch (err) {
     console.error("[feature-flags] Failed to seed:", err);
