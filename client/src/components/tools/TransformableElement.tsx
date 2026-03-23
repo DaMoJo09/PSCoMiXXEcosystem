@@ -153,7 +153,6 @@ export function TransformableElement({
         
         let newX = dragStart.current.startX + dx;
         let newY = dragStart.current.startY + dy;
-        
         if (e.shiftKey) {
           newX = snapToGrid(newX);
           newY = snapToGrid(newY);
