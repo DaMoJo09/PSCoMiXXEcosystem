@@ -866,7 +866,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
               containerScale={scale}
               minWidth={20}
               minHeight={20}
-              style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf(`bg-${view}`), 0) + 1 }}
+              style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf(`bg-${view}`), 0) + 2 }}
             >
               <img src={bgImage} className="w-full h-full object-cover pointer-events-none select-none" style={getFilterStyle()} draggable={false} />
             </TransformableElement>
@@ -895,7 +895,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   onSelect={(id) => handleShiftSelect(id)}
                   onTransformChange={(_, transform) => updateCover({ bannerTransform: transform })}
                   locked={false} containerRef={canvasRef} containerScale={scale}
-                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-banner"), 0) + 10 }}
+                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-banner"), 0) + 2 }}
                 >
                   <div className="w-full h-full flex items-center justify-between px-2 text-white" style={{ backgroundColor: coverData.bannerBgColor }}>
                     {editingMasterId === "master-publisher" ? (
@@ -924,7 +924,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   onSelect={(id) => handleShiftSelect(id)}
                   onTransformChange={(_, transform) => updateCover({ priceBoxTransform: transform })}
                   locked={false} containerRef={canvasRef} containerScale={scale}
-                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-price"), 0) + 10 }}
+                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-price"), 0) + 2 }}
                 >
                   <div className="w-full h-full bg-white border-2 border-black flex items-center justify-center">
                     {editingMasterId === "master-price" ? (
@@ -946,7 +946,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   onSelect={(id) => handleShiftSelect(id)}
                   onTransformChange={(_, transform) => updateCover({ issueNumberTransform: transform })}
                   locked={false} containerRef={canvasRef} containerScale={scale}
-                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-issue"), 0) + 10 }}
+                  style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-issue"), 0) + 2 }}
                 >
                   <div className="w-full h-full flex items-center justify-center">
                     {editingMasterId === "master-issue" ? (
@@ -970,7 +970,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ titleTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-title"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-title"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-title" ? (
@@ -997,7 +997,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ subtitleTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-subtitle"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-subtitle"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-subtitle" ? (
@@ -1024,7 +1024,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ authorTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-author"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-author"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-author" ? (
@@ -1055,7 +1055,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ backTitleTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-title"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-title"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-back-title" ? (
@@ -1080,7 +1080,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ backBlurbTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-blurb"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-blurb"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center p-4">
                   {editingMasterId === "master-blurb" ? (
@@ -1105,7 +1105,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ backAuthorTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-author"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-author"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-back-author" ? (
@@ -1130,7 +1130,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                 onSelect={(id) => handleShiftSelect(id)}
                 onTransformChange={(_, transform) => updateCover({ backPublisherTransform: transform })}
                 locked={false} containerRef={canvasRef} containerScale={scale}
-                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-publisher"), 0) + 10 }}
+                style={{ zIndex: Math.max((coverData.elementZOrder || []).indexOf("master-back-publisher"), 0) + 2 }}
               >
                 <div className="w-full h-full flex items-center justify-center text-center">
                   {editingMasterId === "master-back-publisher" ? (
@@ -1193,7 +1193,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
             return orderedIds.map((id) => {
               if (hiddenLayerSet.has(id)) return null;
               const globalIdx = zOrder.indexOf(id);
-              const zIdx = (globalIdx >= 0 ? globalIdx : zOrder.length) + 10;
+              const zIdx = (globalIdx >= 0 ? globalIdx : zOrder.length) + 2;
               const imgLayer = imgMap.get(id);
               if (imgLayer) {
                 return (
