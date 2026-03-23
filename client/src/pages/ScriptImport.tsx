@@ -132,7 +132,7 @@ export default function ScriptImport() {
                 <div className="bg-zinc-900 border-2 border-zinc-700 p-12 text-center">
                   <FileText className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
                   <p className="text-zinc-500 text-sm mb-2">No scripts found</p>
-                  <p className="text-zinc-600 text-xs">Create a script at pressplays.site/script and export it to CoMiXX.</p>
+                  <p className="text-zinc-600 text-xs">Create a script at pscomixx.online/script and export it to CoMiXX.</p>
                   <button
                     onClick={loadScripts}
                     className="mt-4 px-4 py-2 bg-zinc-800 border border-zinc-600 text-sm hover:bg-zinc-700 transition flex items-center gap-2 mx-auto"

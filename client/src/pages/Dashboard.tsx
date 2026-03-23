@@ -226,7 +226,7 @@ export default function Dashboard() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button 
-              onClick={() => window.open("https://pressplays.site", "_blank", "noopener,noreferrer")}
+              onClick={() => window.open("https://pscomixx.online", "_blank", "noopener,noreferrer")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-fx-studio"
             >

@@ -490,7 +490,7 @@ export default function MotionStudio() {
   // Asset Browser
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
   
-  // FX Studio Browser (pressplays.site sync)
+  // FX Studio Browser (pscomixx.online sync)
   const [showFxBrowser, setShowFxBrowser] = useState(false);
   const [fxEffects, setFxEffects] = useState<FxEffect[]>([]);
   const [fxLoading, setFxLoading] = useState(false);
@@ -2772,7 +2772,7 @@ export default function MotionStudio() {
             Assets
           </button>
           
-          {/* FX Studio Browser Button (pressplays.site sync) */}
+          {/* FX Studio Browser Button (pscomixx.online sync) */}
           <button onClick={() => { setShowFxBrowser(!showFxBrowser); if (!showFxBrowser && fxEffects.length === 0) loadFxEffects(); }}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
               showFxBrowser 
@@ -4327,14 +4327,14 @@ export default function MotionStudio() {
         </div>
       )}
 
-      {/* FX Studio Browser Panel (pressplays.site sync) */}
+      {/* FX Studio Browser Panel (pscomixx.online sync) */}
       {showFxBrowser && (
         <div className="fixed top-16 right-72 w-96 bg-black border border-purple-500/30 rounded-xl shadow-2xl z-40 overflow-hidden">
           <div className="p-3 border-b border-purple-500/30 flex items-center justify-between bg-purple-950/30">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-purple-400" />
               <span className="text-sm font-semibold text-white">FX Studio</span>
-              <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 rounded-full">pressplays.site</span>
+              <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 rounded-full">pscomixx.online</span>
             </div>
             <div className="flex items-center gap-1">
               <button onClick={loadFxEffects} className="p-1 hover:bg-purple-900/50 rounded" title="Refresh">
@@ -4368,7 +4368,7 @@ export default function MotionStudio() {
             ) : fxEffects.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
                 <Sparkles className="w-10 h-10 text-purple-500/30" />
-                <p className="text-xs text-zinc-500">No effects found. Create effects at pressplays.site to see them here.</p>
+                <p className="text-xs text-zinc-500">No effects found. Create effects at pscomixx.online to see them here.</p>
               </div>
             ) : (
               fxEffects

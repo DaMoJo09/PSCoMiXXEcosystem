@@ -133,7 +133,7 @@ Frame-by-frame animation and video editing.
 
 ## 5. FX STUDIO INTEGRATION
 
-CoMiXX connects bidirectionally with FX Studio (the visual effects platform at pressplays.site).
+CoMiXX connects bidirectionally with FX Studio (the visual effects platform at pscomixx.online).
 
 ### What FX Studio Sends to CoMiXX
 
