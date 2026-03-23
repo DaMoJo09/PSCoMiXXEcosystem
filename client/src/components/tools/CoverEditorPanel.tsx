@@ -1256,7 +1256,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
           <h2 className="font-display font-bold text-lg">Cover Editor</h2>
           <div className="flex bg-zinc-800 p-1">
             {(["front", "back", "spine", "spread"] as const).map(v => (
-              <button key={v} onClick={() => setActiveView(v)}
+              <button key={v} onClick={() => { setSelectedLayerIds([]); setEditingMasterId(null); setEditingTextId(null); setActiveView(v); }}
                 className={`px-3 py-1 text-xs font-medium capitalize ${activeView === v ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{v}</button>
             ))}
           </div>
@@ -2018,9 +2018,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
               </>
             )}
             <ContextMenuSeparator className="bg-zinc-700" />
-            <ContextMenuItem onClick={() => setActiveView("front")} className="hover:bg-zinc-800 cursor-pointer"><Eye className="w-4 h-4 mr-2" /> View Front</ContextMenuItem>
-            <ContextMenuItem onClick={() => setActiveView("back")} className="hover:bg-zinc-800 cursor-pointer"><Eye className="w-4 h-4 mr-2" /> View Back</ContextMenuItem>
-            <ContextMenuItem onClick={() => setActiveView("spread")} className="hover:bg-zinc-800 cursor-pointer"><Layers className="w-4 h-4 mr-2" /> View Spread</ContextMenuItem>
+            <ContextMenuItem onClick={() => { setSelectedLayerIds([]); setEditingMasterId(null); setActiveView("front"); }} className="hover:bg-zinc-800 cursor-pointer"><Eye className="w-4 h-4 mr-2" /> View Front</ContextMenuItem>
+            <ContextMenuItem onClick={() => { setSelectedLayerIds([]); setEditingMasterId(null); setActiveView("back"); }} className="hover:bg-zinc-800 cursor-pointer"><Eye className="w-4 h-4 mr-2" /> View Back</ContextMenuItem>
+            <ContextMenuItem onClick={() => { setSelectedLayerIds([]); setEditingMasterId(null); setActiveView("spread"); }} className="hover:bg-zinc-800 cursor-pointer"><Layers className="w-4 h-4 mr-2" /> View Spread</ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
       </div>

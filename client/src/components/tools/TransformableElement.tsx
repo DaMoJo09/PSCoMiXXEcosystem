@@ -92,9 +92,9 @@ export function TransformableElement({
   }, [containerRef]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (locked) return;
     e.stopPropagation();
     onSelect?.(id);
+    if (locked) return;
     
     const offset = getContainerOffset();
     setIsDragging(true);
