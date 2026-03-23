@@ -128,17 +128,53 @@ function isPressPlaysFormat(data: any): boolean {
     (firstPage.panels?.[0] && ('dialogue' in firstPage.panels[0] || 'sfx' in firstPage.panels[0] || 'narrations' in firstPage.panels[0]));
 }
 
-function normalizePressPlaysPanel(pp: PressPlaysPanel): ScriptPanel {
+function detectScriptFormat(data: any): "novel" | "screenplay" | "kidsbook" | "comic" {
+  if (!data?.pages?.length) return "comic";
+  let totalDescLen = 0;
+  let totalDialogue = 0;
+  let totalImgRefs = 0;
+  let hasSceneHeading = false;
+  for (const page of data.pages) {
+    for (const panel of (page.panels || page.pages || [])) {
+      const desc = panel.description || panel.action || "";
+      totalDescLen += desc.length;
+      totalDialogue += (panel.dialogue?.length || 0);
+      totalImgRefs += (panel.img_refs?.length || 0);
+      if (/^(INT\.|EXT\.|INT\/EXT\.)/.test(desc.trim())) hasSceneHeading = true;
+      if (desc.includes("[ART:")) totalImgRefs++;
+    }
+  }
+  if (hasSceneHeading) return "screenplay";
+  if (totalImgRefs > totalDialogue && totalImgRefs > 0) return "kidsbook";
+  if (totalDescLen > 200 && totalDialogue < totalDescLen / 50) return "novel";
+  return "comic";
+}
+
+function normalizePressPlaysPanel(pp: PressPlaysPanel, format: "novel" | "screenplay" | "kidsbook" | "comic" = "comic"): ScriptPanel {
   const elements: ScriptElement[] = [];
+
+  if (pp.description && (format === "novel" || format === "screenplay")) {
+    elements.push({
+      type: "text",
+      content: pp.description,
+    });
+  }
 
   if (pp.dialogue) {
     for (const d of pp.dialogue) {
-      elements.push({
-        type: "dialog",
-        character: d.character,
-        content: d.line,
-        style: d.style || "normal",
-      });
+      if (format === "novel") {
+        elements.push({
+          type: "text",
+          content: `${d.character}: "${d.line}"`,
+        });
+      } else {
+        elements.push({
+          type: "dialog",
+          character: d.character,
+          content: d.line,
+          style: d.style || "normal",
+        });
+      }
     }
   }
 
@@ -154,10 +190,17 @@ function normalizePressPlaysPanel(pp: PressPlaysPanel): ScriptPanel {
 
   if (pp.narrations) {
     for (const n of pp.narrations) {
-      elements.push({
-        type: "narration",
-        content: n,
-      });
+      if (format === "novel") {
+        elements.push({
+          type: "text",
+          content: n,
+        });
+      } else {
+        elements.push({
+          type: "narration",
+          content: n,
+        });
+      }
     }
   }
 
@@ -172,9 +215,9 @@ function normalizePressPlaysPanel(pp: PressPlaysPanel): ScriptPanel {
 
   return {
     panelNumber: pp.panel_number,
-    action: pp.description,
+    action: format === "novel" || format === "screenplay" ? undefined : pp.description,
     elements,
-    suggestedLayout: pp.suggested_layout,
+    suggestedLayout: pp.suggested_layout || (format === "novel" ? { size: "splash" } : undefined),
   };
 }
 
@@ -192,15 +235,17 @@ export function normalizeScriptData(raw: any): ScriptData {
 
   if (isPressPlaysFormat(raw)) {
     const pp = raw as PressPlaysScriptData;
+    const format = detectScriptFormat(raw);
     return {
       title: pp.title || "Untitled",
       version: pp.version,
       pages: (pp.pages || []).map(page => ({
         pageNumber: page.page_number,
-        panels: (page.panels || []).map(normalizePressPlaysPanel),
+        panels: (page.panels || []).map(p => normalizePressPlaysPanel(p, format)),
       })),
       assets: (pp.assets || []).map(normalizePressPlaysAsset),
       metadata: pp.metadata,
+      modeHints: { comic: { detectedFormat: format } },
     };
   }
 
@@ -514,6 +559,9 @@ export function scriptToVN(scriptData: ScriptData): {
 
 export function scriptToComic(scriptData: ScriptData): Spread[] {
   const spreads: Spread[] = [];
+  const detectedFormat = scriptData.modeHints?.comic?.detectedFormat as string | undefined;
+  const isNovel = detectedFormat === "novel";
+  const isScreenplay = detectedFormat === "screenplay";
 
   for (const page of scriptData.pages) {
     const panelCount = page.panels.length;
@@ -527,6 +575,44 @@ export function scriptToComic(scriptData: ScriptData): Spread[] {
       let contentIndex = 0;
 
       if (scriptPanel) {
+        const textElements = scriptPanel.elements.filter(e => e.type === "text");
+        const allText = textElements.length > 0 && textElements.length === scriptPanel.elements.length;
+
+        if (allText) {
+          const combinedText = textElements.map(e => e.content || "").join("\n\n");
+          contents.push({
+            id: `content_${Date.now()}_${contentIndex++}`,
+            type: "text",
+            transform: { x: 0, y: 0, width: layout.width * 4, height: layout.height * 4, rotation: 0, scaleX: 1, scaleY: 1 },
+            data: {
+              text: combinedText,
+              textPanel: true,
+              fontFamily: isScreenplay ? "'Courier New', 'Courier', monospace" : "'Georgia', 'Times New Roman', serif",
+              fontSize: isScreenplay ? 14 : 16,
+              color: "#1a1a1a",
+              backgroundColor: "#ffffff",
+              padding: isScreenplay ? 24 : 32,
+              lineHeight: isScreenplay ? 1.5 : 1.8,
+              textAlign: isScreenplay ? "left" : "justify",
+              textEffect: "none",
+            },
+            zIndex: 0,
+            locked: false,
+          });
+          return {
+            id: panelId,
+            ...layout,
+            rotation: 0,
+            type: "rectangle" as const,
+            contents,
+            zIndex: i,
+            locked: false,
+            backgroundColor: "#ffffff",
+            borderColor: "#000000",
+            borderWidth: 0,
+          };
+        }
+
         for (const el of scriptPanel.elements) {
           if (el.type === "image" && el.imageId) {
             const url = resolveAssetUrl(el.imageId, scriptData.assets);

@@ -6013,13 +6013,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.post("/api/fx-studio/layout-sync", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
-      const { pages, template, title, metadata, script_data } = req.body;
+      const { pages, template, title, metadata, script_data, asset_tag, target_page, preview_data_url } = req.body;
 
       if (pages && !Array.isArray(pages)) {
         return res.status(400).json({ message: "pages must be an array" });
       }
-      if (!pages && !script_data) {
-        return res.status(400).json({ message: "Missing pages or script_data" });
+      if (!pages && !script_data && !preview_data_url) {
+        return res.status(400).json({ message: "Missing pages, script_data, or preview_data_url" });
       }
       if (pages) {
         for (const page of pages) {
@@ -6029,17 +6029,20 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
       }
 
-      const type = script_data ? "comic-script" : "panel-layout";
+      const type = script_data ? "comic-script" : preview_data_url ? "static-asset" : "panel-layout";
       const name = title || `Layout ${new Date().toISOString().slice(0, 16)}`;
 
       const payload: Record<string, any> = {
         name,
         type,
-        asset_tag: type === "comic-script" ? "comic-script" : "panel-layout",
+        asset_tag: asset_tag || (type === "comic-script" ? "comic-script" : "interior-page"),
+        ...(target_page ? { target_page } : {}),
+        ...(preview_data_url ? { preview_data_url } : {}),
         metadata: {
           ...(metadata || {}),
           ...(pages ? { layout_data: { pages, template, title } } : {}),
           ...(script_data ? { script_data } : {}),
+          ...(target_page ? { target_page } : {}),
         },
       };
 

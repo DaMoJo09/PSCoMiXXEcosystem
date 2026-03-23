@@ -731,15 +731,62 @@ export default function ComicCreator() {
       const eff = Array.isArray(effect) ? effect[0] : effect;
       if (!eff) return;
       const metadata = eff.metadata || {};
-      const raw: LayoutData = metadata.layout_data || { pages: metadata.pages || [], template: metadata.template };
-      const importedSpreads = layoutToSpreads(raw);
-      if (importedSpreads.length > 0) {
-        setSpreadsRaw(importedSpreads);
+
+      if (metadata.layout_data) {
+        const raw: LayoutData = metadata.layout_data;
+        const importedSpreads = layoutToSpreads(raw);
+        if (importedSpreads.length > 0) {
+          setSpreadsRaw(importedSpreads);
+          undoStackRef.current = [];
+          redoStackRef.current = [];
+        }
+        setTitle(raw.title || eff.name || "Imported Layout");
+        toast.success("Layout imported from FX Studio");
+      } else if (eff.preview_data_url) {
+        const targetPage = eff.target_page || metadata.target_page || 1;
+        const spreadIdx = Math.max(0, Math.floor((targetPage - 1) / 2));
+        const side: "left" | "right" = targetPage % 2 === 1 ? "left" : "right";
+
+        setSpreadsRaw(prev => {
+          const newSpreads = [...prev];
+          while (newSpreads.length <= spreadIdx) {
+            newSpreads.push({
+              id: `spread_${newSpreads.length}`,
+              leftPage: [],
+              rightPage: [],
+            });
+          }
+          const key = side === "left" ? "leftPage" : "rightPage";
+          const panel = {
+            id: `panel_layout_img_${Date.now()}`,
+            x: 0, y: 0, width: 100, height: 100,
+            rotation: 0,
+            type: "rectangle" as const,
+            contents: [{
+              id: `content_layout_img_${Date.now()}`,
+              type: "image" as const,
+              transform: { x: 0, y: 0, width: 400, height: 600, rotation: 0, scaleX: 1, scaleY: 1 },
+              data: { url: eff.preview_data_url },
+              zIndex: 0,
+              locked: false,
+            }],
+            zIndex: 0,
+            locked: false,
+            backgroundColor: "#ffffff",
+            borderColor: "#000000",
+            borderWidth: 0,
+          };
+          newSpreads[spreadIdx] = {
+            ...newSpreads[spreadIdx],
+            [key]: [panel],
+          };
+          return newSpreads;
+        });
         undoStackRef.current = [];
         redoStackRef.current = [];
+        setTitle(eff.name || "Imported Layout");
+        toast.success(`Layout image placed on page ${targetPage}`);
       }
-      setTitle(raw.title || eff.name || "Imported Layout");
-      toast.success("Layout imported from FX Studio");
     }).catch(() => toast.error("Failed to load layout"));
   }, []);
 
