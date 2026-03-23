@@ -940,34 +940,61 @@ export default function ComicCreator() {
   };
 
   const setCoverRole = useCallback((page: "left" | "right", panelId: string, role: "front-cover" | "back-cover" | null) => {
-    setSpreads(prev => prev.map(spread => ({
-      ...spread,
-      leftPage: spread.leftPage.map(p => {
-        if (p.id === panelId && page === "left") {
-          if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
-          return { ...p, coverRole: undefined };
-        }
-        if (role && p.coverRole === role) return { ...p, coverRole: undefined };
-        return p;
-      }),
-      rightPage: spread.rightPage.map(p => {
-        if (p.id === panelId && page === "right") {
-          if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
-          return { ...p, coverRole: undefined };
-        }
-        if (role && p.coverRole === role) return { ...p, coverRole: undefined };
-        return p;
-      }),
-    })));
+    let targetPanel: Panel | undefined;
+    setSpreads(prev => prev.map(spread => {
+      const updated = {
+        ...spread,
+        leftPage: spread.leftPage.map(p => {
+          if (p.id === panelId && page === "left") {
+            targetPanel = p;
+            if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+            return { ...p, coverRole: undefined };
+          }
+          if (role && p.coverRole === role) return { ...p, coverRole: undefined };
+          return p;
+        }),
+        rightPage: spread.rightPage.map(p => {
+          if (p.id === panelId && page === "right") {
+            targetPanel = p;
+            if (role) return { ...p, coverRole: role, x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+            return { ...p, coverRole: undefined };
+          }
+          if (role && p.coverRole === role) return { ...p, coverRole: undefined };
+          return p;
+        }),
+      };
+      return updated;
+    }));
     if (role) {
+      const bgImageKey = role === "front-cover" ? "frontImage" : "backImage";
+      const bgTransformKey = role === "front-cover" ? "frontBgTransform" : "backBgTransform";
+      let panelImage: string | null = null;
+      if (targetPanel) {
+        const imgContent = targetPanel.contents
+          .sort((a, b) => b.zIndex - a.zIndex)
+          .find(c => c.type === "image" && c.data.url);
+        if (imgContent?.data.url) {
+          panelImage = imgContent.data.url;
+        } else {
+          const drawContent = targetPanel.contents
+            .sort((a, b) => b.zIndex - a.zIndex)
+            .find(c => c.type === "drawing" && c.data.drawingData);
+          if (drawContent?.data.drawingData) {
+            panelImage = drawContent.data.drawingData;
+          }
+        }
+      }
       setCoverDesignData(prev => {
-        if (prev && prev.title) return prev;
-        return {
+        const base = (prev && prev.title) ? prev : {
           ...defaultCover,
           title: title || defaultCover.title,
           spineText: title || defaultCover.spineText,
           author: user?.name || defaultCover.author,
         };
+        if (panelImage) {
+          return { ...base, [bgImageKey]: panelImage, [bgTransformKey]: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 } };
+        }
+        return base;
       });
       setShowLayers(true);
       setSelectedPanelId(panelId);
@@ -2706,7 +2733,25 @@ export default function ComicCreator() {
 
             return (
               <div className="absolute inset-0 z-[1] overflow-hidden" style={{ backgroundColor: bgColor, containerType: 'size' }}>
-                {bgImage && <img src={bgImage} alt="Cover background" className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
+                {bgImage && !hiddenEls.has(`bg-${isFront ? "front" : "back"}`) && (() => {
+                  const bgViewKey = isFront ? "front" : "back";
+                  const bgTransform = (cd as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 };
+                  const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
+                  return (
+                    <TransformableElement
+                      id={`cover-bg-${bgViewKey}`}
+                      initialTransform={{ ...bgTransform, width: bgTransform.width || 100, height: bgTransform.height || 100 }}
+                      isSelected={isBgSelected}
+                      onSelect={() => { setSelectedContentId(`cover-bg-${bgViewKey}`); setSelectedPanelId(panel.id); }}
+                      onTransformChange={(_, t) => updateCoverData({ [`${bgViewKey}BgTransform`]: t })}
+                      locked={false}
+                      minWidth={20} minHeight={20}
+                      style={{ zIndex: Math.max(coverElZOrder.indexOf(`bg-${bgViewKey}`), 0) + 1 }}
+                    >
+                      <img src={bgImage} alt="Cover background" className="w-full h-full object-cover pointer-events-none select-none" draggable={false} />
+                    </TransformableElement>
+                  );
+                })()}
 
                 {isFront ? (
                   <>
@@ -4766,7 +4811,11 @@ export default function ComicCreator() {
                             const masterMap = new Map(sortedEls.map(el => [elToMaster[el.id] || el.id, el]));
                             const imgMap = new Map(imageLayers.map(il => [il.id, il]));
                             const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
+                            const bgKey = isFr ? "frontImage" : "backImage";
+                            const hasBgImage = !!(cd as any)[bgKey];
+                            const bgId = `bg-${isFr ? "front" : "back"}`;
                             const allIds = new Set([
+                              ...(hasBgImage ? [bgId] : []),
                               ...sortedEls.map(el => elToMaster[el.id] || el.id),
                               ...imageLayers.map(il => il.id),
                               ...textLayers.map(tl => tl.id),
@@ -4861,6 +4910,35 @@ export default function ComicCreator() {
                                   </div>
                                 );
                               }
+                              if (zId === bgId && hasBgImage) {
+                                const bgViewKey = isFr ? "front" : "back";
+                                const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
+                                return (
+                                  <div key={bgId}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${isBgSelected ? 'bg-green-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-bg-${bgViewKey}`); }}
+                                    data-testid={`layer-stack-item-${bgId}`}>
+                                    <ImageIcon className="w-3 h-3 text-green-400 opacity-60 shrink-0" />
+                                    <span className="flex-1 truncate text-[10px]">{isFr ? "Front" : "Back"} Cover Image</span>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
+                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
+                                    ><MoveUp className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
+                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
+                                    ><MoveDown className="w-2.5 h-2.5" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
+                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
+                                    <button onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateCoverData({ [bgKey]: null, [`${bgViewKey}BgTransform`]: undefined });
+                                        if (isBgSelected) setSelectedContentId(null);
+                                      }}
+                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Remove Cover Image"
+                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                  </div>
+                                );
+                              }
                               return null;
                             });
                           })()}
@@ -4896,7 +4974,7 @@ export default function ComicCreator() {
                 if (activePanel?.coverRole && coverDesignData) {
                   const fullCoverData = { ...defaultCover, ...coverDesignData } as CoverData;
                   return (
-                    <div className="flex-1 overflow-hidden border-t border-zinc-800">
+                    <div className="flex-1 overflow-hidden border-t border-zinc-800 flex flex-col">
                       <CoverPropertiesPanel
                         coverData={fullCoverData}
                         updateCover={updateCoverData}
@@ -4904,6 +4982,53 @@ export default function ComicCreator() {
                         selectedLayerId={coverSelectedLayerId}
                         setSelectedLayerId={setCoverSelectedLayerId}
                       />
+                      {(() => {
+                        const bgViewKey = activePanel.coverRole === "front-cover" ? "front" : "back";
+                        const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
+                        if (!isBgSelected) return null;
+                        const bgTransform = (fullCoverData as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+                        return (
+                          <div className="p-2 border-t border-zinc-700 space-y-2" data-testid="cover-bg-transform">
+                            <label className="text-[10px] font-bold uppercase text-green-400">{bgViewKey} Cover Image Transform</label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <div>
+                                <label className="text-[9px] text-zinc-500">X</label>
+                                <input type="number" value={Math.round(bgTransform.x)}
+                                  onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, x: Number(e.target.value) } })}
+                                  className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-zinc-500">Y</label>
+                                <input type="number" value={Math.round(bgTransform.y)}
+                                  onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, y: Number(e.target.value) } })}
+                                  className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-zinc-500">Width</label>
+                                <input type="number" value={Math.round(bgTransform.width)}
+                                  onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, width: Number(e.target.value) } })}
+                                  className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" />
+                              </div>
+                              <div>
+                                <label className="text-[9px] text-zinc-500">Height</label>
+                                <input type="number" value={Math.round(bgTransform.height)}
+                                  onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, height: Number(e.target.value) } })}
+                                  className="w-full bg-zinc-800 border border-zinc-600 text-xs p-1 text-center" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-zinc-500 flex justify-between"><span>Rotation</span><span>{bgTransform.rotation || 0}°</span></label>
+                              <input type="range" min="0" max="360" step="1" value={bgTransform.rotation || 0}
+                                onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, rotation: Number(e.target.value) } })}
+                                className="w-full h-1 accent-green-500" />
+                            </div>
+                            <button onClick={() => updateCoverData({ [`${bgViewKey}BgTransform`]: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 } })}
+                              className="w-full py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600">
+                              Reset to Fill
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 }
