@@ -19,7 +19,7 @@ async function seedFeatureFlags() {
     { key: 'ai_tools_enabled', enabled: true, description: 'Show/hide AI Tools (Prompt Factory, Story Forge, Import Center, FX Studio link)' },
     { key: 'appsumo_redemption', enabled: true, description: 'Allow AppSumo code redemption' },
     { key: 'community_enabled', enabled: true, description: 'Show/hide Community Library and Ecosystem sections' },
-    { key: 'early_adopter_gate', enabled: true, description: 'Gate new signups behind waitlist/invite system' },
+    { key: 'early_adopter_gate', enabled: false, description: 'Gate new signups behind waitlist/invite system' },
     { key: 'export_restrictions', enabled: false, description: 'Require subscription for exports' },
     { key: 'invite_system', enabled: true, description: 'Allow invite code usage' },
     { key: 'marketplace_enabled', enabled: true, description: 'Show/hide the Marketplace section in sidebar and across the app' },
