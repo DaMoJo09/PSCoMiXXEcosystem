@@ -347,7 +347,6 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
   const [replaceImageLayerId, setReplaceImageLayerId] = useState<string | null>(null);
   const [showGuides, setShowGuides] = useState(false);
-  const [bgDrag, setBgDrag] = useState<{ active: boolean; mode: 'move' | 'resize'; handle?: string; startX: number; startY: number; origTransform: any; bgView: 'front' | 'back' | 'spine' } | null>(null);
 
   const historyRef = useRef<CoverData[]>([]);
   const historyIndexRef = useRef(-1);
@@ -434,38 +433,6 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo, selectedLayerIds, editingMasterId, editingTextId, activeView, coverData, onClose]);
 
-  useEffect(() => {
-    if (!bgDrag?.active) return;
-    const bv = bgDrag.bgView;
-    const tKey = `${bv}BgTransform` as keyof CoverData;
-    const designW = bv === 'spine' ? 80 : 600;
-    const isSpread = activeView === 'spread';
-    const needsScale = isSpread || (bv === 'spine' && activeView === 'spine');
-    const sectionW = bv === 'spine' ? (isSpread ? 64 : 240) : (isSpread ? 480 : 600);
-    const s = needsScale ? sectionW / designW : 1;
-
-    const handleMove = (e: MouseEvent) => {
-      const dx = (e.clientX - bgDrag.startX) / s;
-      const dy = (e.clientY - bgDrag.startY) / s;
-      const orig = bgDrag.origTransform;
-      if (bgDrag.mode === 'move') {
-        updateCover({ [tKey]: { ...orig, x: orig.x + dx, y: orig.y + dy } });
-      } else if (bgDrag.mode === 'resize' && bgDrag.handle) {
-        let newW = orig.width, newH = orig.height, newX = orig.x, newY = orig.y;
-        const h = bgDrag.handle;
-        if (h.includes('e')) newW = Math.max(50, orig.width + dx);
-        if (h.includes('w')) { const pw = orig.width - dx; if (pw >= 50) { newW = pw; newX = orig.x + dx; } }
-        if (h.includes('s')) newH = Math.max(50, orig.height + dy);
-        if (h.includes('n')) { const ph = orig.height - dy; if (ph >= 50) { newH = ph; newY = orig.y + dy; } }
-        if (e.shiftKey) { const ar = orig.width / orig.height; if (Math.abs(dx) > Math.abs(dy)) newH = newW / ar; else newW = newH * ar; }
-        updateCover({ [tKey]: { ...orig, x: newX, y: newY, width: newW, height: newH } });
-      }
-    };
-    const handleUp = () => setBgDrag(null);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => { window.removeEventListener('mousemove', handleMove); window.removeEventListener('mouseup', handleUp); };
-  }, [bgDrag, activeView, updateCover]);
 
   const handleShiftSelect = useCallback((id: string, e?: React.MouseEvent) => {
     if (e?.shiftKey) {
@@ -866,10 +833,11 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
   const layerStyle = (elementId: string, baseZIndex: number): React.CSSProperties => {
     const bgSelected = selectedLayerIds.some(id => id.startsWith('bg-'));
+    const isBgElement = elementId.startsWith('bg-');
     const isSel = selectedLayerIds.includes(elementId);
     return {
-      zIndex: baseZIndex,
-      ...(bgSelected && !isSel ? { pointerEvents: 'none' as const } : {}),
+      zIndex: isBgElement && isSel ? 999 : baseZIndex,
+      ...(bgSelected && !isSel && !isBgElement ? { pointerEvents: 'none' as const } : {}),
     };
   };
 
@@ -900,25 +868,23 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
         }}
       >
         <div className="absolute origin-top-left" style={{ top: 0, left: 0, width: needsScale ? `${designW}px` : '100%', height: needsScale ? `${designH}px` : '100%', transform: needsScale ? `scale(${scale})` : 'none' }}>
-          {bgImage && !(coverData.hiddenElements || []).includes(`bg-${view}`) && (() => {
-            const bgT = (coverData[`${view}BgTransform` as keyof CoverData] as any) || (view === "spine" ? defaultCover.spineBgTransform : defaultCover.frontBgTransform);
-            const bgZIdx = Math.max((coverData.elementZOrder || []).indexOf(`bg-${view}`), 0) + 1;
-            return (
-              <div
-                className="absolute cursor-pointer"
-                style={{ left: bgT.x, top: bgT.y, width: bgT.width, height: bgT.height, transform: `rotate(${bgT.rotation || 0}deg)`, zIndex: bgZIdx, overflow: 'hidden' }}
-                data-testid={`transformable-bg-${view}`}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  setSelectedLayerIds([`bg-${view}`]);
-                  setActiveSection("layers");
-                  setBgDrag({ active: true, mode: 'move', startX: e.clientX, startY: e.clientY, origTransform: { ...bgT }, bgView: view });
-                }}
-              >
-                <img src={bgImage} className="w-full h-full object-cover select-none pointer-events-none" style={getFilterStyle()} draggable={false} />
-              </div>
-            );
-          })()}
+          {bgImage && !(coverData.hiddenElements || []).includes(`bg-${view}`) && (
+            <TransformableElement
+              id={`bg-${view}`}
+              initialTransform={(coverData[`${view}BgTransform` as keyof CoverData] as any) || (view === "spine" ? defaultCover.spineBgTransform : defaultCover.frontBgTransform)}
+              isSelected={selectedLayerIds.includes(`bg-${view}`)}
+              onSelect={(id) => { handleShiftSelect(id); setActiveSection("layers"); }}
+              onTransformChange={(_, transform) => updateCover({ [`${view}BgTransform`]: transform })}
+              locked={false}
+              containerRef={canvasRef}
+              containerScale={scale}
+              minWidth={20}
+              minHeight={20}
+              style={layerStyle(`bg-${view}`, Math.max((coverData.elementZOrder || []).indexOf(`bg-${view}`), 0) + 1)}
+            >
+              <img src={bgImage} className="w-full h-full object-cover pointer-events-none select-none" style={getFilterStyle()} draggable={false} />
+            </TransformableElement>
+          )}
 
           {coverData.filters.halftone && (
             <div className="absolute inset-0 pointer-events-none z-[5] mix-blend-multiply"
@@ -1291,55 +1257,6 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
             </>
           )}
 
-          {bgImage && selectedLayerIds.includes(`bg-${view}`) && (() => {
-            const bt = (coverData[`${view}BgTransform` as keyof CoverData] as any) || (view === "spine" ? defaultCover.spineBgTransform : defaultCover.frontBgTransform);
-            const HANDLE = 10;
-            const resizeHandles = [
-              { pos: 'nw', x: -HANDLE/2, y: -HANDLE/2, cursor: 'nwse-resize' },
-              { pos: 'n', x: bt.width/2 - HANDLE/2, y: -HANDLE/2, cursor: 'ns-resize' },
-              { pos: 'ne', x: bt.width - HANDLE/2, y: -HANDLE/2, cursor: 'nesw-resize' },
-              { pos: 'w', x: -HANDLE/2, y: bt.height/2 - HANDLE/2, cursor: 'ew-resize' },
-              { pos: 'e', x: bt.width - HANDLE/2, y: bt.height/2 - HANDLE/2, cursor: 'ew-resize' },
-              { pos: 'sw', x: -HANDLE/2, y: bt.height - HANDLE/2, cursor: 'nesw-resize' },
-              { pos: 's', x: bt.width/2 - HANDLE/2, y: bt.height - HANDLE/2, cursor: 'ns-resize' },
-              { pos: 'se', x: bt.width - HANDLE/2, y: bt.height - HANDLE/2, cursor: 'nwse-resize' },
-            ];
-            return (
-              <div
-                className="absolute"
-                style={{ left: bt.x, top: bt.y, width: bt.width, height: bt.height, zIndex: 1000, cursor: bgDrag?.active ? 'grabbing' : 'grab' }}
-                data-testid={`bg-overlay-${view}`}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setBgDrag({ active: true, mode: 'move', startX: e.clientX, startY: e.clientY, origTransform: { ...bt }, bgView: view });
-                }}
-              >
-                <div className="absolute inset-0 border-2 border-cyan-400 pointer-events-none" style={{ boxShadow: '0 0 0 1px black' }} />
-                {resizeHandles.map(h => (
-                  <div
-                    key={h.pos}
-                    className="absolute bg-white border-2 border-black hover:bg-cyan-400"
-                    style={{ width: HANDLE, height: HANDLE, left: h.x, top: h.y, cursor: h.cursor, zIndex: 1001 }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      setBgDrag({ active: true, mode: 'resize', handle: h.pos, startX: e.clientX, startY: e.clientY, origTransform: { ...bt }, bgView: view });
-                    }}
-                  />
-                ))}
-                <div className="absolute -top-10 right-0 flex gap-1" style={{ zIndex: 1001 }}>
-                  <button
-                    className="p-1 bg-red-500 text-white border border-black hover:bg-red-600"
-                    onClick={(e) => { e.stopPropagation(); updateCover({ [`${view}Image`]: null, [`${view}BgTransform`]: undefined } as any); setSelectedLayerId(null); }}
-                    title="Remove Background"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
         </div>
       </div>
     );

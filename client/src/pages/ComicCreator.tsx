@@ -2839,51 +2839,35 @@ export default function ComicCreator() {
             const zoomScale = zoom / 100;
             const coverElZOrder = cd.elementZOrder || [];
             const hiddenEls = new Set(cd.hiddenElements || []);
+            const bgViewKey0 = isFront ? "front" : "back";
+            const coverBgIsSelected = selectedContentId === `cover-bg-${bgViewKey0}`;
+            const coverElStyle = (baseZ: number): React.CSSProperties => ({
+              zIndex: baseZ,
+              ...(coverBgIsSelected ? { pointerEvents: 'none' as const } : {}),
+            });
 
             return (
               <div className="absolute inset-0 z-[1] overflow-hidden" style={{ backgroundColor: bgColor, containerType: 'size' }}>
                 {bgImage && !hiddenEls.has(`bg-${isFront ? "front" : "back"}`) && (() => {
                   const bgViewKey = isFront ? "front" : "back";
-                  const bgTransform = (cd as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 };
+                  const bgTransform = (cd as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 };
                   const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
                   const bgZIdx = coverElZOrder.indexOf(`bg-${bgViewKey}`);
                   return (
-                    <div
-                      className={`absolute ${isBgSelected ? 'ring-2 ring-green-400 cursor-grab' : 'cursor-pointer'}`}
+                    <TransformableElement
+                      id={`cover-bg-${bgViewKey}`}
+                      initialTransform={bgTransform}
+                      isSelected={isBgSelected}
+                      onSelect={() => { setSelectedContentId(`cover-bg-${bgViewKey}`); setSelectedPanelId(panel.id); }}
+                      onTransformChange={(_, t) => updateCoverData({ [`${bgViewKey}BgTransform`]: t })}
+                      locked={false}
+                      minWidth={20} minHeight={20}
                       style={{
-                        left: `${bgTransform.x}%`,
-                        top: `${bgTransform.y}%`,
-                        width: `${bgTransform.width}%`,
-                        height: `${bgTransform.height}%`,
-                        transform: bgTransform.rotation ? `rotate(${bgTransform.rotation}deg)` : undefined,
-                        zIndex: bgZIdx >= 0 ? bgZIdx + 2 : 1,
+                        zIndex: isBgSelected ? 999 : (bgZIdx >= 0 ? bgZIdx + 2 : 1),
                       }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setSelectedContentId(`cover-bg-${bgViewKey}`);
-                        setSelectedPanelId(panel.id);
-                        if (!isBgSelected) return;
-                        const container = (e.currentTarget.parentElement as HTMLElement);
-                        if (!container) return;
-                        const rect = container.getBoundingClientRect();
-                        const startX = e.clientX;
-                        const startY = e.clientY;
-                        const origX = bgTransform.x;
-                        const origY = bgTransform.y;
-                        const onMove = (ev: MouseEvent) => {
-                          const dx = ((ev.clientX - startX) / rect.width) * 100;
-                          const dy = ((ev.clientY - startY) / rect.height) * 100;
-                          updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, x: origX + dx, y: origY + dy } });
-                        };
-                        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-                        window.addEventListener('mousemove', onMove);
-                        window.addEventListener('mouseup', onUp);
-                      }}
-                      data-testid={`cover-bg-${bgViewKey}`}
                     >
                       <img src={bgImage} alt="Cover background" className="w-full h-full object-cover pointer-events-none select-none" draggable={false} />
-                    </div>
+                    </TransformableElement>
                   );
                 })()}
 
@@ -2898,7 +2882,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ bannerTransform: t })}
                         locked={false}
                         minWidth={30} minHeight={12}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-banner"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-banner"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center text-center font-bold tracking-widest uppercase" style={{
                           backgroundColor: cd.bannerBgColor || '#000',
@@ -2918,7 +2902,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ publisherTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-publisher"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-publisher"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center font-bold uppercase tracking-wider opacity-80" style={{
                           color: cd.titleColor,
@@ -2936,7 +2920,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ issueNumberTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-issue"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-issue"), 0) + 2)}
                       >
                         <div className="w-full h-full flex flex-col items-center justify-center font-bold" style={{
                           color: cd.titleColor,
@@ -2956,7 +2940,7 @@ export default function ComicCreator() {
                       onTransformChange={(_, t) => updateCoverData({ titleTransform: t })}
                       locked={false}
                       minWidth={30} minHeight={15}
-                      style={{ zIndex: Math.max(coverElZOrder.indexOf("master-title"), 0) + 2 }}
+                      style={coverElStyle(Math.max(coverElZOrder.indexOf("master-title"), 0) + 2)}
                     >
                       <div className="w-full h-full flex items-center justify-center text-center leading-none break-words" style={{
                         fontFamily: cd.titleFont,
@@ -2979,7 +2963,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ subtitleTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-subtitle"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-subtitle"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center text-center break-words" style={{
                           fontFamily: cd.subtitleFont,
@@ -3001,7 +2985,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ taglineTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-tagline"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-tagline"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center italic opacity-80 text-center" style={{
                           color: cd.subtitleColor,
@@ -3018,7 +3002,7 @@ export default function ComicCreator() {
                       onTransformChange={(_, t) => updateCoverData({ authorTransform: t })}
                       locked={false}
                       minWidth={20} minHeight={10}
-                      style={{ zIndex: Math.max(coverElZOrder.indexOf("master-author"), 0) + 2 }}
+                      style={coverElStyle(Math.max(coverElZOrder.indexOf("master-author"), 0) + 2)}
                     >
                       <div className="w-full h-full flex items-center justify-center text-center" style={{
                         fontFamily: cd.authorFont,
@@ -3039,7 +3023,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ priceBoxTransform: t })}
                         locked={false}
                         minWidth={15} minHeight={15}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-price"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-price"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center" style={{
                           backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
@@ -3067,7 +3051,7 @@ export default function ComicCreator() {
                       onTransformChange={(_, t) => updateCoverData({ backTitleTransform: t })}
                       locked={false}
                       minWidth={30} minHeight={15}
-                      style={{ zIndex: Math.max(coverElZOrder.indexOf("master-back-title"), 0) + 2 }}
+                      style={coverElStyle(Math.max(coverElZOrder.indexOf("master-back-title"), 0) + 2)}
                     >
                       <div className="w-full h-full flex items-center justify-center text-center break-words font-bold uppercase" style={{
                         fontFamily: cd.titleFont,
@@ -3086,7 +3070,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ backBlurbTransform: t })}
                         locked={false}
                         minWidth={30} minHeight={20}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-blurb"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-blurb"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-start justify-center leading-relaxed break-words text-center overflow-hidden p-[4%]" style={{
                           fontFamily: cd.backBlurbFont || 'Georgia, serif',
@@ -3107,7 +3091,7 @@ export default function ComicCreator() {
                       onTransformChange={(_, t) => updateCoverData({ backAuthorTransform: t })}
                       locked={false}
                       minWidth={20} minHeight={10}
-                      style={{ zIndex: Math.max(coverElZOrder.indexOf("master-back-author"), 0) + 2 }}
+                      style={coverElStyle(Math.max(coverElZOrder.indexOf("master-back-author"), 0) + 2)}
                     >
                       <div className="w-full h-full flex items-center justify-center text-center" style={{
                         fontFamily: cd.authorFont,
@@ -3125,7 +3109,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ isbnTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-isbn"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-isbn"), 0) + 2)}
                       >
                         <div className="w-full h-full flex flex-col items-center justify-center" style={{ backgroundColor: cd.showBarcode !== false ? '#fff' : 'transparent', padding: cd.showBarcode !== false ? '2px' : 0 }}>
                           {cd.showBarcode !== false && (
@@ -3157,7 +3141,7 @@ export default function ComicCreator() {
                         onTransformChange={(_, t) => updateCoverData({ backPublisherTransform: t })}
                         locked={false}
                         minWidth={20} minHeight={10}
-                        style={{ zIndex: Math.max(coverElZOrder.indexOf("master-back-publisher"), 0) + 2 }}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-back-publisher"), 0) + 2)}
                       >
                         <div className="w-full h-full flex items-center justify-center font-bold uppercase tracking-wider opacity-60" style={{
                           color: cd.authorColor,
@@ -3193,7 +3177,7 @@ export default function ComicCreator() {
                           }}
                           locked={il.locked}
                           minWidth={15} minHeight={15}
-                          style={{ zIndex: zIdx }}
+                          style={coverElStyle(zIdx)}
                         >
                           <img src={il.url} alt={il.name}
                             className="w-full h-full object-contain"
@@ -3219,7 +3203,7 @@ export default function ComicCreator() {
                           }}
                           locked={tl.locked}
                           minWidth={15} minHeight={10}
-                          style={{ zIndex: zIdx }}
+                          style={coverElStyle(zIdx)}
                         >
                           <div className="w-full h-full flex items-center justify-center"
                             style={{
@@ -5125,7 +5109,7 @@ export default function ComicCreator() {
                         const bgViewKey = activePanel.coverRole === "front-cover" ? "front" : "back";
                         const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
                         if (!isBgSelected) return null;
-                        const bgTransform = (fullCoverData as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 100, height: 100, rotation: 0 };
+                        const bgTransform = (fullCoverData as any)[`${bgViewKey}BgTransform`] || { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 };
                         return (
                           <div className="p-2 border-t border-zinc-700 space-y-2" data-testid="cover-bg-transform">
                             <label className="text-[10px] font-bold uppercase text-green-400">{bgViewKey} Cover Image Transform</label>
@@ -5161,7 +5145,7 @@ export default function ComicCreator() {
                                 onChange={(e) => updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, rotation: Number(e.target.value) } })}
                                 className="w-full h-1 accent-green-500" />
                             </div>
-                            <button onClick={() => updateCoverData({ [`${bgViewKey}BgTransform`]: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 } })}
+                            <button onClick={() => updateCoverData({ [`${bgViewKey}BgTransform`]: { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 } })}
                               className="w-full py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-600">
                               Reset to Fill
                             </button>
