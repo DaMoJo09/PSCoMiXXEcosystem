@@ -436,6 +436,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
     } else {
       setSelectedLayerIds([id]);
     }
+    setActiveSection("layers");
   }, []);
 
   const generateEAN13Barcode = useCallback((isbn: string): string => {

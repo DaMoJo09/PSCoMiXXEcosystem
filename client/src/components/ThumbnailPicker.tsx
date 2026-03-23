@@ -125,8 +125,8 @@ export function ThumbnailPicker({ projectId, currentThumbnail, onSuccess, classN
 
         {preview ? (
           <div className="space-y-3">
-            <div className="aspect-[4/3] overflow-hidden border border-zinc-700 bg-black">
-              <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+            <div className="aspect-[4/3] overflow-hidden border border-zinc-700 bg-black flex items-center justify-center">
+              <img src={preview} alt="Preview" className="max-w-full max-h-full object-contain" />
             </div>
             <div className="flex gap-2">
               <button
@@ -149,8 +149,8 @@ export function ThumbnailPicker({ projectId, currentThumbnail, onSuccess, classN
         ) : (
           <div className="space-y-3">
             {currentThumbnail && (
-              <div className="aspect-[4/3] overflow-hidden border border-zinc-700 bg-black mb-2">
-                <img src={currentThumbnail} alt="Current" className="w-full h-full object-cover opacity-60" />
+              <div className="aspect-[4/3] overflow-hidden border border-zinc-700 bg-black mb-2 flex items-center justify-center">
+                <img src={currentThumbnail} alt="Current" className="max-w-full max-h-full object-contain opacity-60" />
                 <div className="text-center text-[10px] text-zinc-500 mt-1">Current thumbnail</div>
               </div>
             )}
