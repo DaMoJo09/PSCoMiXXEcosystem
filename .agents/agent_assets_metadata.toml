@@ -48,3 +48,9 @@ id = "-cwBZsjw5wReclMk2o5qb"
 uri = "file://.local/PSCoMiXX-90-Day-Architecture-Plan.md"
 type = "text"
 title = "PSCoMiXX 90-Day Production Architecture Plan"
+
+[[outputs]]
+id = "dFlrkEVYQ9Eu6g9SPW5sm"
+uri = "file://docs/PSCoMiXX-Go-To-Market-Guide.md"
+type = "text"
+title = "Press Start CoMiXX - Complete Go-To-Market Guide"
