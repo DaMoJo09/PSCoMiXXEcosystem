@@ -1737,7 +1737,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   <label className="text-xs font-bold uppercase text-zinc-400">Layer Stack</label>
                   <span className="text-[10px] text-zinc-600">{reversedLayers.length} layers</span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Use arrows to reorder.</p>
+                <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Drag to reorder.</p>
                 <div className="space-y-1" key={reversedLayers.map(l => l.id).join(',')}>
                   {reversedLayers.map((layer, revIdx) => {
                     const isHidden = hiddenSet.has(layer.id);
@@ -1746,29 +1746,40 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                     const typeBg = layer.type === "text" ? "bg-cyan-900/40" : layer.type === "image" ? "bg-violet-900/40" : layer.type === "bg" ? "bg-green-900/40" : "bg-zinc-800";
                     return (
                       <div key={layer.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", layer.id);
+                          (e.currentTarget as HTMLElement).style.opacity = "0.4";
+                        }}
+                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          (e.currentTarget as HTMLElement).style.borderTopColor = "#06b6d4";
+                        }}
+                        onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderTopColor = ""; }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          (e.currentTarget as HTMLElement).style.borderTopColor = "";
+                          const dragId = e.dataTransfer.getData("text/plain");
+                          if (!dragId || dragId === layer.id) return;
+                          const newReversed = reversedLayers.map(l => l.id).filter(id => id !== dragId);
+                          newReversed.splice(revIdx, 0, dragId);
+                          updateCover({ elementZOrder: [...newReversed].reverse() });
+                        }}
                         onClick={() => setSelectedLayerId(layer.id)}
-                        className={`flex items-center gap-1.5 p-1.5 border cursor-pointer transition-colors ${
+                        className={`flex items-center gap-1.5 p-1.5 border cursor-grab active:cursor-grabbing transition-colors ${
                           isSelected ? "border-cyan-500 bg-zinc-800" : "border-zinc-700/50 hover:border-zinc-600"
                         } ${isHidden ? "opacity-40" : ""}`}
                         data-testid={`layer-stack-item-${layer.id}`}>
+                        <GripVertical className="w-3 h-3 text-zinc-600 shrink-0" />
                         <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-bold ${typeBg} text-zinc-300 shrink-0`}>{typeIcon}</span>
                         <span className="text-xs truncate flex-1 min-w-0">{layer.label}</span>
                         <button onClick={(e) => { e.stopPropagation(); toggleVisibility(layer.id); }}
                           className="p-0.5 hover:text-white text-zinc-500 shrink-0" data-testid={`toggle-visibility-${layer.id}`}>
                           {isHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
-                        <div className="flex flex-col shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); moveLayerOrder(layer.id, revIdx === 0 ? "front" : "forward"); }}
-                            disabled={revIdx === 0}
-                            className="p-0 hover:text-white text-zinc-500 disabled:opacity-20" data-testid={`move-up-${layer.id}`}>
-                            <ChevronUp className="w-3 h-3" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); moveLayerOrder(layer.id, revIdx === reversedLayers.length - 1 ? "back" : "backward"); }}
-                            disabled={revIdx === reversedLayers.length - 1}
-                            className="p-0 hover:text-white text-zinc-500 disabled:opacity-20" data-testid={`move-down-${layer.id}`}>
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                        </div>
                       </div>
                     );
                   })}
