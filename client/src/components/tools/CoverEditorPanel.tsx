@@ -713,6 +713,8 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
       const dW = target === "spine" ? 80 : 600;
       const dH = target === "spine" ? 900 : 900;
       updateCover({ [bgKey]: url, [bgTransformKey]: { x: 0, y: 0, width: dW, height: dH, rotation: 0, scaleX: 1, scaleY: 1 } });
+      setSelectedLayerId(`bg-${target}`);
+      setActiveSection("layers");
       toast.success(`${target} image updated`);
     };
     reader.readAsDataURL(file);
@@ -725,6 +727,8 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
     const dW = aiTarget === "spine" ? 80 : 600;
     const dH = aiTarget === "spine" ? 900 : 900;
     updateCover({ [bgKey]: url, [bgTransformKey]: { x: 0, y: 0, width: dW, height: dH, rotation: 0, scaleX: 1, scaleY: 1 } });
+    setSelectedLayerId(`bg-${aiTarget}`);
+    setActiveSection("layers");
     setShowAIGen(false);
     toast.success("AI image applied");
   };
