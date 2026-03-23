@@ -2849,7 +2849,7 @@ export default function ComicCreator() {
                   const bgZIdx = coverElZOrder.indexOf(`bg-${bgViewKey}`);
                   return (
                     <div
-                      className={`absolute cursor-pointer ${isBgSelected ? 'ring-2 ring-green-400' : ''}`}
+                      className={`absolute ${isBgSelected ? 'ring-2 ring-green-400 cursor-grab' : 'cursor-pointer'}`}
                       style={{
                         left: `${bgTransform.x}%`,
                         top: `${bgTransform.y}%`,
@@ -2858,7 +2858,28 @@ export default function ComicCreator() {
                         transform: bgTransform.rotation ? `rotate(${bgTransform.rotation}deg)` : undefined,
                         zIndex: bgZIdx >= 0 ? bgZIdx + 2 : 1,
                       }}
-                      onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-bg-${bgViewKey}`); setSelectedPanelId(panel.id); }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setSelectedContentId(`cover-bg-${bgViewKey}`);
+                        setSelectedPanelId(panel.id);
+                        if (!isBgSelected) return;
+                        const container = (e.currentTarget.parentElement as HTMLElement);
+                        if (!container) return;
+                        const rect = container.getBoundingClientRect();
+                        const startX = e.clientX;
+                        const startY = e.clientY;
+                        const origX = bgTransform.x;
+                        const origY = bgTransform.y;
+                        const onMove = (ev: MouseEvent) => {
+                          const dx = ((ev.clientX - startX) / rect.width) * 100;
+                          const dy = ((ev.clientY - startY) / rect.height) * 100;
+                          updateCoverData({ [`${bgViewKey}BgTransform`]: { ...bgTransform, x: origX + dx, y: origY + dy } });
+                        };
+                        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                        window.addEventListener('mousemove', onMove);
+                        window.addEventListener('mouseup', onUp);
+                      }}
                       data-testid={`cover-bg-${bgViewKey}`}
                     >
                       <img src={bgImage} alt="Cover background" className="w-full h-full object-cover pointer-events-none select-none" draggable={false} />

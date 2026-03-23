@@ -412,6 +412,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     publish: "publish",
   };
   const actionCooldowns = new Map<string, number>();
+  setInterval(() => {
+    const cutoff = Date.now() - 60000;
+    for (const [k, v] of actionCooldowns) {
+      if (v < cutoff) actionCooldowns.delete(k);
+    }
+  }, 60000);
 
   const PSSTREAMING_WEBHOOK_URL = "https://psstreaming.com/api/webhooks/time-spent";
   const PSSTREAMING_API_KEY = process.env.PSLMS_API_KEY || "";
@@ -3179,7 +3185,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (clientInfo) {
         const clients = collabClients.get(clientInfo.sessionId) || [];
         const updated = clients.filter(c => c.userId !== clientInfo!.userId);
-        collabClients.set(clientInfo.sessionId, updated);
+        if (updated.length === 0) {
+          collabClients.delete(clientInfo.sessionId);
+        } else {
+          collabClients.set(clientInfo.sessionId, updated);
+        }
         
         broadcastToSession(clientInfo.sessionId, {
           type: "user_left",
