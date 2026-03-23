@@ -1919,9 +1919,12 @@ export default function ComicCreator() {
         ...spread,
         [key]: spread[key].map(p => {
           if (p.id !== panelId) return p;
-          const contents = [...p.contents];
+          const contents = [...p.contents].map(c => ({ ...c }));
           const idx = contents.findIndex(c => c.id === contentId);
           if (idx > 0) {
+            const tempZ = contents[idx].zIndex;
+            contents[idx].zIndex = contents[idx - 1].zIndex;
+            contents[idx - 1].zIndex = tempZ;
             [contents[idx - 1], contents[idx]] = [contents[idx], contents[idx - 1]];
           }
           return { ...p, contents };
@@ -1938,9 +1941,12 @@ export default function ComicCreator() {
         ...spread,
         [key]: spread[key].map(p => {
           if (p.id !== panelId) return p;
-          const contents = [...p.contents];
+          const contents = [...p.contents].map(c => ({ ...c }));
           const idx = contents.findIndex(c => c.id === contentId);
           if (idx < contents.length - 1) {
+            const tempZ = contents[idx].zIndex;
+            contents[idx].zIndex = contents[idx + 1].zIndex;
+            contents[idx + 1].zIndex = tempZ;
             [contents[idx], contents[idx + 1]] = [contents[idx + 1], contents[idx]];
           }
           return { ...p, contents };
@@ -4761,26 +4767,6 @@ export default function ComicCreator() {
                       });
                       const textLayers = isFr ? (cd.frontLayers || []) : (cd.backLayers || []);
                       const imageLayers = isFr ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
-                      const moveCoverElUp = (elId: string) => {
-                        const masterId = elToMaster[elId];
-                        if (!masterId) return;
-                        const order = [...(cd.elementZOrder || masterIds)];
-                        if (!order.includes(masterId)) order.push(masterId);
-                        const idx = order.indexOf(masterId);
-                        if (idx <= 0) return;
-                        [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
-                        updateCoverData({ elementZOrder: order });
-                      };
-                      const moveCoverElDown = (elId: string) => {
-                        const masterId = elToMaster[elId];
-                        if (!masterId) return;
-                        const order = [...(cd.elementZOrder || masterIds)];
-                        if (!order.includes(masterId)) order.push(masterId);
-                        const idx = order.indexOf(masterId);
-                        if (idx >= order.length - 1) return;
-                        [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
-                        updateCoverData({ elementZOrder: order });
-                      };
                       const deleteCoverEl = (elId: string) => {
                         const updates = clearFieldMap[elId];
                         if (updates) {
@@ -4835,21 +4821,31 @@ export default function ComicCreator() {
                             allIds.forEach(id => { if (!unified.includes(id)) unified.push(id); });
 
                             const moveUnifiedUp = (zId: string) => {
-                              const fullOrder = [...unified];
-                              const idx = fullOrder.indexOf(zId);
-                              if (idx <= 0) return;
-                              [fullOrder[idx - 1], fullOrder[idx]] = [fullOrder[idx], fullOrder[idx - 1]];
+                              const uIdx2 = unified.indexOf(zId);
+                              if (uIdx2 <= 0) return;
+                              const swapWith = unified[uIdx2 - 1];
+                              const fullOrder = [...currentOrder];
+                              allIds.forEach(id => { if (!fullOrder.includes(id)) fullOrder.push(id); });
+                              const aIdx = fullOrder.indexOf(zId);
+                              const bIdx = fullOrder.indexOf(swapWith);
+                              if (aIdx === -1 || bIdx === -1) return;
+                              [fullOrder[aIdx], fullOrder[bIdx]] = [fullOrder[bIdx], fullOrder[aIdx]];
                               updateCoverData({ elementZOrder: fullOrder });
                             };
                             const moveUnifiedDown = (zId: string) => {
-                              const fullOrder = [...unified];
-                              const idx = fullOrder.indexOf(zId);
-                              if (idx >= fullOrder.length - 1) return;
-                              [fullOrder[idx], fullOrder[idx + 1]] = [fullOrder[idx + 1], fullOrder[idx]];
+                              const uIdx2 = unified.indexOf(zId);
+                              if (uIdx2 >= unified.length - 1) return;
+                              const swapWith = unified[uIdx2 + 1];
+                              const fullOrder = [...currentOrder];
+                              allIds.forEach(id => { if (!fullOrder.includes(id)) fullOrder.push(id); });
+                              const aIdx = fullOrder.indexOf(zId);
+                              const bIdx = fullOrder.indexOf(swapWith);
+                              if (aIdx === -1 || bIdx === -1) return;
+                              [fullOrder[aIdx], fullOrder[bIdx]] = [fullOrder[bIdx], fullOrder[aIdx]];
                               updateCoverData({ elementZOrder: fullOrder });
                             };
 
-                            return unified.map((zId, uIdx) => {
+                            return (<div key={unified.join(',')}>{unified.map((zId, uIdx) => {
                               const masterEl = masterMap.get(zId);
                               if (masterEl) {
                                 return (
@@ -4949,7 +4945,7 @@ export default function ComicCreator() {
                                 );
                               }
                               return null;
-                            });
+                            })}</div>);
                           })()}
                         </div>
                       );

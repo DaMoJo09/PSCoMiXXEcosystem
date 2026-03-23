@@ -1722,7 +1722,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   <span className="text-[10px] text-zinc-600">{reversedLayers.length} layers</span>
                 </div>
                 <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Use arrows to reorder.</p>
-                <div className="space-y-1">
+                <div className="space-y-1" key={reversedLayers.map(l => l.id).join(',')}>
                   {reversedLayers.map((layer, revIdx) => {
                     const isHidden = hiddenSet.has(layer.id);
                     const isSelected = selectedLayerId === layer.id || selectedLayerIds.includes(layer.id);
