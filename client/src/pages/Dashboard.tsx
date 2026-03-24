@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2 } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -277,6 +277,59 @@ export default function Dashboard() {
                 App preferences
               </p>
             </button>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
+            <Globe className="w-5 h-5" /> Ecosystem
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <a
+              href="https://pressstart.tech"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="link-ecosystem-lms"
+            >
+              <GraduationCap className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Press Start LMS
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Courses, assignments & learning
+              </p>
+            </a>
+            <a
+              href="https://psstreaming.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="link-ecosystem-streaming"
+            >
+              <Tv className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                PS Streaming
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Watch & stream creator content
+              </p>
+            </a>
+            <a
+              href="https://madmixedmedia.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="link-ecosystem-madmixed"
+            >
+              <Building2 className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Mad Mixed Media
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                The parent company & network
+              </p>
+            </a>
           </div>
         </section>
 
