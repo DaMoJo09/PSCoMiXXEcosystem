@@ -419,49 +419,62 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   }, 60000);
 
-  const PSSTREAMING_WEBHOOK_URL = "https://psstreaming.com/api/webhooks/time-spent";
-  const PSSTREAMING_API_KEY = process.env.PSLMS_API_KEY || "";
+  const ECOSYSTEM_API_KEY = process.env.PSLMS_API_KEY || "";
+
+  const ECOSYSTEM_XP_ENDPOINTS = [
+    { name: "PSStreaming", url: "https://psstreaming.com/api/webhooks/xp-sync" },
+    { name: "PSLMS", url: "https://pressstart.tech/api/webhooks/xp-sync" },
+    { name: "FXStudio", url: "https://pscomixx.online/api/webhooks/xp-sync" },
+  ];
+
+  async function broadcastXpToEcosystem(
+    userEmail: string,
+    xpAwarded: number,
+    action: string,
+    fullState: { totalXp: number; level: number; levelTitle: string; totalMinutes: number },
+    sourceApp: string = "comixx"
+  ) {
+    if (!ECOSYSTEM_API_KEY) return;
+    const payload = {
+      event: "xp.sync",
+      user_email: userEmail,
+      xp_awarded: xpAwarded,
+      action,
+      total_xp: fullState.totalXp,
+      level: fullState.level,
+      level_title: fullState.levelTitle,
+      total_minutes: fullState.totalMinutes,
+      source: sourceApp,
+      timestamp: new Date().toISOString(),
+    };
+    const body = JSON.stringify(payload);
+
+    for (const endpoint of ECOSYSTEM_XP_ENDPOINTS) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(endpoint.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-API-Key": ECOSYSTEM_API_KEY },
+          body,
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          console.error(`[XP Sync → ${endpoint.name}] HTTP ${res.status} for ${userEmail}`);
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error(`[XP Sync → ${endpoint.name}] Failed:`, err.message);
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+  }
 
   async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number, fullState?: { totalXp: number; level: number; levelTitle: string; totalMinutes: number }) {
-    if (!PSSTREAMING_API_KEY) return;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    try {
-      const payload: Record<string, any> = {
-        event: "time.spent",
-        user_email: userEmail,
-        minutes,
-        xp,
-        source: "comixx",
-        timestamp: new Date().toISOString(),
-      };
-      if (fullState) {
-        payload.total_xp = fullState.totalXp;
-        payload.level = fullState.level;
-        payload.level_title = fullState.levelTitle;
-        payload.total_minutes = fullState.totalMinutes;
-      }
-      const res = await fetch(PSSTREAMING_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": PSSTREAMING_API_KEY,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        console.error(`[PSStreaming sync] HTTP ${res.status} forwarding XP for ${userEmail}`);
-      }
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        console.error("[PSStreaming sync] Request timed out");
-      } else {
-        console.error("[PSStreaming sync] Failed to forward XP:", err.message);
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
+    if (!fullState) return;
+    broadcastXpToEcosystem(userEmail, xp, "heartbeat", fullState);
   }
 
   app.post("/api/xp/heartbeat", isAuthenticated, async (req, res) => {
@@ -531,7 +544,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const result = await processProgressionEvent(userId, normalizedAction, referenceId, referenceType);
       
       const user = await storage.getUser(userId);
-      if (user) forwardXpToStreaming(user.email, 0, result.xpAwarded, {
+      if (user) broadcastXpToEcosystem(user.email, result.xpAwarded, normalizedAction, {
         totalXp: result.newXp,
         level: result.newLevel,
         levelTitle: result.levelTitle,
@@ -1470,7 +1483,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!apiKey || apiKey !== process.env.PSLMS_API_KEY) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const { user_email, total_xp, level, level_title, total_minutes, source } = req.body;
+      const { user_email, total_xp, level, level_title, total_minutes, source, action, xp_awarded } = req.body;
       if (!user_email) return res.status(400).json({ message: "user_email required" });
       const user = await storage.getUserByEmail(user_email);
       if (!user) return res.status(404).json({ message: "User not found" });
@@ -1486,6 +1499,44 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         level: newLevel,
         totalMinutes: mergedMinutes,
       } as any);
+
+      const SOURCE_TO_ENDPOINT: Record<string, string> = {
+        psstreaming: "PSStreaming",
+        pslms: "PSLMS",
+        lms: "PSLMS",
+        fxstudio: "FXStudio",
+        fx: "FXStudio",
+        pressplays: "FXStudio",
+      };
+      const isRelay = (source || "").includes("relay");
+      const srcLower = (source || "").toLowerCase().replace(/[-_\s]/g, "");
+      const originEndpointName = SOURCE_TO_ENDPOINT[srcLower] || "";
+
+      if (mergedXp > currentXp && !isRelay) {
+        const rebroadcastEndpoints = ECOSYSTEM_XP_ENDPOINTS.filter(ep => ep.name !== originEndpointName);
+        const rebroadcastPayload = JSON.stringify({
+          event: "xp.sync",
+          user_email,
+          xp_awarded: xp_awarded || 0,
+          action: action || "sync",
+          total_xp: mergedXp,
+          level: newLevel,
+          level_title: newTitle,
+          total_minutes: mergedMinutes,
+          source: "comixx-relay",
+          timestamp: new Date().toISOString(),
+        });
+        for (const ep of rebroadcastEndpoints) {
+          const ctrl = new AbortController();
+          const to = setTimeout(() => ctrl.abort(), 5000);
+          fetch(ep.url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-API-Key": ECOSYSTEM_API_KEY },
+            body: rebroadcastPayload,
+            signal: ctrl.signal,
+          }).catch(() => {}).finally(() => clearTimeout(to));
+        }
+      }
 
       res.json({
         synced: true,
