@@ -2425,8 +2425,8 @@ export default function ComicCreator() {
 
       const effectId = result?.id || result?.effects?.[0]?.id;
       const importUrl = effectId
-        ? `https://pscomixx.online/studio?import=${effectId}&returnTo=comixx&project=${effectiveProjectId || ""}`
-        : "https://pscomixx.online/studio";
+        ? `https://www.pscomixx.online/studio?import=${effectId}&returnTo=comixx&project=${effectiveProjectId || ""}`
+        : "https://www.pscomixx.online/studio";
 
       toast.success("Panel sent to FX Studio", {
         id: toastId,
@@ -3934,7 +3934,7 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => {
-                    window.open("https://pscomixx.online", "_blank", "noopener,noreferrer");
+                    window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
                   }}
                   className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
                   data-testid="tool-fx-studio"
@@ -5906,7 +5906,7 @@ export default function ComicCreator() {
               <h3 className="font-bold text-lg text-white">Open FX Studio?</h3>
             </div>
             <p className="text-sm text-zinc-400 mb-5">
-              Browse and import visual effects from FX Studio (pscomixx.online) into your asset library for use across all creative modes.
+              Browse and import visual effects from FX Studio (www.pscomixx.online) into your asset library for use across all creative modes.
             </p>
             <label className="flex items-center gap-2 mb-5 cursor-pointer select-none" data-testid="fx-confirm-skip-checkbox">
               <input
@@ -5931,7 +5931,7 @@ export default function ComicCreator() {
               <button
                 onClick={() => {
                   setShowFxConfirm(false);
-                  window.open("https://pscomixx.online", "_blank", "noopener,noreferrer");
+                  window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
                 }}
                 className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold border border-purple-500 transition-colors"
                 data-testid="fx-confirm-open"

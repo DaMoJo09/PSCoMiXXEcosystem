@@ -134,7 +134,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-purple-400" />
           <span className="text-sm font-semibold text-white">FX Studio</span>
-          <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 border border-purple-700">pscomixx.online</span>
+          <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 border border-purple-700">www.pscomixx.online</span>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => loadFxEffects()} className="p-1 hover:bg-zinc-800" title="Refresh">
@@ -253,7 +253,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                       ? "No FX linked to this project yet. Send panels to FX Studio to get started."
                       : selectedFolder === "returns"
                         ? "No FX returns yet. Process panels in FX Studio and send them back."
-                        : "No effects in this category. Create effects at pscomixx.online."
+                        : "No effects in this category. Create effects at www.pscomixx.online."
                     : "No effects match your search."}
                 </p>
               </div>

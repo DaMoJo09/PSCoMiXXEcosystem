@@ -78,7 +78,7 @@ export function verifyEcosystemToken(token: string): EcosystemTokenPayload | nul
 
 const ECOSYSTEM_DOMAINS: Record<string, string> = {
   comixx: process.env.COMIXX_URL || "https://pscomixx.com",
-  fxstudio: process.env.FXSTUDIO_URL || "https://pscomixx.online",
+  fxstudio: process.env.FXSTUDIO_URL || "https://www.pscomixx.online",
   streaming: process.env.STREAMING_URL || "https://psstreaming.com",
   lms: process.env.LMS_URL || "https://pressstart.tech",
 };

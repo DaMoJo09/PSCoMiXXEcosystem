@@ -562,7 +562,7 @@ export function CoverPropertiesPanel({
               </p>
               <button
                 onClick={() => {
-                  window.open("https://pscomixx.online", "_blank", "noopener,noreferrer");
+                  window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
                 }}
                 className="w-full py-2 text-xs font-bold bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-2 transition-colors"
                 data-testid="button-cover-fx-studio"
