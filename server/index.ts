@@ -63,6 +63,16 @@ app.use(helmet({
   frameguard: false,
 }));
 
+if (!isDev) {
+  app.use((req, res, next) => {
+    const host = req.hostname;
+    if (host === "www.pscomixx.com") {
+      return res.redirect(301, `https://pscomixx.com${req.originalUrl}`);
+    }
+    next();
+  });
+}
+
 app.use((req, res, next) => {
   res.setHeader("X-Request-ID", crypto.randomUUID());
   next();
