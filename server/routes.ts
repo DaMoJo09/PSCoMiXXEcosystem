@@ -604,13 +604,38 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!user) return res.status(404).json({ message: "User not found" });
       const xp = user.xp || 0;
       const { level, title: levelTitle } = getLevelFromXp(xp);
-      await broadcastXpToEcosystem(user.email, 0, "force-sync", {
-        totalXp: xp,
+      const payload = {
+        event: "xp.sync",
+        user_email: user.email,
+        xp_awarded: 0,
+        action: "force-sync",
+        total_xp: xp,
         level,
-        levelTitle,
-        totalMinutes: user.totalMinutes || 0,
-      });
-      res.json({ synced: true, xp, level, levelTitle, totalMinutes: user.totalMinutes || 0 });
+        level_title: levelTitle,
+        total_minutes: user.totalMinutes || 0,
+        source: "comixx",
+        timestamp: new Date().toISOString(),
+      };
+      const body = JSON.stringify(payload);
+      const results: { name: string; status: string; code?: number }[] = [];
+      for (const endpoint of ECOSYSTEM_XP_ENDPOINTS) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (endpoint.name === "FXStudio") {
+          headers["apikey"] = FX_STUDIO_ANON_KEY;
+          headers["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+        } else {
+          headers["X-API-Key"] = ECOSYSTEM_API_KEY;
+        }
+        try {
+          const r = await fetch(endpoint.url, { method: "POST", headers, body, signal: controller.signal });
+          results.push({ name: endpoint.name, status: r.ok ? "ok" : "error", code: r.status });
+        } catch (err: any) {
+          results.push({ name: endpoint.name, status: err.name === "AbortError" ? "timeout" : "failed" });
+        } finally { clearTimeout(timeout); }
+      }
+      res.json({ synced: true, xp, level, levelTitle, totalMinutes: user.totalMinutes || 0, results });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

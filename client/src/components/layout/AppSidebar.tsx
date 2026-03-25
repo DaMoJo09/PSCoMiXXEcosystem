@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -251,9 +252,22 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
       const res = await fetch("/api/xp/force-sync", { method: "POST", credentials: "include" });
       if (res.ok) {
         const d = await res.json();
-        console.log("[XP] Force sync sent:", d);
+        const results = d.results || [];
+        const succeeded = results.filter((r: any) => r.status === "ok");
+        const failed = results.filter((r: any) => r.status !== "ok");
+        if (succeeded.length === results.length && results.length > 0) {
+          toast.success(`XP synced to ${succeeded.map((r: any) => r.name).join(", ")}`);
+        } else if (succeeded.length > 0) {
+          toast.success(`Synced to ${succeeded.map((r: any) => r.name).join(", ")}. ${failed.map((r: any) => `${r.name}: ${r.code || r.status}`).join(", ")} failed.`);
+        } else {
+          toast.error(`Sync failed — endpoints not reachable: ${failed.map((r: any) => `${r.name} (${r.code || r.status})`).join(", ")}`);
+        }
+      } else {
+        toast.error("Force sync failed");
       }
-    } catch {}
+    } catch {
+      toast.error("Network error during sync");
+    }
     setTimeout(() => setXpSyncing(false), 2000);
   };
 
