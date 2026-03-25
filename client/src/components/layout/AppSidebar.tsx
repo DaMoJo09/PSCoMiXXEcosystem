@@ -42,6 +42,7 @@ import {
   ChevronRight,
   Monitor,
   Wifi,
+  RefreshCw,
   WifiOff,
   Printer,
   FileDown,
@@ -243,6 +244,18 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const xpInLevel = xpStatus?.xpInCurrentLevel ?? 0;
   const xpNeeded = xpStatus?.xpForNextLevel ?? 1000;
   const xpProgress = xpStatus ? Math.round(xpStatus.xpProgress * 100) : 0;
+  const [xpSyncing, setXpSyncing] = useState(false);
+  const handleForceSync = async () => {
+    setXpSyncing(true);
+    try {
+      const res = await fetch("/api/xp/force-sync", { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const d = await res.json();
+        console.log("[XP] Force sync sent:", d);
+      }
+    } catch {}
+    setTimeout(() => setXpSyncing(false), 2000);
+  };
 
   const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean }, matchPrefix = false) => {
     const isExternal = (item as any).external;
@@ -457,13 +470,23 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 uppercase" data-testid="text-level-title">
                 {levelTitle || (isStudent ? "STUDENT" : "CREATOR")}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">
                   {(user.totalMinutes || 0) >= 60 
                     ? `${Math.floor((user.totalMinutes || 0) / 60)}h ${(user.totalMinutes || 0) % 60}m`
                     : `${user.totalMinutes || 0} min`
                   }
                 </span>
+                <button
+                  onClick={handleForceSync}
+                  disabled={xpSyncing}
+                  className="text-[9px] text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-0.5 disabled:opacity-50"
+                  title="Sync XP to ecosystem apps"
+                  data-testid="btn-force-xp-sync"
+                >
+                  <RefreshCw className={`w-3 h-3 ${xpSyncing ? "animate-spin" : ""}`} />
+                  {xpSyncing ? "SYNCING" : "SYNC"}
+                </button>
               </div>
             </div>
           </div>

@@ -598,6 +598,24 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/xp/force-sync", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const xp = user.xp || 0;
+      const { level, title: levelTitle } = getLevelFromXp(xp);
+      await broadcastXpToEcosystem(user.email, 0, "force-sync", {
+        totalXp: xp,
+        level,
+        levelTitle,
+        totalMinutes: user.totalMinutes || 0,
+      });
+      res.json({ synced: true, xp, level, levelTitle, totalMinutes: user.totalMinutes || 0 });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/xp/levels", async (_req, res) => {
     try {
       res.json(getLevelThresholds());
