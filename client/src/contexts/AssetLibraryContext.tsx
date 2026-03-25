@@ -282,26 +282,54 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
     return addAssets(assetDataList);
   }, [addAssets]);
 
-  const exportAsset = useCallback((id: string) => {
+  const fetchAssetUrl = useCallback(async (id: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/assets/${id}`, { credentials: "include" });
+      if (response.ok) {
+        const data = await response.json();
+        return data.url || null;
+      }
+    } catch (error) {
+      console.error("Failed to fetch asset URL:", error);
+    }
+    return null;
+  }, []);
+
+  const exportAsset = useCallback(async (id: string) => {
     const asset = assets.find(a => a.id === id);
     if (!asset) return;
     
+    let url = asset.url;
+    if (!url) {
+      const fetchedUrl = await fetchAssetUrl(id);
+      if (!fetchedUrl) return;
+      url = fetchedUrl;
+    }
+    
     const link = document.createElement("a");
-    link.href = asset.url;
+    link.href = url;
     link.download = asset.name;
     link.click();
-  }, [assets]);
+  }, [assets, fetchAssetUrl]);
 
   const copyAssetToProject = useCallback(async (assetId: string, projectId: string) => {
     const asset = assets.find(a => a.id === assetId);
     if (!asset) return;
     
+    let url = asset.url;
+    if (!url) {
+      const fetchedUrl = await fetchAssetUrl(assetId);
+      if (!fetchedUrl) return;
+      url = fetchedUrl;
+    }
+    
     await addAsset({
       ...asset,
+      url,
       projectId,
       name: `${asset.name} (copy)`,
     });
-  }, [assets, addAsset]);
+  }, [assets, addAsset, fetchAssetUrl]);
 
   return (
     <AssetLibraryContext.Provider

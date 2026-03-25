@@ -1107,6 +1107,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const projectId = req.query.projectId as string | undefined;
       
+      const stripLargeUrls = (assetList: any[]) =>
+        assetList.map(({ url, ...rest }) => ({
+          ...rest,
+          url: url && url.startsWith("data:") ? "" : (url || ""),
+        }));
+
       if (projectId) {
         const project = await storage.getProject(projectId);
         if (!project) {
@@ -1116,11 +1122,26 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           return res.status(403).json({ message: "Forbidden" });
         }
         const assets = await storage.getProjectAssets(projectId);
-        return res.json(assets);
+        return res.json(stripLargeUrls(assets));
       }
       
       const assets = await storage.getUserAssets(req.user!.id);
-      res.json(assets);
+      res.json(stripLargeUrls(assets));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/assets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const asset = await storage.getAsset(req.params.id);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset not found" });
+      }
+      if (asset.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      res.json(asset);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

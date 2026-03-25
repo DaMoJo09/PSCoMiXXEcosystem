@@ -442,6 +442,15 @@ export default function ComicCreator() {
   const { user, isStudent } = useAuth();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  const resolveAssetUrl = useCallback(async (asset: { id: string; url: string }): Promise<string> => {
+    if (asset.url) return asset.url;
+    try {
+      const resp = await fetch(`/api/assets/${asset.id}`, { credentials: "include" });
+      if (resp.ok) { const d = await resp.json(); return d.url || ""; }
+    } catch (e) { console.error("Failed to resolve asset URL:", e); }
+    return "";
+  }, []);
+
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
   const [showBubbleSidebar, setShowBubbleSidebar] = useState(false);
@@ -4166,13 +4175,14 @@ export default function ComicCreator() {
                       {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
                         <ContextMenuItem
                           key={asset.id}
-                          onClick={() => {
+                          onClick={async () => {
                             if (selectedPanelId) {
+                              const url = await resolveAssetUrl(asset);
                               const { w, h } = getPanelPixelSize("left", selectedPanelId);
                               addContentToPanel("left", selectedPanelId, {
                                 type: "image",
                                 transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-                                data: { url: asset.url },
+                                data: { url },
                                 locked: false,
                               });
                               toast.success("Asset added to panel");
@@ -4507,15 +4517,16 @@ export default function ComicCreator() {
                       {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
                         <ContextMenuItem
                           key={asset.id}
-                          onClick={() => {
+                          onClick={async () => {
                             if (selectedPanelId) {
+                              const url = await resolveAssetUrl(asset);
                               const ctxPanels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
                               const ctxPanel = ctxPanels.find(p => p.id === selectedPanelId);
                               if (ctxPanel?.coverRole && coverDesignData) {
                                 const view = ctxPanel.coverRole === "front-cover" ? "front" : "back";
                                 const newLayer: CoverImageLayer = {
                                   id: `img_${Date.now()}`,
-                                  url: asset.url,
+                                  url,
                                   name: asset.name || "Asset",
                                   transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
                                   opacity: 1,
@@ -4531,7 +4542,7 @@ export default function ComicCreator() {
                                 addContentToPanel(selectedPage, selectedPanelId, {
                                   type: "image",
                                   transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-                                  data: { url: asset.url },
+                                  data: { url },
                                   locked: false,
                                 });
                                 toast.success("Asset added to panel");
@@ -6029,15 +6040,16 @@ export default function ComicCreator() {
                             }
                             setDraggedAssetId(null);
                           }}
-                          onClick={() => {
+                          onClick={async () => {
                             if (selectedPanelId) {
+                              const url = await resolveAssetUrl(asset);
                               const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
                               const targetPanel = panels.find(p => p.id === selectedPanelId);
                               if (targetPanel?.coverRole && coverDesignData) {
                                 const view = targetPanel.coverRole === "front-cover" ? "front" : "back";
                                 const newLayer: CoverImageLayer = {
                                   id: `img_${Date.now()}`,
-                                  url: asset.url,
+                                  url,
                                   name: asset.name || "Asset",
                                   transform: { x: 50, y: 50, width: 150, height: 150, rotation: 0, scaleX: 1, scaleY: 1 },
                                   opacity: 1,
@@ -6053,7 +6065,7 @@ export default function ComicCreator() {
                                 addContentToPanel(selectedPage, selectedPanelId, {
                                   type: "image",
                                   transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-                                  data: { url: asset.url },
+                                  data: { url },
                                   locked: false,
                                 });
                                 toast.success("Asset added to panel");
@@ -6065,7 +6077,7 @@ export default function ComicCreator() {
                           }}
                           className={`group relative aspect-square bg-zinc-800 border border-zinc-700 hover:border-white overflow-hidden cursor-grab active:cursor-grabbing ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
                         >
-                          {asset.url ? (
+                          {(asset.thumbnail || asset.url) ? (
                             <img src={asset.thumbnail || asset.url} loading="lazy" className="w-full h-full object-cover pointer-events-none" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">

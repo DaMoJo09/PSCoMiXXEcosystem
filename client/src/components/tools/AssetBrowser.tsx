@@ -350,12 +350,24 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
     );
   }, []);
 
-  const handleSelect = useCallback((asset: AssetItem) => {
+  const handleSelect = useCallback(async (asset: AssetItem) => {
     setRecentlyUsed(prev => {
       const filtered = prev.filter(id => id !== asset.id);
       return [asset.id, ...filtered].slice(0, 20);
     });
-    onSelectAsset(asset);
+    let resolvedAsset = asset;
+    if (!asset.url && asset.id) {
+      try {
+        const response = await fetch(`/api/assets/${asset.id}`, { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          resolvedAsset = { ...asset, url: data.url || "" };
+        }
+      } catch (err) {
+        console.error("Failed to fetch asset URL:", err);
+      }
+    }
+    onSelectAsset(resolvedAsset);
     if (mode === "insert") {
       onClose();
     }
@@ -490,15 +502,22 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                         <div
                           key={asset.id}
                           className="group relative bg-[#1a1a1a] rounded-xl border border-[#252525] overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer"
-                          onClick={() => {
-                            onSelectAsset({ id: asset.id, name: asset.name, url: asset.url, category: asset.type === "effect" ? "effect" : "prop", tags: asset.tags || [] });
+                          onClick={async () => {
+                            let url = asset.url;
+                            if (!url && asset.id) {
+                              try {
+                                const resp = await fetch(`/api/assets/${asset.id}`, { credentials: "include" });
+                                if (resp.ok) { const d = await resp.json(); url = d.url || ""; }
+                              } catch (e) { console.error("Failed to fetch asset URL:", e); }
+                            }
+                            onSelectAsset({ id: asset.id, name: asset.name, url, category: asset.type === "effect" ? "effect" : "prop", tags: asset.tags || [] });
                             if (mode === "insert") onClose();
                             toast.success(`${asset.name} added`);
                           }}
                           data-testid={`my-asset-${asset.id}`}
                         >
                           <div className="aspect-square bg-[#0d0d0d] flex items-center justify-center p-4 relative overflow-hidden">
-                            {asset.url ? (
+                            {(asset.thumbnail || asset.url) ? (
                               <img src={asset.thumbnail || asset.url} alt={asset.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-300" loading="lazy" />
                             ) : (
                               asset.type === "effect" ? <Sparkles className="w-10 h-10 text-purple-500/40" /> : <ImageIcon className="w-10 h-10 text-zinc-600" />
