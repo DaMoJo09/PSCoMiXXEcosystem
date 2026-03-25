@@ -1048,6 +1048,34 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/projects/bulk-delete", isAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "ids must be a non-empty array" });
+      }
+      if (ids.length > 200) {
+        return res.status(400).json({ message: "Cannot delete more than 200 projects at once" });
+      }
+      const userId = req.user!.id;
+      const isAdmin = req.user!.role === "admin";
+      let deleted = 0;
+      let skipped = 0;
+      for (const id of ids) {
+        try {
+          const project = await storage.getProject(id);
+          if (!project) { skipped++; continue; }
+          if (project.userId !== userId && !isAdmin) { skipped++; continue; }
+          await storage.deleteProject(id);
+          deleted++;
+        } catch { skipped++; }
+      }
+      res.json({ deleted, skipped, total: ids.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Asset routes
   app.get("/api/assets", isAuthenticated, async (req, res) => {
     try {

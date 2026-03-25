@@ -5,7 +5,8 @@ import {
   BookOpen, Layers, Search, Clock, ChevronRight,
   FileText, Film, Gamepad2, BookMarked, Pencil, Plus,
   Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles,
-  X, Trash2, GripVertical, Check, Camera, Eye, Users, BarChart3
+  X, Trash2, GripVertical, Check, Camera, Eye, Users, BarChart3,
+  CheckSquare, Square, AlertTriangle
 } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,9 @@ export default function LibraryPage() {
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [seriesForm, setSeriesForm] = useState({ title: "", description: "" });
   const [managingSeries, setManagingSeries] = useState<Series | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -191,6 +195,58 @@ export default function LibraryPage() {
       toast({ title: "Comic removed from series" });
     },
   });
+
+  const deleteSingleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to delete project");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project deleted" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch("/api/projects/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error("Bulk delete failed");
+      return res.json();
+    },
+    onSuccess: (data: { deleted: number; skipped: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      setConfirmBulkDelete(false);
+      toast({ title: `${data.deleted} project${data.deleted !== 1 ? "s" : ""} deleted` });
+    },
+  });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredProjects.map(p => p.id)));
+  };
+
+  const deselectAll = () => setSelectedIds(new Set());
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setConfirmBulkDelete(false);
+  };
 
   const filteredProjects = useMemo(() => {
     let result = projects;
@@ -311,6 +367,18 @@ export default function LibraryPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant={selectMode ? "default" : "outline"}
+                onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+                className={selectMode ? "bg-red-500 hover:bg-red-600 text-white font-bold" : "font-bold"}
+                data-testid="btn-toggle-select"
+              >
+                {selectMode ? (
+                  <><X className="w-4 h-4 mr-2" /> CANCEL</>
+                ) : (
+                  <><CheckSquare className="w-4 h-4 mr-2" /> SELECT</>
+                )}
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowSeriesPanel(!showSeriesPanel)}
@@ -508,6 +576,63 @@ export default function LibraryPage() {
             </div>
           )}
 
+          {selectMode && (
+            <div className="mb-4 border-2 border-red-500/50 bg-red-500/5 p-4 flex items-center justify-between flex-wrap gap-3" data-testid="bulk-action-bar">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold">
+                  {selectedIds.size} of {filteredProjects.length} selected
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectedIds.size === filteredProjects.length ? deselectAll : selectAllFiltered}
+                  className="font-bold text-xs"
+                  data-testid="btn-select-all"
+                >
+                  {selectedIds.size === filteredProjects.length ? "DESELECT ALL" : `SELECT ALL ${filteredProjects.length}`}
+                </Button>
+              </div>
+              <div className="flex items-center gap-3">
+                {!confirmBulkDelete ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmBulkDelete(true)}
+                    disabled={selectedIds.size === 0}
+                    className="font-bold text-xs border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                    data-testid="btn-bulk-delete"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" /> DELETE SELECTED ({selectedIds.size})
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500 px-4 py-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span className="text-xs font-bold text-red-400">
+                      Permanently delete {selectedIds.size} project{selectedIds.size !== 1 ? "s" : ""}?
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+                      disabled={bulkDeleteMutation.isPending}
+                      className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs"
+                      data-testid="btn-confirm-bulk-delete"
+                    >
+                      {bulkDeleteMutation.isPending ? "DELETING..." : "YES, DELETE"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmBulkDelete(false)}
+                      className="font-bold text-xs"
+                      data-testid="btn-cancel-bulk-delete"
+                    >
+                      CANCEL
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex items-center gap-2 flex-wrap">
               {([
@@ -603,15 +728,19 @@ export default function LibraryPage() {
                 const isWip = project.status === "draft" || project.status === "review" || project.status === "rejected";
                 const projectSeries = project.seriesId ? seriesList.find(s => s.id === project.seriesId) : null;
 
+                const isSelected = selectedIds.has(project.id);
+
                 return (
                   <div
                     key={project.id}
-                    className={`group border-2 bg-card cursor-pointer transition-all hover:shadow-lg ${
-                      isWip
+                    className={`group border-2 bg-card cursor-pointer transition-all hover:shadow-lg relative ${
+                      isSelected
+                        ? "border-red-500 shadow-red-500/10"
+                        : isWip
                         ? "border-border hover:border-yellow-500 hover:shadow-yellow-500/10"
                         : "border-border hover:border-cyan-500 hover:shadow-cyan-500/10"
                     }`}
-                    onClick={() => openProject(project)}
+                    onClick={() => selectMode ? toggleSelect(project.id) : openProject(project)}
                     data-testid={`library-card-${project.id}`}
                   >
                     <div className="aspect-[4/3] relative overflow-hidden bg-muted">
@@ -627,12 +756,26 @@ export default function LibraryPage() {
                         </div>
                       )}
 
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
-                          <TypeIcon className="w-3 h-3" />
-                          {typeConfig.label.toUpperCase()}
-                        </span>
-                      </div>
+                      {selectMode && (
+                        <div className={`absolute inset-0 z-20 ${isSelected ? "bg-red-500/20" : ""}`}>
+                          <div className="absolute top-2 left-2" data-testid={`checkbox-${project.id}`}>
+                            {isSelected ? (
+                              <CheckSquare className="w-6 h-6 text-red-400" />
+                            ) : (
+                              <Square className="w-6 h-6 text-white/60" />
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {!selectMode && (
+                        <div className="absolute top-2 left-2 flex gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
+                            <TypeIcon className="w-3 h-3" />
+                            {typeConfig.label.toUpperCase()}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="absolute top-2 right-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-bold border ${statusInfo.style}`}>
@@ -663,9 +806,25 @@ export default function LibraryPage() {
                     </div>
 
                     <div className="p-4 border-t border-border">
-                      <h3 className="font-black text-lg mb-1 truncate" data-testid={`text-title-${project.id}`}>
-                        {project.title}
-                      </h3>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-black text-lg truncate flex-1" data-testid={`text-title-${project.id}`}>
+                          {project.title}
+                        </h3>
+                        {!selectMode && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${project.title}"?`)) {
+                                deleteSingleMutation.mutate(project.id);
+                              }
+                            }}
+                            className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0 mt-1"
+                            data-testid={`btn-delete-${project.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-muted-foreground text-xs">
                         <Clock className="w-3 h-3" />
                         <span>{formatDate(project.updatedAt)}</span>
@@ -677,6 +836,12 @@ export default function LibraryPage() {
                               {projectSeries.title}
                             </span>
                           </>
+                        )}
+                        {!selectMode && (
+                          <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold border ${typeConfig.color} bg-black/80`}>
+                            <TypeIcon className="w-3 h-3" />
+                            {typeConfig.label.toUpperCase()}
+                          </span>
                         )}
                       </div>
                     </div>

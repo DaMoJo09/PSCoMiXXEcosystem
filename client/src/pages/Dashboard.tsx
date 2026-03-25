@@ -338,10 +338,14 @@ export default function Dashboard() {
             <h2 className="text-xl font-display font-bold flex items-center gap-2">
               <Clock className="w-5 h-5" /> Recent Projects
             </h2>
-            {projects && projects.length > 4 && (
-              <span className="text-sm text-muted-foreground font-mono">
-                Showing 4 of {projects.length} projects
-              </span>
+            {projects && projects.length > 0 && (
+              <button
+                onClick={() => navigate("/library")}
+                className="text-sm text-cyan-400 hover:underline font-mono flex items-center gap-1"
+                data-testid="link-view-all-projects"
+              >
+                View all {projects.length} projects <ArrowRight className="w-3 h-3" />
+              </button>
             )}
           </div>
           
