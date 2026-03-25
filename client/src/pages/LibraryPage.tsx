@@ -6,7 +6,7 @@ import {
   FileText, Film, Gamepad2, BookMarked, Pencil, Plus,
   Image as ImageIcon, CreditCard, PenTool, GitBranch, Sparkles,
   X, Trash2, GripVertical, Check, Camera, Eye, Users, BarChart3,
-  CheckSquare, Square, AlertTriangle
+  CheckSquare, Square, AlertTriangle, Copy, MoreVertical
 } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,9 @@ export default function LibraryPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -227,6 +230,68 @@ export default function LibraryPage() {
       toast({ title: `${data.deleted} project${data.deleted !== 1 ? "s" : ""} deleted` });
     },
   });
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) throw new Error("Failed to rename project");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setRenamingId(null);
+      setRenameValue("");
+      toast({ title: "Project renamed" });
+    },
+    onError: () => {
+      toast({ title: "Failed to rename project", variant: "destructive" });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      const sourceRes = await fetch(`/api/projects/${sourceId}`, { credentials: "include" });
+      if (!sourceRes.ok) throw new Error("Failed to load project");
+      const source = await sourceRes.json();
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: `${source.title} (Copy)`,
+          type: source.type,
+          data: source.data,
+          status: "draft",
+          forceNew: true,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to duplicate project");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project duplicated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to duplicate project", variant: "destructive" });
+    },
+  });
+
+  const startRename = (project: Project) => {
+    setRenamingId(project.id);
+    setRenameValue(project.title);
+    setMenuOpenId(null);
+  };
+
+  const submitRename = () => {
+    if (!renamingId || !renameValue.trim()) return;
+    renameMutation.mutate({ id: renamingId, title: renameValue.trim() });
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -807,22 +872,71 @@ export default function LibraryPage() {
 
                     <div className="p-4 border-t border-border">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className="font-black text-lg truncate flex-1" data-testid={`text-title-${project.id}`}>
-                          {project.title}
-                        </h3>
-                        {!selectMode && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Delete "${project.title}"?`)) {
-                                deleteSingleMutation.mutate(project.id);
-                              }
-                            }}
-                            className="text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0 mt-1"
-                            data-testid={`btn-delete-${project.id}`}
+                        {renamingId === project.id ? (
+                          <form
+                            className="flex-1 flex gap-1"
+                            onSubmit={(e) => { e.preventDefault(); submitRename(); }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onBlur={() => { if (renameValue.trim()) submitRename(); else setRenamingId(null); }}
+                              onKeyDown={(e) => { if (e.key === "Escape") setRenamingId(null); }}
+                              className="flex-1 bg-zinc-800 border border-cyan-500 px-2 py-1 text-sm font-bold text-white outline-none"
+                              data-testid={`input-rename-${project.id}`}
+                            />
+                          </form>
+                        ) : (
+                          <h3 className="font-black text-lg truncate flex-1" data-testid={`text-title-${project.id}`}>
+                            {project.title}
+                          </h3>
+                        )}
+                        {!selectMode && renamingId !== project.id && (
+                          <div className="relative flex-shrink-0 mt-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === project.id ? null : project.id); }}
+                              className="text-muted-foreground hover:text-white transition-colors p-0.5"
+                              data-testid={`btn-menu-${project.id}`}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {menuOpenId === project.id && (
+                              <div
+                                className="absolute right-0 top-7 z-50 w-40 bg-zinc-900 border border-zinc-700 shadow-xl"
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseLeave={() => setMenuOpenId(null)}
+                              >
+                                <button
+                                  onClick={() => startRename(project)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-800 transition-colors"
+                                  data-testid={`btn-rename-${project.id}`}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" /> Rename
+                                </button>
+                                <button
+                                  onClick={() => { setMenuOpenId(null); duplicateMutation.mutate(project.id); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-800 transition-colors"
+                                  data-testid={`btn-duplicate-${project.id}`}
+                                >
+                                  <Copy className="w-3.5 h-3.5" /> Duplicate
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setMenuOpenId(null);
+                                    if (confirm(`Delete "${project.title}"?`)) {
+                                      deleteSingleMutation.mutate(project.id);
+                                    }
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-400 hover:bg-zinc-800 transition-colors"
+                                  data-testid={`btn-delete-${project.id}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground text-xs">
