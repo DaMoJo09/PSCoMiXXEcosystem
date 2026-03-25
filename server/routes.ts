@@ -420,11 +420,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   }, 60000);
 
   const ECOSYSTEM_API_KEY = process.env.PSLMS_API_KEY || "";
+  const FX_STUDIO_ANON_KEY = process.env.FX_STUDIO_API_KEY || "";
 
   const ECOSYSTEM_XP_ENDPOINTS = [
     { name: "PSStreaming", url: "https://psstreaming.com/api/webhooks/xp-sync" },
     { name: "PSLMS", url: "https://pressstart.tech/api/webhooks/xp-sync" },
-    { name: "FXStudio", url: "https://www.pscomixx.online/api/webhooks/xp-sync" },
+    { name: "FXStudio", url: "https://upivslgwjtvqymonliib.supabase.co/functions/v1/xp-sync" },
   ];
 
   async function broadcastXpToEcosystem(
@@ -452,10 +453,17 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     for (const endpoint of ECOSYSTEM_XP_ENDPOINTS) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (endpoint.name === "FXStudio") {
+        headers["apikey"] = FX_STUDIO_ANON_KEY;
+        headers["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+      } else {
+        headers["X-API-Key"] = ECOSYSTEM_API_KEY;
+      }
       try {
         const res = await fetch(endpoint.url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-API-Key": ECOSYSTEM_API_KEY },
+          headers,
           body,
           signal: controller.signal,
         });
@@ -1557,9 +1565,16 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         for (const ep of rebroadcastEndpoints) {
           const ctrl = new AbortController();
           const to = setTimeout(() => ctrl.abort(), 5000);
+          const hdrs: Record<string, string> = { "Content-Type": "application/json" };
+          if (ep.name === "FXStudio") {
+            hdrs["apikey"] = FX_STUDIO_ANON_KEY;
+            hdrs["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+          } else {
+            hdrs["X-API-Key"] = ECOSYSTEM_API_KEY;
+          }
           fetch(ep.url, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-Key": ECOSYSTEM_API_KEY },
+            headers: hdrs,
             body: rebroadcastPayload,
             signal: ctrl.signal,
           }).catch(() => {}).finally(() => clearTimeout(to));
@@ -6013,6 +6028,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   const FX_API_URL = process.env.FX_STUDIO_API_URL || "https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects";
   const FX_API_KEY = process.env.FX_STUDIO_API_KEY || "";
+  const fxHeaders = () => ({
+    "Content-Type": "application/json",
+    apikey: FX_API_KEY,
+    Authorization: `Bearer ${FX_API_KEY}`,
+  });
 
   app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
@@ -6025,9 +6045,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (req.query.offset) params.set("offset", req.query.offset as string);
       const qs = params.toString();
       const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
-      const response = await fetch(url, {
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
-      });
+      const response = await fetch(url, { headers: fxHeaders() });
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
@@ -6037,9 +6055,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
-      });
+      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, { headers: fxHeaders() });
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
@@ -6051,7 +6067,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const response = await fetch(FX_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        headers: fxHeaders(),
         body: JSON.stringify(req.body),
       });
       const data = await response.json();
@@ -6065,7 +6081,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        headers: fxHeaders(),
         body: JSON.stringify(req.body),
       });
       const data = await response.json();
@@ -6079,7 +6095,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        headers: fxHeaders(),
       });
       const data = await response.json();
       res.json(data);
@@ -6137,7 +6153,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const response = await fetch(FX_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", apikey: FX_API_KEY },
+        headers: fxHeaders(),
         body: JSON.stringify(payload),
       });
 
