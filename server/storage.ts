@@ -558,6 +558,7 @@ export class DatabaseStorage implements IStorage {
       viewCount: projects.viewCount,
       seriesId: projects.seriesId,
       seriesOrder: projects.seriesOrder,
+      thumbnail: projects.thumbnail,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
     })

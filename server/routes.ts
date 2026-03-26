@@ -844,7 +844,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const earned = await db.select().from(userCertifications).where(eq(userCertifications.userId, req.user!.id));
       const earnedMap = new Map(earned.map(e => [e.certificationId, e]));
       const user = await storage.getUser(req.user!.id);
-      const userProjects = await storage.getUserProjects(req.user!.id);
+      const userProjects = await storage.getUserProjectsMeta(req.user!.id);
 
       const result = allCerts.map(cert => {
         const uc = earnedMap.get(cert.id);
@@ -888,7 +888,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (existing.length > 0) return res.status(400).json({ message: "Already earned", verificationCode: existing[0].verificationCode });
 
       const user = await storage.getUser(req.user!.id);
-      const userProjects = await storage.getUserProjects(req.user!.id);
+      const userProjects = await storage.getUserProjectsMeta(req.user!.id);
       const publishedProjects = userProjects.filter(p => p.status === "published");
       const matchingProjects = userProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
       const matchingPublished = publishedProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
@@ -973,7 +973,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!user) return res.json({ user_found: false, user_email: req.params.email });
 
       const { eq, and } = await import('drizzle-orm');
-      const userProjects = await storage.getUserProjects(user.id);
+      const userProjects = await storage.getUserProjectsMeta(user.id);
       const publishedProjects = userProjects.filter(p => p.status === "published");
 
       const statsByType: Record<string, { count: number; published: number; content_ids: string[] }> = {};
@@ -1312,7 +1312,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         const maxProjects = entitlements.maxProjects;
         
         if (maxProjects !== -1) {
-          const userProjects = await storage.getUserProjects(req.user!.id);
+          const userProjects = await storage.getUserProjectsMeta(req.user!.id);
           if (userProjects.length >= maxProjects) {
             return res.status(403).json({ 
               message: `Project limit reached. Your ${tier} plan allows ${maxProjects} projects. Upgrade for more.`,
@@ -1323,7 +1323,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       if (req.body.type && req.body.forceNew !== true) {
-        const userProjects = await storage.getUserProjects(req.user!.id);
+        const userProjects = await storage.getUserProjectsMeta(req.user!.id);
         const existing = userProjects
           .filter((p: any) => p.type === req.body.type)
           .sort((a: any, b: any) => {
@@ -1428,7 +1428,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/projects/delete-all-mine", isAuthenticated, async (req, res) => {
     try {
-      const allProjects = await storage.getUserProjects(req.user!.id);
+      const allProjects = await storage.getUserProjectsMeta(req.user!.id);
       let deleted = 0;
       for (const p of allProjects) {
         try { await storage.deleteProject(p.id); deleted++; } catch {}
@@ -2667,7 +2667,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(404).json({ message: "User not found" });
       }
 
-      const allProjects = await storage.getUserProjects(req.params.userId);
+      const allProjects = await storage.getUserProjectsMeta(req.params.userId);
       const publishedProjects = allProjects.filter(
         (p: any) => p.status === "published" || p.status === "approved"
       );
@@ -5633,7 +5633,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(404).json({ error: "User not found with that email" });
       }
 
-      const projects = await storage.getUserProjects(user.id);
+      const projects = await storage.getUserProjectsMeta(user.id);
       const comics = projects
         .filter(p => ["comic", "card", "cover", "motion", "vn", "cyoa"].includes(p.type))
         .map(p => ({
@@ -8215,7 +8215,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     try {
       const user = await storage.getUserByUsername(req.params.username);
       if (!user) return res.status(404).json({ message: "Creator not found" });
-      const publishedProjects = await storage.getUserProjects(user.id);
+      const publishedProjects = await storage.getUserProjectsMeta(user.id);
       const published = publishedProjects.filter((p: any) => p.status === "published");
       const followerCount = await storage.getFollowerCount(user.id);
       const followingCount = await storage.getFollowingCount(user.id);
@@ -8287,7 +8287,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const studentsList = await storage.getTeacherStudents((req.user as any).id, schoolId);
       const allProjects: any[] = [];
       for (const student of studentsList) {
-        const studentProjects = await storage.getUserProjects(student.id);
+        const studentProjects = await storage.getUserProjectsMeta(student.id);
         studentProjects.forEach((p: any) => {
           allProjects.push({
             ...p,
@@ -8320,7 +8320,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         if (student.lastActiveAt && new Date(student.lastActiveAt) >= today) {
           activeToday++;
         }
-        const studentProjects = await storage.getUserProjects(student.id);
+        const studentProjects = await storage.getUserProjectsMeta(student.id);
         studentProjects.forEach((p: any) => {
           toolUsage[p.type] = (toolUsage[p.type] || 0) + 1;
         });
@@ -8366,7 +8366,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     try {
       const userId = (req as any).apiUser?.id;
       if (!userId) return res.status(401).json({ error: "User not found" });
-      const userProjects = await storage.getUserProjects(userId);
+      const userProjects = await storage.getUserProjectsMeta(userId);
       res.json({
         projects: userProjects.map((p: any) => ({
           id: p.id,
