@@ -271,6 +271,17 @@ const panelTemplates = [
   { id: "book_two_column", name: "Two Columns", category: "book", panels: [{x:0,y:0,width:48,height:100},{x:52,y:0,width:48,height:100}] },
   { id: "book_text_art_facing", name: "Text / Art Facing Pages", category: "book", panels: [{x:0,y:0,width:100,height:100}] },
   { id: "book_graphic_novel", name: "Graphic Novel Panel", category: "book", panels: [{x:0,y:0,width:100,height:30},{x:0,y:30,width:50,height:40},{x:50,y:30,width:50,height:40},{x:0,y:70,width:100,height:30}] },
+
+  { id: "poster_hero", name: "Hero Image + Title", category: "poster", panels: [{x:0,y:0,width:100,height:75},{x:0,y:75,width:100,height:25}] },
+  { id: "poster_full_bleed", name: "Full Bleed", category: "poster", panels: [{x:0,y:0,width:100,height:100}] },
+  { id: "poster_title_top", name: "Title Top + Art", category: "poster", panels: [{x:0,y:0,width:100,height:20},{x:0,y:20,width:100,height:80}] },
+  { id: "poster_split_half", name: "Split Half", category: "poster", panels: [{x:0,y:0,width:50,height:100},{x:50,y:0,width:50,height:100}] },
+  { id: "poster_event", name: "Event Poster", category: "poster", panels: [{x:0,y:0,width:100,height:15},{x:5,y:18,width:90,height:55},{x:0,y:76,width:100,height:12},{x:0,y:90,width:100,height:10}] },
+  { id: "poster_quote", name: "Quote Poster", category: "poster", panels: [{x:0,y:0,width:100,height:25},{x:10,y:30,width:80,height:45},{x:0,y:80,width:100,height:20}] },
+  { id: "poster_collage", name: "Photo Collage", category: "poster", panels: [{x:0,y:0,width:50,height:50},{x:50,y:0,width:50,height:50},{x:0,y:50,width:50,height:50},{x:50,y:50,width:50,height:50}] },
+  { id: "poster_band", name: "Band / Show Poster", category: "poster", panels: [{x:0,y:0,width:100,height:12},{x:10,y:15,width:80,height:50},{x:0,y:68,width:100,height:15},{x:0,y:85,width:100,height:15}] },
+  { id: "poster_wanted", name: "Wanted / Notice", category: "poster", panels: [{x:5,y:2,width:90,height:12},{x:15,y:16,width:70,height:55},{x:5,y:74,width:90,height:24}] },
+  { id: "poster_infographic", name: "Infographic", category: "poster", panels: [{x:0,y:0,width:100,height:15},{x:0,y:15,width:100,height:17},{x:0,y:32,width:100,height:17},{x:0,y:49,width:100,height:17},{x:0,y:66,width:100,height:17},{x:0,y:83,width:100,height:17}] },
 ];
 
 // Template categories for UI organization
@@ -286,6 +297,7 @@ const templateCategories = [
   { id: "classic", name: "Classic" },
   { id: "kidsbook", name: "Kids Book" },
   { id: "book", name: "Book / Novel" },
+  { id: "poster", name: "Poster" },
 ];
 
 const FONT_OPTIONS = [

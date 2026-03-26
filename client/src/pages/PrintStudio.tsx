@@ -22,8 +22,9 @@ import {
 
 const outputs = [
   { icon: Book, label: "Comic Books", description: "Full-color saddle-stitched or perfect-bound comic books. Standard 6.625×10.25\" format." },
+  { icon: Book, label: "Books & Novels", description: "Kids books, graphic novels, and prose books. Pocket to full-size formats with perfect binding." },
   { icon: CreditCard, label: "Trading Cards", description: "Standard 2.5×3.5\" cards on premium cardstock. Glossy or matte finish." },
-  { icon: Image, label: "Posters", description: "11×17\" or 18×24\" full-bleed posters. Archival quality prints." },
+  { icon: Image, label: "Posters", description: "11×17\", 18×24\", or 24×36\" full-bleed posters. Archival quality prints." },
   { icon: Sticker, label: "Stickers", description: "Die-cut, kiss-cut, or sheet stickers. Vinyl or paper stock options." },
   { icon: Shirt, label: "T-Shirts", description: "DTG or screen-printed apparel. Upload your panel art directly." },
   { icon: Megaphone, label: "Promo Materials", description: "Flyers, postcards, banners, and event signage. Convention-ready." },
@@ -83,6 +84,18 @@ const bundles = [
     tag: "FUND",
     items: ["50 comic books for resale", "200 stickers", "25 posters", "Custom order forms"],
     description: "Turn your creative project into a fundraiser. Great for schools, clubs, and nonprofits.",
+  },
+  {
+    title: "Book Publishing Pack",
+    tag: "BOOK",
+    items: ["10 perfect-bound books (trade 6×9\")", "5 poster prints of cover art", "50 bookmarks", "Digital proof & press check"],
+    description: "Publish your kids book, graphic novel, or prose novel as a real printed book.",
+  },
+  {
+    title: "Poster Pack",
+    tag: "POSTER",
+    items: ["10 large format posters (18×24\")", "25 mini posters (11×17\")", "5 banner prints", "Custom sizing available"],
+    description: "Event posters, art prints, infographics, and promotional signage. Convention and classroom ready.",
   },
 ];
 
@@ -156,7 +169,7 @@ export default function PrintStudio() {
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                 data-testid="text-outputs-heading"
               >
-                6 SUPPORTED OUTPUTS
+                {outputs.length} SUPPORTED OUTPUTS
               </h2>
               <div className="w-24 h-1 bg-white mx-auto" />
             </div>

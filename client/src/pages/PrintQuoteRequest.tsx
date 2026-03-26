@@ -23,6 +23,7 @@ const ACCOUNT_TYPES = [
 
 const PRODUCT_TYPES = [
   { value: "comic", label: "Comic Book" },
+  { value: "book", label: "Book / Novel" },
   { value: "card", label: "Trading Card" },
   { value: "shirt", label: "T-Shirt" },
   { value: "poster", label: "Poster" },
@@ -31,6 +32,7 @@ const PRODUCT_TYPES = [
 
 const SIZE_OPTIONS: Record<string, string[]> = {
   comic: ['6.625" x 10.25"', '5.5" x 8.5"', '8.5" x 11"'],
+  book: ['5" x 8" (Pocket)', '5.5" x 8.5" (Digest)', '6" x 9" (Trade)', '8.5" x 11" (Full Size)'],
   card: ['2.5" x 3.5"', '3.5" x 5"'],
   shirt: ["S", "M", "L", "XL", "2XL", "Mixed"],
   poster: ['11" x 17"', '18" x 24"', '24" x 36"'],

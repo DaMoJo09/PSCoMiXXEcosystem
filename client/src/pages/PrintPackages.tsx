@@ -25,6 +25,7 @@ const schoolPackage = {
   subtitle: "Turn student comics into real printed books",
   details: [
     "Full-color saddle-stitched comic books (8.5x11\" or 6.625x10.25\")",
+    "Kids books & graphic novels (pocket to full-size)",
     "Minimum 25 copies per title",
     "Student name on cover & credits page",
     "Classroom bundle pricing",
@@ -72,10 +73,11 @@ const creatorPackage = {
   subtitle: "Everything you need to launch your comic or merch line",
   details: [
     "Short-run comic printing (as low as 10 copies)",
+    "Books & novels in trade or pocket format",
+    "Poster prints up to 24×36\"",
     "Trading card packs with foil options",
     "Sticker sheets and die-cut stickers",
     "T-shirt transfers and DTG prints",
-    "Convention-ready poster prints",
     "Custom business cards with comic art",
   ],
   greatFor: [
@@ -131,6 +133,28 @@ const bundles = [
       "50 poster prints",
       "Fundraiser pricing guide",
       "Order form templates",
+    ],
+  },
+  {
+    name: "Book Publishing Pack",
+    tag: "BOOK",
+    items: [
+      "10 perfect-bound books (trade 6×9\")",
+      "5 poster prints of cover art",
+      "50 bookmarks with your design",
+      "Digital proof & press check",
+      "ISBN setup assistance",
+    ],
+  },
+  {
+    name: "Poster Pack",
+    tag: "POSTER",
+    items: [
+      "10 large format posters (18×24\")",
+      "25 mini posters (11×17\")",
+      "5 banner prints for display",
+      "Custom sizing available",
+      "Archival-quality paper stock",
     ],
   },
 ];
