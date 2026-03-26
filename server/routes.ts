@@ -975,12 +975,30 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Project routes
   app.get("/api/projects", isAuthenticated, async (req, res) => {
     try {
-      const allProjects = await storage.getUserProjects(req.user!.id);
       if (req.query.fields === "meta") {
-        const lightweight = allProjects.map(({ data, ...rest }) => rest);
-        return res.json(lightweight);
+        const meta = await storage.getUserProjectsMeta(req.user!.id);
+        return res.json(meta);
       }
+      const allProjects = await storage.getUserProjects(req.user!.id);
       res.json(allProjects);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/projects/:id/thumbnail", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      let thumb = project.thumbnail || "";
+      if (!thumb) {
+        const data = project.data as any;
+        thumb = data?.pages?.[0]?.panels?.[0]?.content || data?.coverImage || data?.thumbnail || "";
+      }
+      res.json({ thumbnail: thumb });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

@@ -547,6 +547,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projects.userId, userId))
       .orderBy(desc(projects.updatedAt));
   }
+
+  async getUserProjectsMeta(userId: string) {
+    return db.select({
+      id: projects.id,
+      userId: projects.userId,
+      title: projects.title,
+      type: projects.type,
+      status: projects.status,
+      viewCount: projects.viewCount,
+      seriesId: projects.seriesId,
+      seriesOrder: projects.seriesOrder,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+    })
+      .from(projects)
+      .where(eq(projects.userId, userId))
+      .orderBy(desc(projects.updatedAt));
+  }
   
   async createProject(insertProject: InsertProject): Promise<Project> {
     const [project] = await db.insert(projects).values(insertProject).returning();

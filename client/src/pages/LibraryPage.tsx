@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import {
@@ -13,6 +13,50 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+
+function LazyThumbnail({ projectId, alt, className, fallback }: { projectId: string; alt: string; className?: string; fallback: React.ReactNode }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { rootMargin: "200px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    fetch(`/api/projects/${projectId}/thumbnail`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!cancelled) {
+          if (d?.thumbnail) setSrc(d.thumbnail);
+          setLoaded(true);
+        }
+      })
+      .catch(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, [visible, projectId]);
+
+  return (
+    <div ref={ref} className="w-full h-full">
+      {src ? (
+        <img src={src} alt={alt} className={className} />
+      ) : loaded ? (
+        <div className="w-full h-full flex items-center justify-center">{fallback}</div>
+      ) : (
+        <div className="w-full h-full bg-zinc-800/50 animate-pulse" />
+      )}
+    </div>
+  );
+}
 
 function SeriesStatsRow({ seriesId }: { seriesId: string }) {
   const { data: stats } = useQuery<{ totalReads: number; subscriberCount: number; chapterCount: number; completionRate: number }>({
@@ -353,15 +397,6 @@ export default function LibraryPage() {
       published: { label: "PUBLISHED", style: "bg-green-500/20 text-green-400 border-green-500" },
     };
     return map[status] || { label: status.toUpperCase(), style: "bg-zinc-700/50 text-zinc-400 border-zinc-600" };
-  };
-
-  const getThumbnail = (project: Project) => {
-    if (project.thumbnail) return project.thumbnail;
-    const data = project.data as any;
-    if (data?.pages?.[0]?.panels?.[0]?.content) return data.pages[0].panels[0].content;
-    if (data?.coverImage) return data.coverImage;
-    if (data?.thumbnail) return data.thumbnail;
-    return null;
   };
 
   const openProject = (project: Project) => {
@@ -788,7 +823,6 @@ export default function LibraryPage() {
               {filteredProjects.map((project) => {
                 const typeConfig = getTypeConfig(project.type);
                 const TypeIcon = typeConfig.icon;
-                const thumb = getThumbnail(project);
                 const statusInfo = getStatusInfo(project.status);
                 const isWip = project.status === "draft" || project.status === "review" || project.status === "rejected";
                 const projectSeries = project.seriesId ? seriesList.find(s => s.id === project.seriesId) : null;
@@ -809,17 +843,12 @@ export default function LibraryPage() {
                     data-testid={`library-card-${project.id}`}
                   >
                     <div className="aspect-[4/3] relative overflow-hidden bg-muted">
-                      {thumb ? (
-                        <img
-                          src={thumb}
-                          alt={project.title}
-                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isWip ? "opacity-80 group-hover:opacity-100" : ""}`}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-20`} />
-                        </div>
-                      )}
+                      <LazyThumbnail
+                        projectId={project.id}
+                        alt={project.title}
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isWip ? "opacity-80 group-hover:opacity-100" : ""}`}
+                        fallback={<TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-20`} />}
+                      />
 
                       {selectMode && (
                         <div className={`absolute inset-0 z-20 ${isSelected ? "bg-red-500/20" : ""}`}>
