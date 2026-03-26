@@ -60,3 +60,9 @@ id = "W4-JaxZZHFbcUqPk6-tAs"
 uri = "file://PSCoMiXX_Ecosystem_Integration_Guide.md"
 type = "text"
 title = "PSCoMiXX Ecosystem Integration Guide"
+
+[[outputs]]
+id = "YZEUcX14oH3Quw3qUjvwQ"
+uri = "file://ECOSYSTEM_SSO_INTEGRATION.md"
+type = "text"
+title = "Ecosystem SSO Integration Guide"

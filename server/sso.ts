@@ -8,12 +8,19 @@ if (!ECOSYSTEM_JWT_SECRET) {
 }
 const TOKEN_EXPIRY_SECONDS = 3600;
 
-interface EcosystemTokenPayload {
+export interface EcosystemTokenPayload {
   sub: string;
   email: string;
   name: string;
+  username: string;
   role: string;
   accountType: string;
+  avatar: string | null;
+  xp: number;
+  level: number;
+  levelTitle: string;
+  totalMinutes: number;
+  subscriptionTier: string;
   iss: string;
   iat: number;
   exp: number;
@@ -34,7 +41,7 @@ function base64UrlDecode(str: string): string {
 }
 
 function sign(header: string, payload: string): string {
-  return createHmac("sha256", ECOSYSTEM_JWT_SECRET)
+  return createHmac("sha256", ECOSYSTEM_JWT_SECRET!)
     .update(`${header}.${payload}`)
     .digest("base64")
     .replace(/\+/g, "-")
@@ -42,16 +49,23 @@ function sign(header: string, payload: string): string {
     .replace(/=+$/, "");
 }
 
-export function issueEcosystemToken(user: User): string {
+export function issueEcosystemToken(user: User, subscriptionTier: string = "free", levelTitle: string = "Novice"): string {
   const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const now = Math.floor(Date.now() / 1000);
   const payload: EcosystemTokenPayload = {
     sub: user.id,
     email: user.email,
     name: user.name,
+    username: (user as any).username || "",
     role: user.role,
     accountType: user.accountType,
-    iss: "comixx",
+    avatar: (user as any).avatar || null,
+    xp: (user as any).xp || 0,
+    level: (user as any).level || 1,
+    levelTitle,
+    totalMinutes: (user as any).totalMinutes || 0,
+    subscriptionTier,
+    iss: "pscomixx",
     iat: now,
     exp: now + TOKEN_EXPIRY_SECONDS,
   };
@@ -83,10 +97,27 @@ const ECOSYSTEM_DOMAINS: Record<string, string> = {
   lms: process.env.LMS_URL || "https://pressstart.tech",
 };
 
+const ALLOWED_HOSTS = Object.values(ECOSYSTEM_DOMAINS).map(d => {
+  try { return new URL(d).host; } catch { return ""; }
+}).filter(Boolean);
+
+export function isAllowedOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).host;
+    return ALLOWED_HOSTS.includes(host);
+  } catch {
+    return false;
+  }
+}
+
 export function getRedirectUrl(target: string, token: string): string | null {
   const baseUrl = ECOSYSTEM_DOMAINS[target];
   if (!baseUrl) return null;
-  return `${baseUrl}/sso?token=${encodeURIComponent(token)}`;
+  return `${baseUrl}/sso/callback?token=${encodeURIComponent(token)}&source=pscomixx`;
+}
+
+export function getEcosystemDomains() {
+  return { ...ECOSYSTEM_DOMAINS };
 }
 
 export async function findOrCreateUserFromToken(payload: EcosystemTokenPayload): Promise<User | undefined> {

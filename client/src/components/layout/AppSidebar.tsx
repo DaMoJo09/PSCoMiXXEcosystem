@@ -79,7 +79,7 @@ const aiTools = [
   { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
   { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
   { icon: Download, label: "Import Center", href: "/tools/import" },
-  { icon: Zap, label: "FX Studio", href: "https://www.pscomixx.online", external: true },
+  { icon: Zap, label: "FX Studio", href: "https://www.pscomixx.online", external: true, ssoTarget: "fxstudio" },
 ];
 
 const galleryTools = [
@@ -114,6 +114,8 @@ const ecosystemToolsBase = [
   { icon: Gift, label: "Rewards", href: "/rewards", studentOk: true },
   { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false },
   { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true },
+  { icon: Monitor, label: "PS Streaming", href: "https://psstreaming.com", external: true, ssoTarget: "streaming", studentOk: false },
+  { icon: GraduationCap, label: "Press Start LMS", href: "https://pressstart.tech", external: true, ssoTarget: "lms", studentOk: true },
 ];
 
 const socialTools = [
@@ -273,8 +275,23 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
     setTimeout(() => setXpSyncing(false), 2000);
   };
 
-  const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean }, matchPrefix = false) => {
+  const handleSSORedirect = async (target: string) => {
+    try {
+      const res = await fetch(`/api/auth/sso/redirect?target=${target}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error("Could not generate SSO link");
+      }
+    } catch {
+      toast.error("Connection error");
+    }
+  };
+
+  const renderNavLink = (item: { icon: any; label: string; href: string; external?: boolean; ssoTarget?: string }, matchPrefix = false) => {
     const isExternal = (item as any).external;
+    const ssoTarget = (item as any).ssoTarget;
     const isActive = !isExternal && (matchPrefix
       ? location === item.href || location.startsWith(item.href + "/")
       : location === item.href);
@@ -286,6 +303,22 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
         : "hover:bg-muted hover:border-border"
     );
     const testId = `nav-${item.label.toLowerCase().replace(/\s/g, '-')}`;
+
+    if (isExternal && ssoTarget) {
+      return (
+        <button
+          key={item.href}
+          onClick={() => handleSSORedirect(ssoTarget)}
+          className={cn(className, "w-full text-left cursor-pointer")}
+          data-testid={testId}
+          title={!isExpanded ? item.label : undefined}
+          aria-label={!isExpanded ? item.label : undefined}
+        >
+          <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+          {isExpanded && <span className="truncate">{item.label}</span>}
+        </button>
+      );
+    }
 
     if (isExternal) {
       return (

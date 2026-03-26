@@ -7915,10 +7915,18 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
   // =========== SSO / JWT Ecosystem Auth ===========
 
+  async function getUserSSOData(user: any) {
+    const sub = await storage.getUserSubscription(user.id);
+    const tier = sub?.tier || "free";
+    const { title: levelTitle } = getLevelFromXp(user.xp || 0);
+    return { tier, levelTitle };
+  }
+
   app.post("/api/auth/sso/token", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const token = issueEcosystemToken(user);
+      const { tier, levelTitle } = await getUserSSOData(user);
+      const token = issueEcosystemToken(user, tier, levelTitle);
       res.json({ token, expiresIn: 3600 });
     } catch (err) {
       res.status(500).json({ message: "Error issuing SSO token" });
@@ -7932,16 +7940,31 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const payload = verifyEcosystemToken(token);
       if (!payload) return res.status(401).json({ message: "Invalid or expired token" });
       const user = await findOrCreateUserFromToken(payload);
-      if (!user) return res.status(404).json({ message: "User not found in this platform" });
+
+      const { eq } = await import("drizzle-orm");
+      const earnedCerts = user ? await db.select().from(userCertifications).where(eq(userCertifications.userId, user.id)) : [];
+      const certSlugs: string[] = [];
+      for (const uc of earnedCerts) {
+        const [cert] = await db.select().from(certifications).where(eq(certifications.id, uc.certificationId));
+        if (cert) certSlugs.push(cert.slug);
+      }
+
       res.json({
         valid: true,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          accountType: user.accountType,
-          username: (user as any).username,
+          id: user?.id || payload.sub,
+          email: payload.email,
+          name: payload.name,
+          username: payload.username || (user as any)?.username || "",
+          role: payload.role,
+          accountType: payload.accountType,
+          avatar: payload.avatar || (user as any)?.avatar || null,
+          xp: payload.xp ?? (user as any)?.xp ?? 0,
+          level: payload.level ?? (user as any)?.level ?? 1,
+          levelTitle: payload.levelTitle || "Novice",
+          totalMinutes: payload.totalMinutes ?? (user as any)?.totalMinutes ?? 0,
+          subscriptionTier: payload.subscriptionTier || "free",
+          certifications: certSlugs,
         },
       });
     } catch (err) {
@@ -7949,17 +7972,122 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     }
   });
 
+  const SSO_TARGET_RULES: Record<string, { allowStudent: boolean; allowCreator: boolean }> = {
+    comixx: { allowStudent: true, allowCreator: true },
+    fxstudio: { allowStudent: true, allowCreator: true },
+    streaming: { allowStudent: false, allowCreator: true },
+    lms: { allowStudent: true, allowCreator: true },
+  };
+
   app.get("/api/auth/sso/redirect", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const target = req.query.target as string;
       if (!target) return res.status(400).json({ message: "Target app required" });
-      const token = issueEcosystemToken(user);
+
+      const rules = SSO_TARGET_RULES[target];
+      if (rules) {
+        const isStudent = user.accountType === "student";
+        if (isStudent && !rules.allowStudent) return res.status(403).json({ message: "This platform is not available for student accounts" });
+        if (!isStudent && !rules.allowCreator) return res.status(403).json({ message: "This platform is not available for your account type" });
+      }
+
+      const { tier, levelTitle } = await getUserSSOData(user);
+      const token = issueEcosystemToken(user, tier, levelTitle);
       const redirectUrl = getRedirectUrl(target, token);
       if (!redirectUrl) return res.status(400).json({ message: "Invalid target app" });
       res.json({ redirectUrl });
     } catch (err) {
       res.status(500).json({ message: "Error generating SSO redirect" });
+    }
+  });
+
+  app.get("/api/auth/sso/authorize", (req, res) => {
+    const redirect_uri = req.query.redirect_uri as string;
+    const app = req.query.app as string;
+    if (!redirect_uri) return res.status(400).json({ message: "redirect_uri required" });
+
+    const { isAllowedOrigin } = require("./sso");
+    try {
+      const url = new URL(redirect_uri);
+      if (!isAllowedOrigin(url.origin)) {
+        return res.status(400).json({ message: "redirect_uri not in allowed origins" });
+      }
+    } catch {
+      return res.status(400).json({ message: "Invalid redirect_uri" });
+    }
+
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.redirect(`/auth?sso_redirect=${encodeURIComponent(redirect_uri)}&sso_app=${encodeURIComponent(app || "")}`);
+    }
+
+    (async () => {
+      try {
+        const user = req.user as any;
+
+        if (app && SSO_TARGET_RULES[app]) {
+          const isStudent = user.accountType === "student";
+          const rules = SSO_TARGET_RULES[app];
+          if (isStudent && !rules.allowStudent) {
+            return res.status(403).send("This platform is not available for student accounts.");
+          }
+          if (!isStudent && !rules.allowCreator) {
+            return res.status(403).send("This platform is not available for your account type.");
+          }
+        }
+
+        const { tier, levelTitle } = await getUserSSOData(user);
+        const token = issueEcosystemToken(user, tier, levelTitle);
+        const separator = redirect_uri.includes("?") ? "&" : "?";
+        res.redirect(`${redirect_uri}${separator}token=${encodeURIComponent(token)}&source=pscomixx`);
+      } catch {
+        res.status(500).json({ message: "Error during SSO authorize" });
+      }
+    })();
+  });
+
+  app.get("/api/auth/sso/platforms", (req, res) => {
+    const { getEcosystemDomains } = require("./sso");
+    const domains = getEcosystemDomains();
+    res.json({
+      platforms: [
+        { key: "comixx", name: "PSCoMiXX", domain: domains.comixx, description: "Create comics, cards, visual novels & more", forStudents: true, forCreators: true },
+        { key: "fxstudio", name: "FX Studio", domain: domains.fxstudio, description: "Write scripts, plan stories & visual effects", forStudents: true, forCreators: true },
+        { key: "streaming", name: "PS Streaming", domain: domains.streaming, description: "Publish & stream your content to the world", forStudents: false, forCreators: true },
+        { key: "lms", name: "Press Start LMS", domain: domains.lms, description: "Courses, assignments & certification tracking", forStudents: true, forCreators: false },
+      ],
+    });
+  });
+
+  app.post("/api/auth/sso/ecosystem-login", async (req, res) => {
+    try {
+      const { token, source } = req.body;
+      if (!token) return res.status(400).json({ message: "Token required" });
+      const payload = verifyEcosystemToken(token);
+      if (!payload) return res.status(401).json({ message: "Invalid or expired token" });
+
+      let user = await storage.getUserByEmail(payload.email);
+      if (!user) {
+        return res.status(404).json({ message: "No account found. Please sign up on PSCoMiXX first." });
+      }
+
+      req.login(user, (err: any) => {
+        if (err) return res.status(500).json({ message: "Session error" });
+        console.log(`[sso] Ecosystem login for ${user!.email} from ${source || "unknown"}`);
+        res.json({
+          success: true,
+          user: {
+            id: user!.id,
+            email: user!.email,
+            name: user!.name,
+            username: (user as any)?.username,
+            role: user!.role,
+            accountType: user!.accountType,
+          },
+        });
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Error during ecosystem SSO login" });
     }
   });
 

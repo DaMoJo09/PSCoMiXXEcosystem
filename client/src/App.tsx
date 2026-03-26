@@ -84,6 +84,7 @@ import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
 import PrintPackages from "@/pages/PrintPackages";
 import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import CertificationsPage, { VerifyPage } from "@/pages/CertificationsPage";
+import SSOCallbackPage from "@/pages/SSOCallbackPage";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
@@ -118,6 +119,10 @@ function ProtectedRouter() {
 
   if (location.startsWith("/reset-password")) {
     return <ResetPassword />;
+  }
+
+  if (location.startsWith("/sso/callback") || location === "/sso") {
+    return <SSOCallbackPage />;
   }
 
   const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/"];

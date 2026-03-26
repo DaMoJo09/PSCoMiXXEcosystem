@@ -21,7 +21,7 @@ PostgreSQL, hosted via Neon serverless, is the primary database, accessed throug
 The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features, AI resilience, audit logging, and SSO support.
 
 ### Ecosystem SSO
-JWT-based single sign-on is implemented across the PSCoMiXX ecosystem.
+JWT-based single sign-on across the PSCoMiXX ecosystem. CoMiXX is the identity provider — tokens are issued with HS256 signing and include email, name, username, role, accountType, avatar, xp, level, levelTitle, totalMinutes, and subscriptionTier. Endpoints: `POST /api/auth/sso/token` (issue token for logged-in user), `POST /api/auth/sso/verify` (validate token, returns full user data + certifications), `GET /api/auth/sso/redirect?target=fxstudio|streaming|lms` (get SSO redirect URL), `GET /api/auth/sso/authorize?redirect_uri=...&app=...` (OAuth-style authorize — redirects to login if needed, then back to partner app with token), `POST /api/auth/sso/ecosystem-login` (exchange token for session on CoMiXX), `GET /api/auth/sso/platforms` (list all ecosystem platforms). Frontend: `/sso/callback` handles incoming SSO tokens. Sidebar links for FX Studio, PS Streaming, and Press Start LMS use SSO redirect to carry user identity and stats automatically.
 
 ### Webhook Service
 A standardized event dispatch system with delivery logging and a retry queue supports events like `project.published`, `project.exported`, `user.created`, and `user.tier_changed`.

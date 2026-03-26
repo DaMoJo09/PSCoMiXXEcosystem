@@ -24,6 +24,12 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
+      const params = new URLSearchParams(window.location.search);
+      const ssoRedirect = params.get("sso_redirect");
+      if (ssoRedirect) {
+        window.location.href = `/api/auth/sso/authorize?redirect_uri=${encodeURIComponent(ssoRedirect)}&app=${encodeURIComponent(params.get("sso_app") || "")}`;
+        return;
+      }
       navigate("/");
     }
   }, [isAuthenticated, navigate]);
