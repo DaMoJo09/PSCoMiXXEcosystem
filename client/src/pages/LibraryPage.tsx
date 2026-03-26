@@ -132,6 +132,8 @@ export default function LibraryPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [bulkSeriesTarget, setBulkSeriesTarget] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -275,6 +277,50 @@ export default function LibraryPage() {
     },
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/projects/delete-all-mine", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Delete all failed");
+      return res.json();
+    },
+    onSuccess: (data: { deleted: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      setConfirmDeleteAll(false);
+      toast({ title: `${data.deleted} project${data.deleted !== 1 ? "s" : ""} deleted` });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete projects", variant: "destructive" });
+    },
+  });
+
+  const bulkAddToSeriesMutation = useMutation({
+    mutationFn: async ({ seriesId, projectIds }: { seriesId: string; projectIds: string[] }) => {
+      let added = 0;
+      for (const projectId of projectIds) {
+        const res = await fetch(`/api/series/${seriesId}/comics`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ projectId, order: added }),
+        });
+        if (res.ok) added++;
+      }
+      return { added };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setBulkSeriesTarget(null);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      toast({ title: `${data.added} project${data.added !== 1 ? "s" : ""} added to series` });
+    },
+  });
+
   const renameMutation = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
       const res = await fetch(`/api/projects/${id}`, {
@@ -355,6 +401,8 @@ export default function LibraryPage() {
     setSelectMode(false);
     setSelectedIds(new Set());
     setConfirmBulkDelete(false);
+    setConfirmDeleteAll(false);
+    setBulkSeriesTarget(null);
   };
 
   const filteredProjects = useMemo(() => {
@@ -677,58 +725,113 @@ export default function LibraryPage() {
           )}
 
           {selectMode && (
-            <div className="mb-4 border-2 border-red-500/50 bg-red-500/5 p-4 flex items-center justify-between flex-wrap gap-3" data-testid="bulk-action-bar">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold">
-                  {selectedIds.size} of {filteredProjects.length} selected
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={selectedIds.size === filteredProjects.length ? deselectAll : selectAllFiltered}
-                  className="font-bold text-xs"
-                  data-testid="btn-select-all"
-                >
-                  {selectedIds.size === filteredProjects.length ? "DESELECT ALL" : `SELECT ALL ${filteredProjects.length}`}
-                </Button>
-              </div>
-              <div className="flex items-center gap-3">
-                {!confirmBulkDelete ? (
+            <div className="mb-4 border-2 border-cyan-500/30 bg-zinc-900 p-4 space-y-3" data-testid="bulk-action-bar">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold">
+                    {selectedIds.size} of {filteredProjects.length} selected
+                  </span>
                   <Button
                     variant="outline"
-                    onClick={() => setConfirmBulkDelete(true)}
-                    disabled={selectedIds.size === 0}
-                    className="font-bold text-xs border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
-                    data-testid="btn-bulk-delete"
+                    size="sm"
+                    onClick={selectedIds.size === filteredProjects.length ? deselectAll : selectAllFiltered}
+                    className="font-bold text-xs"
+                    data-testid="btn-select-all"
                   >
-                    <Trash2 className="w-4 h-4 mr-1" /> DELETE SELECTED ({selectedIds.size})
+                    {selectedIds.size === filteredProjects.length ? "DESELECT ALL" : `SELECT ALL ${filteredProjects.length}`}
                   </Button>
-                ) : (
-                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500 px-4 py-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
-                    <span className="text-xs font-bold text-red-400">
-                      Permanently delete {selectedIds.size} project{selectedIds.size !== 1 ? "s" : ""}?
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
-                      disabled={bulkDeleteMutation.isPending}
-                      className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs"
-                      data-testid="btn-confirm-bulk-delete"
-                    >
-                      {bulkDeleteMutation.isPending ? "DELETING..." : "YES, DELETE"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setConfirmBulkDelete(false)}
-                      className="font-bold text-xs"
-                      data-testid="btn-cancel-bulk-delete"
-                    >
-                      CANCEL
-                    </Button>
-                  </div>
-                )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {seriesList.length > 0 && selectedIds.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={bulkSeriesTarget || ""}
+                        onChange={(e) => setBulkSeriesTarget(e.target.value || null)}
+                        className="px-2 py-1.5 bg-background border border-border text-xs font-bold text-foreground focus:border-cyan-500 outline-none"
+                        data-testid="select-bulk-series"
+                      >
+                        <option value="">Add to series...</option>
+                        {seriesList.map(s => (
+                          <option key={s.id} value={s.id}>{s.title}</option>
+                        ))}
+                      </select>
+                      {bulkSeriesTarget && (
+                        <Button
+                          size="sm"
+                          onClick={() => bulkAddToSeriesMutation.mutate({ seriesId: bulkSeriesTarget, projectIds: Array.from(selectedIds) })}
+                          disabled={bulkAddToSeriesMutation.isPending}
+                          className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold text-xs"
+                          data-testid="btn-bulk-add-series"
+                        >
+                          <GitBranch className="w-3 h-3 mr-1" />
+                          {bulkAddToSeriesMutation.isPending ? "ADDING..." : `ADD ${selectedIds.size} TO SERIES`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {!confirmBulkDelete && !confirmDeleteAll ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfirmBulkDelete(true)}
+                        disabled={selectedIds.size === 0}
+                        className="font-bold text-xs border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                        data-testid="btn-bulk-delete"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" /> DELETE SELECTED ({selectedIds.size})
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfirmDeleteAll(true)}
+                        className="font-bold text-xs border-red-500/50 text-red-400/70 hover:bg-red-500 hover:text-white"
+                        data-testid="btn-delete-all"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" /> DELETE ALL ({projects.length})
+                      </Button>
+                    </>
+                  ) : confirmBulkDelete ? (
+                    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500 px-3 py-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span className="text-xs font-bold text-red-400">
+                        Delete {selectedIds.size} project{selectedIds.size !== 1 ? "s" : ""}?
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+                        disabled={bulkDeleteMutation.isPending}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs"
+                        data-testid="btn-confirm-bulk-delete"
+                      >
+                        {bulkDeleteMutation.isPending ? "DELETING..." : "YES, DELETE"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmBulkDelete(false)} className="font-bold text-xs" data-testid="btn-cancel-bulk-delete">
+                        CANCEL
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500 px-3 py-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span className="text-xs font-bold text-red-400">
+                        Delete ALL {projects.length} projects? This cannot be undone.
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => deleteAllMutation.mutate()}
+                        disabled={deleteAllMutation.isPending}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs"
+                        data-testid="btn-confirm-delete-all"
+                      >
+                        {deleteAllMutation.isPending ? "DELETING..." : "YES, DELETE ALL"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDeleteAll(false)} className="font-bold text-xs" data-testid="btn-cancel-delete-all">
+                        CANCEL
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

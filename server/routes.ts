@@ -1145,9 +1145,6 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/projects/delete-all-mine", isAuthenticated, async (req, res) => {
     try {
-      if (req.user!.role !== "admin") {
-        return res.status(403).json({ message: "Admin only" });
-      }
       const allProjects = await storage.getUserProjects(req.user!.id);
       let deleted = 0;
       for (const p of allProjects) {
@@ -1165,8 +1162,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ message: "ids must be a non-empty array" });
       }
-      if (ids.length > 200) {
-        return res.status(400).json({ message: "Cannot delete more than 200 projects at once" });
+      if (ids.length > 500) {
+        return res.status(400).json({ message: "Cannot delete more than 500 projects at once" });
       }
       const userId = req.user!.id;
       const isAdmin = req.user!.role === "admin";
