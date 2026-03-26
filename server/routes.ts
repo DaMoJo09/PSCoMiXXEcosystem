@@ -918,11 +918,160 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       await processProgressionEvent(req.user!.id, "certification_earned", cert.id, "certification");
 
+      if (PSSTREAMING_SECRET) {
+        const certType = cert.slug.replace(/-/g, '_');
+        const syncPayload = {
+          cert_id: verificationCode,
+          cert_type: certType,
+          user_email: user?.email || "",
+          user_name: user?.name || user?.username || "Creator",
+          issued_at: new Date().toISOString(),
+          issued_by: "PSCoMiXX",
+          requirements_met: {
+            projects_completed: matchingProjects.length,
+            content_published: matchingPublished.length,
+            xp_threshold: cert.requiredXp,
+          },
+          linked_content_ids: matchingPublished.map(p => p.id),
+          xp_at_issue: user?.xp || 0,
+          level_at_issue: user?.level || 1,
+        };
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 5000);
+        fetch("https://psstreaming.com/api/certifications/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-webhook-secret": PSSTREAMING_SECRET,
+          },
+          body: JSON.stringify(syncPayload),
+          signal: ctrl.signal,
+        }).catch(e => console.log("[cert-sync] Streaming sync failed:", e.message))
+          .finally(() => clearTimeout(to));
+      }
+
       res.json({
         ...uc,
         certification: cert,
       });
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/certifications/validate/:email", async (req, res) => {
+    try {
+      const webhookSecret = req.headers["x-webhook-secret"] as string | undefined;
+      const xApiKey = req.headers["x-api-key"] as string | undefined;
+      const validStreaming = PSSTREAMING_SECRET && webhookSecret === PSSTREAMING_SECRET;
+      const validLms = xApiKey && xApiKey === process.env.PSLMS_API_KEY;
+      if (!validStreaming && !validLms) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUserByEmail(req.params.email);
+      if (!user) return res.json({ user_found: false, user_email: req.params.email });
+
+      const { eq, and } = await import('drizzle-orm');
+      const userProjects = await storage.getUserProjects(user.id);
+      const publishedProjects = userProjects.filter(p => p.status === "published");
+
+      const statsByType: Record<string, { count: number; published: number; content_ids: string[] }> = {};
+      for (const p of userProjects) {
+        if (!statsByType[p.type]) statsByType[p.type] = { count: 0, published: 0, content_ids: [] };
+        statsByType[p.type].count++;
+        if (p.status === "published") {
+          statsByType[p.type].published++;
+          statsByType[p.type].content_ids.push(p.id);
+        }
+      }
+
+      const earnedCerts = await db.select().from(userCertifications)
+        .where(eq(userCertifications.userId, user.id));
+      const certDetails = [];
+      for (const uc of earnedCerts) {
+        const [cert] = await db.select().from(certifications).where(eq(certifications.id, uc.certificationId));
+        if (cert) certDetails.push({
+          cert_type: cert.slug.replace(/-/g, '_'),
+          title: cert.title,
+          verification_code: uc.verificationCode,
+          earned_at: uc.earnedAt,
+        });
+      }
+
+      res.json({
+        user_found: true,
+        user_email: user.email,
+        xp: user.xp || 0,
+        level: user.level || 1,
+        level_title: getLevelFromXp(user.xp || 0).title,
+        total_published: publishedProjects.length,
+        total_projects: userProjects.length,
+        stats_by_type: statsByType,
+        certifications_earned: certDetails,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ecosystem/certifications/sync", async (req, res) => {
+    try {
+      const webhookSecret = req.headers["x-webhook-secret"] as string | undefined;
+      const xApiKey = req.headers["x-api-key"] as string | undefined;
+      const validStreaming = PSSTREAMING_SECRET && webhookSecret === PSSTREAMING_SECRET;
+      const validLms = xApiKey && xApiKey === process.env.PSLMS_API_KEY;
+      if (!validStreaming && !validLms) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { cert_id, cert_type, user_email, user_name, issued_at, issued_by, requirements_met, linked_content_ids, xp_at_issue, level_at_issue, school_name } = req.body;
+      if (!cert_type || !user_email) return res.status(400).json({ message: "cert_type and user_email required" });
+
+      const user = await storage.getUserByEmail(user_email);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const { eq, and } = await import('drizzle-orm');
+      const certSlug = cert_type.replace(/_/g, '-');
+      const [cert] = await db.select().from(certifications).where(eq(certifications.slug, certSlug));
+      if (!cert) return res.status(404).json({ message: `Certification type '${cert_type}' not found` });
+
+      const existing = await db.select().from(userCertifications)
+        .where(and(eq(userCertifications.userId, user.id), eq(userCertifications.certificationId, cert.id)));
+      if (existing.length > 0) {
+        return res.json({ synced: true, already_earned: true, verification_code: existing[0].verificationCode });
+      }
+
+      const verificationCode = cert_id || `PS-${certSlug.toUpperCase().replace(/-/g, '')}-${(await import("crypto")).randomBytes(4).toString("hex").toUpperCase()}`;
+      const portfolioSnapshot = {
+        userName: user_name || user.name || user.username || "Creator",
+        level: level_at_issue || user.level || 1,
+        xp: xp_at_issue || user.xp || 0,
+        issuedBy: issued_by || "Ecosystem",
+        schoolName: school_name || undefined,
+        requirementsMet: requirements_met,
+        linkedContentIds: linked_content_ids,
+      };
+
+      const [uc] = await db.insert(userCertifications).values({
+        userId: user.id,
+        certificationId: cert.id,
+        verificationCode,
+        portfolioSnapshot,
+      }).returning();
+
+      await processProgressionEvent(user.id, "certification_earned", cert.id, "certification");
+      console.log(`[ecosystem/cert-sync] Cert ${cert.slug} synced for ${user_email} from ${issued_by || "external"}`);
+
+      res.json({
+        synced: true,
+        verification_code: uc.verificationCode,
+        certification: cert.title,
+      });
+    } catch (error: any) {
+      if (error.message?.includes("duplicate") || error.code === "23505") {
+        return res.json({ synced: true, already_earned: true });
+      }
       res.status(500).json({ message: error.message });
     }
   });

@@ -1,0 +1,170 @@
+Got it! Here's the updated Integration Playbook with correct domains:
+
+🔗 PRESS START ECOSYSTEM INTEGRATION GUIDE
+Platform Domains
+App	Platform	Domain
+CoMiXX (Creation)	Replit	pscomixx.com
+FX Studio (Writing)	Lovable	pscomixx.online
+Streaming (Distribution)	Emergent	psstreaming.com
+LMS (Learning/Certs)	-	pressstart.tech
+Common Configuration (All Apps)
+STREAMING_API = "https://psstreaming.com/api"
+COMIXX_API = "https://pscomixx.com/api"
+FX_STUDIO_API = "https://pscomixx.online/api"
+LMS_API = "https://pressstart.tech/api"
+
+WEBHOOK_SECRET = "whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6"
+USER_IDENTIFIER = "user_email"  // Primary cross-platform key
+1️⃣ CoMiXX (pscomixx.com) → Streaming (psstreaming.com)
+Purpose: Push published content to Streaming for distribution
+
+When Creator Publishes Content:
+// POST https://psstreaming.com/api/replit/sync/content
+// Header: x-webhook-secret: {WEBHOOK_SECRET}
+
+{
+  "content_id": "unique-content-id",
+  "content_type": "comic" | "visualNovel" | "cyoa" | "tradingCards" | "music" | "hop",
+  "title": "My Comic Title",
+  "description": "Description here",
+  "thumbnail": "https://...",
+  "creator_email": "creator@email.com",
+  "creator_name": "Creator Name",
+  "bundle_json": { /* PSContentBundle data */ },
+  "pages": ["url1", "url2"],
+  "is_premium": false,
+  "price": 0.99,
+  "published_at": "2026-03-26T12:00:00Z"
+}
+Sync Creator Profile:
+// POST https://psstreaming.com/api/replit/sync/creator
+// Header: x-webhook-secret: {WEBHOOK_SECRET}
+
+{
+  "creator_email": "creator@email.com",
+  "creator_name": "Display Name",
+  "avatar": "https://...",
+  "bio": "Creator bio"
+}
+2️⃣ FX Studio (pscomixx.online) → Streaming (psstreaming.com)
+Purpose: Sync writing progress for XP tracking
+
+When User Completes Writing Milestone:
+// POST https://psstreaming.com/api/xp/sync/incoming
+// Header: x-webhook-secret: {WEBHOOK_SECRET}
+
+{
+  "user_email": "user@email.com",
+  "action": "complete_scene" | "complete_chapter" | "export_script",
+  "xp_amount": 25,
+  "source_platform": "fx_studio",
+  "timestamp": "2026-03-26T12:00:00Z"
+}
+Bulk XP Sync:
+// POST https://psstreaming.com/api/xp/sync/incoming
+
+{
+  "user_email": "user@email.com",
+  "total_xp": 5000,
+  "level": 12,
+  "source_platform": "fx_studio",
+  "total_minutes": 1200
+}
+3️⃣ LMS (pressstart.tech) → Streaming (psstreaming.com)
+Purpose: Validate requirements & issue certifications
+
+Step 1: Check If User Qualifies
+// GET https://psstreaming.com/api/certifications/validate/{user_email}
+// Header: x-webhook-secret: {WEBHOOK_SECRET}
+
+// Response:
+{
+  "user_found": true,
+  "user_email": "user@email.com",
+  "xp": 108845,
+  "level": 29,
+  "total_published": 5,
+  "total_views": 1200,
+  "total_likes": 89,
+  "engagement_score": 2450,
+  "stats_by_type": {
+    "comic": { "count": 3, "views": 800, "content_ids": [...] },
+    "music": { "count": 2, "views": 400, "content_ids": [...] }
+  }
+}
+Step 2: Issue Certification
+// POST https://psstreaming.com/api/certifications/sync
+// Header: x-webhook-secret: {WEBHOOK_SECRET}
+
+{
+  "cert_id": "PSCERT-unique-id",
+  "cert_type": "ps_creator_comics",
+  "user_email": "user@email.com",
+  "user_name": "Display Name",
+  "issued_at": "2026-03-26T12:00:00Z",
+  "issued_by": "Press Start LMS",
+  "requirements_met": {
+    "projects_completed": 5,
+    "content_published": 3,
+    "xp_threshold": 1000
+  },
+  "linked_content_ids": ["content-id-1", "content-id-2"],
+  "xp_at_issue": 5000,
+  "level_at_issue": 15,
+  "school_name": "Press Start Academy"
+}
+Certification Types:
+cert_type	Name
+ps_creator_comics	PS Creator (Comics)
+ps_interactive_story_designer	PS Interactive Story Designer
+ps_digital_publisher	PS Digital Publisher
+ps_music_audio_creator	PS Music/Audio Creator
+ps_motion_comic_producer	PS Motion Comic Producer
+ps_visual_novel_creator	PS Visual Novel Creator
+Public Verification URL:
+https://psstreaming.com/verify/{cert_id}
+4️⃣ Streaming (psstreaming.com) → CoMiXX (pscomixx.com)
+Outbound XP sync when users engage on Streaming:
+
+// Streaming POSTs to: https://pscomixx.com/api/ecosystem/xp-sync
+
+{
+  "user_email": "user@email.com",
+  "action": "watch_content",
+  "xp_amount": 10,
+  "total_xp": 5000,
+  "level": 15,
+  "source_platform": "psstreaming"
+}
+📋 QUICK REFERENCE
+From	To	Endpoint	Purpose
+CoMiXX	Streaming	POST psstreaming.com/api/replit/sync/content	Push published content
+CoMiXX	Streaming	POST psstreaming.com/api/replit/sync/creator	Sync creator profile
+FX Studio	Streaming	POST psstreaming.com/api/xp/sync/incoming	Sync writing XP
+LMS	Streaming	GET psstreaming.com/api/certifications/validate/{email}	Check qualification
+LMS	Streaming	POST psstreaming.com/api/certifications/sync	Issue certification
+Streaming	CoMiXX	POST pscomixx.com/api/ecosystem/xp-sync	Sync engagement XP
+🔐 Security
+Webhook Secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Header: x-webhook-secret: {WEBHOOK_SECRET}
+User Matching: Always use user_email as primary identifier
+XP Logic: "Highest value wins" - never subtracts
+🎯 Data Flow Summary
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   FX Studio     │     │    CoMiXX       │     │   Streaming     │
+│ pscomixx.online │     │  pscomixx.com   │     │ psstreaming.com │
+│                 │     │                 │     │                 │
+│  Write/Plan     │────▶│  Create/Build   │────▶│  Publish/View   │
+│                 │     │                 │     │                 │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         │         XP Sync       │         XP Sync       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │          LMS           │
+                    │    pressstart.tech     │
+                    │                        │
+                    │  Track → Validate →    │
+                    │  Issue Certifications  │
+                    └────────────────────────┘
