@@ -1678,8 +1678,20 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
       const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000);
 
-      const allUsers = await db.select().from(users);
-      const allProjects = await db.select().from(projects);
+      const allUsers = await db.select({
+        id: users.id, accountType: users.accountType, role: users.role,
+        createdAt: users.createdAt, lastXpHeartbeat: users.lastXpHeartbeat,
+        totalMinutes: users.totalMinutes, xp: users.xp, level: users.level,
+        creatorClass: users.creatorClass, name: users.name,
+        ipDisclosureAccepted: users.ipDisclosureAccepted,
+        userAgreementAccepted: users.userAgreementAccepted,
+        parentalConsentAt: users.parentalConsentAt,
+      }).from(users);
+      const allProjects = await db.select({
+        id: projects.id, userId: projects.userId, type: projects.type,
+        status: projects.status, createdAt: projects.createdAt,
+        viewCount: projects.viewCount,
+      }).from(projects);
 
       const totalUsers = allUsers.length;
       const studentUsers = allUsers.filter(u => u.accountType === "student").length;
@@ -1733,11 +1745,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       let engagementData: any[] = [];
       let usageData: any[] = [];
 
-      try { subscriptionData = await db.select().from(subscriptions); } catch {}
-      try { revenueData = await db.select().from(revenueEvents); } catch {}
-      try { marketplaceData = await db.select().from(marketplaceListings); } catch {}
-      try { engagementData = await db.select().from(engagementEvents); } catch {}
-      try { usageData = await db.select().from(usageTracking); } catch {}
+      try { subscriptionData = await db.select({ status: subscriptions.status, tier: subscriptions.tier }).from(subscriptions); } catch {}
+      try { revenueData = await db.select({ type: revenueEvents.type, amount: revenueEvents.amount, createdAt: revenueEvents.createdAt }).from(revenueEvents); } catch {}
+      try { marketplaceData = await db.select({ status: marketplaceListings.status, priceInCents: marketplaceListings.priceInCents, salesCount: marketplaceListings.salesCount, totalEarnings: marketplaceListings.totalEarnings }).from(marketplaceListings); } catch {}
+      try { engagementData = await db.select({ eventType: engagementEvents.eventType, createdAt: engagementEvents.createdAt }).from(engagementEvents); } catch {}
+      try { usageData = await db.select({ actionType: usageTracking.actionType, periodKey: usageTracking.periodKey, count: usageTracking.count, userId: usageTracking.userId }).from(usageTracking); } catch {}
 
       const paidSubscriptions = subscriptionData.filter((s: any) => s.status === "active" && s.tier !== "free");
       const subscriptionsByTier: Record<string, number> = {};

@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
-  Square, Layers, Download, Film, MessageSquare, Wand2, Plus, ArrowLeft, FileText,
+  Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink
@@ -26,7 +26,6 @@ import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
-import { BubbleSidebar } from "@/components/tools/BubbleSidebar";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
 import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
@@ -316,114 +315,12 @@ const FONT_OPTIONS = [
   { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
 ];
 
-// SVG Speech Bubble Presets (from custom assets)
-const bubblePresets = [
-  { id: "bubble_8", name: "Classic Round", file: "/assets/bubbles/8.svg" },
-  { id: "bubble_9", name: "Oval Speech", file: "/assets/bubbles/9.svg" },
-  { id: "bubble_10", name: "Cloud Thought", file: "/assets/bubbles/10.svg" },
-  { id: "bubble_11", name: "Rounded Rect", file: "/assets/bubbles/11.svg" },
-  { id: "bubble_12", name: "Pointed Speech", file: "/assets/bubbles/12.svg" },
-  { id: "bubble_13", name: "Burst Shout", file: "/assets/bubbles/13.svg" },
-  { id: "bubble_14", name: "Wavy Edge", file: "/assets/bubbles/14.svg" },
-  { id: "bubble_15", name: "Square Speech", file: "/assets/bubbles/15.svg" },
-  { id: "bubble_16", name: "Double Outline", file: "/assets/bubbles/16.svg" },
-  { id: "bubble_17", name: "Fluffy Cloud", file: "/assets/bubbles/17.svg" },
-  { id: "bubble_18", name: "Starburst", file: "/assets/bubbles/18.svg" },
-  { id: "bubble_19", name: "Explosion", file: "/assets/bubbles/19.svg" },
-  { id: "bubble_20", name: "Whisper", file: "/assets/bubbles/20.svg" },
-  { id: "bubble_21", name: "Yell", file: "/assets/bubbles/21.svg" },
-  { id: "bubble_22", name: "Narration Box", file: "/assets/bubbles/22.svg" },
-  { id: "bubble_23", name: "Caption", file: "/assets/bubbles/23.svg" },
-  { id: "bubble_24", name: "Thought Bubble", file: "/assets/bubbles/24.svg" },
-  { id: "bubble_25", name: "Electric", file: "/assets/bubbles/25.svg" },
-  { id: "bubble_26", name: "Jagged Edge", file: "/assets/bubbles/26.svg" },
-  { id: "bubble_27", name: "Scalloped", file: "/assets/bubbles/27.svg" },
-  { id: "bubble_28", name: "Soft Round", file: "/assets/bubbles/28.svg" },
-  { id: "bubble_29", name: "Pointed Left", file: "/assets/bubbles/29.svg" },
-  { id: "bubble_30", name: "Pointed Right", file: "/assets/bubbles/30.svg" },
-  { id: "bubble_31", name: "Double Bubble", file: "/assets/bubbles/31.svg" },
-  { id: "bubble_32", name: "Wide Speech", file: "/assets/bubbles/32.svg" },
-  { id: "bubble_33", name: "Tall Speech", file: "/assets/bubbles/33.svg" },
-  { id: "bubble_34", name: "Comic Classic", file: "/assets/bubbles/34.svg" },
-  { id: "bubble_35", name: "Action Burst", file: "/assets/bubbles/35.svg" },
-  { id: "bubble_36", name: "Impact", file: "/assets/bubbles/36.svg" },
-  { id: "bubble_37", name: "Splash", file: "/assets/bubbles/37.svg" },
-  { id: "bubble_38", name: "Emotion", file: "/assets/bubbles/38.svg" },
-  { id: "bubble_39", name: "Dramatic", file: "/assets/bubbles/39.svg" },
-  { id: "bubble_40", name: "Sleek", file: "/assets/bubbles/40.svg" },
-  { id: "bubble_41", name: "Bold", file: "/assets/bubbles/41.svg" },
-  { id: "bubble_42", name: "Retro", file: "/assets/bubbles/42.svg" },
-  { id: "bubble_43", name: "Modern", file: "/assets/bubbles/43.svg" },
-  { id: "bubble_44", name: "Funky", file: "/assets/bubbles/44.svg" },
-  { id: "bubble_45", name: "Simple", file: "/assets/bubbles/45.svg" },
-  { id: "bubble_46", name: "Elegant", file: "/assets/bubbles/46.svg" },
-  { id: "bubble_47", name: "Sharp", file: "/assets/bubbles/47.svg" },
-  { id: "bubble_48", name: "Smooth", file: "/assets/bubbles/48.svg" },
-];
-
-// SVG Sound Effect Presets (from custom assets)
-const effectPresets = [
-  { id: "effect_20", name: "POW!", file: "/assets/effects/20.svg" },
-  { id: "effect_21", name: "BAM!", file: "/assets/effects/21.svg" },
-  { id: "effect_22", name: "CRASH!", file: "/assets/effects/22.svg" },
-  { id: "effect_23", name: "BOOM!", file: "/assets/effects/23.svg" },
-  { id: "effect_24", name: "ZAP!", file: "/assets/effects/24.svg" },
-  { id: "effect_25", name: "WHAM!", file: "/assets/effects/25.svg" },
-  { id: "effect_26", name: "KAPOW!", file: "/assets/effects/26.svg" },
-  { id: "effect_27", name: "SPLASH!", file: "/assets/effects/27.svg" },
-  { id: "effect_28", name: "CRACK!", file: "/assets/effects/28.svg" },
-  { id: "effect_29", name: "SMASH!", file: "/assets/effects/29.svg" },
-  { id: "effect_30", name: "BANG!", file: "/assets/effects/30.svg" },
-  { id: "effect_31", name: "THWACK!", file: "/assets/effects/31.svg" },
-  { id: "effect_32", name: "WHOOSH!", file: "/assets/effects/32.svg" },
-  { id: "effect_33", name: "PUNCH!", file: "/assets/effects/33.svg" },
-  { id: "effect_34", name: "KICK!", file: "/assets/effects/34.svg" },
-  { id: "effect_35", name: "SLAM!", file: "/assets/effects/35.svg" },
-  { id: "effect_36", name: "THUD!", file: "/assets/effects/36.svg" },
-  { id: "effect_37", name: "CRUNCH!", file: "/assets/effects/37.svg" },
-  { id: "effect_38", name: "SNAP!", file: "/assets/effects/38.svg" },
-  { id: "effect_39", name: "POP!", file: "/assets/effects/39.svg" },
-  { id: "effect_40", name: "BLAST!", file: "/assets/effects/40.svg" },
-  { id: "effect_41", name: "KABOOM!", file: "/assets/effects/41.svg" },
-  { id: "effect_42", name: "WHACK!", file: "/assets/effects/42.svg" },
-  { id: "effect_43", name: "BONK!", file: "/assets/effects/43.svg" },
-  { id: "effect_44", name: "CLANG!", file: "/assets/effects/44.svg" },
-  { id: "effect_45", name: "ZING!", file: "/assets/effects/45.svg" },
-  { id: "effect_46", name: "SWOOSH!", file: "/assets/effects/46.svg" },
-  { id: "effect_47", name: "BUZZ!", file: "/assets/effects/47.svg" },
-  { id: "effect_48", name: "SIZZLE!", file: "/assets/effects/48.svg" },
-  { id: "effect_49", name: "FWOOSH!", file: "/assets/effects/49.svg" },
-  { id: "effect_50", name: "KRASH!", file: "/assets/effects/50.svg" },
-  { id: "effect_51", name: "BLAM!", file: "/assets/effects/51.svg" },
-  { id: "effect_52", name: "SPLAT!", file: "/assets/effects/52.svg" },
-  { id: "effect_53", name: "THUMP!", file: "/assets/effects/53.svg" },
-  { id: "effect_54", name: "WHAM 2!", file: "/assets/effects/54.svg" },
-  { id: "effect_55", name: "POW 2!", file: "/assets/effects/55.svg" },
-  { id: "effect_56", name: "ZAP 2!", file: "/assets/effects/56.svg" },
-  { id: "effect_57", name: "BOOM 2!", file: "/assets/effects/57.svg" },
-  { id: "effect_58", name: "CRASH 2!", file: "/assets/effects/58.svg" },
-  { id: "effect_59", name: "SMACK!", file: "/assets/effects/59.svg" },
-  { id: "effect_60", name: "BIFF!", file: "/assets/effects/60.svg" },
-  { id: "effect_61", name: "OOF!", file: "/assets/effects/61.svg" },
-  { id: "effect_62", name: "UGH!", file: "/assets/effects/62.svg" },
-  { id: "effect_63", name: "ARGH!", file: "/assets/effects/63.svg" },
-  { id: "effect_64", name: "YEAH!", file: "/assets/effects/64.svg" },
-  { id: "effect_65", name: "WOW!", file: "/assets/effects/65.svg" },
-  { id: "effect_66", name: "OOPS!", file: "/assets/effects/66.svg" },
-  { id: "effect_67", name: "HEY!", file: "/assets/effects/67.svg" },
-  { id: "effect_68", name: "YAY!", file: "/assets/effects/68.svg" },
-  { id: "effect_69", name: "NO!", file: "/assets/effects/69.svg" },
-  { id: "effect_70", name: "YES!", file: "/assets/effects/70.svg" },
-  { id: "effect_71", name: "HA!", file: "/assets/effects/71.svg" },
-  { id: "effect_72", name: "HMM!", file: "/assets/effects/72.svg" },
-];
 
 const tools = [
   { id: "select", icon: MousePointer, label: "Select/Move", shortcut: "V" },
   { id: "panel", icon: Square, label: "Panel", shortcut: "P" },
   { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
   { id: "text", icon: Type, label: "Caption", shortcut: "T" },
-  { id: "bubble", icon: MessageSquare, label: "Bubble", shortcut: "U" },
   { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
 
@@ -453,7 +350,6 @@ export default function ComicCreator() {
 
   const [activeTool, setActiveTool] = useState("select");
   const [showAIGen, setShowAIGen] = useState(false);
-  const [showBubbleSidebar, setShowBubbleSidebar] = useState(false);
 
   const openAIGen = useCallback(() => {
     if (!hasFeature("ai") && !isAdmin) {
@@ -900,7 +796,6 @@ export default function ComicCreator() {
         case 'b': setActiveTool('draw'); break;
         case 'e': setActiveTool('erase'); break;
         case 't': setActiveTool('text'); break;
-        case 'u': setShowBubbleSidebar(prev => !prev); break;
         case 'g': openAIGen(); break;
         case 'delete': case 'backspace': {
           const isInInput = document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLInputElement || (document.activeElement as HTMLElement)?.isContentEditable;
@@ -2327,27 +2222,6 @@ export default function ComicCreator() {
     toast.success(`${sfx.text} added`);
   };
 
-  const addBubblePresetToPanel = (page: "left" | "right", panelId: string, preset: typeof bubblePresets[0]) => {
-    const { w, h } = getPanelPixelSize(page, panelId);
-    addContentToPanel(page, panelId, {
-      type: "image",
-      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { url: preset.file },
-      locked: false,
-    });
-    toast.success(`${preset.name} bubble added`);
-  };
-
-  const addEffectPresetToPanel = (page: "left" | "right", panelId: string, preset: typeof effectPresets[0]) => {
-    const { w, h } = getPanelPixelSize(page, panelId);
-    addContentToPanel(page, panelId, {
-      type: "image",
-      transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
-      data: { url: preset.file },
-      locked: false,
-    });
-    toast.success(`${preset.name} effect added`);
-  };
 
   const addSidebarAssetToPanel = (asset: { url: string; name: string }) => {
     if (!selectedPanelId) {
@@ -3902,8 +3776,6 @@ export default function ComicCreator() {
                     onClick={() => {
                       if (tool.id === "ai") {
                         openAIGen();
-                      } else if (tool.id === "bubble") {
-                        setShowBubbleSidebar(prev => !prev);
                       } else {
                         setActiveTool(tool.id);
                       }
@@ -3956,13 +3828,6 @@ export default function ComicCreator() {
               </TooltipContent>
             </Tooltip>
           </aside>
-
-          <BubbleSidebar
-            isOpen={showBubbleSidebar}
-            onClose={() => setShowBubbleSidebar(false)}
-            onSelectAsset={addSidebarAssetToPanel}
-            hasPanelSelected={!!selectedPanelId}
-          />
 
           <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
             <div className="absolute inset-0 pointer-events-none opacity-5"
@@ -4022,7 +3887,7 @@ export default function ComicCreator() {
                     onMouseUp={() => handlePageMouseUp("left")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("left")}
                     onDoubleClick={(e) => handlePageDoubleClick(e, "left")}
-                    onClick={(e) => { if (e.target === e.currentTarget) setShowBubbleSidebar(false); }}
+
                   >
                     {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                     {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
@@ -4044,95 +3909,6 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
                     <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
-                    <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                      <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                      {bubblePresets.slice(0, 20).map(preset => (
-                        <ContextMenuItem
-                          key={preset.id}
-                          onClick={() => {
-                            if (selectedPanelId) {
-                              addBubblePresetToPanel("left", selectedPanelId, preset);
-                            } else {
-                              toast.error("Select a panel first");
-                            }
-                          }}
-                          className="hover:bg-zinc-800 cursor-pointer"
-                        >
-                          {preset.name}
-                        </ContextMenuItem>
-                      ))}
-                      <ContextMenuSeparator className="bg-zinc-700" />
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {bubblePresets.slice(20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => {
-                                if (selectedPanelId) {
-                                  addBubblePresetToPanel("left", selectedPanelId, preset);
-                                } else {
-                                  toast.error("Select a panel first");
-                                }
-                              }}
-                              className="hover:bg-zinc-800 cursor-pointer"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                      <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                      {effectPresets.slice(0, 20).map(preset => (
-                        <ContextMenuItem
-                          key={preset.id}
-                          onClick={() => {
-                            if (selectedPanelId) {
-                              addEffectPresetToPanel("left", selectedPanelId, preset);
-                            } else {
-                              toast.error("Select a panel first");
-                            }
-                          }}
-                          className="hover:bg-zinc-800 cursor-pointer font-bold"
-                        >
-                          {preset.name}
-                        </ContextMenuItem>
-                      ))}
-                      <ContextMenuSeparator className="bg-zinc-700" />
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {effectPresets.slice(20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => {
-                                if (selectedPanelId) {
-                                  addEffectPresetToPanel("left", selectedPanelId, preset);
-                                } else {
-                                  toast.error("Select a panel first");
-                                }
-                              }}
-                              className="hover:bg-zinc-800 cursor-pointer font-bold"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
                   {selectedPanelId && (
                     <ContextMenuItem onClick={() => addCaptionToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
                       <Square className="w-4 h-4 mr-2" /> Add Caption Box
@@ -4172,7 +3948,7 @@ export default function ComicCreator() {
                       <Layers className="w-4 h-4 mr-2" /> Asset Library
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                      {assets.slice(0, 6).map(asset => (
                         <ContextMenuItem
                           key={asset.id}
                           onClick={async () => {
@@ -4195,7 +3971,7 @@ export default function ComicCreator() {
                           {asset.name}
                         </ContextMenuItem>
                       ))}
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
+                      {assets.length === 0 && (
                         <ContextMenuItem disabled className="text-zinc-500">
                           No saved assets
                         </ContextMenuItem>
@@ -4364,7 +4140,7 @@ export default function ComicCreator() {
                     onMouseUp={() => handlePageMouseUp("right")}
                     onMouseLeave={() => isDrawingPanel && handlePageMouseUp("right")}
                     onDoubleClick={(e) => handlePageDoubleClick(e, "right")}
-                    onClick={(e) => { if (e.target === e.currentTarget) setShowBubbleSidebar(false); }}
+
                   >
                     {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                     {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
@@ -4386,95 +4162,6 @@ export default function ComicCreator() {
                   <ContextMenuItem onClick={() => setActiveTool("text")} className="hover:bg-zinc-800 cursor-pointer">
                     <Type className="w-4 h-4 mr-2" /> Add Text <ContextMenuShortcut>T</ContextMenuShortcut>
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => setActiveTool("bubble")} className="hover:bg-zinc-800 cursor-pointer">
-                    <MessageSquare className="w-4 h-4 mr-2" /> Add Bubble <ContextMenuShortcut>U</ContextMenuShortcut>
-                  </ContextMenuItem>
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                      <MessageSquare className="w-4 h-4 mr-2" /> Bubble Presets
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                      {bubblePresets.slice(0, 20).map(preset => (
-                        <ContextMenuItem
-                          key={preset.id}
-                          onClick={() => {
-                            if (selectedPanelId) {
-                              addBubblePresetToPanel("right", selectedPanelId, preset);
-                            } else {
-                              toast.error("Select a panel first");
-                            }
-                          }}
-                          className="hover:bg-zinc-800 cursor-pointer"
-                        >
-                          {preset.name}
-                        </ContextMenuItem>
-                      ))}
-                      <ContextMenuSeparator className="bg-zinc-700" />
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Bubbles...</ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {bubblePresets.slice(20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => {
-                                if (selectedPanelId) {
-                                  addBubblePresetToPanel("right", selectedPanelId, preset);
-                                } else {
-                                  toast.error("Select a panel first");
-                                }
-                              }}
-                              className="hover:bg-zinc-800 cursor-pointer"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
-                      <Volume2 className="w-4 h-4 mr-2" /> Effect Presets
-                    </ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                      {effectPresets.slice(0, 20).map(preset => (
-                        <ContextMenuItem
-                          key={preset.id}
-                          onClick={() => {
-                            if (selectedPanelId) {
-                              addEffectPresetToPanel("right", selectedPanelId, preset);
-                            } else {
-                              toast.error("Select a panel first");
-                            }
-                          }}
-                          className="hover:bg-zinc-800 cursor-pointer font-bold"
-                        >
-                          {preset.name}
-                        </ContextMenuItem>
-                      ))}
-                      <ContextMenuSeparator className="bg-zinc-700" />
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">More Effects...</ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white max-h-80 overflow-y-auto">
-                          {effectPresets.slice(20).map(preset => (
-                            <ContextMenuItem
-                              key={preset.id}
-                              onClick={() => {
-                                if (selectedPanelId) {
-                                  addEffectPresetToPanel("right", selectedPanelId, preset);
-                                } else {
-                                  toast.error("Select a panel first");
-                                }
-                              }}
-                              className="hover:bg-zinc-800 cursor-pointer font-bold"
-                            >
-                              {preset.name}
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
                   {selectedPanelId && (
                     <ContextMenuItem onClick={() => addCaptionToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer">
                       <Square className="w-4 h-4 mr-2" /> Add Caption Box
@@ -4514,7 +4201,7 @@ export default function ComicCreator() {
                       <Layers className="w-4 h-4 mr-2" /> Asset Library
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent className="w-48 bg-zinc-900 border-zinc-700 text-white">
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").slice(0, 6).map(asset => (
+                      {assets.slice(0, 6).map(asset => (
                         <ContextMenuItem
                           key={asset.id}
                           onClick={async () => {
@@ -4556,7 +4243,7 @@ export default function ComicCreator() {
                           {asset.name}
                         </ContextMenuItem>
                       ))}
-                      {assets.filter(a => a.type === "bubble" || a.type === "effect" || a.folderId === "bubbles" || a.folderId === "effects").length === 0 && (
+                      {assets.length === 0 && (
                         <ContextMenuItem disabled className="text-zinc-500">
                           No saved assets
                         </ContextMenuItem>
@@ -5377,31 +5064,6 @@ export default function ComicCreator() {
                         Clear
                       </button>
                     </div>
-                    {selectedContent.type === 'bubble' && (
-                      <div>
-                        <label className="text-xs text-zinc-400 block mb-1">Bubble Style</label>
-                        <select
-                          value={selectedContent.data.bubbleStyle || "speech"}
-                          onChange={(e) => updateContentStyle(selectedPage, selectedPanelId, selectedContentId!, { bubbleStyle: e.target.value as any })}
-                          className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs p-1.5"
-                          data-testid="select-bubble-style"
-                        >
-                          <option value="none">None</option>
-                          <option value="speech">Speech</option>
-                          <option value="thought">Thought</option>
-                          <option value="shout">Shout</option>
-                          <option value="whisper">Whisper</option>
-                          <option value="burst">Burst</option>
-                          <option value="scream">Scream</option>
-                          <option value="robot">Robot</option>
-                          <option value="drip">Drip</option>
-                          <option value="glitch">Glitch</option>
-                          <option value="retro">Retro</option>
-                          <option value="neon">Neon</option>
-                          <option value="graffiti">Graffiti</option>
-                        </select>
-                      </div>
-                    )}
                                       </div>
                 </div>
               )}
