@@ -402,8 +402,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   });
 
   // XP Heartbeat - tracks time spent in app and awards XP
-  // Each heartbeat = 1 minute of activity = 10 XP
-  const XP_PER_MINUTE = 10;
+  // Each heartbeat = 1 minute of activity = 1 XP (paced for 4-year school progression)
+  const XP_PER_MINUTE = 1;
 
   const ACTION_KEY_MAP: Record<string, string> = {
     save: "save",
