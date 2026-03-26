@@ -421,9 +421,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   const ECOSYSTEM_API_KEY = process.env.PSLMS_API_KEY || "";
   const FX_STUDIO_ANON_KEY = process.env.FX_STUDIO_API_KEY || "";
+  const PSSTREAMING_SECRET = process.env.PSSTREAMING_WEBHOOK_SECRET || "";
 
   const ECOSYSTEM_XP_ENDPOINTS = [
-    { name: "PSStreaming", url: "https://psstreaming.com/api/webhooks/xp-sync" },
+    { name: "PSStreaming", url: "https://psstreaming.com/api/xp/sync/incoming" },
     { name: "PSLMS", url: "https://pressstart.tech/api/webhooks/xp-sync" },
     { name: "FXStudio", url: "https://upivslgwjtvqymonliib.supabase.co/functions/v1/xp-sync" },
   ];
@@ -433,33 +434,63 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     xpAwarded: number,
     action: string,
     fullState: { totalXp: number; level: number; levelTitle: string; totalMinutes: number },
-    sourceApp: string = "comixx"
+    sourceApp: string = "comixx",
+    userId?: string
   ) {
-    if (!ECOSYSTEM_API_KEY) return;
-    const payload = {
-      event: "xp.sync",
-      user_email: userEmail,
-      xp_awarded: xpAwarded,
-      action,
-      total_xp: fullState.totalXp,
-      level: fullState.level,
-      level_title: fullState.levelTitle,
-      total_minutes: fullState.totalMinutes,
-      source: sourceApp,
-      timestamp: new Date().toISOString(),
-    };
-    const body = JSON.stringify(payload);
+    if (!ECOSYSTEM_API_KEY && !PSSTREAMING_SECRET && !FX_STUDIO_ANON_KEY) return;
+    const timestamp = new Date().toISOString();
 
     for (const endpoint of ECOSYSTEM_XP_ENDPOINTS) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (endpoint.name === "FXStudio") {
+      let body: string;
+
+      if (endpoint.name === "PSStreaming") {
+        headers["x-webhook-secret"] = PSSTREAMING_SECRET;
+        body = JSON.stringify({
+          user_id: userId || userEmail,
+          user_email: userEmail,
+          action,
+          xp_amount: xpAwarded,
+          total_xp: fullState.totalXp,
+          level: fullState.level,
+          level_title: fullState.levelTitle,
+          total_minutes: fullState.totalMinutes,
+          source_platform: sourceApp === "comixx" ? "pscomixx" : sourceApp,
+          timestamp,
+        });
+      } else if (endpoint.name === "FXStudio") {
         headers["apikey"] = FX_STUDIO_ANON_KEY;
         headers["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+        body = JSON.stringify({
+          event: "xp.sync",
+          user_email: userEmail,
+          xp_awarded: xpAwarded,
+          action,
+          total_xp: fullState.totalXp,
+          level: fullState.level,
+          level_title: fullState.levelTitle,
+          total_minutes: fullState.totalMinutes,
+          source: sourceApp,
+          timestamp,
+        });
       } else {
         headers["X-API-Key"] = ECOSYSTEM_API_KEY;
+        body = JSON.stringify({
+          event: "xp.sync",
+          user_email: userEmail,
+          xp_awarded: xpAwarded,
+          action,
+          total_xp: fullState.totalXp,
+          level: fullState.level,
+          level_title: fullState.levelTitle,
+          total_minutes: fullState.totalMinutes,
+          source: sourceApp,
+          timestamp,
+        });
       }
+
       try {
         const res = await fetch(endpoint.url, {
           method: "POST",
@@ -480,9 +511,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   }
 
-  async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number, fullState?: { totalXp: number; level: number; levelTitle: string; totalMinutes: number }) {
+  async function forwardXpToStreaming(userEmail: string, minutes: number, xp: number, fullState?: { totalXp: number; level: number; levelTitle: string; totalMinutes: number }, userId?: string) {
     if (!fullState) return;
-    broadcastXpToEcosystem(userEmail, xp, "heartbeat", fullState);
+    broadcastXpToEcosystem(userEmail, xp, "heartbeat", fullState, "comixx", userId);
   }
 
   app.post("/api/xp/heartbeat", isAuthenticated, async (req, res) => {
@@ -519,7 +550,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         level: newLevel,
         levelTitle,
         totalMinutes: newTotalMinutes,
-      });
+      }, userId);
 
       res.json({ xp: newXp, level: newLevel, levelTitle, totalMinutes: newTotalMinutes, xpGained });
     } catch (error: any) {
@@ -604,38 +635,33 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (!user) return res.status(404).json({ message: "User not found" });
       const xp = user.xp || 0;
       const { level, title: levelTitle } = getLevelFromXp(xp);
-      const payload = {
-        event: "xp.sync",
-        user_email: user.email,
-        xp_awarded: 0,
-        action: "force-sync",
-        total_xp: xp,
-        level,
-        level_title: levelTitle,
-        total_minutes: user.totalMinutes || 0,
-        source: "comixx",
-        timestamp: new Date().toISOString(),
-      };
-      const body = JSON.stringify(payload);
+      const totalMinutes = user.totalMinutes || 0;
+      const timestamp = new Date().toISOString();
       const results: { name: string; status: string; code?: number }[] = [];
       for (const endpoint of ECOSYSTEM_XP_ENDPOINTS) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
+        const to = setTimeout(() => controller.abort(), 5000);
         const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (endpoint.name === "FXStudio") {
+        let body: string;
+        if (endpoint.name === "PSStreaming") {
+          headers["x-webhook-secret"] = PSSTREAMING_SECRET;
+          body = JSON.stringify({ user_id: user.id, user_email: user.email, action: "force-sync", xp_amount: 0, total_xp: xp, level, level_title: levelTitle, total_minutes: totalMinutes, source_platform: "pscomixx", timestamp });
+        } else if (endpoint.name === "FXStudio") {
           headers["apikey"] = FX_STUDIO_ANON_KEY;
           headers["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+          body = JSON.stringify({ event: "xp.sync", user_email: user.email, xp_awarded: 0, action: "force-sync", total_xp: xp, level, level_title: levelTitle, total_minutes: totalMinutes, source: "comixx", timestamp });
         } else {
           headers["X-API-Key"] = ECOSYSTEM_API_KEY;
+          body = JSON.stringify({ event: "xp.sync", user_email: user.email, xp_awarded: 0, action: "force-sync", total_xp: xp, level, level_title: levelTitle, total_minutes: totalMinutes, source: "comixx", timestamp });
         }
         try {
           const r = await fetch(endpoint.url, { method: "POST", headers, body, signal: controller.signal });
           results.push({ name: endpoint.name, status: r.ok ? "ok" : "error", code: r.status });
         } catch (err: any) {
           results.push({ name: endpoint.name, status: err.name === "AbortError" ? "timeout" : "failed" });
-        } finally { clearTimeout(timeout); }
+        } finally { clearTimeout(to); }
       }
-      res.json({ synced: true, xp, level, levelTitle, totalMinutes: user.totalMinutes || 0, results });
+      res.json({ synced: true, xp, level, levelTitle, totalMinutes, results });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -1582,12 +1608,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const xApiKey = req.headers["x-api-key"] as string | undefined;
       const supabaseApiKey = req.headers["apikey"] as string | undefined;
       const authBearer = (req.headers["authorization"] || "").toString().replace(/^Bearer\s+/i, "");
+      const webhookSecret = req.headers["x-webhook-secret"] as string | undefined;
       const validPslms = xApiKey && xApiKey === process.env.PSLMS_API_KEY;
       const fxKey = process.env.FX_STUDIO_API_KEY || "";
       const validFx = fxKey && (supabaseApiKey === fxKey || authBearer === fxKey || xApiKey === fxKey);
-      if (!validPslms && !validFx) {
-        const receivedKeyPreview = (supabaseApiKey || authBearer || xApiKey || "none").toString().slice(0, 20);
-        console.error(`[ecosystem/xp-sync] Auth failed. Headers present: x-api-key=${!!xApiKey}, apikey=${!!supabaseApiKey}, bearer=${!!authBearer}. Key prefix: ${receivedKeyPreview}... fxKey set: ${!!fxKey}, fxKey prefix: ${fxKey.slice(0, 20)}...`);
+      const validStreaming = PSSTREAMING_SECRET && webhookSecret === PSSTREAMING_SECRET;
+      if (!validPslms && !validFx && !validStreaming) {
+        console.error(`[ecosystem/xp-sync] Auth failed. Headers present: x-api-key=${!!xApiKey}, apikey=${!!supabaseApiKey}, bearer=${!!authBearer}, x-webhook-secret=${!!webhookSecret}`);
         return res.status(401).json({ message: "Unauthorized" });
       }
       const { user_email, total_xp, level, level_title, total_minutes, source, action, xp_awarded } = req.body;
@@ -1621,32 +1648,27 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       if (mergedXp > currentXp && !isRelay) {
         const rebroadcastEndpoints = ECOSYSTEM_XP_ENDPOINTS.filter(ep => ep.name !== originEndpointName);
-        const rebroadcastPayload = JSON.stringify({
-          event: "xp.sync",
-          user_email,
-          xp_awarded: xp_awarded || 0,
-          action: action || "sync",
-          total_xp: mergedXp,
-          level: newLevel,
-          level_title: newTitle,
-          total_minutes: mergedMinutes,
-          source: "comixx-relay",
-          timestamp: new Date().toISOString(),
-        });
+        const rebroadcastTimestamp = new Date().toISOString();
         for (const ep of rebroadcastEndpoints) {
           const ctrl = new AbortController();
           const to = setTimeout(() => ctrl.abort(), 5000);
           const hdrs: Record<string, string> = { "Content-Type": "application/json" };
-          if (ep.name === "FXStudio") {
+          let rbBody: string;
+          if (ep.name === "PSStreaming") {
+            hdrs["x-webhook-secret"] = PSSTREAMING_SECRET;
+            rbBody = JSON.stringify({ user_id: user.id, user_email, action: action || "sync", xp_amount: xp_awarded || 0, total_xp: mergedXp, level: newLevel, level_title: newTitle, total_minutes: mergedMinutes, source_platform: "pscomixx", timestamp: rebroadcastTimestamp });
+          } else if (ep.name === "FXStudio") {
             hdrs["apikey"] = FX_STUDIO_ANON_KEY;
             hdrs["Authorization"] = `Bearer ${FX_STUDIO_ANON_KEY}`;
+            rbBody = JSON.stringify({ event: "xp.sync", user_email, xp_awarded: xp_awarded || 0, action: action || "sync", total_xp: mergedXp, level: newLevel, level_title: newTitle, total_minutes: mergedMinutes, source: "comixx-relay", timestamp: rebroadcastTimestamp });
           } else {
             hdrs["X-API-Key"] = ECOSYSTEM_API_KEY;
+            rbBody = JSON.stringify({ event: "xp.sync", user_email, xp_awarded: xp_awarded || 0, action: action || "sync", total_xp: mergedXp, level: newLevel, level_title: newTitle, total_minutes: mergedMinutes, source: "comixx-relay", timestamp: rebroadcastTimestamp });
           }
           fetch(ep.url, {
             method: "POST",
             headers: hdrs,
-            body: rebroadcastPayload,
+            body: rbBody,
             signal: ctrl.signal,
           }).catch(() => {}).finally(() => clearTimeout(to));
         }
