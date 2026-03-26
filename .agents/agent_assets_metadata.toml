@@ -54,3 +54,9 @@ id = "dFlrkEVYQ9Eu6g9SPW5sm"
 uri = "file://docs/PSCoMiXX-Go-To-Market-Guide.md"
 type = "text"
 title = "Press Start CoMiXX — Complete Product & Go-To-Market Guide"
+
+[[outputs]]
+id = "W4-JaxZZHFbcUqPk6-tAs"
+uri = "file://PSCoMiXX_Ecosystem_Integration_Guide.md"
+type = "text"
+title = "PSCoMiXX Ecosystem Integration Guide"
