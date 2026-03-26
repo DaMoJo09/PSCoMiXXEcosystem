@@ -83,6 +83,7 @@ import ExportDashboard from "@/pages/ExportDashboard";
 import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
 import PrintPackages from "@/pages/PrintPackages";
 import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
+import CertificationsPage, { VerifyPage } from "@/pages/CertificationsPage";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
@@ -119,7 +120,7 @@ function ProtectedRouter() {
     return <ResetPassword />;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
@@ -127,6 +128,7 @@ function ProtectedRouter() {
       <Switch>
         <Route path="/portfolio/:userId" component={PortfolioPage} />
         <Route path="/creator/:username" component={CreatorProfilePage} />
+        <Route path="/verify/:code">{(params: any) => <VerifyPage code={params.code} />}</Route>
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/disclaimer" component={DisclaimerPage} />
@@ -178,6 +180,8 @@ function ProtectedRouter() {
         <Route path="/analytics" component={AnalyticsDashboard} />
         <Route path="/pricing" component={PricingPage} />
         <Route path="/achievements" component={AchievementsPage} />
+        <Route path="/certifications" component={CertificationsPage} />
+        <Route path="/verify/:code">{(params: any) => <VerifyPage code={params.code} />}</Route>
         <Route path="/rewards" component={RewardsPage} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />

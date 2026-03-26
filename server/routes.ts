@@ -22,7 +22,7 @@ import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage 
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
-import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable } from "@shared/schema";
+import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications } from "@shared/schema";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -832,6 +832,140 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         totalMinutes: user.totalMinutes || 0,
         accountType: user.accountType,
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/certifications", isAuthenticated, async (req, res) => {
+    try {
+      const { eq, and } = await import('drizzle-orm');
+      const allCerts = await db.select().from(certifications).where(eq(certifications.isActive, true)).orderBy(certifications.sortOrder);
+      const earned = await db.select().from(userCertifications).where(eq(userCertifications.userId, req.user!.id));
+      const earnedMap = new Map(earned.map(e => [e.certificationId, e]));
+      const user = await storage.getUser(req.user!.id);
+      const userProjects = await storage.getUserProjects(req.user!.id);
+
+      const result = allCerts.map(cert => {
+        const uc = earnedMap.get(cert.id);
+        const publishedProjects = userProjects.filter(p => p.status === "published");
+        const matchingProjects = userProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
+        const matchingPublished = publishedProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
+
+        const progress = {
+          xp: { current: user?.xp || 0, required: cert.requiredXp, met: (user?.xp || 0) >= cert.requiredXp },
+          level: { current: user?.level || 1, required: cert.requiredLevel, met: (user?.level || 1) >= cert.requiredLevel },
+          projects: { current: matchingProjects.length, required: cert.requiredProjectCount, met: matchingProjects.length >= cert.requiredProjectCount },
+          published: { current: matchingPublished.length, required: cert.requiredPublished, met: matchingPublished.length >= cert.requiredPublished },
+        };
+        const eligible = progress.xp.met && progress.level.met && progress.projects.met && progress.published.met;
+
+        return {
+          ...cert,
+          earned: !!uc,
+          earnedAt: uc?.earnedAt || null,
+          verificationCode: uc?.verificationCode || null,
+          progress,
+          eligible,
+        };
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/certifications/:slug/claim", isAuthenticated, async (req, res) => {
+    try {
+      const { eq, and } = await import('drizzle-orm');
+      const crypto = await import("crypto");
+      const [cert] = await db.select().from(certifications).where(and(eq(certifications.slug, req.params.slug), eq(certifications.isActive, true)));
+      if (!cert) return res.status(404).json({ message: "Certification not found" });
+
+      const existing = await db.select().from(userCertifications)
+        .where(and(eq(userCertifications.userId, req.user!.id), eq(userCertifications.certificationId, cert.id)));
+      if (existing.length > 0) return res.status(400).json({ message: "Already earned", verificationCode: existing[0].verificationCode });
+
+      const user = await storage.getUser(req.user!.id);
+      const userProjects = await storage.getUserProjects(req.user!.id);
+      const publishedProjects = userProjects.filter(p => p.status === "published");
+      const matchingProjects = userProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
+      const matchingPublished = publishedProjects.filter(p => cert.requiredProjectTypes.length === 0 || cert.requiredProjectTypes.includes(p.type));
+
+      if ((user?.xp || 0) < cert.requiredXp) return res.status(403).json({ message: "XP requirement not met" });
+      if ((user?.level || 1) < cert.requiredLevel) return res.status(403).json({ message: "Level requirement not met" });
+      if (matchingProjects.length < cert.requiredProjectCount) return res.status(403).json({ message: "Project count requirement not met" });
+      if (matchingPublished.length < cert.requiredPublished) return res.status(403).json({ message: "Published project requirement not met" });
+
+      const verificationCode = `PS-${cert.slug.toUpperCase().replace(/-/g, '')}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+      const portfolioSnapshot = {
+        userName: user?.name || user?.username || "Creator",
+        level: user?.level || 1,
+        xp: user?.xp || 0,
+        levelTitle: getLevelFromXp(user?.xp || 0).title,
+        projectCount: matchingProjects.length,
+        publishedCount: matchingPublished.length,
+        projectTypes: [...new Set(matchingProjects.map(p => p.type))],
+      };
+
+      const [uc] = await db.insert(userCertifications).values({
+        userId: req.user!.id,
+        certificationId: cert.id,
+        verificationCode,
+        portfolioSnapshot,
+      }).returning();
+
+      await processProgressionEvent(req.user!.id, "certification_earned", cert.id, "certification");
+
+      res.json({
+        ...uc,
+        certification: cert,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/certifications/verify/:code", async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      const [uc] = await db.select().from(userCertifications).where(eq(userCertifications.verificationCode, req.params.code));
+      if (!uc) return res.status(404).json({ message: "Invalid verification code" });
+
+      const [cert] = await db.select().from(certifications).where(eq(certifications.id, uc.certificationId));
+      const user = await storage.getUser(uc.userId);
+
+      res.json({
+        valid: true,
+        certification: cert?.title || "Unknown",
+        certificationSlug: cert?.slug,
+        earnedAt: uc.earnedAt,
+        holder: {
+          name: user?.name || user?.username || "Creator",
+          id: uc.userId,
+        },
+        portfolio: uc.portfolioSnapshot,
+        verificationCode: uc.verificationCode,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/:userId/certifications", async (req, res) => {
+    try {
+      const { eq } = await import('drizzle-orm');
+      const earned = await db.select().from(userCertifications).where(eq(userCertifications.userId, req.params.userId));
+      const certIds = earned.map(e => e.certificationId);
+      if (certIds.length === 0) return res.json([]);
+      const allCerts = await db.select().from(certifications);
+      const certMap = new Map(allCerts.map(c => [c.id, c]));
+      const result = earned.map(e => ({
+        ...e,
+        certification: certMap.get(e.certificationId),
+      }));
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

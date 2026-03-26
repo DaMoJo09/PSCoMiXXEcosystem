@@ -50,6 +50,7 @@ import {
   Package,
   Gift,
   Target,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -109,6 +110,7 @@ const ecosystemToolsBase = [
   { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate", studentOk: true },
   { icon: Trophy, label: "Events", href: "/ecosystem/events", studentOk: true },
   { icon: Target, label: "Achievements", href: "/achievements", studentOk: true },
+  { icon: Award, label: "Certifications", href: "/certifications", studentOk: true },
   { icon: Gift, label: "Rewards", href: "/rewards", studentOk: true },
   { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false },
   { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true },

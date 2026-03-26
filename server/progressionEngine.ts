@@ -3,7 +3,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import {
   users, achievements, userAchievements, rewards, userRewards,
   contentPacks, userEntitlements, progressionNotifications,
-  levelThresholds, xpTransactions
+  levelThresholds, xpTransactions, certifications
 } from '@shared/schema';
 
 const LEVEL_THRESHOLDS: { level: number; xp: number; title: string }[] = [
@@ -350,6 +350,9 @@ export async function claimReward(userId: string, rewardId: string): Promise<boo
 
 export async function seedProgressionData() {
   const existingAchievements = await db.select().from(achievements);
+  
+  await seedCertifications();
+
   if (existingAchievements.length > 0) return;
 
   console.log('[progression] Seeding achievements, rewards, and content packs...');
@@ -410,4 +413,23 @@ export async function seedProgressionData() {
   }
 
   console.log('[progression] Seeded 15 achievements, 5 content packs, 6 rewards, 30 level thresholds');
+}
+
+async function seedCertifications() {
+  const existing = await db.select().from(certifications);
+  if (existing.length >= 6) return;
+
+  console.log('[progression] Seeding certifications...');
+  const certData = [
+    { slug: 'ps-creator-comics', title: 'PS Creator (Comics)', description: 'Demonstrates mastery in digital comic creation. Requires completing and publishing original comic projects with consistent quality.', category: 'creation', icon: 'BookOpen', requiredXp: 5000, requiredLevel: 10, requiredPublished: 3, requiredProjectTypes: ['comic'], requiredProjectCount: 5, sortOrder: 1 },
+    { slug: 'ps-interactive-story-designer', title: 'PS Interactive Story Designer', description: 'Demonstrates skill in interactive narrative design. Requires completing and publishing visual novels or choose-your-own-adventure projects.', category: 'creation', icon: 'Gamepad2', requiredXp: 5000, requiredLevel: 10, requiredPublished: 2, requiredProjectTypes: ['vn', 'cyoa'], requiredProjectCount: 4, sortOrder: 2 },
+    { slug: 'ps-digital-publisher', title: 'PS Digital Publisher', description: 'Recognizes creators who consistently publish quality content across multiple formats to the ecosystem.', category: 'publishing', icon: 'Globe', requiredXp: 8000, requiredLevel: 13, requiredPublished: 5, requiredProjectTypes: ['comic', 'vn', 'cyoa', 'card', 'motion'], requiredProjectCount: 8, sortOrder: 3 },
+    { slug: 'ps-motion-creator', title: 'PS Motion Creator', description: 'Demonstrates ability to create animated and motion-based content including motion comics and animations.', category: 'creation', icon: 'Film', requiredXp: 6000, requiredLevel: 12, requiredPublished: 2, requiredProjectTypes: ['motion'], requiredProjectCount: 3, sortOrder: 4 },
+    { slug: 'ps-card-designer', title: 'PS Card Designer', description: 'Demonstrates skill in trading card and collectible design with published card sets.', category: 'creation', icon: 'CreditCard', requiredXp: 4000, requiredLevel: 8, requiredPublished: 2, requiredProjectTypes: ['card'], requiredProjectCount: 5, sortOrder: 5 },
+    { slug: 'ps-storyteller', title: 'PS Storyteller', description: 'Master of narrative across all formats. Requires published work spanning comics, interactive stories, and visual novels.', category: 'mastery', icon: 'Award', requiredXp: 15000, requiredLevel: 17, requiredPublished: 8, requiredProjectTypes: ['comic', 'vn', 'cyoa'], requiredProjectCount: 12, sortOrder: 6 },
+  ];
+  for (const c of certData) {
+    await db.insert(certifications).values(c).onConflictDoNothing();
+  }
+  console.log('[progression] Seeded 6 certifications');
 }

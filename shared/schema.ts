@@ -2411,6 +2411,36 @@ export const progressionNotifications = pgTable("progression_notifications", {
 
 export type ProgressionNotification = typeof progressionNotifications.$inferSelect;
 
+export const certifications = pgTable("certifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  icon: text("icon").notNull(),
+  requiredXp: integer("required_xp").notNull().default(0),
+  requiredLevel: integer("required_level").notNull().default(0),
+  requiredPublished: integer("required_published").notNull().default(0),
+  requiredProjectTypes: text("required_project_types").array().notNull().default(sql`'{}'`),
+  requiredProjectCount: integer("required_project_count").notNull().default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Certification = typeof certifications.$inferSelect;
+
+export const userCertifications = pgTable("user_certifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  certificationId: varchar("certification_id").notNull().references(() => certifications.id, { onDelete: "cascade" }),
+  verificationCode: varchar("verification_code").notNull().unique(),
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
+  portfolioSnapshot: jsonb("portfolio_snapshot"),
+});
+
+export type UserCertification = typeof userCertifications.$inferSelect;
+
 export const tierEntitlementsSchool = {
   school: {
     export: true,
