@@ -1143,6 +1143,22 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/projects/delete-all-mine", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Admin only" });
+      }
+      const allProjects = await storage.getUserProjects(req.user!.id);
+      let deleted = 0;
+      for (const p of allProjects) {
+        try { await storage.deleteProject(p.id); deleted++; } catch {}
+      }
+      res.json({ deleted, total: allProjects.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/projects/bulk-delete", isAuthenticated, async (req, res) => {
     try {
       const { ids } = req.body;
