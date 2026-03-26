@@ -1579,13 +1579,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/ecosystem/xp-sync", async (req, res) => {
     try {
-      const xApiKey = req.headers["x-api-key"];
-      const supabaseApiKey = req.headers["apikey"];
+      const xApiKey = req.headers["x-api-key"] as string | undefined;
+      const supabaseApiKey = req.headers["apikey"] as string | undefined;
       const authBearer = (req.headers["authorization"] || "").toString().replace(/^Bearer\s+/i, "");
       const validPslms = xApiKey && xApiKey === process.env.PSLMS_API_KEY;
       const fxKey = process.env.FX_STUDIO_API_KEY || "";
       const validFx = fxKey && (supabaseApiKey === fxKey || authBearer === fxKey || xApiKey === fxKey);
       if (!validPslms && !validFx) {
+        const receivedKeyPreview = (supabaseApiKey || authBearer || xApiKey || "none").toString().slice(0, 20);
+        console.error(`[ecosystem/xp-sync] Auth failed. Headers present: x-api-key=${!!xApiKey}, apikey=${!!supabaseApiKey}, bearer=${!!authBearer}. Key prefix: ${receivedKeyPreview}... fxKey set: ${!!fxKey}, fxKey prefix: ${fxKey.slice(0, 20)}...`);
         return res.status(401).json({ message: "Unauthorized" });
       }
       const { user_email, total_xp, level, level_title, total_minutes, source, action, xp_awarded } = req.body;
