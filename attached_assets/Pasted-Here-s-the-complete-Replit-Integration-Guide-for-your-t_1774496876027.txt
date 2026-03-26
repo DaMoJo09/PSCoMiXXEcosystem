@@ -1,0 +1,328 @@
+Here's the complete Replit Integration Guide for your team:
+
+PSCoMiXX → PSStreaming Integration Guide
+For Replit Team — Complete API Reference
+Quick Links
+PSStreaming Production: https://psstreaming.com
+PSStreaming Preview: https://talent-vote.preview.emergentagent.com
+Webhook Secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Overview
+PSStreaming is the viewing/distribution platform for content created in PSCoMiXX. When creators publish content in PSCoMiXX, it should automatically appear on PSStreaming.
+
+┌──────────────────┐         ┌──────────────────┐
+│    PSCoMiXX      │         │   PSStreaming    │
+│   (Creation)     │ ──────► │  (Distribution)  │
+│                  │ Publish │                  │
+│  pscomixx.com    │         │ psstreaming.com  │
+└──────────────────┘         └──────────────────┘
+Authentication
+All API calls require the webhook secret header:
+
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+PART 1: CONTENT SYNC
+1.1 Publish Content
+When a creator clicks "Publish" in PSCoMiXX, send the content to PSStreaming:
+
+POST https://psstreaming.com/api/replit/sync/content
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Request Body (PSContentBundle v1)
+{
+  "content_id": "unique-project-id-from-comixx",
+  "content_type": "comic",
+  "title": "My Awesome Comic",
+  "description": "A thrilling adventure story...",
+  "cover_url": "https://storage.pscomixx.com/covers/abc123.jpg",
+  "creator_ps_user_id": "user-uuid-from-sso",
+  "creator_display_name": "ArtistName",
+  "visibility": "public",
+  "tags": ["action", "adventure", "superhero"],
+  "version": "1",
+  
+  "pages": [
+    {
+      "page_number": 1,
+      "image_url": "https://storage.pscomixx.com/pages/page1.jpg",
+      "thumbnail_url": "https://storage.pscomixx.com/pages/page1_thumb.jpg"
+    },
+    {
+      "page_number": 2,
+      "image_url": "https://storage.pscomixx.com/pages/page2.jpg",
+      "thumbnail_url": "https://storage.pscomixx.com/pages/page2_thumb.jpg"
+    }
+  ]
+}
+Response
+{
+  "success": true,
+  "content_id": "unique-project-id-from-comixx",
+  "status": "published",
+  "action": "created",
+  "view_url": "https://psstreaming.com/read/unique-project-id-from-comixx"
+}
+1.2 Content Types
+Comic
+{
+  "content_type": "comic",
+  "reading_direction": "ltr",
+  "pages": [
+    {
+      "page_number": 1,
+      "image_url": "https://...",
+      "thumbnail_url": "https://..."
+    }
+  ],
+  "chapters": [
+    { "title": "Chapter 1", "start_page": 0 },
+    { "title": "Chapter 2", "start_page": 10 }
+  ]
+}
+Visual Novel
+{
+  "content_type": "visual_novel",
+  "scenes": {
+    "start": {
+      "background_url": "https://...",
+      "characters": [
+        {
+          "id": "char1",
+          "name": "Maya",
+          "sprite_url": "https://...",
+          "position": 30
+        }
+      ],
+      "dialogue": [
+        {
+          "speaker": "Maya",
+          "text": "Welcome to my story!",
+          "next_scene_key": "scene2"
+        }
+      ],
+      "choices": [
+        { "text": "Say hello", "to_scene": "friendly" },
+        { "text": "Stay quiet", "to_scene": "shy" }
+      ]
+    }
+  },
+  "start_scene_key": "start"
+}
+CYOA (Choose Your Own Adventure)
+{
+  "content_type": "cyoa",
+  "start_node": "start",
+  "nodes": {
+    "start": {
+      "title": "The Beginning",
+      "body": "You stand at a crossroads...",
+      "image_url": "https://...",
+      "choices": [
+        { "text": "Go left", "to_node_key": "left_path" },
+        { "text": "Go right", "to_node_key": "right_path" }
+      ]
+    },
+    "left_path": {
+      "title": "The Forest",
+      "body": "You enter a dark forest...",
+      "choices": [...]
+    }
+  }
+}
+Trading Cards
+{
+  "content_type": "trading_card",
+  "cards": [
+    {
+      "id": "card1",
+      "name": "Fire Dragon",
+      "image_url": "https://...",
+      "rarity": "rare",
+      "stats": {
+        "attack": 85,
+        "defense": 60
+      },
+      "description": "A legendary beast..."
+    }
+  ],
+  "pack_info": {
+    "name": "Dragon Pack",
+    "card_count": 10
+  }
+}
+1.3 Scheduled Publishing
+To schedule content for future release:
+
+POST https://psstreaming.com/api/replit/sync/content/scheduled
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+{
+  "content_id": "unique-id",
+  "content_type": "comic",
+  "title": "Coming Soon Comic",
+  "publish_at": "2026-04-01T18:00:00Z",
+  ...rest of content bundle
+}
+Response
+{
+  "success": true,
+  "content_id": "unique-id",
+  "status": "scheduled",
+  "scheduled_at": "2026-04-01T18:00:00Z"
+}
+1.4 Update Existing Content
+Use the same endpoint with an existing content_id:
+
+POST https://psstreaming.com/api/replit/sync/content
+If the content_id already exists, it will update instead of create.
+
+PART 2: SERIES & EPISODES
+2.1 Sync Series Structure
+POST https://psstreaming.com/api/replit/sync/series
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+{
+  "series_id": "series-uuid",
+  "title": "My Epic Comic Series",
+  "description": "An ongoing adventure...",
+  "cover_url": "https://...",
+  "creator_ps_user_id": "user-uuid",
+  "creator_display_name": "ArtistName",
+  "genre": ["action", "adventure"],
+  "status": "ongoing",
+  "episodes": [
+    {
+      "episode_num": 1,
+      "content_id": "content-uuid-ep1",
+      "title": "Pilot"
+    },
+    {
+      "episode_num": 2,
+      "content_id": "content-uuid-ep2",
+      "title": "The Journey Begins"
+    }
+  ]
+}
+PART 3: CREATOR PROFILES
+3.1 Sync Creator Profile
+POST https://psstreaming.com/api/replit/sync/creator
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+{
+  "ps_user_id": "user-uuid-from-sso",
+  "display_name": "ArtistName",
+  "avatar_url": "https://...",
+  "cover_url": "https://...",
+  "bio": "Digital artist and storyteller",
+  "social_links": {
+    "twitter": "https://twitter.com/artist",
+    "instagram": "https://instagram.com/artist"
+  },
+  "creator_tier": "pro"
+}
+PART 4: CREATOR ANALYTICS
+4.1 Get Creator Stats
+GET https://psstreaming.com/api/replit/creator/{creator_ps_user_id}/stats
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Response
+{
+  "creator_id": "user-uuid",
+  "stats": {
+    "total_views": 15420,
+    "total_likes": 892,
+    "total_comments": 156,
+    "total_shares": 78,
+    "content_count": 12,
+    "subscriber_count": 234,
+    "total_revenue": 125.50
+  },
+  "top_content": [
+    {
+      "content_id": "abc123",
+      "title": "Best Comic",
+      "play_count": 5000,
+      "likes": 350,
+      "content_type": "comic"
+    }
+  ]
+}
+PART 5: XP SYSTEM SYNC
+5.1 Send XP to PSStreaming
+POST https://psstreaming.com/api/xp/sync/incoming
+Content-Type: application/json
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+{
+  "user_id": "user-uuid-from-sso",
+  "action": "publish",
+  "xp_amount": 100,
+  "total_xp": 1500,
+  "source_platform": "pscomixx",
+  "timestamp": "2026-03-24T12:00:00Z"
+}
+5.2 Get User XP from PSStreaming
+GET https://psstreaming.com/api/xp/sync/status/{user_id}
+x-webhook-secret: whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+5.3 XP Actions Reference
+Action	XP	When to Award
+first_login	50	First app login
+daily_login	10	Each daily login
+profile_complete	75	Complete profile
+project_created	25	Start new project
+project_completed	50	Finish project
+export_completed	50	Export project
+ai_generation	15	Use AI generation
+publish	100	Publish to PSStreaming
+5.4 30-Level Thresholds
+Level 1:  0 XP        Level 16: 11,000 XP
+Level 2:  100 XP      Level 17: 13,000 XP
+Level 3:  250 XP      Level 18: 15,500 XP
+Level 4:  450 XP      Level 19: 18,500 XP
+Level 5:  700 XP      Level 20: 22,000 XP
+Level 6:  1,000 XP    Level 21: 26,000 XP
+Level 7:  1,400 XP    Level 22: 31,000 XP
+Level 8:  1,900 XP    Level 23: 37,000 XP
+Level 9:  2,500 XP    Level 24: 44,000 XP
+Level 10: 3,200 XP    Level 25: 52,000 XP
+Level 11: 4,000 XP    Level 26: 62,000 XP
+Level 12: 5,000 XP    Level 27: 74,000 XP
+Level 13: 6,200 XP    Level 28: 88,000 XP
+Level 14: 7,600 XP    Level 29: 105,000 XP
+Level 15: 9,200 XP    Level 30: 125,000 XP
+Level Titles: Novice (1-4) → Apprentice (5-8) → Developing (9-12) → Skilled (13-16) → Expert (17-20) → Master (21-24) → Epic (25-27) → Legendary (28-30)
+
+QUICK REFERENCE
+Endpoint	Method	Purpose
+/api/replit/sync/content	POST	Publish content
+/api/replit/sync/content/scheduled	POST	Schedule publish
+/api/replit/sync/series	POST	Sync series structure
+/api/replit/sync/creator	POST	Sync creator profile
+/api/replit/creator/{id}/stats	GET	Get creator analytics
+/api/replit/sync/status	GET	Health check
+/api/xp/sync/incoming	POST	Send XP
+/api/xp/sync/status/{id}	GET	Get user XP
+/api/xp/levels	GET	Get level thresholds
+IMPLEMENTATION CHECKLIST
+PSCoMiXX Side (Your TODO)
+ Add "Publish to PSStreaming" button in project export
+ Call POST /api/replit/sync/content on publish
+ Implement series sync when creator organizes episodes
+ Sync creator profile changes
+ Display PSStreaming stats in creator dashboard
+ Send XP events to PSStreaming
+ Create webhook endpoint for engagement events
+ Display XP tracker UI (same design)
+PSStreaming Side (Already Done ✅)
+ Content ingest endpoint
+ Scheduled publishing
+ Series/episode structure
+ Creator profile sync
+ Creator stats API
+ XP sync incoming
+ XP status endpoint
+ Content readers (Comic, VN, CYOA, Cards)
+ XP tracker UI
+Webhook Secret:
+
+whsec_45923106c2f0da38c1ec0d10e92accd6666bfeb3610c84de0144c56933bc3dc6
+Content View URL Pattern:
+
+https://psstreaming.com/read/{content_id}
+Copy and send this to your Replit team! Let me know when you're ready to proceed with building the Social Features UI (Comments, Follow, Share) or anything else.
