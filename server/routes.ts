@@ -1579,8 +1579,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/ecosystem/xp-sync", async (req, res) => {
     try {
-      const apiKey = req.headers["x-api-key"];
-      if (!apiKey || apiKey !== process.env.PSLMS_API_KEY) {
+      const xApiKey = req.headers["x-api-key"];
+      const supabaseApiKey = req.headers["apikey"];
+      const authBearer = (req.headers["authorization"] || "").toString().replace(/^Bearer\s+/i, "");
+      const validPslms = xApiKey && xApiKey === process.env.PSLMS_API_KEY;
+      const fxKey = process.env.FX_STUDIO_API_KEY || "";
+      const validFx = fxKey && (supabaseApiKey === fxKey || authBearer === fxKey || xApiKey === fxKey);
+      if (!validPslms && !validFx) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const { user_email, total_xp, level, level_title, total_minutes, source, action, xp_awarded } = req.body;
