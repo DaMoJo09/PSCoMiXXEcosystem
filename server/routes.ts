@@ -1655,9 +1655,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       res.json({
         synced: true,
         xp: mergedXp,
+        total_xp: mergedXp,
         level: newLevel,
         levelTitle: newTitle,
+        level_title: newTitle,
         totalMinutes: mergedMinutes,
+        total_minutes: mergedMinutes,
         source: source || "ecosystem",
       });
     } catch (error: any) {
