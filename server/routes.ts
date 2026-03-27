@@ -6458,7 +6458,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
+      const user = req.user as any;
+      const userEmail = user?.email;
       const params = new URLSearchParams();
+      if (userEmail) params.set("user_email", userEmail);
       if (req.query.asset_tag) params.set("asset_tag", req.query.asset_tag as string);
       if (req.query.project_id) params.set("project_id", req.query.project_id as string);
       if (req.query.type) params.set("type", req.query.type as string);
@@ -6468,7 +6471,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const qs = params.toString();
       const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
       const response = await fetch(url, { headers: fxHeaders() });
-      const data = await response.json();
+      let data = await response.json();
+      if (userEmail && Array.isArray(data)) {
+        data = data.filter((item: any) => item.user_email === userEmail);
+      } else if (userEmail && data?.effects && Array.isArray(data.effects)) {
+        data.effects = data.effects.filter((item: any) => item.user_email === userEmail);
+      }
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -6487,14 +6495,26 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.post("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
+      const user = req.user as any;
+      const body = {
+        ...req.body,
+        user_email: user?.email,
+        user_name: user?.name || user?.username,
+      };
       const response = await fetch(FX_API_URL, {
         method: "POST",
         headers: fxHeaders(),
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(body),
       });
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "Unknown error");
+        console.error(`FX Studio POST failed (${response.status}): ${errText}`);
+        return res.status(response.status).json({ message: `FX Studio sync failed: ${errText}` });
+      }
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
+      console.error("FX Studio POST error:", error.message);
       res.status(500).json({ message: error.message });
     }
   });
