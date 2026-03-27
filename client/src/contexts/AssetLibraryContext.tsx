@@ -179,6 +179,7 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
       setAssets(prev => prev.filter(a => a.id !== id));
     } catch (error) {
       console.error("Failed to remove asset:", error);
+      throw error;
     }
   }, []);
 
@@ -192,6 +193,7 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
       setAssets(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     } catch (error) {
       console.error("Failed to update asset:", error);
+      throw error;
     }
   }, []);
 

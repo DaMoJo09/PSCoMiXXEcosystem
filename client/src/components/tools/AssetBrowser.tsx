@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from "react";
 import { 
   Search, X, FolderOpen, Image as ImageIcon, Zap, MessageSquare,
   Grid, List, Filter, Download, Plus, Sparkles, Star, Clock,
-  ChevronDown, ChevronRight, Layers, Upload, Check, Library
+  ChevronDown, ChevronRight, Layers, Upload, Check, Library,
+  Trash2, Pencil, CheckSquare, Square, XCircle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -313,7 +314,13 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
   const [showFilters, setShowFilters] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<AssetItem | null>(null);
   const [activeTab, setActiveTab] = useState<"built-in" | "my-library" | "fx-studio">("built-in");
-  const { assets: libraryAssets, folders: libraryFolders, getAssetsInFolder } = useAssetLibrary();
+  const { assets: libraryAssets, folders: libraryFolders, getAssetsInFolder, removeAsset, updateAsset } = useAssetLibrary();
+  const [libSelectMode, setLibSelectMode] = useState(false);
+  const [libSelectedIds, setLibSelectedIds] = useState<Set<string>>(new Set());
+  const [libRenamingId, setLibRenamingId] = useState<string | null>(null);
+  const [libRenameValue, setLibRenameValue] = useState("");
+  const [libDeletingId, setLibDeletingId] = useState<string | null>(null);
+  const [libBulkDeleting, setLibBulkDeleting] = useState(false);
 
   const filteredAssets = useMemo(() => {
     let assets = ALL_ASSETS;
@@ -434,8 +441,8 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
             <FxBrowserPanel onClose={() => setActiveTab("built-in")} />
           </div>
         ) : activeTab === "my-library" ? (
-          <div className="flex flex-1 min-h-0">
-            <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto">
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto relative z-10">
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedCategory("all")}
@@ -445,9 +452,9 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                       : "hover:bg-[#1a1a1a] text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span className="flex-1 text-sm">All Assets</span>
-                  <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full">{libraryAssets.length}</span>
+                  <Layers className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-sm truncate">All Assets</span>
+                  <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full shrink-0">{libraryAssets.length}</span>
                 </button>
                 {libraryFolders.map(folder => (
                   <button
@@ -459,14 +466,14 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                         : "hover:bg-[#1a1a1a] text-zinc-400 hover:text-white"
                     }`}
                   >
-                    {folder.id === "effects" ? <Sparkles className="w-4 h-4 text-purple-400" /> : <FolderOpen className="w-4 h-4" />}
-                    <span className="flex-1 text-sm">{folder.name}</span>
-                    <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full">{getAssetsInFolder(folder.id).length}</span>
+                    {folder.id === "effects" ? <Sparkles className="w-4 h-4 text-purple-400 shrink-0" /> : <FolderOpen className="w-4 h-4 shrink-0" />}
+                    <span className="flex-1 text-sm truncate">{folder.name}</span>
+                    <span className="text-xs bg-[#252525] px-2 py-0.5 rounded-full shrink-0">{getAssetsInFolder(folder.id).length}</span>
                   </button>
                 ))}
               </div>
             </aside>
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               <div className="p-3 border-b border-[#252525] flex items-center gap-3 shrink-0">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -479,6 +486,54 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                     data-testid="input-search-my-library"
                   />
                 </div>
+                {!libSelectMode ? (
+                  <button
+                    onClick={() => { setLibSelectMode(true); setLibSelectedIds(new Set()); }}
+                    className="px-3 py-2 text-xs text-zinc-400 hover:text-white hover:bg-[#1a1a1a] border border-[#303030] rounded-lg transition"
+                    data-testid="button-lib-manage"
+                  >
+                    Manage
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        const displayAssets = selectedCategory === "all" ? libraryAssets : getAssetsInFolder(selectedCategory);
+                        setLibSelectedIds(new Set(displayAssets.map(a => a.id)));
+                      }}
+                      className="px-2 py-1.5 text-xs text-cyan-400 hover:bg-cyan-900/20 border border-cyan-800/40 rounded-lg transition"
+                      data-testid="button-lib-select-all"
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (libSelectedIds.size === 0) return;
+                        setLibBulkDeleting(true);
+                        let deleted = 0;
+                        for (const id of libSelectedIds) {
+                          try { await removeAsset(id); deleted++; } catch {}
+                        }
+                        setLibSelectedIds(new Set());
+                        setLibSelectMode(false);
+                        setLibBulkDeleting(false);
+                        toast.success(`Deleted ${deleted} asset${deleted > 1 ? "s" : ""}`);
+                      }}
+                      disabled={libSelectedIds.size === 0 || libBulkDeleting}
+                      className="px-2 py-1.5 text-xs text-red-400 hover:bg-red-900/20 border border-red-800/40 rounded-lg transition disabled:opacity-30"
+                      data-testid="button-lib-bulk-delete"
+                    >
+                      {libBulkDeleting ? "..." : `Delete (${libSelectedIds.size})`}
+                    </button>
+                    <button
+                      onClick={() => { setLibSelectMode(false); setLibSelectedIds(new Set()); }}
+                      className="p-1.5 hover:bg-[#1a1a1a] rounded-lg"
+                      data-testid="button-lib-cancel-manage"
+                    >
+                      <XCircle className="w-4 h-4 text-zinc-400" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {(() => {
@@ -501,8 +556,19 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                       {filtered.map(asset => (
                         <div
                           key={asset.id}
-                          className="group relative bg-[#1a1a1a] rounded-xl border border-[#252525] overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer"
+                          className={`group relative bg-[#1a1a1a] rounded-xl border overflow-hidden transition-all cursor-pointer ${
+                            libSelectMode && libSelectedIds.has(asset.id) ? "border-violet-500 bg-violet-950/20" : "border-[#252525] hover:border-violet-500/50"
+                          }`}
                           onClick={async () => {
+                            if (libSelectMode) {
+                              setLibSelectedIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(asset.id)) next.delete(asset.id);
+                                else next.add(asset.id);
+                                return next;
+                              });
+                              return;
+                            }
                             let url = asset.url;
                             if (!url && asset.id) {
                               try {
@@ -516,6 +582,15 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                           }}
                           data-testid={`my-asset-${asset.id}`}
                         >
+                          {libSelectMode && (
+                            <div className="absolute top-2 right-2 z-20">
+                              {libSelectedIds.has(asset.id) ? (
+                                <CheckSquare className="w-5 h-5 text-violet-400" />
+                              ) : (
+                                <Square className="w-5 h-5 text-zinc-600" />
+                              )}
+                            </div>
+                          )}
                           <div className="aspect-square bg-[#0d0d0d] flex items-center justify-center p-4 relative overflow-hidden">
                             {(asset.thumbnail || asset.url) ? (
                               <img src={asset.thumbnail || asset.url} alt={asset.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-300" loading="lazy" />
@@ -529,7 +604,66 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                             )}
                           </div>
                           <div className="p-3">
-                            <p className="text-sm font-medium truncate">{asset.name}</p>
+                            {libRenamingId === asset.id ? (
+                              <form
+                                onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  if (libRenameValue.trim()) {
+                                    try {
+                                      await updateAsset(asset.id, { name: libRenameValue.trim() });
+                                      toast.success("Renamed");
+                                    } catch { toast.error("Failed to rename"); }
+                                  }
+                                  setLibRenamingId(null);
+                                  setLibRenameValue("");
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  autoFocus
+                                  value={libRenameValue}
+                                  onChange={(e) => setLibRenameValue(e.target.value)}
+                                  className="w-full bg-[#0d0d0d] border border-violet-500 px-2 py-1 text-sm text-white outline-none rounded"
+                                  onBlur={() => { setLibRenamingId(null); setLibRenameValue(""); }}
+                                  onKeyDown={(e) => { if (e.key === "Escape") { setLibRenamingId(null); setLibRenameValue(""); } }}
+                                  data-testid={`input-lib-rename-${asset.id}`}
+                                />
+                              </form>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm font-medium truncate flex-1">{asset.name}</p>
+                                {!libSelectMode && (
+                                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setLibRenamingId(asset.id); setLibRenameValue(asset.name); }}
+                                      className="p-1 hover:bg-[#303030] rounded"
+                                      title="Rename"
+                                      data-testid={`button-lib-rename-${asset.id}`}
+                                    >
+                                      <Pencil className="w-3 h-3 text-zinc-500" />
+                                    </button>
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setLibDeletingId(asset.id);
+                                        try { await removeAsset(asset.id); toast.success("Deleted"); } catch { toast.error("Failed to delete"); }
+                                        setLibDeletingId(null);
+                                      }}
+                                      disabled={libDeletingId === asset.id}
+                                      className="p-1 hover:bg-red-900/30 rounded"
+                                      title="Delete"
+                                      data-testid={`button-lib-delete-${asset.id}`}
+                                    >
+                                      {libDeletingId === asset.id ? (
+                                        <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-3 h-3 text-red-400/70" />
+                                      )}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             {asset.tags && asset.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {asset.tags.slice(0, 3).map((tag, i) => (
@@ -538,11 +672,13 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                               </div>
                             )}
                           </div>
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <div className="p-3 bg-violet-600 rounded-full shadow-lg">
-                              <Plus className="w-5 h-5" />
+                          {!libSelectMode && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <div className="p-3 bg-violet-600 rounded-full shadow-lg">
+                                <Plus className="w-5 h-5" />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -551,12 +687,15 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
               </div>
               <div className="p-3 border-t border-[#252525] flex items-center justify-between text-sm text-zinc-500 shrink-0">
                 <span>{(selectedCategory === "all" ? libraryAssets : getAssetsInFolder(selectedCategory)).length} assets in library</span>
+                {libSelectMode && libSelectedIds.size > 0 && (
+                  <span className="text-violet-400 text-xs">{libSelectedIds.size} selected</span>
+                )}
               </div>
             </div>
           </div>
         ) : (
-        <div className="flex flex-1 min-h-0">
-          <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <aside className="w-56 bg-[#0d0d0d] border-r border-[#252525] p-3 shrink-0 overflow-y-auto relative z-10">
             <div className="space-y-1">
               {categoriesWithCounts.map(cat => (
                 <button
