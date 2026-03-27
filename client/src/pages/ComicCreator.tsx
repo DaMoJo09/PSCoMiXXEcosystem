@@ -3,7 +3,7 @@ import {
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
-  Trash2, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
+  Trash2, GripVertical, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -1875,33 +1875,25 @@ export default function ComicCreator() {
     toast.success("Panel duplicated");
   };
 
-  const moveLayerUp = (page: "left" | "right", panelId: string) => {
+  const dragPanelRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
+  const dragContentRef = useRef<{ panelId: string; dragIdx: number; overIdx: number } | null>(null);
+  const [panelDragOverIdx, setPanelDragOverIdx] = useState<number | null>(null);
+  const [contentDragOverIdx, setContentDragOverIdx] = useState<number | null>(null);
+
+  const reorderPanels = (page: "left" | "right", fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
       const key = page === "left" ? "leftPage" : "rightPage";
       const panels = [...spread[key]];
-      const idx = panels.findIndex(p => p.id === panelId);
-      if (idx > 0) {
-        [panels[idx - 1], panels[idx]] = [panels[idx], panels[idx - 1]];
-      }
+      const [moved] = panels.splice(fromIdx, 1);
+      panels.splice(toIdx, 0, moved);
       return { ...spread, [key]: panels };
     }));
   };
 
-  const moveLayerDown = (page: "left" | "right", panelId: string) => {
-    setSpreads(prev => prev.map((spread, i) => {
-      if (i !== currentSpreadIndex) return spread;
-      const key = page === "left" ? "leftPage" : "rightPage";
-      const panels = [...spread[key]];
-      const idx = panels.findIndex(p => p.id === panelId);
-      if (idx < panels.length - 1) {
-        [panels[idx], panels[idx + 1]] = [panels[idx + 1], panels[idx]];
-      }
-      return { ...spread, [key]: panels };
-    }));
-  };
-
-  const moveContentUp = (page: "left" | "right", panelId: string, contentId: string) => {
+  const reorderContents = (page: "left" | "right", panelId: string, fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
       const key = page === "left" ? "leftPage" : "rightPage";
@@ -1910,35 +1902,9 @@ export default function ComicCreator() {
         [key]: spread[key].map(p => {
           if (p.id !== panelId) return p;
           const contents = [...p.contents].map(c => ({ ...c }));
-          const idx = contents.findIndex(c => c.id === contentId);
-          if (idx > 0) {
-            const tempZ = contents[idx].zIndex;
-            contents[idx].zIndex = contents[idx - 1].zIndex;
-            contents[idx - 1].zIndex = tempZ;
-            [contents[idx - 1], contents[idx]] = [contents[idx], contents[idx - 1]];
-          }
-          return { ...p, contents };
-        })
-      };
-    }));
-  };
-
-  const moveContentDown = (page: "left" | "right", panelId: string, contentId: string) => {
-    setSpreads(prev => prev.map((spread, i) => {
-      if (i !== currentSpreadIndex) return spread;
-      const key = page === "left" ? "leftPage" : "rightPage";
-      return {
-        ...spread,
-        [key]: spread[key].map(p => {
-          if (p.id !== panelId) return p;
-          const contents = [...p.contents].map(c => ({ ...c }));
-          const idx = contents.findIndex(c => c.id === contentId);
-          if (idx < contents.length - 1) {
-            const tempZ = contents[idx].zIndex;
-            contents[idx].zIndex = contents[idx + 1].zIndex;
-            contents[idx + 1].zIndex = tempZ;
-            [contents[idx], contents[idx + 1]] = [contents[idx + 1], contents[idx]];
-          }
+          const [moved] = contents.splice(fromIdx, 1);
+          contents.splice(toIdx, 0, moved);
+          contents.forEach((c, ci) => { c.zIndex = ci; });
           return { ...p, contents };
         })
       };
@@ -4456,9 +4422,34 @@ export default function ComicCreator() {
                   return (
                   <div key={panel.id}>
                     <div
-                      className={`px-2 py-1.5 text-sm cursor-pointer flex items-center gap-1 group ${isActive ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                      draggable
+                      onDragStart={(e) => {
+                        dragPanelRef.current = { dragIdx: idx, overIdx: idx };
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", "panel");
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragPanelRef.current && dragPanelRef.current.overIdx !== idx) {
+                          dragPanelRef.current.overIdx = idx;
+                          setPanelDragOverIdx(idx);
+                        }
+                      }}
+                      onDragLeave={() => { if (panelDragOverIdx === idx) setPanelDragOverIdx(null); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragPanelRef.current) {
+                          reorderPanels(selectedPage, dragPanelRef.current.dragIdx, dragPanelRef.current.overIdx);
+                          dragPanelRef.current = null;
+                          setPanelDragOverIdx(null);
+                        }
+                      }}
+                      onDragEnd={() => { dragPanelRef.current = null; setPanelDragOverIdx(null); }}
+                      className={`px-2 py-1.5 text-sm cursor-pointer flex items-center gap-1 group ${isActive ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'} ${panelDragOverIdx === idx ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`}
                       onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
                     >
+                      <GripVertical className="w-3 h-3 flex-shrink-0 opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing" />
                       <span className="flex-1 truncate text-xs font-medium">
                         {panel.coverRole === "front-cover" ? "★ Front Cover" : panel.coverRole === "back-cover" ? "★ Back Cover" : `Panel ${idx + 1}`}
                       </span>
@@ -4473,22 +4464,6 @@ export default function ComicCreator() {
                         title={panel.locked ? "Unlock" : "Lock"}
                       >
                         {panel.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-40 group-hover:opacity-100" />}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); moveLayerUp(selectedPage, panel.id); }}
-                        disabled={idx === 0}
-                        className={`p-0.5 rounded ${idx === 0 ? 'opacity-20' : isActive ? 'hover:bg-zinc-200' : 'opacity-40 group-hover:opacity-100 hover:bg-zinc-600'}`}
-                        title="Move Up"
-                      >
-                        <MoveUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); moveLayerDown(selectedPage, panel.id); }}
-                        disabled={idx === arr.length - 1}
-                        className={`p-0.5 rounded ${idx === arr.length - 1 ? 'opacity-20' : isActive ? 'hover:bg-zinc-200' : 'opacity-40 group-hover:opacity-100 hover:bg-zinc-600'}`}
-                        title="Move Down"
-                      >
-                        <MoveDown className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deletePanel(selectedPage, panel.id); if (isActive) setSelectedPanelId(null); }}
@@ -4507,26 +4482,38 @@ export default function ComicCreator() {
                           return (
                           <div
                             key={content.id}
-                            className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${isContentActive ? 'bg-zinc-600 text-white' : 'hover:bg-zinc-750'}`}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              dragContentRef.current = { panelId: panel.id, dragIdx: cIdx, overIdx: cIdx };
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/plain", "content");
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.dataTransfer.dropEffect = "move";
+                              if (dragContentRef.current && dragContentRef.current.panelId === panel.id && dragContentRef.current.overIdx !== cIdx) {
+                                dragContentRef.current.overIdx = cIdx;
+                                setContentDragOverIdx(cIdx);
+                              }
+                            }}
+                            onDragLeave={() => { if (contentDragOverIdx === cIdx) setContentDragOverIdx(null); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (dragContentRef.current && dragContentRef.current.panelId === panel.id) {
+                                reorderContents(selectedPage, panel.id, dragContentRef.current.dragIdx, dragContentRef.current.overIdx);
+                                dragContentRef.current = null;
+                                setContentDragOverIdx(null);
+                              }
+                            }}
+                            onDragEnd={() => { dragContentRef.current = null; setContentDragOverIdx(null); }}
+                            className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${isContentActive ? 'bg-zinc-600 text-white' : 'hover:bg-zinc-750'} ${contentDragOverIdx === cIdx && dragContentRef.current?.panelId === panel.id ? 'border-t border-cyan-400' : 'border-t border-transparent'}`}
                             onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
                           >
+                            <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
                             <span className="flex-1 truncate">{typeLabel} {cIdx + 1}</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); moveContentUp(selectedPage, panel.id, content.id); }}
-                              disabled={cIdx === 0}
-                              className={`p-0.5 rounded ${cIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
-                              title="Move Up"
-                            >
-                              <MoveUp className="w-2.5 h-2.5" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); moveContentDown(selectedPage, panel.id, content.id); }}
-                              disabled={cIdx === contentArr.length - 1}
-                              className={`p-0.5 rounded ${cIdx === contentArr.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`}
-                              title="Move Down"
-                            >
-                              <MoveDown className="w-2.5 h-2.5" />
-                            </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteContentFromPanel(selectedPage, panel.id, content.id); if (isContentActive) setSelectedContentId(null); }}
                               className="p-0.5 rounded opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
