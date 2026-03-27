@@ -206,6 +206,9 @@ interface CardData {
   templateId: string;
   filters: typeof CARD_FILTERS;
   nameArch: number;
+  imageOffsetX: number;
+  imageOffsetY: number;
+  imageScale: number;
   cardMode?: "tcg" | "sports";
   sport?: string;
   position?: string;
@@ -329,6 +332,9 @@ export default function CardCreator() {
     templateId: "noir-classic",
     filters: { ...CARD_FILTERS },
     nameArch: 0,
+    imageOffsetX: 0,
+    imageOffsetY: 0,
+    imageScale: 100,
     cardMode: "tcg",
   });
 
@@ -539,7 +545,11 @@ export default function CardCreator() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const url = event.target?.result as string;
-      updateCard(side === "front" ? { frontImage: url } : { backImage: url });
+      if (side === "front") {
+        updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 });
+      } else {
+        updateCard({ backImage: url });
+      }
       toast.success(`${side === "front" ? "Front" : "Back"} image updated`);
     };
     reader.readAsDataURL(file);
@@ -547,9 +557,26 @@ export default function CardCreator() {
   };
 
   const handleAIGenerated = (url: string) => {
-    updateCard(side === "front" ? { frontImage: url } : { backImage: url });
+    if (side === "front") {
+      updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 });
+    } else {
+      updateCard({ backImage: url });
+    }
     setShowAIGen(false);
     toast.success("AI image applied");
+  };
+
+  const getImageTransformStyle = (): React.CSSProperties => {
+    const s = (cardData.imageScale || 100) / 100;
+    const ox = cardData.imageOffsetX || 0;
+    const oy = cardData.imageOffsetY || 0;
+    return {
+      width: "100%",
+      height: "100%",
+      objectFit: "cover" as const,
+      transform: `translate(${ox}px, ${oy}px) scale(${s})`,
+      transformOrigin: "center center",
+    };
   };
 
   const applyCardTemplate = (templateId: string) => {
@@ -599,6 +626,9 @@ export default function CardCreator() {
       templateId: isSports ? "team-spirit" : cardData.templateId,
       filters: { ...CARD_FILTERS },
       nameArch: 0,
+      imageOffsetX: 0,
+      imageOffsetY: 0,
+      imageScale: 100,
       cardMode: isSports ? "sports" : "tcg",
       sport: packData.sport,
       position: isSports ? positions[packData.cards.length % positions.length] : "",
@@ -1177,6 +1207,60 @@ export default function CardCreator() {
                     className="w-full py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600"
                   >
                     Reset Filters
+                  </button>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700 space-y-3">
+                  <label className="text-xs font-bold uppercase text-zinc-400 block">Image Transform</label>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Scale</span>
+                      <span className="text-xs text-zinc-500">{cardData.imageScale}%</span>
+                    </div>
+                    <input
+                      type="range" min="50" max="300" step="1"
+                      value={cardData.imageScale}
+                      onChange={(e) => updateCard({ imageScale: Number(e.target.value) })}
+                      className="w-full accent-white"
+                      data-testid="input-image-scale"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Horizontal</span>
+                      <span className="text-xs text-zinc-500">{cardData.imageOffsetX}px</span>
+                    </div>
+                    <input
+                      type="range" min="-200" max="200" step="1"
+                      value={cardData.imageOffsetX}
+                      onChange={(e) => updateCard({ imageOffsetX: Number(e.target.value) })}
+                      className="w-full accent-white"
+                      data-testid="input-image-offset-x"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Vertical</span>
+                      <span className="text-xs text-zinc-500">{cardData.imageOffsetY}px</span>
+                    </div>
+                    <input
+                      type="range" min="-200" max="200" step="1"
+                      value={cardData.imageOffsetY}
+                      onChange={(e) => updateCard({ imageOffsetY: Number(e.target.value) })}
+                      className="w-full accent-white"
+                      data-testid="input-image-offset-y"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => updateCard({ imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 })}
+                    className="w-full py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600"
+                    data-testid="button-reset-transform"
+                  >
+                    Reset Transform
                   </button>
                 </div>
               </div>
@@ -2227,7 +2311,7 @@ export default function CardCreator() {
                   <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
                     <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
                       <div className="flex-1 relative overflow-hidden">
-                        <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
+                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} />
                         {cardData.filters.halftone && (
                           <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
                                style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
@@ -2330,7 +2414,7 @@ export default function CardCreator() {
                         </div>
                       </div>
                       <div className="flex-1 relative overflow-hidden border-b-2" style={{ borderColor: cardData.borderColor }}>
-                        <img src={cardData.frontImage} className="w-full h-full object-cover" style={getCardFilterStyle()} />
+                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} />
                         {cardData.filters.halftone && (
                           <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
                                style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
@@ -2448,7 +2532,7 @@ export default function CardCreator() {
               initialData={side === "front" ? cardData.frontImage : cardData.backImage}
               onSave={(rasterData) => {
                 if (side === "front") {
-                  setCardData(prev => ({ ...prev, frontImage: rasterData }));
+                  setCardData(prev => ({ ...prev, frontImage: rasterData, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 }));
                 } else {
                   setCardData(prev => ({ ...prev, backImage: rasterData }));
                 }
