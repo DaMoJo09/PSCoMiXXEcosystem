@@ -1185,6 +1185,24 @@ export default function ComicCreator() {
       });
     };
 
+    const drawImageCover = (ctx2: CanvasRenderingContext2D, img: HTMLImageElement, dx: number, dy: number, dw: number, dh: number) => {
+      if (!img.naturalWidth || !img.naturalHeight || !dw || !dh) {
+        ctx2.drawImage(img, dx, dy, dw, dh);
+        return;
+      }
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const destRatio = dw / dh;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (imgRatio > destRatio) {
+        sw = img.naturalHeight * destRatio;
+        sx = (img.naturalWidth - sw) / 2;
+      } else {
+        sh = img.naturalWidth / destRatio;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+      ctx2.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    };
+
     for (const panel of panels.sort((a, b) => a.zIndex - b.zIndex)) {
       const panelX = (panel.x / 100) * pageWidth;
       const panelY = (panel.y / 100) * pageHeight;
@@ -1222,7 +1240,7 @@ export default function ComicCreator() {
         if (bgImage) {
           try {
             const bgImg = await loadImage(bgImage);
-            ctx.drawImage(bgImg, panelX, panelY, panelW, panelH);
+            drawImageCover(ctx, bgImg, panelX, panelY, panelW, panelH);
           } catch {}
         }
 
@@ -1433,7 +1451,7 @@ export default function ComicCreator() {
         if ((type === "image" || type === "gif") && data.url) {
           try {
             const img = await loadImage(data.url);
-            ctx.drawImage(img, 0, 0, contentW, contentH);
+            drawImageCover(ctx, img, 0, 0, contentW, contentH);
           } catch (e) {
             ctx.fillStyle = "#cccccc";
             ctx.fillRect(0, 0, contentW, contentH);
@@ -1655,10 +1673,24 @@ export default function ComicCreator() {
         const canvas = document.createElement("canvas");
         canvas.width = canvasW;
         canvas.height = canvasH;
-        const ctx = canvas.getContext("2d")!;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvasW, canvasH);
-        ctx.drawImage(img, 0, 0, canvasW, canvasH);
+        const ctx2 = canvas.getContext("2d")!;
+        ctx2.fillStyle = "#ffffff";
+        ctx2.fillRect(0, 0, canvasW, canvasH);
+        if (!img.naturalWidth || !img.naturalHeight || !canvasW || !canvasH) {
+          ctx2.drawImage(img, 0, 0, canvasW, canvasH);
+        } else {
+          const imgRatio = img.naturalWidth / img.naturalHeight;
+          const destRatio = canvasW / canvasH;
+          let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+          if (imgRatio > destRatio) {
+            sw = img.naturalHeight * destRatio;
+            sx = (img.naturalWidth - sw) / 2;
+          } else {
+            sh = img.naturalWidth / destRatio;
+            sy = (img.naturalHeight - sh) / 2;
+          }
+          ctx2.drawImage(img, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+        }
         return canvas;
       };
 
