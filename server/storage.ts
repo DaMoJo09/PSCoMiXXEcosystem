@@ -104,7 +104,7 @@ import {
   type PrintQuoteRequest, type InsertPrintQuoteRequest,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, sql, ilike, gt } from "drizzle-orm";
+import { eq, desc, and, count, sql, ilike, gt, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -545,7 +545,8 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(projects)
       .where(eq(projects.userId, userId))
-      .orderBy(desc(projects.updatedAt));
+      .orderBy(desc(projects.updatedAt))
+      .limit(200);
   }
 
   async getUserProjectsMeta(userId: string) {
@@ -564,7 +565,8 @@ export class DatabaseStorage implements IStorage {
     })
       .from(projects)
       .where(eq(projects.userId, userId))
-      .orderBy(desc(projects.updatedAt));
+      .orderBy(desc(projects.updatedAt))
+      .limit(200);
   }
   
   async createProject(insertProject: InsertProject): Promise<Project> {
@@ -659,14 +661,16 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(assets)
       .where(eq(assets.userId, userId))
-      .orderBy(desc(assets.createdAt));
+      .orderBy(desc(assets.createdAt))
+      .limit(500);
   }
   
   async getProjectAssets(projectId: string): Promise<Asset[]> {
     return db.select()
       .from(assets)
       .where(eq(assets.projectId, projectId))
-      .orderBy(desc(assets.createdAt));
+      .orderBy(desc(assets.createdAt))
+      .limit(500);
   }
   
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {
@@ -689,7 +693,7 @@ export class DatabaseStorage implements IStorage {
   
   // Admin operations
   async getAllUsers(): Promise<User[]> {
-    return db.select().from(users).orderBy(desc(users.createdAt));
+    return db.select().from(users).orderBy(desc(users.createdAt)).limit(1000);
   }
 
   async getUserCounts(): Promise<{ totalUsers: number; adminCount: number; creatorCount: number }> {
@@ -711,7 +715,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllProjects(): Promise<Project[]> {
-    return db.select().from(projects).orderBy(desc(projects.createdAt));
+    return db.select().from(projects).orderBy(desc(projects.createdAt)).limit(1000);
   }
   
   async getProjectStats(): Promise<{ type: string; count: number }[]> {
@@ -1204,7 +1208,8 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(socialPosts)
       .where(eq(socialPosts.authorId, userId))
-      .orderBy(desc(socialPosts.createdAt));
+      .orderBy(desc(socialPosts.createdAt))
+      .limit(100);
   }
 
   async likePost(postId: string, userId: string): Promise<SocialPostLike> {
@@ -1413,8 +1418,8 @@ export class DatabaseStorage implements IStorage {
     const threadIds = threads.map(t => t.thread?.id).filter(Boolean) as string[];
     
     const participantsByThread: Record<string, any[]> = {};
-    for (const threadId of threadIds) {
-      const participants = await db.select({
+    if (threadIds.length > 0) {
+      const allParticipants = await db.select({
         participant: dmParticipants,
         user: {
           id: users.id,
@@ -1424,12 +1429,13 @@ export class DatabaseStorage implements IStorage {
       })
       .from(dmParticipants)
       .leftJoin(users, eq(dmParticipants.userId, users.id))
-      .where(eq(dmParticipants.threadId, threadId));
+      .where(inArray(dmParticipants.threadId, threadIds));
       
-      participantsByThread[threadId] = participants.map(p => ({
-        ...p.participant,
-        user: p.user,
-      }));
+      for (const p of allParticipants) {
+        const tid = p.participant.threadId;
+        if (!participantsByThread[tid]) participantsByThread[tid] = [];
+        participantsByThread[tid].push({ ...p.participant, user: p.user });
+      }
     }
 
     return threads.map(t => ({
@@ -1466,33 +1472,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async findExistingDmThread(userId1: string, userId2: string): Promise<DmThread | undefined> {
-    const user1Threads = await db.select({ threadId: dmParticipants.threadId })
+    const result = await db.select({ threadId: dmParticipants.threadId })
       .from(dmParticipants)
       .where(eq(dmParticipants.userId, userId1));
 
-    for (const t of user1Threads) {
-      const [thread] = await db.select()
-        .from(dmThreads)
-        .where(and(
-          eq(dmThreads.id, t.threadId),
-          eq(dmThreads.isGroup, false)
-        ));
-      
-      if (thread) {
-        const [otherParticipant] = await db.select()
-          .from(dmParticipants)
-          .where(and(
-            eq(dmParticipants.threadId, thread.id),
-            eq(dmParticipants.userId, userId2)
-          ));
-        
-        if (otherParticipant) {
-          return thread;
-        }
-      }
-    }
+    const user1ThreadIds = result.map(r => r.threadId);
+    if (user1ThreadIds.length === 0) return undefined;
 
-    return undefined;
+    const user2InThreads = await db.select({ threadId: dmParticipants.threadId })
+      .from(dmParticipants)
+      .where(and(
+        inArray(dmParticipants.threadId, user1ThreadIds),
+        eq(dmParticipants.userId, userId2)
+      ));
+
+    const sharedThreadIds = user2InThreads.map(r => r.threadId);
+    if (sharedThreadIds.length === 0) return undefined;
+
+    const [thread] = await db.select()
+      .from(dmThreads)
+      .where(and(
+        inArray(dmThreads.id, sharedThreadIds),
+        eq(dmThreads.isGroup, false)
+      ))
+      .limit(1);
+
+    return thread || undefined;
   }
 
   // ============================================

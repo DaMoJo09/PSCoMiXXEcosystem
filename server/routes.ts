@@ -2,6 +2,13 @@ import type { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
+
+function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}): Promise<globalThis.Response> {
+  const { timeout = 15000, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  return fetch(url, { ...fetchOptions, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
@@ -5737,13 +5744,14 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const signature = createHmac("sha256", webhookSecret).update(bodyStr).digest("hex");
 
       const webhookUrl = `${pslmsUrl.replace(/\/$/, "")}/api/webhooks/comixx`;
-      const response = await fetch(webhookUrl, {
+      const response = await fetchWithTimeout(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-CoMiXX-Signature": signature,
         },
         body: bodyStr,
+        timeout: 10000,
       });
 
       if (!response.ok) {
@@ -5803,13 +5811,14 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           const bodyStr = JSON.stringify(payload);
           const signature = createHmac("sha256", pslmsWh || "").update(bodyStr).digest("hex");
 
-          await fetch(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming`, {
+          await fetchWithTimeout(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "X-Webhook-Signature": signature,
               "X-API-Key": pslmsKey || "",
             },
+            timeout: 10000,
             body: bodyStr,
           });
           console.log(`[Streaming Webhook] Forwarded to PSLMS for ${email}`);
@@ -5866,7 +5875,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const bodyStr = JSON.stringify(payload);
       const signature = createHmac("sha256", pslmsWh || "").update(bodyStr).digest("hex");
 
-      const response = await fetch(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming/portfolio`, {
+      const response = await fetchWithTimeout(`${pslmsUrl.replace(/\/$/, "")}/api/webhooks/streaming/portfolio`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -5874,6 +5883,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           "X-API-Key": pslmsKey || "",
         },
         body: bodyStr,
+        timeout: 10000,
       });
 
       if (!response.ok) {
@@ -6470,7 +6480,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (req.query.offset) params.set("offset", req.query.offset as string);
       const qs = params.toString();
       const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
-      const response = await fetch(url, { headers: fxHeaders() });
+      const response = await fetchWithTimeout(url, { headers: fxHeaders(), timeout: 15000 });
       let data = await response.json();
       if (userEmail && Array.isArray(data)) {
         data = data.filter((item: any) => item.user_email === userEmail);
@@ -6485,7 +6495,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, { headers: fxHeaders() });
+      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, { headers: fxHeaders(), timeout: 15000 });
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
@@ -6501,10 +6511,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         user_email: user?.email,
         user_name: user?.name || user?.username,
       };
-      const response = await fetch(FX_API_URL, {
+      const response = await fetchWithTimeout(FX_API_URL, {
         method: "POST",
         headers: fxHeaders(),
         body: JSON.stringify(body),
+        timeout: 30000,
       });
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
@@ -6521,10 +6532,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.patch("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
+      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, {
         method: "PATCH",
         headers: fxHeaders(),
         body: JSON.stringify(req.body),
+        timeout: 15000,
       });
       const data = await response.json();
       res.json(data);
@@ -6535,9 +6547,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.delete("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetch(`${FX_API_URL}?id=${req.params.id}`, {
+      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, {
         method: "DELETE",
         headers: fxHeaders(),
+        timeout: 15000,
       });
       const data = await response.json();
       res.json(data);
@@ -6593,10 +6606,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         },
       };
 
-      const response = await fetch(FX_API_URL, {
+      const response = await fetchWithTimeout(FX_API_URL, {
         method: "POST",
         headers: fxHeaders(),
         body: JSON.stringify(payload),
+        timeout: 30000,
       });
 
       if (!response.ok) {
