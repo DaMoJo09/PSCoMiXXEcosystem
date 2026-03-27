@@ -255,27 +255,13 @@ export function log(message: string, source = "express") {
 
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+  const reqPath = req.path;
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        const jsonStr = JSON.stringify(capturedJsonResponse);
-        logLine += ` :: ${jsonStr.length > 500 ? jsonStr.slice(0, 500) + '...[truncated]' : jsonStr}`;
-      }
-
-      log(logLine);
+    if (reqPath.startsWith("/api")) {
+      log(`${req.method} ${reqPath} ${res.statusCode} in ${duration}ms`);
     }
-    capturedJsonResponse = undefined;
   });
 
   next();

@@ -113,11 +113,16 @@ function redactSensitive(obj: any): any {
 }
 
 export function errorHandler(err: Error, req: any, res: any, next: any) {
+  let safeBody: any = undefined;
+  try {
+    const bodyStr = JSON.stringify(req.body);
+    safeBody = bodyStr && bodyStr.length < 2000 ? redactSensitive(req.body) : "[body too large]";
+  } catch { safeBody = "[unstringifiable]"; }
   const context = {
     method: req.method,
     path: req.path,
     userId: req.user?.id,
-    body: redactSensitive(req.body),
+    body: safeBody,
     query: redactSensitive(req.query),
   };
   
