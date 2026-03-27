@@ -1,9 +1,10 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2 } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
@@ -45,6 +46,19 @@ const typeLabels: Record<string, string> = {
   cyoa: "CYOA",
 };
 
+const CERT_ICON_MAP: Record<string, any> = {
+  BookOpen, Gamepad2, Globe, Film, CreditCard, Award, Trophy, Star, Shield,
+};
+
+const CERT_ACCENT_COLORS = [
+  { border: "border-green-500", bg: "bg-green-500/10", text: "text-green-400", bar: "bg-green-500" },
+  { border: "border-orange-500", bg: "bg-orange-500/10", text: "text-orange-400", bar: "bg-orange-500" },
+  { border: "border-pink-500", bg: "bg-pink-500/10", text: "text-pink-400", bar: "bg-pink-500" },
+  { border: "border-purple-500", bg: "bg-purple-500/10", text: "text-purple-400", bar: "bg-purple-500" },
+  { border: "border-cyan-500", bg: "bg-cyan-500/10", text: "text-cyan-400", bar: "bg-cyan-500" },
+  { border: "border-yellow-500", bg: "bg-yellow-500/10", text: "text-yellow-400", bar: "bg-yellow-500" },
+];
+
 const quickActions = [
   { title: "New Comic", href: "/creator/comic", type: "comic", desc: "Sequential art builder" },
   { title: "New Motion", href: "/creator/motion", type: "motion", desc: "Motion comic studio" },
@@ -64,6 +78,16 @@ export default function Dashboard() {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
+
+  const { data: certs = [] } = useQuery<any[]>({
+    queryKey: ["/api/certifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/certifications", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user,
+  });
 
   const handleDelete = async (id: string) => {
     try {
@@ -191,6 +215,104 @@ export default function Dashboard() {
         </div>
 
         <XPWidget />
+
+        {certs.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-display font-bold flex items-center gap-2">
+                <Award className="w-5 h-5" /> Certifications
+              </h2>
+              <button
+                onClick={() => navigate("/certifications")}
+                className="text-sm text-cyan-400 hover:underline font-mono flex items-center gap-1"
+                data-testid="link-view-all-certs"
+              >
+                View all <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {certs.map((cert: any, i: number) => {
+                const accent = CERT_ACCENT_COLORS[i % CERT_ACCENT_COLORS.length];
+                const IconComp = CERT_ICON_MAP[cert.icon] || Award;
+                const xpPct = cert.progress?.xp?.required > 0 ? Math.min((cert.progress.xp.current / cert.progress.xp.required) * 100, 100) : 0;
+                const projPct = cert.requiredProjectCount > 0 ? Math.min((cert.progress?.projects?.current / cert.requiredProjectCount) * 100, 100) : 0;
+                const pubPct = cert.requiredPublished > 0 ? Math.min((cert.progress?.published?.current / cert.requiredPublished) * 100, 100) : 0;
+
+                return (
+                  <div
+                    key={cert.id}
+                    className={`border-2 ${cert.earned ? "border-green-500" : "border-zinc-700"} bg-card p-5 relative overflow-hidden`}
+                    style={{ borderTopWidth: "4px", borderTopColor: cert.earned ? undefined : undefined }}
+                    data-testid={`hub-cert-${cert.slug}`}
+                  >
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${cert.earned ? "bg-green-500" : accent.bar}`} />
+
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className={`p-2 border ${cert.earned ? "border-green-500 bg-green-500/10" : `${accent.border} ${accent.bg}`}`}>
+                        <IconComp className={`w-6 h-6 ${cert.earned ? "text-green-400" : accent.text}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-black uppercase tracking-tight truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                          {cert.title}
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-2">
+                          {cert.description}
+                        </p>
+                      </div>
+                      {cert.earned ? (
+                        <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold text-green-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> EARNED
+                        </span>
+                      ) : (
+                        <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold text-zinc-500">
+                          <Lock className="w-3.5 h-3.5" /> LOCKED
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold mb-0.5">
+                          <span className="text-zinc-400">XP</span>
+                          <span className={cert.progress?.xp?.met ? "text-green-400" : accent.text}>
+                            {(cert.progress?.xp?.current || 0).toLocaleString()} / {(cert.progress?.xp?.required || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-zinc-800 overflow-hidden">
+                          <div className={`h-full transition-all ${cert.progress?.xp?.met ? "bg-green-500" : accent.bar}`} style={{ width: `${xpPct}%` }} />
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-[10px] font-bold mb-0.5">
+                            <span className="text-zinc-400">Projects</span>
+                            <span className={cert.progress?.projects?.met ? "text-green-400" : "text-zinc-500"}>
+                              {cert.progress?.projects?.current || 0} / {cert.requiredProjectCount}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-zinc-800 overflow-hidden">
+                            <div className={`h-full transition-all ${cert.progress?.projects?.met ? "bg-green-500" : accent.bar}`} style={{ width: `${projPct}%` }} />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-[10px] font-bold mb-0.5">
+                            <span className="text-zinc-400">Published</span>
+                            <span className={cert.progress?.published?.met ? "text-green-400" : "text-zinc-500"}>
+                              {cert.progress?.published?.current || 0} / {cert.requiredPublished}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-zinc-800 overflow-hidden">
+                            <div className={`h-full transition-all ${cert.progress?.published?.met ? "bg-green-500" : accent.bar}`} style={{ width: `${pubPct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
