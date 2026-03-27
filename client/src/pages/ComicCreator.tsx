@@ -3,7 +3,7 @@ import {
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
-  Trash2, GripVertical, MoveUp, MoveDown, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
+  Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -1909,17 +1909,20 @@ export default function ComicCreator() {
 
   const dragPanelRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
   const dragContentRef = useRef<{ panelId: string; dragIdx: number; overIdx: number } | null>(null);
+  const dragCoverElRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
   const [panelDragOverIdx, setPanelDragOverIdx] = useState<number | null>(null);
   const [contentDragOverIdx, setContentDragOverIdx] = useState<number | null>(null);
+  const [coverElDragOverIdx, setCoverElDragOverIdx] = useState<number | null>(null);
 
   const reorderPanels = (page: "left" | "right", fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
     setSpreads(prev => prev.map((spread, i) => {
       if (i !== currentSpreadIndex) return spread;
       const key = page === "left" ? "leftPage" : "rightPage";
-      const panels = [...spread[key]];
+      const panels = [...spread[key]].map(p => ({ ...p }));
       const [moved] = panels.splice(fromIdx, 1);
       panels.splice(toIdx, 0, moved);
+      panels.forEach((p, pi) => { p.zIndex = pi; });
       return { ...spread, [key]: panels };
     }));
   };
@@ -3119,7 +3122,7 @@ export default function ComicCreator() {
               </div>
             );
           })()}
-          {panel.contents.map(content => (
+          {[...panel.contents].sort((a, b) => a.zIndex - b.zIndex).map(content => (
             <TransformableElement
               key={content.id}
               id={content.id}
@@ -3138,6 +3141,7 @@ export default function ComicCreator() {
                 }
               }}
               locked={content.locked}
+              style={{ zIndex: content.zIndex }}
             >
               {(content.type === "image" || content.type === "gif") && content.data.url && (
                 <div className="w-full h-full relative">
@@ -4667,46 +4671,58 @@ export default function ComicCreator() {
                             const unified = [...currentOrder.filter(id => allIds.has(id))];
                             allIds.forEach(id => { if (!unified.includes(id)) unified.push(id); });
 
-                            const moveUnifiedUp = (zId: string) => {
-                              const uIdx2 = unified.indexOf(zId);
-                              if (uIdx2 <= 0) return;
-                              const swapWith = unified[uIdx2 - 1];
-                              const fullOrder = [...currentOrder];
-                              allIds.forEach(id => { if (!fullOrder.includes(id)) fullOrder.push(id); });
-                              const aIdx = fullOrder.indexOf(zId);
-                              const bIdx = fullOrder.indexOf(swapWith);
-                              if (aIdx === -1 || bIdx === -1) return;
-                              [fullOrder[aIdx], fullOrder[bIdx]] = [fullOrder[bIdx], fullOrder[aIdx]];
-                              updateCoverData({ elementZOrder: fullOrder });
-                            };
-                            const moveUnifiedDown = (zId: string) => {
-                              const uIdx2 = unified.indexOf(zId);
-                              if (uIdx2 >= unified.length - 1) return;
-                              const swapWith = unified[uIdx2 + 1];
-                              const fullOrder = [...currentOrder];
-                              allIds.forEach(id => { if (!fullOrder.includes(id)) fullOrder.push(id); });
-                              const aIdx = fullOrder.indexOf(zId);
-                              const bIdx = fullOrder.indexOf(swapWith);
-                              if (aIdx === -1 || bIdx === -1) return;
-                              [fullOrder[aIdx], fullOrder[bIdx]] = [fullOrder[bIdx], fullOrder[aIdx]];
+                            const reorderCoverElements = (fromIdx: number, toIdx: number) => {
+                              if (fromIdx === toIdx) return;
+                              const reordered = [...unified];
+                              const [moved] = reordered.splice(fromIdx, 1);
+                              reordered.splice(toIdx, 0, moved);
+                              const fullOrder = [...reordered];
+                              currentOrder.forEach(id => { if (!fullOrder.includes(id)) fullOrder.push(id); });
                               updateCoverData({ elementZOrder: fullOrder });
                             };
 
+                            const coverDragProps = (uIdx: number) => ({
+                              draggable: true,
+                              onDragStart: (e: React.DragEvent) => {
+                                e.stopPropagation();
+                                dragCoverElRef.current = { dragIdx: uIdx, overIdx: uIdx };
+                                e.dataTransfer.effectAllowed = "move";
+                                e.dataTransfer.setData("text/plain", "cover-el");
+                              },
+                              onDragOver: (e: React.DragEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = "move";
+                                if (dragCoverElRef.current && dragCoverElRef.current.overIdx !== uIdx) {
+                                  dragCoverElRef.current.overIdx = uIdx;
+                                  setCoverElDragOverIdx(uIdx);
+                                }
+                              },
+                              onDragLeave: () => { if (coverElDragOverIdx === uIdx) setCoverElDragOverIdx(null); },
+                              onDrop: (e: React.DragEvent) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (dragCoverElRef.current) {
+                                  reorderCoverElements(dragCoverElRef.current.dragIdx, dragCoverElRef.current.overIdx);
+                                  dragCoverElRef.current = null;
+                                  setCoverElDragOverIdx(null);
+                                }
+                              },
+                              onDragEnd: () => { dragCoverElRef.current = null; setCoverElDragOverIdx(null); },
+                            });
+
                             return (<div key={unified.join(',')}>{unified.map((zId, uIdx) => {
+                              const dragOverClass = coverElDragOverIdx === uIdx ? 'border-t border-cyan-400' : 'border-t border-transparent';
                               const masterEl = masterMap.get(zId);
                               if (masterEl) {
                                 return (
                                   <div key={masterEl.id}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === masterEl.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    {...coverDragProps(uIdx)}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === masterEl.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(masterEl.id); }}>
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
                                     <span className="w-3 text-center text-[10px] opacity-60">{masterEl.icon}</span>
                                     <span className="flex-1 truncate text-[10px]">{masterEl.label}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
-                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
-                                    ><MoveUp className="w-2.5 h-2.5" /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
-                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
-                                    ><MoveDown className="w-2.5 h-2.5" /></button>
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
                                     >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
@@ -4720,16 +4736,12 @@ export default function ComicCreator() {
                               if (il) {
                                 return (
                                   <div key={il.id}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    {...coverDragProps(uIdx)}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}>
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
                                     <ImageIcon className="w-3 h-3 text-violet-400 opacity-60 shrink-0" />
                                     <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
-                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
-                                    ><MoveUp className="w-2.5 h-2.5" /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
-                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
-                                    ><MoveDown className="w-2.5 h-2.5" /></button>
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
                                     >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
@@ -4743,16 +4755,12 @@ export default function ComicCreator() {
                               if (tl) {
                                 return (
                                   <div key={tl.id}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    {...coverDragProps(uIdx)}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}>
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
                                     <Type className="w-3 h-3 text-amber-400 opacity-60 shrink-0" />
                                     <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
-                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
-                                    ><MoveUp className="w-2.5 h-2.5" /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
-                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
-                                    ><MoveDown className="w-2.5 h-2.5" /></button>
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
                                     >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
@@ -4767,17 +4775,13 @@ export default function ComicCreator() {
                                 const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
                                 return (
                                   <div key={bgId}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${isBgSelected ? 'bg-green-700 text-white' : 'hover:bg-zinc-750'}`}
+                                    {...coverDragProps(uIdx)}
+                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${isBgSelected ? 'bg-green-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-bg-${bgViewKey}`); }}
                                     data-testid={`layer-stack-item-${bgId}`}>
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
                                     <ImageIcon className="w-3 h-3 text-green-400 opacity-60 shrink-0" />
                                     <span className="flex-1 truncate text-[10px]">{isFr ? "Front" : "Back"} Cover Image</span>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedUp(zId); }} disabled={uIdx === 0}
-                                      className={`p-0.5 ${uIdx === 0 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Up"
-                                    ><MoveUp className="w-2.5 h-2.5" /></button>
-                                    <button onClick={(e) => { e.stopPropagation(); moveUnifiedDown(zId); }} disabled={uIdx === unified.length - 1}
-                                      className={`p-0.5 ${uIdx === unified.length - 1 ? 'opacity-20' : 'opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500'}`} title="Move Down"
-                                    ><MoveDown className="w-2.5 h-2.5" /></button>
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
                                     >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
