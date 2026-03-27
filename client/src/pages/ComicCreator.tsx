@@ -13,7 +13,7 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
-import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive } from "lucide-react";
+import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -350,6 +350,8 @@ export default function ComicCreator() {
   const { hasFeature, isAdmin } = useSubscription();
   const { user, isStudent } = useAuth();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
 
   const resolveAssetUrl = useCallback(async (asset: { id: string; url: string }): Promise<string> => {
     if (asset.url) return asset.url;
@@ -1615,6 +1617,178 @@ export default function ComicCreator() {
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
     } catch (error) {
       toast.error("Failed to export pages");
+    }
+  };
+
+  const handleCompileComic = async () => {
+    if (!effectiveProjectId) {
+      toast.error("Save your project first before compiling");
+      return;
+    }
+    setIsCompiling(true);
+    setCompileResult(null);
+    const messages: string[] = [];
+    let hasWarning = false;
+
+    try {
+      toast.info("Compiling comic — rendering covers and validating pages...");
+
+      let compiledFrontCover = "";
+      let compiledBackCover = "";
+      let hasFrontPanel = false;
+      let hasBackPanel = false;
+
+      for (const spread of spreads) {
+        for (const panels of [spread.leftPage, spread.rightPage]) {
+          for (const panel of panels) {
+            if (panel.coverRole === "front-cover") {
+              hasFrontPanel = true;
+              try {
+                const coverCanvas = await exportPageToCanvas([panel], 1988, 3075);
+                compiledFrontCover = coverCanvas.toDataURL("image/png");
+                messages.push("Front cover rendered from panel design");
+              } catch {
+                messages.push("Warning: Failed to render front cover panel");
+                hasWarning = true;
+              }
+            }
+            if (panel.coverRole === "back-cover") {
+              hasBackPanel = true;
+              try {
+                const coverCanvas = await exportPageToCanvas([panel], 1988, 3075);
+                compiledBackCover = coverCanvas.toDataURL("image/png");
+                messages.push("Back cover rendered from panel design");
+              } catch {
+                messages.push("Warning: Failed to render back cover panel");
+                hasWarning = true;
+              }
+            }
+          }
+        }
+      }
+
+      if (!hasFrontPanel && coverDesignData) {
+        try {
+          const cd = { ...defaultCover, ...coverDesignData };
+          const coverPanel: Panel = {
+            id: "compile-front-cover",
+            x: 0, y: 0, width: 100, height: 100,
+            backgroundColor: cd.frontBgColor || "#000",
+            shape: "rectangle" as const,
+            contents: [],
+            zIndex: 0,
+            rotation: 0,
+            coverRole: "front-cover",
+          };
+          const coverCanvas = await exportPageToCanvas([coverPanel], 1988, 3075);
+          compiledFrontCover = coverCanvas.toDataURL("image/png");
+          messages.push("Front cover rendered from cover design data");
+        } catch {
+          messages.push("Warning: Could not generate front cover from design data");
+          hasWarning = true;
+        }
+      }
+
+      if (!hasBackPanel && coverDesignData) {
+        try {
+          const cd = { ...defaultCover, ...coverDesignData };
+          const coverPanel: Panel = {
+            id: "compile-back-cover",
+            x: 0, y: 0, width: 100, height: 100,
+            backgroundColor: cd.backBgColor || "#000",
+            shape: "rectangle" as const,
+            contents: [],
+            zIndex: 0,
+            rotation: 0,
+            coverRole: "back-cover",
+          };
+          const coverCanvas = await exportPageToCanvas([coverPanel], 1988, 3075);
+          compiledBackCover = coverCanvas.toDataURL("image/png");
+          messages.push("Back cover rendered from cover design data");
+        } catch {
+          messages.push("Warning: Could not generate back cover from design data");
+          hasWarning = true;
+        }
+      }
+
+      if (!compiledFrontCover) {
+        messages.push("Warning: No front cover — add one via Cover Editor or set a panel as Front Cover");
+        hasWarning = true;
+      }
+      if (!compiledBackCover) {
+        messages.push("Warning: No back cover — add one via Cover Editor or set a panel as Back Cover");
+        hasWarning = true;
+      }
+
+      let totalPages = 0;
+      let emptyPages = 0;
+      for (const spread of spreads) {
+        if (spread.leftPage.length > 0) totalPages++;
+        else emptyPages++;
+        if (spread.rightPage.length > 0) totalPages++;
+        else emptyPages++;
+      }
+      messages.push(`${totalPages} interior page${totalPages !== 1 ? "s" : ""} found`);
+      if (emptyPages > 0) {
+        messages.push(`Warning: ${emptyPages} empty page${emptyPages !== 1 ? "s" : ""} detected`);
+        hasWarning = true;
+      }
+
+      const updatedMeta = { ...comicMeta };
+      if (compiledFrontCover) updatedMeta.frontCover = compiledFrontCover;
+      if (compiledBackCover) updatedMeta.backCover = compiledBackCover;
+      setComicMeta(updatedMeta);
+
+      try {
+        const saveRes = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            data: {
+              spreads,
+              title,
+              coverDesign: coverDesignData,
+              comicMeta: updatedMeta,
+            },
+            thumbnail: compiledFrontCover || undefined,
+          }),
+        });
+        if (saveRes.ok) {
+          messages.push("Project saved with compiled covers");
+        } else {
+          messages.push("Warning: Save returned an error — covers may not be persisted");
+          hasWarning = true;
+        }
+      } catch {
+        messages.push("Warning: Auto-save failed — covers rendered but not persisted");
+        hasWarning = true;
+      }
+
+      if (compiledFrontCover) {
+        try {
+          await fetch(`/api/projects/${effectiveProjectId}/generate-thumbnail`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ thumbnail: compiledFrontCover }),
+          });
+        } catch {}
+      }
+
+      setCompileResult({ status: hasWarning ? "warning" : "success", messages });
+      if (hasWarning) {
+        toast.warning("Comic compiled with warnings — check the status panel");
+      } else {
+        toast.success("Comic compiled successfully — ready for export or submission!");
+      }
+
+      qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
+    } catch (error) {
+      toast.error("Compilation failed — see console for details");
+      setCompileResult({ status: "warning", messages: [...messages, "Fatal: Compilation encountered an unexpected error"] });
+    } finally {
+      setIsCompiling(false);
     }
   };
 
@@ -3735,6 +3909,16 @@ export default function ComicCreator() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {effectiveProjectId && (
+              <button
+                onClick={handleCompileComic}
+                disabled={isCompiling}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                data-testid="button-compile-comic"
+              >
+                <Package className="w-4 h-4" /> {isCompiling ? "Compiling..." : "Compile"}
+              </button>
+            )}
             {effectiveProjectId && project && (project.status === "draft" || project.status === "rejected") && (
               <button
                 onClick={() => submitForReview.mutate()}
@@ -3780,6 +3964,21 @@ export default function ComicCreator() {
           </div>
         </header>
 
+        {compileResult && (
+          <div className={`px-4 py-2 flex items-start gap-3 text-xs border-b ${compileResult.status === "success" ? "bg-green-950 border-green-800 text-green-300" : "bg-amber-950 border-amber-800 text-amber-300"}`}>
+            <div className="flex-1">
+              <span className="font-bold uppercase text-[10px] tracking-wider">
+                {compileResult.status === "success" ? "COMPILED — READY" : "COMPILED WITH WARNINGS"}
+              </span>
+              <div className="mt-1 space-y-0.5">
+                {compileResult.messages.map((msg, i) => (
+                  <div key={i} className={msg.startsWith("Warning") ? "text-amber-400" : "opacity-80"}>{msg}</div>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => setCompileResult(null)} className="p-1 hover:bg-white/10 shrink-0"><X className="w-3 h-3" /></button>
+          </div>
+        )}
 
         <div className="flex-1 flex overflow-hidden">
           <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
