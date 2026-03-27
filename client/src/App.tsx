@@ -85,6 +85,7 @@ import PrintPackages from "@/pages/PrintPackages";
 import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import CertificationsPage, { VerifyPage } from "@/pages/CertificationsPage";
 import SSOCallbackPage from "@/pages/SSOCallbackPage";
+import CoverCreator from "@/pages/CoverCreator";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
@@ -161,6 +162,7 @@ function ProtectedRouter() {
         <Route path="/creator/card" component={CardCreator} />
         <Route path="/creator/vn" component={VNCreator} />
         <Route path="/creator/cyoa" component={CYOABuilder} />
+        <Route path="/creator/cover" component={CoverCreator} />
 
         <Route path="/tools/prompt" component={PromptFactory} />
         <Route path="/tools/story" component={StoryForge} />

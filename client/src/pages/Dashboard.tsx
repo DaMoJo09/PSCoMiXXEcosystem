@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2 } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -346,7 +346,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
             <Wrench className="w-5 h-5" /> Tools & Utilities
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <button 
               onClick={() => window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
@@ -357,7 +357,7 @@ export default function Dashboard() {
                 FX Studio
               </h3>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Browse & import visual effects
+                Visual effects library
               </p>
             </button>
             <button 
@@ -387,6 +387,32 @@ export default function Dashboard() {
               </p>
             </button>
             <button 
+              onClick={() => navigate("/tools/import")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-import"
+            >
+              <Upload className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Import
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Photos, scripts & assets
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/creator/cover")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-tool-cover"
+            >
+              <ImagePlus className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Cover Creator
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Design book & comic covers
+              </p>
+            </button>
+            <button 
               onClick={() => navigate("/settings")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-settings"
@@ -397,6 +423,92 @@ export default function Dashboard() {
               </h3>
               <p className="text-[10px] text-muted-foreground mt-1">
                 App preferences
+              </p>
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
+            <Share2 className="w-5 h-5" /> Publish & Share
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <button 
+              onClick={() => navigate("/print-studio")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-print"
+            >
+              <Printer className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Print Studio
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                PDF export & print-ready output
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate(`/portfolio${user?.id ? `/${user.id}` : ""}`)}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-portfolio"
+            >
+              <User className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Portfolio
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Your digital portfolio & QR links
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/community")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-gallery"
+            >
+              <Users className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Community Gallery
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Browse & showcase work
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/marketplace")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-marketplace"
+            >
+              <ShoppingBag className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Marketplace
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Sell & buy creator content
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/print-studio/export")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-export"
+            >
+              <Camera className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Export Dashboard
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                High-res & web-ready exports
+              </p>
+            </button>
+            <button 
+              onClick={() => navigate("/certifications")}
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              data-testid="button-publish-certs"
+            >
+              <Award className="w-6 h-6 mb-2" />
+              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                Certifications
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Earn & verify creator certs
               </p>
             </button>
           </div>
