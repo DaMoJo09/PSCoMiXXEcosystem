@@ -110,6 +110,36 @@ export const insertAssetSchema = createInsertSchema(assets).omit({
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
 export type Asset = typeof assets.$inferSelect;
 
+// FX Effects table - local storage for FX Studio asset sync
+export const fxEffects = pgTable("fx_effects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userEmail: text("user_email"),
+  userName: text("user_name"),
+  name: text("name").notNull(),
+  type: text("type").default("static-asset"),
+  assetTag: text("asset_tag"),
+  previewDataUrl: text("preview_data_url"),
+  layers: jsonb("layers").default([]),
+  canvasBackground: text("canvas_background"),
+  metadata: jsonb("metadata").default({}),
+  projectId: varchar("project_id"),
+  sourceMode: text("source_mode"),
+  sourcePanelId: text("source_panel_id"),
+  targetPage: integer("target_page"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertFxEffectSchema = createInsertSchema(fxEffects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFxEffect = z.infer<typeof insertFxEffectSchema>;
+export type FxEffect = typeof fxEffects.$inferSelect;
+
 // API Keys table - for external app integrations
 export const apiKeys = pgTable("api_keys", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

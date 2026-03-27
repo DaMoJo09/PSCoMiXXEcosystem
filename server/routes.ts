@@ -13,9 +13,9 @@ function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects } from "@shared/schema";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq, and, desc, ilike } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -6655,38 +6655,83 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     Authorization: `Bearer ${FX_API_KEY}`,
   });
 
+  async function tryUpstreamSync(method: string, url: string, body?: string): Promise<any | null> {
+    if (!FX_API_KEY) return null;
+    try {
+      const response = await fetchWithTimeout(url, {
+        method,
+        headers: fxHeaders(),
+        ...(body ? { body } : {}),
+        timeout: 5000,
+      });
+      if (response.ok) return await response.json();
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const userEmail = user?.email;
-      const params = new URLSearchParams();
-      if (userEmail) params.set("user_email", userEmail);
-      if (req.query.asset_tag) params.set("asset_tag", req.query.asset_tag as string);
-      if (req.query.project_id) params.set("project_id", req.query.project_id as string);
-      if (req.query.type) params.set("type", req.query.type as string);
-      if (req.query.search) params.set("search", req.query.search as string);
-      if (req.query.limit) params.set("limit", req.query.limit as string);
-      if (req.query.offset) params.set("offset", req.query.offset as string);
-      const qs = params.toString();
-      const url = qs ? `${FX_API_URL}?${qs}` : FX_API_URL;
-      const response = await fetchWithTimeout(url, { headers: fxHeaders(), timeout: 15000 });
-      let data = await response.json();
-      if (userEmail && Array.isArray(data)) {
-        data = data.filter((item: any) => item.user_email === userEmail);
-      } else if (userEmail && data?.effects && Array.isArray(data.effects)) {
-        data.effects = data.effects.filter((item: any) => item.user_email === userEmail);
+
+      const conditions: any[] = [];
+      if (userEmail) conditions.push(eq(fxEffects.userEmail, userEmail));
+      if (req.query.asset_tag) conditions.push(eq(fxEffects.assetTag, req.query.asset_tag as string));
+      if (req.query.project_id) conditions.push(eq(fxEffects.projectId, req.query.project_id as string));
+      if (req.query.type) conditions.push(eq(fxEffects.type, req.query.type as string));
+      if (req.query.search) conditions.push(ilike(fxEffects.name, `%${req.query.search}%`));
+
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      let query = db.select().from(fxEffects).orderBy(desc(fxEffects.createdAt)).limit(limit).offset(offset);
+      if (conditions.length > 0) {
+        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
       }
-      res.json(data);
+
+      const localData = await query;
+
+      res.json(localData.map(mapEffectRow));
     } catch (error: any) {
+      console.error("FX effects GET error:", error.message);
       res.status(500).json({ message: error.message });
     }
   });
 
+  const mapEffectRow = (row: any) => ({
+    id: row.id,
+    user_email: row.userEmail,
+    user_name: row.userName,
+    name: row.name,
+    type: row.type,
+    asset_tag: row.assetTag,
+    preview_data_url: row.previewDataUrl,
+    layers: row.layers,
+    canvas_background: row.canvasBackground,
+    metadata: row.metadata,
+    project_id: row.projectId,
+    source_mode: row.sourceMode,
+    source_panel_id: row.sourcePanelId,
+    target_page: row.targetPage,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  });
+
   app.get("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, { headers: fxHeaders(), timeout: 15000 });
-      const data = await response.json();
-      res.json(data);
+      const user = req.user as any;
+      const [row] = await db.select().from(fxEffects).where(eq(fxEffects.id, req.params.id)).limit(1);
+      if (!row) {
+        const upstream = await tryUpstreamSync("GET", `${FX_API_URL}?id=${req.params.id}`);
+        if (upstream) return res.json(upstream);
+        return res.status(404).json({ message: "Effect not found" });
+      }
+      if (row.userId && row.userId !== user?.id && row.userEmail !== user?.email && user?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      res.json(mapEffectRow(row));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6695,24 +6740,40 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.post("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const body = {
-        ...req.body,
+      const body = req.body;
+
+      const [inserted] = await db.insert(fxEffects).values({
+        userId: user?.id || null,
+        userEmail: user?.email || null,
+        userName: user?.name || user?.username || null,
+        name: body.name || "Untitled",
+        type: body.type || "static-asset",
+        assetTag: body.asset_tag || null,
+        previewDataUrl: body.preview_data_url || null,
+        layers: body.layers || [],
+        canvasBackground: body.canvas_background || null,
+        metadata: body.metadata || {},
+        projectId: body.project_id || null,
+        sourceMode: body.source_mode || null,
+        sourcePanelId: body.source_panel_id || null,
+        targetPage: body.target_page || null,
+      }).returning();
+
+      tryUpstreamSync("POST", FX_API_URL, JSON.stringify({
+        ...body,
         user_email: user?.email,
         user_name: user?.name || user?.username,
-      };
-      const response = await fetchWithTimeout(FX_API_URL, {
-        method: "POST",
-        headers: fxHeaders(),
-        body: JSON.stringify(body),
-        timeout: 30000,
+      })).catch(() => {});
+
+      res.json({
+        id: inserted.id,
+        user_email: inserted.userEmail,
+        name: inserted.name,
+        type: inserted.type,
+        asset_tag: inserted.assetTag,
+        preview_data_url: inserted.previewDataUrl,
+        created_at: inserted.createdAt,
       });
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "Unknown error");
-        console.error(`FX Studio POST failed (${response.status}): ${errText}`);
-        return res.status(response.status).json({ message: `FX Studio sync failed: ${errText}` });
-      }
-      const data = await response.json();
-      res.json(data);
     } catch (error: any) {
       console.error("FX Studio POST error:", error.message);
       res.status(500).json({ message: error.message });
@@ -6721,14 +6782,26 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.patch("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, {
-        method: "PATCH",
-        headers: fxHeaders(),
-        body: JSON.stringify(req.body),
-        timeout: 15000,
-      });
-      const data = await response.json();
-      res.json(data);
+      const user = req.user as any;
+      const [existing] = await db.select().from(fxEffects).where(eq(fxEffects.id, req.params.id)).limit(1);
+      if (!existing) return res.status(404).json({ message: "Effect not found" });
+      if (existing.userId && existing.userId !== user?.id && existing.userEmail !== user?.email && user?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if (req.body.name !== undefined) updates.name = req.body.name;
+      if (req.body.layers !== undefined) updates.layers = req.body.layers;
+      if (req.body.preview_data_url !== undefined) updates.previewDataUrl = req.body.preview_data_url;
+      if (req.body.canvas_background !== undefined) updates.canvasBackground = req.body.canvas_background;
+      if (req.body.metadata !== undefined) updates.metadata = req.body.metadata;
+      if (req.body.asset_tag !== undefined) updates.assetTag = req.body.asset_tag;
+
+      const [updated] = await db.update(fxEffects).set(updates).where(eq(fxEffects.id, req.params.id)).returning();
+
+      tryUpstreamSync("PATCH", `${FX_API_URL}?id=${req.params.id}`, JSON.stringify(req.body)).catch(() => {});
+
+      res.json({ id: updated.id, name: updated.name, updated_at: updated.updatedAt });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6736,13 +6809,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.delete("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {
-      const response = await fetchWithTimeout(`${FX_API_URL}?id=${req.params.id}`, {
-        method: "DELETE",
-        headers: fxHeaders(),
-        timeout: 15000,
-      });
-      const data = await response.json();
-      res.json(data);
+      const user = req.user as any;
+      const [existing] = await db.select().from(fxEffects).where(eq(fxEffects.id, req.params.id)).limit(1);
+      if (!existing) return res.status(404).json({ message: "Effect not found" });
+      if (existing.userId && existing.userId !== user?.id && existing.userEmail !== user?.email && user?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await db.delete(fxEffects).where(eq(fxEffects.id, req.params.id));
+
+      tryUpstreamSync("DELETE", `${FX_API_URL}?id=${req.params.id}`).catch(() => {});
+
+      res.json({ success: true, id: existing.id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6780,49 +6858,41 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const type = script_data ? "comic-script" : preview_data_url ? "static-asset" : "panel-layout";
       const name = title || `Layout ${new Date().toISOString().slice(0, 16)}`;
+      const effectMetadata = {
+        ...(metadata || {}),
+        ...(pages ? { layout_data: { pages, template, title } } : {}),
+        ...(script_data ? { script_data } : {}),
+        ...(target_page ? { target_page } : {}),
+      };
 
-      const payload: Record<string, any> = {
+      const [inserted] = await db.insert(fxEffects).values({
+        name,
+        type,
+        assetTag: asset_tag || (type === "comic-script" ? "comic-script" : "interior-page"),
+        previewDataUrl: preview_data_url || null,
+        metadata: effectMetadata,
+        targetPage: target_page || null,
+      }).returning();
+
+      tryUpstreamSync("POST", FX_API_URL, JSON.stringify({
         name,
         type,
         asset_tag: asset_tag || (type === "comic-script" ? "comic-script" : "interior-page"),
         ...(target_page ? { target_page } : {}),
         ...(preview_data_url ? { preview_data_url } : {}),
-        metadata: {
-          ...(metadata || {}),
-          ...(pages ? { layout_data: { pages, template, title } } : {}),
-          ...(script_data ? { script_data } : {}),
-          ...(target_page ? { target_page } : {}),
-        },
-      };
-
-      const response = await fetchWithTimeout(FX_API_URL, {
-        method: "POST",
-        headers: fxHeaders(),
-        body: JSON.stringify(payload),
-        timeout: 30000,
-      });
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "Unknown error");
-        return res.status(502).json({ message: `Upstream sync failed: ${errText}` });
-      }
-
-      const data = await response.json();
-      const effectId = Array.isArray(data) ? data[0]?.id : data?.id;
-
-      if (!effectId) {
-        return res.status(502).json({ message: "Upstream returned no effect ID" });
-      }
+        metadata: effectMetadata,
+      })).catch(() => {});
 
       const paramKey = type === "comic-script" ? "fromScript" : "fromLayout";
 
       res.json({
         success: true,
-        effectId,
-        redirectUrl: `/comic?${paramKey}=${effectId}`,
+        effectId: inserted.id,
+        redirectUrl: `/comic?${paramKey}=${inserted.id}`,
         message: `${type === "comic-script" ? "Script" : "Layout"} synced — open redirectUrl to apply`,
       });
     } catch (error: any) {
+      console.error("Layout sync error:", error.message);
       res.status(500).json({ message: error.message });
     }
   });
