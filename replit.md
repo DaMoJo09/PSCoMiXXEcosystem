@@ -79,7 +79,10 @@ Allows creators to group comics into series with chapters, supporting auto-numbe
 Supports video/GIF export with progress tracking, drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, and a virtualized frame list.
 
 ### Platform Analytics Dashboard
-An admin-only dashboard providing 40+ KPIs across various tabs for growth, engagement, content, revenue, AI & platform, and user health.
+An admin-only dashboard providing 50+ KPIs across tabs for growth, engagement, content, revenue, AI & platform, user health, and schools. All analytics use SQL aggregation queries (no in-memory processing) for fast loading. Includes school-level breakdowns (students, teachers, admins, XP, minutes per school), newsletter subscriber tracking, login frequency metrics, and a dedicated Schools tab. Admin endpoints: `GET /api/admin/schools/overview` (full school stats), `GET /api/admin/events/summary` (platform event analytics).
+
+### Platform Event Tracking
+Internal analytics system tracking page views, feature usage, tool opens, exports, and AI generations. Data stored in `platform_events` table with userId, eventType, eventCategory, metadata (JSONB), sessionId, and userAgent. Client-side tracking batches events with 2s debounce via `trackPlatformEvent()`, `trackPageVisit()`, `trackToolOpen()`, `trackFeatureUse()`, `trackExportAction()`, `trackAIGeneration()` in `client/src/lib/analytics.ts`. Endpoint: `POST /api/events/track` (rate-limited, validated categories, max 2KB metadata). Admin summary: `GET /api/admin/events/summary?days=30`.
 
 ### Teacher Dashboard
 An enhanced dashboard for teachers with tabs for Student Roster, Assignments, Submissions, Projects, and Analytics.

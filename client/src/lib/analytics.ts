@@ -55,3 +55,59 @@ export const trackEvent = (
     value: value,
   });
 };
+
+let _sessionId: string | null = null;
+function getSessionId() {
+  if (!_sessionId) {
+    _sessionId = sessionStorage.getItem("ps_session_id");
+    if (!_sessionId) {
+      _sessionId = crypto.randomUUID();
+      sessionStorage.setItem("ps_session_id", _sessionId);
+    }
+  }
+  return _sessionId;
+}
+
+const eventQueue: Array<{ eventType: string; eventCategory: string; metadata?: any }> = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushEvents() {
+  if (eventQueue.length === 0) return;
+  const batch = eventQueue.splice(0, 20);
+  const sessionId = getSessionId();
+  for (const evt of batch) {
+    fetch("/api/events/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...evt, sessionId }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+}
+
+export function trackPlatformEvent(eventType: string, eventCategory: string, metadata?: Record<string, any>) {
+  eventQueue.push({ eventType, eventCategory, metadata });
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(flushEvents, 2000);
+}
+
+export function trackPageVisit(path: string) {
+  trackPlatformEvent("page_view", "navigation", { path });
+  trackPageView(path);
+}
+
+export function trackFeatureUse(feature: string, details?: Record<string, any>) {
+  trackPlatformEvent("feature_use", "engagement", { feature, ...details });
+}
+
+export function trackToolOpen(tool: string) {
+  trackPlatformEvent("tool_open", "creator_tools", { tool });
+}
+
+export function trackExportAction(format: string, tool: string) {
+  trackPlatformEvent("export", "creator_tools", { format, tool });
+}
+
+export function trackAIGeneration(type: string, tool: string) {
+  trackPlatformEvent("ai_generation", "ai", { type, tool });
+}

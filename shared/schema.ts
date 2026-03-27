@@ -31,6 +31,9 @@ export const users = pgTable("users", {
   parentalConsentAt: timestamp("parental_consent_at"),
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
+  loginCount: integer("login_count").default(0),
+  lastLoginAt: timestamp("last_login_at"),
+  signupSource: text("signup_source"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -2453,3 +2456,22 @@ export const tierEntitlementsSchool = {
     exportsPerMonth: -1,
   },
 } as const;
+
+export const platformEvents = pgTable("platform_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  eventType: text("event_type").notNull(),
+  eventCategory: text("event_category").notNull(),
+  metadata: jsonb("metadata"),
+  sessionId: text("session_id"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPlatformEventSchema = createInsertSchema(platformEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPlatformEvent = z.infer<typeof insertPlatformEventSchema>;
+export type PlatformEvent = typeof platformEvents.$inferSelect;

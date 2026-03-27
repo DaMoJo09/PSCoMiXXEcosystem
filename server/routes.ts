@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID, randomBytes, createHash, createHmac } from "crypto";
+import rateLimit from "express-rate-limit";
 
 function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}): Promise<globalThis.Response> {
   const { timeout = 15000, ...fetchOptions } = options;
@@ -12,7 +13,7 @@ function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema } from "@shared/schema";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
@@ -270,6 +271,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
         console.log("[auth] Login success for:", email);
         logAuditEvent("login_success", { req, userId: user.id });
+        db.execute(sql`UPDATE users SET login_count = COALESCE(login_count, 0) + 1, last_login_at = NOW() WHERE id = ${user.id}`).catch(() => {});
         return res.json({
           id: user.id,
           email: user.email,
@@ -1679,240 +1681,338 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
       const thisMonth = now.toISOString().slice(0, 7);
-      const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
       const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
-      const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      const allUsers = await db.select({
-        id: users.id, accountType: users.accountType, role: users.role,
-        createdAt: users.createdAt, lastXpHeartbeat: users.lastXpHeartbeat,
-        totalMinutes: users.totalMinutes, xp: users.xp, level: users.level,
-        creatorClass: users.creatorClass, name: users.name,
-        ipDisclosureAccepted: users.ipDisclosureAccepted,
-        userAgreementAccepted: users.userAgreementAccepted,
-        parentalConsentAt: users.parentalConsentAt,
-      }).from(users);
-      const allProjects = await db.select({
-        id: projects.id, userId: projects.userId, type: projects.type,
-        status: projects.status, createdAt: projects.createdAt,
-        viewCount: projects.viewCount,
-      }).from(projects);
+      const [
+        userCountsResult,
+        userSignupTrendsResult,
+        userActivityResult,
+        userAggregatesResult,
+        retentionResult,
+        usersWithProjectsResult,
+        projectCountsResult,
+        projectTrendsResult,
+        projectViewsResult,
+        levelDistResult,
+        creatorClassDistResult,
+        signupTimelineResult,
+        projectTimelineResult,
+        crossToolResult,
+        powerCreatorsResult,
+        atRiskResult,
+        consentResult,
+        parentalConsentResult,
+        topCreatorsResult,
+        subscriptionTierResult,
+        paidSubsResult,
+        revenueResult,
+        revenue30dResult,
+        marketplaceResult,
+        engagementByTypeResult,
+        engagement30dResult,
+        engagement7dResult,
+        aiTodayResult,
+        aiMonthResult,
+        exportMonthResult,
+        uniqueAIResult,
+        schoolStatsResult,
+        newsletterResult,
+        loginStatsResult,
+      ] = await Promise.all([
+        db.execute(sql`SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE account_type = 'student') as students,
+          COUNT(*) FILTER (WHERE account_type = 'creator') as creators,
+          COUNT(*) FILTER (WHERE role = 'admin') as admins,
+          COUNT(*) FILTER (WHERE role = 'teacher') as teachers
+          FROM users`),
+        db.execute(sql`SELECT
+          COUNT(*) FILTER (WHERE created_at >= ${sevenDaysAgo}) as last_7d,
+          COUNT(*) FILTER (WHERE created_at >= ${thirtyDaysAgo}) as last_30d,
+          COUNT(*) FILTER (WHERE created_at >= ${sixtyDaysAgo} AND created_at < ${thirtyDaysAgo}) as prev_30d
+          FROM users`),
+        db.execute(sql`SELECT
+          COUNT(*) FILTER (WHERE last_xp_heartbeat >= ${todayStart}) as dau,
+          COUNT(*) FILTER (WHERE last_xp_heartbeat >= ${sevenDaysAgo}) as wau,
+          COUNT(*) FILTER (WHERE last_xp_heartbeat >= ${thirtyDaysAgo}) as mau
+          FROM users`),
+        db.execute(sql`SELECT
+          COALESCE(AVG(total_minutes), 0)::int as avg_minutes,
+          COALESCE(SUM(total_minutes), 0)::bigint as total_minutes,
+          COALESCE(AVG(xp), 0)::int as avg_xp
+          FROM users`),
+        db.execute(sql`SELECT
+          COUNT(*) FILTER (WHERE last_xp_heartbeat > created_at) as retained,
+          COUNT(*) as total
+          FROM users WHERE created_at >= ${thirtyDaysAgo}`),
+        db.execute(sql`SELECT COUNT(DISTINCT user_id) as count FROM projects`),
+        db.execute(sql`SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'published') as published,
+          COALESCE(SUM(view_count), 0)::bigint as total_views
+          FROM projects`),
+        db.execute(sql`SELECT
+          COUNT(*) FILTER (WHERE created_at >= ${sevenDaysAgo}) as last_7d,
+          COUNT(*) FILTER (WHERE created_at >= ${thirtyDaysAgo}) as last_30d
+          FROM projects`),
+        db.execute(sql`SELECT COALESCE(SUM(view_count), 0)::bigint as total FROM projects WHERE status = 'published'`),
+        db.execute(sql`SELECT
+          CASE
+            WHEN COALESCE(level, 1) <= 5 THEN '1-5'
+            WHEN level <= 10 THEN '6-10'
+            WHEN level <= 20 THEN '11-20'
+            WHEN level <= 50 THEN '21-50'
+            ELSE '50+'
+          END as bucket,
+          COUNT(*) as count
+          FROM users GROUP BY bucket`),
+        db.execute(sql`SELECT COALESCE(creator_class, 'Rookie') as cls, COUNT(*) as count
+          FROM users GROUP BY cls`),
+        db.execute(sql`SELECT to_char(created_at, 'YYYY-MM') as month, COUNT(*) as count
+          FROM users GROUP BY month ORDER BY month`),
+        db.execute(sql`SELECT to_char(created_at, 'YYYY-MM') as month, COUNT(*) as count
+          FROM projects GROUP BY month ORDER BY month`),
+        db.execute(sql`SELECT COUNT(*) as count FROM (
+          SELECT user_id FROM projects GROUP BY user_id HAVING COUNT(DISTINCT type) >= 2
+        ) sub`),
+        db.execute(sql`SELECT COUNT(*) as count FROM users
+          WHERE total_minutes > 300 AND xp > 1000`),
+        db.execute(sql`SELECT COUNT(*) as count FROM users
+          WHERE (last_xp_heartbeat IS NULL OR last_xp_heartbeat < ${thirtyDaysAgo})
+          AND total_minutes > 30`),
+        db.execute(sql`SELECT COUNT(*) as count FROM users
+          WHERE ip_disclosure_accepted IS NOT NULL OR user_agreement_accepted IS NOT NULL`),
+        db.execute(sql`SELECT COUNT(*) as count FROM users
+          WHERE account_type = 'student' AND parental_consent_at IS NOT NULL`),
+        db.execute(sql`SELECT u.name, u.xp, u.level, u.total_minutes as minutes,
+          COALESCE(p.project_count, 0) as projects
+          FROM users u
+          LEFT JOIN (SELECT user_id, COUNT(*) as project_count FROM projects GROUP BY user_id) p
+          ON u.id = p.user_id
+          ORDER BY u.xp DESC NULLS LAST LIMIT 10`),
+        db.execute(sql`SELECT COALESCE(tier, 'free') as tier, COUNT(*) as count
+          FROM subscriptions GROUP BY tier`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT COUNT(*) as count FROM subscriptions
+          WHERE status = 'active' AND tier != 'free'`).catch(() => ({ rows: [{ count: 0 }] })),
+        db.execute(sql`SELECT
+          COALESCE(SUM(amount), 0)::bigint as total,
+          type, COUNT(*) as event_count
+          FROM revenue_events GROUP BY type`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT COALESCE(SUM(amount), 0)::bigint as total
+          FROM revenue_events WHERE created_at >= ${thirtyDaysAgo}`).catch(() => ({ rows: [{ total: 0 }] })),
+        db.execute(sql`SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'active') as active,
+          COALESCE(SUM(sales_count), 0)::bigint as total_sales,
+          COALESCE(SUM(total_earnings), 0)::bigint as total_earnings,
+          COALESCE(AVG(price_in_cents) FILTER (WHERE price_in_cents > 0), 0)::int as avg_price
+          FROM marketplace_listings`).catch(() => ({ rows: [{ total: 0, active: 0, total_sales: 0, total_earnings: 0, avg_price: 0 }] })),
+        db.execute(sql`SELECT event_type, COUNT(*) as count
+          FROM engagement_events GROUP BY event_type`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT COUNT(*) as count FROM engagement_events
+          WHERE created_at >= ${thirtyDaysAgo}`).catch(() => ({ rows: [{ count: 0 }] })),
+        db.execute(sql`SELECT COUNT(*) as count FROM engagement_events
+          WHERE created_at >= ${sevenDaysAgo}`).catch(() => ({ rows: [{ count: 0 }] })),
+        db.execute(sql`SELECT COALESCE(SUM(count), 0)::bigint as total FROM usage_tracking
+          WHERE action_type = 'ai_generation' AND period_key = ${today}`).catch(() => ({ rows: [{ total: 0 }] })),
+        db.execute(sql`SELECT COALESCE(SUM(count), 0)::bigint as total FROM usage_tracking
+          WHERE action_type = 'ai_generation' AND period_key = ${thisMonth}`).catch(() => ({ rows: [{ total: 0 }] })),
+        db.execute(sql`SELECT COALESCE(SUM(count), 0)::bigint as total FROM usage_tracking
+          WHERE action_type = 'export' AND period_key = ${thisMonth}`).catch(() => ({ rows: [{ total: 0 }] })),
+        db.execute(sql`SELECT COUNT(DISTINCT user_id) as count FROM usage_tracking
+          WHERE action_type = 'ai_generation'`).catch(() => ({ rows: [{ count: 0 }] })),
+        db.execute(sql`SELECT s.id, s.name, s.verified,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'student') as student_count,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'teacher') as teacher_count,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'admin') as admin_count,
+          COALESCE(SUM(u.xp), 0)::bigint as total_xp,
+          COALESCE(SUM(u.total_minutes), 0)::bigint as total_minutes
+          FROM schools s LEFT JOIN school_memberships sm ON s.id = sm.school_id
+          LEFT JOIN users u ON sm.user_id = u.id
+          GROUP BY s.id, s.name, s.verified
+          ORDER BY student_count DESC`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'active') as active
+          FROM newsletter_subscribers`).catch(() => ({ rows: [{ total: 0, active: 0 }] })),
+        db.execute(sql`SELECT
+          COUNT(*) FILTER (WHERE login_count > 0) as users_with_logins,
+          COALESCE(AVG(login_count) FILTER (WHERE login_count > 0), 0)::int as avg_logins,
+          COUNT(*) FILTER (WHERE last_login_at >= ${sevenDaysAgo}) as logins_7d
+          FROM users`).catch(() => ({ rows: [{ users_with_logins: 0, avg_logins: 0, logins_7d: 0 }] })),
+      ]);
 
-      const totalUsers = allUsers.length;
-      const studentUsers = allUsers.filter(u => u.accountType === "student").length;
-      const creatorUsers = allUsers.filter(u => u.accountType === "creator").length;
-      const adminUsers = allUsers.filter(u => u.role === "admin").length;
+      const uc = userCountsResult.rows[0] as any;
+      const totalUsers = Number(uc.total);
+      const studentUsers = Number(uc.students);
+      const creatorUsers = Number(uc.creators);
+      const adminUsers = Number(uc.admins);
+      const teacherUsers = Number(uc.teachers);
 
-      const usersLast7d = allUsers.filter(u => new Date(u.createdAt) >= sevenDaysAgo).length;
-      const usersLast30d = allUsers.filter(u => new Date(u.createdAt) >= thirtyDaysAgo).length;
-      const usersPrev30d = allUsers.filter(u => {
-        const d = new Date(u.createdAt);
-        return d >= sixtyDaysAgo && d < thirtyDaysAgo;
-      }).length;
+      const ut = userSignupTrendsResult.rows[0] as any;
+      const usersLast7d = Number(ut.last_7d);
+      const usersLast30d = Number(ut.last_30d);
+      const usersPrev30d = Number(ut.prev_30d);
       const userGrowthRate = usersPrev30d > 0 ? ((usersLast30d - usersPrev30d) / usersPrev30d * 100).toFixed(1) : "N/A";
 
-      const activeToday = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat).toISOString().slice(0, 10) === today).length;
-      const activeLast7d = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) >= sevenDaysAgo).length;
-      const activeLast30d = allUsers.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) >= thirtyDaysAgo).length;
+      const ua = userActivityResult.rows[0] as any;
+      const activeToday = Number(ua.dau);
+      const activeLast7d = Number(ua.wau);
+      const activeLast30d = Number(ua.mau);
       const dauMauRatio = activeLast30d > 0 ? (activeToday / activeLast30d * 100).toFixed(1) : "0";
 
-      const avgTimeSpent = totalUsers > 0 ? Math.round(allUsers.reduce((sum, u) => sum + (u.totalMinutes || 0), 0) / totalUsers) : 0;
-      const totalPlatformMinutes = allUsers.reduce((sum, u) => sum + (u.totalMinutes || 0), 0);
-      const avgXpPerUser = totalUsers > 0 ? Math.round(allUsers.reduce((sum, u) => sum + (u.xp || 0), 0) / totalUsers) : 0;
+      const uag = userAggregatesResult.rows[0] as any;
+      const avgTimeSpent = Number(uag.avg_minutes);
+      const totalPlatformMinutes = Number(uag.total_minutes);
+      const avgXpPerUser = Number(uag.avg_xp);
 
-      const usersSignedUp30d = allUsers.filter(u => new Date(u.createdAt) >= thirtyDaysAgo);
-      const retainedUsers = usersSignedUp30d.filter(u => u.lastXpHeartbeat && new Date(u.lastXpHeartbeat) > new Date(u.createdAt));
-      const day30Retention = usersSignedUp30d.length > 0 ? (retainedUsers.length / usersSignedUp30d.length * 100).toFixed(1) : "0";
+      const ret = retentionResult.rows[0] as any;
+      const day30Retention = Number(ret.total) > 0 ? (Number(ret.retained) / Number(ret.total) * 100).toFixed(1) : "0";
 
-      const usersWithProjects = new Set(allProjects.map(p => p.userId)).size;
+      const usersWithProjects = Number((usersWithProjectsResult.rows[0] as any).count);
       const activationRate = totalUsers > 0 ? (usersWithProjects / totalUsers * 100).toFixed(1) : "0";
 
-      const totalProjects = allProjects.length;
-      const projectsByType: Record<string, number> = {};
-      const projectsByStatus: Record<string, number> = {};
-      allProjects.forEach(p => {
-        projectsByType[p.type] = (projectsByType[p.type] || 0) + 1;
-        projectsByStatus[p.status] = (projectsByStatus[p.status] || 0) + 1;
-      });
-      const projectsLast7d = allProjects.filter(p => new Date(p.createdAt) >= sevenDaysAgo).length;
-      const projectsLast30d = allProjects.filter(p => new Date(p.createdAt) >= thirtyDaysAgo).length;
+      const pc = projectCountsResult.rows[0] as any;
+      const totalProjects = Number(pc.total);
+      const publishedProjects = Number(pc.published);
+      const totalContentViews = Number(pc.total_views);
+
+      const pt = projectTrendsResult.rows[0] as any;
+      const projectsLast7d = Number(pt.last_7d);
+      const projectsLast30d = Number(pt.last_30d);
       const avgProjectsPerUser = totalUsers > 0 ? (totalProjects / totalUsers).toFixed(1) : "0";
-      const publishedProjects = allProjects.filter(p => p.status === "published").length;
       const publishRate = totalProjects > 0 ? (publishedProjects / totalProjects * 100).toFixed(1) : "0";
-
-      const projectsWithViews = allProjects.filter(p => (p.viewCount || 0) > 0);
-      const totalContentViews = allProjects.reduce((sum, p) => sum + (p.viewCount || 0), 0);
       const avgViewsPerProject = publishedProjects > 0 ? Math.round(totalContentViews / publishedProjects) : 0;
-
-      let subscriptionData: any[] = [];
-      let revenueData: any[] = [];
-      let marketplaceData: any[] = [];
-      let engagementData: any[] = [];
-      let usageData: any[] = [];
-
-      try { subscriptionData = await db.select({ status: subscriptions.status, tier: subscriptions.tier }).from(subscriptions); } catch {}
-      try { revenueData = await db.select({ type: revenueEvents.type, amount: revenueEvents.amount, createdAt: revenueEvents.createdAt }).from(revenueEvents); } catch {}
-      try { marketplaceData = await db.select({ status: marketplaceListings.status, priceInCents: marketplaceListings.priceInCents, salesCount: marketplaceListings.salesCount, totalEarnings: marketplaceListings.totalEarnings }).from(marketplaceListings); } catch {}
-      try { engagementData = await db.select({ eventType: engagementEvents.eventType, createdAt: engagementEvents.createdAt }).from(engagementEvents); } catch {}
-      try { usageData = await db.select({ actionType: usageTracking.actionType, periodKey: usageTracking.periodKey, count: usageTracking.count, userId: usageTracking.userId }).from(usageTracking); } catch {}
-
-      const paidSubscriptions = subscriptionData.filter((s: any) => s.status === "active" && s.tier !== "free");
-      const subscriptionsByTier: Record<string, number> = {};
-      subscriptionData.forEach((s: any) => {
-        const tier = s.tier || "free";
-        subscriptionsByTier[tier] = (subscriptionsByTier[tier] || 0) + 1;
-      });
-      const conversionRate = totalUsers > 0 ? (paidSubscriptions.length / totalUsers * 100).toFixed(1) : "0";
-
-      const totalRevenue = revenueData.reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
-      const revenueByType: Record<string, number> = {};
-      revenueData.forEach((r: any) => {
-        revenueByType[r.type] = (revenueByType[r.type] || 0) + (r.amount || 0);
-      });
-      const revenueLast30d = revenueData.filter((r: any) => new Date(r.createdAt) >= thirtyDaysAgo).reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
-      const arpu = paidSubscriptions.length > 0 ? (totalRevenue / paidSubscriptions.length / 100).toFixed(2) : "0";
-
-      const totalListings = marketplaceData.length;
-      const activeListings = marketplaceData.filter((l: any) => l.status === "active").length;
-      const totalSales = marketplaceData.reduce((sum: number, l: any) => sum + (l.salesCount || 0), 0);
-      const totalMarketplaceRevenue = marketplaceData.reduce((sum: number, l: any) => sum + (l.totalEarnings || 0), 0);
-      const avgPricePoint = activeListings > 0 ? Math.round(marketplaceData.filter((l: any) => l.priceInCents > 0).reduce((sum: number, l: any) => sum + l.priceInCents, 0) / Math.max(1, marketplaceData.filter((l: any) => l.priceInCents > 0).length)) : 0;
-
-      const engagementByType: Record<string, number> = {};
-      engagementData.forEach((e: any) => {
-        engagementByType[e.eventType] = (engagementByType[e.eventType] || 0) + 1;
-      });
-      const engagementLast30d = engagementData.filter((e: any) => new Date(e.createdAt) >= thirtyDaysAgo).length;
-      const engagementLast7d = engagementData.filter((e: any) => new Date(e.createdAt) >= sevenDaysAgo).length;
-
-      const aiUsageToday = usageData.filter((u: any) => u.actionType === "ai_generation" && u.periodKey === today).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
-      const aiUsageMonth = usageData.filter((u: any) => u.actionType === "ai_generation" && u.periodKey === thisMonth).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
-      const exportUsageMonth = usageData.filter((u: any) => u.actionType === "export" && u.periodKey === thisMonth).reduce((sum: number, u: any) => sum + (u.count || 0), 0);
-      const uniqueAIUsers = new Set(usageData.filter((u: any) => u.actionType === "ai_generation").map((u: any) => u.userId)).size;
-      const aiAdoptionRate = totalUsers > 0 ? (uniqueAIUsers / totalUsers * 100).toFixed(1) : "0";
-
-      const levelDistribution: Record<string, number> = {};
-      allUsers.forEach(u => {
-        const bucket = u.level! <= 5 ? "1-5" : u.level! <= 10 ? "6-10" : u.level! <= 20 ? "11-20" : u.level! <= 50 ? "21-50" : "50+";
-        levelDistribution[bucket] = (levelDistribution[bucket] || 0) + 1;
-      });
-
-      const creatorClassDistribution: Record<string, number> = {};
-      allUsers.forEach(u => {
-        const cls = u.creatorClass || "Rookie";
-        creatorClassDistribution[cls] = (creatorClassDistribution[cls] || 0) + 1;
-      });
-
-      const userSignupTimeline: Record<string, number> = {};
-      allUsers.forEach(u => {
-        const month = new Date(u.createdAt).toISOString().slice(0, 7);
-        userSignupTimeline[month] = (userSignupTimeline[month] || 0) + 1;
-      });
-
-      const projectCreationTimeline: Record<string, number> = {};
-      allProjects.forEach(p => {
-        const month = new Date(p.createdAt).toISOString().slice(0, 7);
-        projectCreationTimeline[month] = (projectCreationTimeline[month] || 0) + 1;
-      });
-
-      const multiToolCreators = Object.entries(
-        allProjects.reduce((acc: Record<string, Set<string>>, p) => {
-          if (!acc[p.userId]) acc[p.userId] = new Set();
-          acc[p.userId].add(p.type);
-          return acc;
-        }, {})
-      ).filter(([_, types]) => (types as Set<string>).size >= 2).length;
-      const crossToolAdoption = totalUsers > 0 ? (multiToolCreators / totalUsers * 100).toFixed(1) : "0";
-
-      const powerCreators = allUsers.filter(u => (u.totalMinutes || 0) > 300 && (u.xp || 0) > 1000).length;
-      const atRiskUsers = allUsers.filter(u => {
-        if (!u.lastXpHeartbeat) return true;
-        return new Date(u.lastXpHeartbeat) < thirtyDaysAgo && (u.totalMinutes || 0) > 30;
-      }).length;
-
-      const topCreators = [...allUsers]
-        .sort((a, b) => (b.xp || 0) - (a.xp || 0))
-        .slice(0, 10)
-        .map(u => ({ name: u.name, xp: u.xp, level: u.level, minutes: u.totalMinutes, projects: allProjects.filter(p => p.userId === u.id).length }));
-
       const contentVelocity = activeLast30d > 0 ? (projectsLast30d / activeLast30d).toFixed(2) : "0";
 
-      const consentCompletionRate = totalUsers > 0 ? (allUsers.filter(u => u.ipDisclosureAccepted || u.userAgreementAccepted).length / totalUsers * 100).toFixed(1) : "0";
-      const parentalConsentRate = studentUsers > 0 ? (allUsers.filter(u => u.accountType === "student" && u.parentalConsentAt).length / studentUsers * 100).toFixed(1) : "0";
+      const projectsByType: Record<string, number> = {};
+      const projectsByStatus: Record<string, number> = {};
+      try {
+        const typeRows = await db.execute(sql`SELECT type, COUNT(*) as count FROM projects GROUP BY type`);
+        typeRows.rows.forEach((r: any) => { projectsByType[r.type] = Number(r.count); });
+        const statusRows = await db.execute(sql`SELECT status, COUNT(*) as count FROM projects GROUP BY status`);
+        statusRows.rows.forEach((r: any) => { projectsByStatus[r.status] = Number(r.count); });
+      } catch {}
+
+      const levelDistribution: Record<string, number> = {};
+      levelDistResult.rows.forEach((r: any) => { levelDistribution[r.bucket] = Number(r.count); });
+
+      const creatorClassDistribution: Record<string, number> = {};
+      creatorClassDistResult.rows.forEach((r: any) => { creatorClassDistribution[r.cls] = Number(r.count); });
+
+      const userSignupTimeline: Record<string, number> = {};
+      signupTimelineResult.rows.forEach((r: any) => { userSignupTimeline[r.month] = Number(r.count); });
+
+      const projectCreationTimeline: Record<string, number> = {};
+      projectTimelineResult.rows.forEach((r: any) => { projectCreationTimeline[r.month] = Number(r.count); });
+
+      const multiToolCreators = Number((crossToolResult.rows[0] as any).count);
+      const crossToolAdoption = totalUsers > 0 ? (multiToolCreators / totalUsers * 100).toFixed(1) : "0";
+
+      const powerCreators = Number((powerCreatorsResult.rows[0] as any).count);
+      const atRiskUsers = Number((atRiskResult.rows[0] as any).count);
+
+      const consentCount = Number((consentResult.rows[0] as any).count);
+      const consentCompletionRate = totalUsers > 0 ? (consentCount / totalUsers * 100).toFixed(1) : "0";
+      const parentalConsentCount = Number((parentalConsentResult.rows[0] as any).count);
+      const parentalConsentRate = studentUsers > 0 ? (parentalConsentCount / studentUsers * 100).toFixed(1) : "0";
+
+      const topCreators = topCreatorsResult.rows.map((r: any) => ({
+        name: r.name, xp: r.xp, level: r.level, minutes: r.minutes, projects: Number(r.projects),
+      }));
+
+      const subscriptionsByTier: Record<string, number> = {};
+      subscriptionTierResult.rows.forEach((r: any) => { subscriptionsByTier[r.tier] = Number(r.count); });
+      const paidSubscriptionsCount = Number((paidSubsResult.rows[0] as any).count);
+      const conversionRate = totalUsers > 0 ? (paidSubscriptionsCount / totalUsers * 100).toFixed(1) : "0";
+
+      let totalRevenue = 0;
+      const revenueByType: Record<string, number> = {};
+      revenueResult.rows.forEach((r: any) => {
+        totalRevenue += Number(r.total);
+        revenueByType[r.type] = Number(r.total);
+      });
+      const revenueLast30d = Number((revenue30dResult.rows[0] as any).total);
+      const arpu = paidSubscriptionsCount > 0 ? (totalRevenue / paidSubscriptionsCount / 100).toFixed(2) : "0";
+
+      const mp = marketplaceResult.rows[0] as any;
+      const totalListings = Number(mp.total);
+      const activeListings = Number(mp.active);
+      const totalSales = Number(mp.total_sales);
+      const totalMarketplaceRevenue = Number(mp.total_earnings);
+      const avgPricePoint = Number(mp.avg_price);
+
+      const engagementByType: Record<string, number> = {};
+      engagementByTypeResult.rows.forEach((r: any) => { engagementByType[r.event_type] = Number(r.count); });
+      const engagementLast30d = Number((engagement30dResult.rows[0] as any).count);
+      const engagementLast7d = Number((engagement7dResult.rows[0] as any).count);
+
+      const aiUsageToday = Number((aiTodayResult.rows[0] as any).total);
+      const aiUsageMonth = Number((aiMonthResult.rows[0] as any).total);
+      const exportUsageMonth = Number((exportMonthResult.rows[0] as any).total);
+      const uniqueAIUsers = Number((uniqueAIResult.rows[0] as any).count);
+      const aiAdoptionRate = totalUsers > 0 ? (uniqueAIUsers / totalUsers * 100).toFixed(1) : "0";
+
+      const schoolStats = schoolStatsResult.rows.map((r: any) => ({
+        id: r.id, name: r.name, verified: r.verified,
+        students: Number(r.student_count), teachers: Number(r.teacher_count), admins: Number(r.admin_count),
+        totalXp: Number(r.total_xp || 0), totalMinutes: Number(r.total_minutes || 0),
+      }));
+      const totalSchools = schoolStats.length;
+      const totalSchoolStudents = schoolStats.reduce((s: number, sc: any) => s + sc.students, 0);
+      const totalSchoolTeachers = schoolStats.reduce((s: number, sc: any) => s + sc.teachers, 0);
+
+      const nl = newsletterResult.rows[0] as any;
+      const ls = loginStatsResult.rows[0] as any;
 
       res.json({
         generatedAt: now.toISOString(),
         growth: {
-          totalUsers,
-          studentUsers,
-          creatorUsers,
-          adminUsers,
-          usersLast7d,
-          usersLast30d,
-          userGrowthRate,
-          userSignupTimeline,
+          totalUsers, studentUsers, creatorUsers, adminUsers, teacherUsers,
+          usersLast7d, usersLast30d, userGrowthRate, userSignupTimeline,
         },
         engagement: {
-          dau: activeToday,
-          wau: activeLast7d,
-          mau: activeLast30d,
-          dauMauRatio,
-          avgTimeSpentMinutes: avgTimeSpent,
-          totalPlatformMinutes,
-          avgXpPerUser,
-          day30Retention,
-          activationRate,
-          engagementByType,
-          engagementLast7d,
-          engagementLast30d,
+          dau: activeToday, wau: activeLast7d, mau: activeLast30d, dauMauRatio,
+          avgTimeSpentMinutes: avgTimeSpent, totalPlatformMinutes, avgXpPerUser,
+          day30Retention, activationRate,
+          engagementByType, engagementLast7d, engagementLast30d,
+          usersLoggedIn7d: Number(ls.logins_7d),
+          avgLoginsPerUser: Number(ls.avg_logins),
         },
         content: {
-          totalProjects,
-          projectsByType,
-          projectsByStatus,
-          projectsLast7d,
-          projectsLast30d,
-          avgProjectsPerUser,
-          publishRate,
-          totalContentViews,
-          avgViewsPerProject,
-          contentVelocity,
-          projectCreationTimeline,
+          totalProjects, projectsByType, projectsByStatus,
+          projectsLast7d, projectsLast30d, avgProjectsPerUser,
+          publishRate, totalContentViews, avgViewsPerProject,
+          contentVelocity, projectCreationTimeline,
         },
         revenue: {
-          totalRevenueCents: totalRevenue,
-          revenueLast30dCents: revenueLast30d,
-          revenueByType,
-          arpu,
-          subscriptionsByTier,
-          paidSubscriptions: paidSubscriptions.length,
-          conversionRate,
-          totalListings,
-          activeListings,
+          totalRevenueCents: totalRevenue, revenueLast30dCents: revenueLast30d,
+          revenueByType, arpu, subscriptionsByTier,
+          paidSubscriptions: paidSubscriptionsCount, conversionRate,
+          totalListings, activeListings,
           totalMarketplaceSales: totalSales,
           totalMarketplaceRevenueCents: totalMarketplaceRevenue,
           avgPricePointCents: avgPricePoint,
         },
         aiPlatform: {
-          aiUsageToday,
-          aiUsageMonth,
-          exportUsageMonth,
-          uniqueAIUsers,
-          aiAdoptionRate,
+          aiUsageToday, aiUsageMonth, exportUsageMonth, uniqueAIUsers, aiAdoptionRate,
         },
         userHealth: {
-          levelDistribution,
-          creatorClassDistribution,
-          crossToolAdoption,
-          powerCreators,
-          atRiskUsers,
-          topCreators,
+          levelDistribution, creatorClassDistribution, crossToolAdoption,
+          powerCreators, atRiskUsers, topCreators,
         },
         compliance: {
-          consentCompletionRate,
-          parentalConsentRate,
+          consentCompletionRate, parentalConsentRate,
+        },
+        schools: {
+          totalSchools, totalSchoolStudents, totalSchoolTeachers, schoolStats,
+        },
+        newsletter: {
+          totalSubscribers: Number(nl.total),
+          activeSubscribers: Number(nl.active),
         },
       });
     } catch (error: any) {
@@ -4256,6 +4356,95 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const subscribers = await storage.getNewsletterSubscribers();
       res.json(subscribers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  const ALLOWED_EVENT_CATEGORIES = ["navigation", "engagement", "creator_tools", "ai", "social", "marketplace"];
+  const eventTrackLimiter = rateLimit({ windowMs: 60000, max: 60, standardHeaders: false, legacyHeaders: false });
+  app.post("/api/events/track", eventTrackLimiter, async (req, res) => {
+    try {
+      const { eventType, eventCategory, metadata, sessionId } = req.body;
+      if (!eventType || typeof eventType !== "string" || eventType.length > 100) {
+        return res.status(400).json({ message: "Invalid eventType" });
+      }
+      if (!eventCategory || !ALLOWED_EVENT_CATEGORIES.includes(eventCategory)) {
+        return res.status(400).json({ message: "Invalid eventCategory" });
+      }
+      const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
+      const metaStr = JSON.stringify(safeMetadata);
+      if (metaStr.length > 2048) {
+        return res.status(400).json({ message: "Metadata too large" });
+      }
+      const userId = (req.user as any)?.id || null;
+      const userAgent = (req.headers["user-agent"] || "").slice(0, 500);
+      const safeSessionId = typeof sessionId === "string" ? sessionId.slice(0, 64) : null;
+      await db.execute(sql`INSERT INTO platform_events (user_id, event_type, event_category, metadata, session_id, user_agent)
+        VALUES (${userId}, ${eventType.slice(0, 100)}, ${eventCategory}, ${metaStr}::jsonb, ${safeSessionId}, ${userAgent})`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[events/track] Error:", error.message);
+      res.status(500).json({ message: "Failed to track event" });
+    }
+  });
+
+  app.get("/api/admin/events/summary", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const since = new Date(Date.now() - days * 86400000);
+      const [byCategory, byType, dailyCounts] = await Promise.all([
+        db.execute(sql`SELECT event_category, COUNT(*) as count FROM platform_events
+          WHERE created_at >= ${since} GROUP BY event_category ORDER BY count DESC`),
+        db.execute(sql`SELECT event_type, COUNT(*) as count FROM platform_events
+          WHERE created_at >= ${since} GROUP BY event_type ORDER BY count DESC LIMIT 50`),
+        db.execute(sql`SELECT to_char(created_at, 'YYYY-MM-DD') as day, COUNT(*) as count
+          FROM platform_events WHERE created_at >= ${since}
+          GROUP BY day ORDER BY day`),
+      ]);
+      res.json({
+        byCategory: byCategory.rows,
+        byType: byType.rows,
+        dailyCounts: dailyCounts.rows,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/admin/schools/overview", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const [schoolsData, membershipStats] = await Promise.all([
+        db.execute(sql`SELECT s.*,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'student') as student_count,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'teacher') as teacher_count,
+          COUNT(DISTINCT sm.user_id) FILTER (WHERE sm.role = 'admin') as admin_count,
+          COALESCE(SUM(u.xp), 0)::bigint as total_xp,
+          COALESCE(SUM(u.total_minutes), 0)::bigint as total_minutes
+          FROM schools s
+          LEFT JOIN school_memberships sm ON s.id = sm.school_id
+          LEFT JOIN users u ON sm.user_id = u.id
+          GROUP BY s.id ORDER BY student_count DESC`),
+        db.execute(sql`SELECT
+          COUNT(DISTINCT school_id) as total_schools,
+          COUNT(DISTINCT user_id) FILTER (WHERE role = 'student') as total_students,
+          COUNT(DISTINCT user_id) FILTER (WHERE role = 'teacher') as total_teachers
+          FROM school_memberships`),
+      ]);
+      const stats = membershipStats.rows[0] as any;
+      res.json({
+        totalSchools: Number(stats.total_schools),
+        totalStudents: Number(stats.total_students),
+        totalTeachers: Number(stats.total_teachers),
+        schools: schoolsData.rows.map((s: any) => ({
+          id: s.id, name: s.name, slug: s.slug, verified: s.verified,
+          contactEmail: s.contact_email, location: s.location,
+          students: Number(s.student_count), teachers: Number(s.teacher_count),
+          admins: Number(s.admin_count),
+          totalXp: Number(s.total_xp), totalMinutes: Number(s.total_minutes),
+          createdAt: s.created_at,
+        })),
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -8348,16 +8537,24 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const toolUsage: Record<string, number> = {};
 
+      const studentIds = studentsList.map((s: any) => s.id);
       for (const student of studentsList) {
         totalXp += student.xp || 0;
         totalMinutes += student.totalMinutes || 0;
         if (student.lastActiveAt && new Date(student.lastActiveAt) >= today) {
           activeToday++;
         }
-        const studentProjects = await storage.getUserProjectsMeta(student.id);
-        studentProjects.forEach((p: any) => {
-          toolUsage[p.type] = (toolUsage[p.type] || 0) + 1;
-        });
+      }
+
+      if (studentIds.length > 0) {
+        try {
+          const projectTypeRows = await db.execute(
+            sql`SELECT type, COUNT(*) as count FROM projects WHERE user_id = ANY(${studentIds}::text[]) GROUP BY type`
+          );
+          projectTypeRows.rows.forEach((r: any) => {
+            toolUsage[r.type] = Number(r.count);
+          });
+        } catch {}
       }
 
       const topStudents = [...studentsList]

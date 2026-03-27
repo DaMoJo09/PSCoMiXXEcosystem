@@ -6,7 +6,8 @@ import {
   BarChart3, Users, TrendingUp, DollarSign, Zap, Heart,
   Activity, Target, BookOpen, ShoppingCart, Brain, Shield,
   ArrowUp, ArrowDown, Minus, Clock, Star, Layers,
-  Eye, MessageSquare, ThumbsUp, Share2, Award, Gauge
+  Eye, MessageSquare, ThumbsUp, Share2, Award, Gauge,
+  School, Mail, LogIn
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -47,7 +48,7 @@ function SectionHeader({ title, icon: Icon, color }: { title: string; icon: any;
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "growth" | "engagement" | "content" | "revenue" | "ai" | "health">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "growth" | "engagement" | "content" | "revenue" | "ai" | "health" | "schools">("overview");
 
   const { data: analytics, isLoading, error } = useQuery({
     queryKey: ["/api/analytics/platform"],
@@ -107,6 +108,7 @@ export default function AnalyticsDashboard() {
     { id: "revenue", label: "Revenue", icon: DollarSign },
     { id: "ai", label: "AI & Platform", icon: Brain },
     { id: "health", label: "User Health", icon: Activity },
+    { id: "schools", label: "Schools", icon: School },
   ] as const;
 
   const signupData = Object.entries(d.growth?.userSignupTimeline || {}).map(([month, count]) => ({ month, users: count })).slice(-12);
@@ -515,8 +517,61 @@ export default function AnalyticsDashboard() {
           </>
         )}
 
+        {(activeTab === "overview" || activeTab === "schools") && (
+          <>
+            <SectionHeader title="Schools & Education" icon={School} color="#14F195" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard label="Total Schools" value={d.schools?.totalSchools || 0} icon={School} color="#14F195" />
+              <MetricCard label="School Students" value={d.schools?.totalSchoolStudents || 0} icon={Users} color="#14F195" />
+              <MetricCard label="School Teachers" value={d.schools?.totalSchoolTeachers || 0} icon={Users} color="#00BFFF" />
+              <MetricCard label="Teacher Accounts" value={d.growth?.teacherUsers || 0} icon={Users} color="#00BFFF" />
+            </div>
+            {(d.schools?.schoolStats || []).length > 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 p-4 mt-4">
+                <h3 className="text-xs font-bold uppercase text-zinc-500 mb-3">Schools Breakdown</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        <th className="text-left py-2 px-2 text-zinc-500">School</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Students</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Teachers</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Admins</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Total XP</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Total Minutes</th>
+                        <th className="text-right py-2 px-2 text-zinc-500">Verified</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(d.schools?.schoolStats || []).map((s: any) => (
+                        <tr key={s.id} className="border-b border-zinc-800/50">
+                          <td className="py-2 px-2 font-bold text-white">{s.name}</td>
+                          <td className="py-2 px-2 text-right text-green-400">{s.students}</td>
+                          <td className="py-2 px-2 text-right text-cyan-400">{s.teachers}</td>
+                          <td className="py-2 px-2 text-right text-purple-400">{s.admins}</td>
+                          <td className="py-2 px-2 text-right text-yellow-400">{(s.totalXp || 0).toLocaleString()}</td>
+                          <td className="py-2 px-2 text-right text-zinc-400">{(s.totalMinutes || 0).toLocaleString()}</td>
+                          <td className="py-2 px-2 text-right">{s.verified ? "Yes" : "No"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <SectionHeader title="Newsletter & Outreach" icon={Mail} color="#FFD700" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard label="Newsletter Subscribers" value={d.newsletter?.totalSubscribers || 0} icon={Mail} color="#FFD700" />
+              <MetricCard label="Active Subscribers" value={d.newsletter?.activeSubscribers || 0} icon={Mail} color="#14F195" />
+              <MetricCard label="Users Logged In (7d)" value={d.engagement?.usersLoggedIn7d || 0} icon={LogIn} color="#00BFFF" />
+              <MetricCard label="Avg Logins/User" value={d.engagement?.avgLoginsPerUser || 0} icon={LogIn} color="#9945FF" />
+            </div>
+          </>
+        )}
+
         <div className="mt-8 border-t border-zinc-800 pt-4 text-center">
-          <p className="text-[9px] text-zinc-600 font-mono">PSCoMiXX Analytics Engine v1.0 | Data refreshes every 60 seconds | Admin eyes only</p>
+          <p className="text-[9px] text-zinc-600 font-mono">PSCoMiXX Analytics Engine v2.0 | Data refreshes every 60 seconds | Admin eyes only</p>
         </div>
       </div>
     </Layout>
