@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { authApi } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -29,44 +29,81 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const IDLE_TIMEOUT_MS = 90_000;
+const HEARTBEAT_INTERVAL_MS = 60_000;
+const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "pointerdown"] as const;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const hadActivitySinceLastBeat = useRef<boolean>(true);
+
+  const markActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    hadActivitySinceLastBeat.current = true;
+  }, []);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   useEffect(() => {
-    if (user) {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      heartbeatRef.current = setInterval(async () => {
-        try {
-          const res = await fetch("/api/xp/heartbeat", {
-            method: "POST",
-            credentials: "include",
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, levelTitle: data.levelTitle || prev.levelTitle, totalMinutes: data.totalMinutes } : null);
-          }
-        } catch {}
-      }, 60000);
+    if (!user) return;
 
-      fetch("/api/xp/heartbeat", { method: "POST", credentials: "include" })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data) setUser(prev => prev ? { ...prev, xp: data.xp, level: data.level, levelTitle: data.levelTitle || prev.levelTitle, totalMinutes: data.totalMinutes } : null);
-        })
-        .catch(() => {});
-
-      return () => {
-        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      };
+    for (const event of ACTIVITY_EVENTS) {
+      window.addEventListener(event, markActivity, { passive: true, capture: true });
     }
-  }, [user?.id]);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        markActivity();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const sendHeartbeat = async () => {
+      const now = Date.now();
+      const idleMs = now - lastActivityRef.current;
+      const isActive = idleMs < IDLE_TIMEOUT_MS && hadActivitySinceLastBeat.current;
+
+      hadActivitySinceLastBeat.current = false;
+
+      try {
+        const res = await fetch("/api/xp/heartbeat", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: isActive, idleSeconds: Math.floor(idleMs / 1000) }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(prev => prev ? {
+            ...prev,
+            xp: data.xp,
+            level: data.level,
+            levelTitle: data.levelTitle || prev.levelTitle,
+            totalMinutes: data.totalMinutes,
+          } : null);
+        }
+      } catch {}
+    };
+
+    sendHeartbeat();
+
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    heartbeatRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      for (const event of ACTIVITY_EVENTS) {
+        window.removeEventListener(event, markActivity, true);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user?.id, markActivity]);
 
   async function checkAuth() {
     try {

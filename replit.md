@@ -39,7 +39,7 @@ Supports multiple subscription tiers (Free, Creator, Pro, Studio, Lifetime, Scho
 Projects progress through draft, review, and publication stages, conforming to the PS Content Bundle v1 format, with validation, bundling, saving, synchronization, version tracking, and admin review.
 
 ### XP & Account System
-Includes Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling, based on time and action-based rewards. A progression engine manages 30 levels, 15 achievements, 5 content packs, 6 rewards, and 6 certifications.
+Includes Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling, based on verified active time and action-based rewards. The heartbeat system uses dual verification: client-side activity tracking (mouse, keyboard, touch, scroll with 90s idle timeout) cross-checked against server-side API call activity (120s threshold). XP is only awarded when both client AND server confirm genuine usage — no AFK farming possible. A progression engine manages 30 levels, 15 achievements, 5 content packs, 6 rewards, and 6 certifications.
 
 ### Certification System
 Project-based certifications are tied to real output and require XP thresholds, level requirements, and published work. Each certification generates a unique verifiable code and integrates with the ecosystem.

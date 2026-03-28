@@ -77,9 +77,26 @@ function broadcastToSession(sessionId: string, message: any, excludeUserId?: str
 export async function registerRoutes(server: ReturnType<typeof createServer>, app: Express) {
   setupAuth(app);
 
+  const SERVER_IDLE_THRESHOLD_MS = 120_000;
+  const serverLastActivity = new Map<string, number>();
+
+  function recordServerActivity(userId: string) {
+    serverLastActivity.set(userId, Date.now());
+  }
+
+  setInterval(() => {
+    const cutoff = Date.now() - 600_000;
+    for (const [k, v] of serverLastActivity) {
+      if (v < cutoff) serverLastActivity.delete(k);
+    }
+  }, 300_000);
+
   // Auth middleware
   function isAuthenticated(req: Request, res: Response, next: Function) {
     if (req.isAuthenticated()) {
+      if (req.user?.id && req.path !== "/api/xp/heartbeat") {
+        recordServerActivity(req.user.id);
+      }
       return next();
     }
     res.status(401).json({ message: "Unauthorized" });
@@ -410,8 +427,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  // XP Heartbeat - tracks time spent in app and awards XP
-  // Each heartbeat = 1 minute of activity = 1 XP (paced for 4-year school progression)
+  // XP Heartbeat - awards XP only for verified active usage
+  // Server tracks last authenticated API call per user as independent proof of activity.
+  // Client sends { active: bool, idleSeconds: number } but server cross-checks against
+  // its own activity record. XP only awarded when BOTH client AND server agree user is active.
   const XP_PER_MINUTE = 1;
 
   const ACTION_KEY_MAP: Record<string, string> = {
@@ -531,13 +550,30 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
 
+      const clientActive = req.body?.active === true;
+      const idleSeconds = typeof req.body?.idleSeconds === "number" ? Math.max(0, req.body.idleSeconds) : 9999;
+
       const now = new Date();
       const lastBeat = user.lastXpHeartbeat ? new Date(user.lastXpHeartbeat) : null;
       const minSinceLastBeat = lastBeat ? (now.getTime() - lastBeat.getTime()) / 60000 : 2;
 
       if (minSinceLastBeat < 0.5) {
         const { title: earlyTitle } = getLevelFromXp(user.xp || 0);
-        return res.json({ xp: user.xp, level: user.level, levelTitle: earlyTitle, totalMinutes: user.totalMinutes });
+        return res.json({ xp: user.xp, level: user.level, levelTitle: earlyTitle, totalMinutes: user.totalMinutes, xpGained: 0, idle: !clientActive });
+      }
+
+      const serverLastSeen = serverLastActivity.get(userId) || 0;
+      const serverIdleMs = Date.now() - serverLastSeen;
+      const serverConfirmsActive = serverLastSeen > 0 && serverIdleMs < SERVER_IDLE_THRESHOLD_MS;
+
+      const isIdle = !clientActive || idleSeconds >= 90 || !serverConfirmsActive;
+
+      if (isIdle) {
+        const { title: idleTitle } = getLevelFromXp(user.xp || 0);
+        await storage.updateUserProfile(userId, {
+          lastXpHeartbeat: now,
+        } as any);
+        return res.json({ xp: user.xp, level: user.level, levelTitle: idleTitle, totalMinutes: user.totalMinutes, xpGained: 0, idle: true });
       }
 
       const minutesToCredit = Math.min(Math.floor(minSinceLastBeat), 5);
@@ -561,7 +597,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         totalMinutes: newTotalMinutes,
       }, userId);
 
-      res.json({ xp: newXp, level: newLevel, levelTitle, totalMinutes: newTotalMinutes, xpGained });
+      res.json({ xp: newXp, level: newLevel, levelTitle, totalMinutes: newTotalMinutes, xpGained, idle: false });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
