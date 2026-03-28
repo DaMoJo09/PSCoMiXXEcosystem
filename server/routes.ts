@@ -15,7 +15,7 @@ import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, and, desc, ilike } from "drizzle-orm";
+import { sql, eq, and, or, desc, ilike, isNull } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -1481,10 +1481,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const projectId = req.query.projectId as string | undefined;
       
-      const stripLargeUrls = (assetList: any[]) =>
-        assetList.map(({ url, ...rest }) => ({
-          ...rest,
-          url: url && url.startsWith("data:") ? "" : (url || ""),
+      const prepareForListing = (assetList: any[]) =>
+        assetList.map((asset) => ({
+          ...asset,
+          url: asset.url || "",
         }));
 
       if (projectId) {
@@ -1496,11 +1496,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           return res.status(403).json({ message: "Forbidden" });
         }
         const assets = await storage.getProjectAssets(projectId);
-        return res.json(stripLargeUrls(assets));
+        return res.json(prepareForListing(assets));
       }
       
       const assets = await storage.getUserAssets(req.user!.id);
-      res.json(stripLargeUrls(assets));
+      res.json(prepareForListing(assets));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -6674,24 +6674,29 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.get("/api/fx-studio/effects", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      const userId = user?.id;
       const userEmail = user?.email;
 
-      const conditions: any[] = [];
-      if (userEmail) conditions.push(eq(fxEffects.userEmail, userEmail));
-      if (req.query.asset_tag) conditions.push(eq(fxEffects.assetTag, req.query.asset_tag as string));
-      if (req.query.project_id) conditions.push(eq(fxEffects.projectId, req.query.project_id as string));
-      if (req.query.type) conditions.push(eq(fxEffects.type, req.query.type as string));
-      if (req.query.search) conditions.push(ilike(fxEffects.name, `%${req.query.search}%`));
+      const ownershipConditions: any[] = [];
+      if (userId) ownershipConditions.push(eq(fxEffects.userId, userId));
+      if (userEmail) ownershipConditions.push(eq(fxEffects.userEmail, userEmail));
+      ownershipConditions.push(and(isNull(fxEffects.userId), isNull(fxEffects.userEmail)));
+      const ownershipFilter = ownershipConditions.length === 1 ? ownershipConditions[0] : or(...ownershipConditions);
+
+      const filters: any[] = [ownershipFilter];
+      if (req.query.asset_tag) filters.push(eq(fxEffects.assetTag, req.query.asset_tag as string));
+      if (req.query.project_id) filters.push(eq(fxEffects.projectId, req.query.project_id as string));
+      if (req.query.type) filters.push(eq(fxEffects.type, req.query.type as string));
+      if (req.query.search) filters.push(ilike(fxEffects.name, `%${req.query.search}%`));
 
       const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
 
-      let query = db.select().from(fxEffects).orderBy(desc(fxEffects.createdAt)).limit(limit).offset(offset);
-      if (conditions.length > 0) {
-        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
-      }
-
-      const localData = await query;
+      const localData = await db.select().from(fxEffects)
+        .where(filters.length === 1 ? filters[0] : and(...filters))
+        .orderBy(desc(fxEffects.createdAt))
+        .limit(limit)
+        .offset(offset);
 
       res.json(localData.map(mapEffectRow));
     } catch (error: any) {
@@ -6700,24 +6705,32 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  const mapEffectRow = (row: any) => ({
-    id: row.id,
-    user_email: row.userEmail,
-    user_name: row.userName,
-    name: row.name,
-    type: row.type,
-    asset_tag: row.assetTag,
-    preview_data_url: row.previewDataUrl,
-    layers: row.layers,
-    canvas_background: row.canvasBackground,
-    metadata: row.metadata,
-    project_id: row.projectId,
-    source_mode: row.sourceMode,
-    source_panel_id: row.sourcePanelId,
-    target_page: row.targetPage,
-    created_at: row.createdAt,
-    updated_at: row.updatedAt,
-  });
+  const mapEffectRow = (row: any) => {
+    const layers = Array.isArray(row.layers) ? row.layers : [];
+    const meta = row.metadata || {};
+    return {
+      id: row.id,
+      user_email: row.userEmail,
+      user_name: row.userName,
+      name: row.name,
+      description: meta.description || "",
+      type: row.type,
+      asset_tag: row.assetTag,
+      preview_data_url: row.previewDataUrl,
+      layers,
+      layer_count: layers.length,
+      total_frames: meta.total_frames || 0,
+      fps: meta.fps || 0,
+      canvas_background: row.canvasBackground,
+      metadata: meta,
+      project_id: row.projectId,
+      source_mode: row.sourceMode,
+      source_panel_id: row.sourcePanelId,
+      target_page: row.targetPage,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  };
 
   app.get("/api/fx-studio/effects/:id", isAuthenticated, async (req, res) => {
     try {

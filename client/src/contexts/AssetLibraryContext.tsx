@@ -80,8 +80,17 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setAssets(data.map((a: any) => ({
-          ...a,
+          id: a.id,
+          name: a.filename || a.name || "Untitled",
+          type: a.type || "image",
+          url: a.url || "",
+          thumbnail: a.thumbnail || a.url || "",
           createdAt: new Date(a.createdAt),
+          projectId: a.projectId,
+          folderId: a.folderId,
+          sortOrder: a.sortOrder,
+          tags: a.metadata?.tags || [],
+          bubbleData: a.metadata?.bubbleData,
         })));
       }
     } catch (error) {
