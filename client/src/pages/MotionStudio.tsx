@@ -24,6 +24,7 @@ import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/h
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
+import { EmbeddedFxStudio } from "@/components/EmbeddedFxStudio";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { apiRequest } from "@/lib/queryClient";
@@ -489,6 +490,10 @@ export default function MotionStudio() {
   
   // Asset Browser
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  
+  // Embedded FX Studio (www.pscomixx.online)
+  const [showEmbeddedFx, setShowEmbeddedFx] = useState(false);
+  const [embeddedFxMode, setEmbeddedFxMode] = useState<string | null>(null);
   
   // FX Studio Browser (www.pscomixx.online sync)
   const [showFxBrowser, setShowFxBrowser] = useState(false);
@@ -2821,16 +2826,27 @@ export default function MotionStudio() {
             Assets
           </button>
           
-          {/* FX Studio Browser Button (www.pscomixx.online sync) */}
-          <button onClick={() => { setShowFxBrowser(!showFxBrowser); if (!showFxBrowser && fxEffects.length === 0) loadFxEffects(); }}
+          {/* FX Studio Button - opens embedded FX Studio (www.pscomixx.online) */}
+          <button onClick={() => { setEmbeddedFxMode("fx"); setShowEmbeddedFx(true); }}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
-              showFxBrowser 
+              showEmbeddedFx 
                 ? 'bg-purple-600 text-white' 
                 : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300'
             }`}
             data-testid="button-fx-studio">
             <Sparkles className="w-3.5 h-3.5" />
             FX Studio
+          </button>
+          {/* FX Studio Browser (synced effects list) */}
+          <button onClick={() => { setShowFxBrowser(!showFxBrowser); if (!showFxBrowser && fxEffects.length === 0) loadFxEffects(); }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
+              showFxBrowser 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300'
+            }`}
+            data-testid="button-fx-browser">
+            <Grid3X3 className="w-3.5 h-3.5" />
+            FX Assets
           </button>
           
           {/* Onion Skin Toggle */}
@@ -4673,6 +4689,16 @@ export default function MotionStudio() {
             </div>
           </div>
         </div>
+      )}
+      {showEmbeddedFx && (
+        <EmbeddedFxStudio
+          onClose={() => { setShowEmbeddedFx(false); setEmbeddedFxMode(null); }}
+          onAssetsUpdated={() => {
+            loadFxEffects();
+          }}
+          initialMode={embeddedFxMode}
+          projectId={effectiveProjectId}
+        />
       )}
       <UpgradeModal
         isOpen={showUpgradeModal}
