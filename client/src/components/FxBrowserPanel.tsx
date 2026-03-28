@@ -11,6 +11,7 @@ interface FxBrowserPanelProps {
   onSelectEffect?: (effect: FxEffect) => void;
   onApplyToPanel?: (effect: FxEffect) => void;
   onReturnToPanel?: (effect: FxEffect, panelId: string, pageSide: string) => void;
+  onOpenEmbedded?: (mode?: string) => void;
   useLabel?: string;
   projectId?: string;
   activeTag?: AssetTag | null;
@@ -20,7 +21,7 @@ type FolderSelection = AssetTag | "all" | "project" | "returns";
 
 const POLL_INTERVAL_MS = 15000;
 
-export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onReturnToPanel, useLabel = "Use Effect", projectId, activeTag }: FxBrowserPanelProps) {
+export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onReturnToPanel, onOpenEmbedded, useLabel = "Use Effect", projectId, activeTag }: FxBrowserPanelProps) {
   const [, navigate] = useLocation();
   const [fxEffects, setFxEffects] = useState<FxEffect[]>([]);
   const [fxLoading, setFxLoading] = useState(false);
@@ -230,6 +231,17 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
           <span className="text-[10px] text-purple-400 bg-purple-900/50 px-2 py-0.5 border border-purple-700">www.pscomixx.online</span>
         </div>
         <div className="flex items-center gap-1">
+          {onOpenEmbedded && (
+            <button
+              onClick={() => onOpenEmbedded()}
+              className="px-2 py-1 text-[10px] text-purple-400 hover:text-purple-300 hover:bg-purple-900/30 border border-purple-700/50 transition flex items-center gap-1"
+              title="Open FX Studio workspace"
+              data-testid="button-fx-open-embedded"
+            >
+              <Sparkles className="w-3 h-3" />
+              Create
+            </button>
+          )}
           {!selectMode ? (
             <button
               onClick={() => { setSelectMode(true); setSelectedIds(new Set()); }}

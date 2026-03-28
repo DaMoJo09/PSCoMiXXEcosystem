@@ -348,7 +348,7 @@ export default function Dashboard() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <button 
-              onClick={() => window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer")}
+              onClick={() => navigate("/fx-studio")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-fx-studio"
             >

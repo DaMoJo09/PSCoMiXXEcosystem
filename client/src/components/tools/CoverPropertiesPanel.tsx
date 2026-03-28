@@ -562,13 +562,12 @@ export function CoverPropertiesPanel({
               </p>
               <button
                 onClick={() => {
-                  window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
+                  window.location.href = "/fx-studio";
                 }}
                 className="w-full py-2 text-xs font-bold bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-2 transition-colors"
                 data-testid="button-cover-fx-studio"
               >
                 <Sparkles className="w-3.5 h-3.5" /> Browse FX Studio
-                <ExternalLink className="w-3 h-3 opacity-60" />
               </button>
               <div className="space-y-1">
                 <label className="text-[10px] text-zinc-400">Paste FX image URL</label>

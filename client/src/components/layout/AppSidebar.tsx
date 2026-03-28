@@ -79,7 +79,7 @@ const aiTools = [
   { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
   { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
   { icon: Download, label: "Import Center", href: "/tools/import" },
-  { icon: Zap, label: "FX Studio", href: "https://www.pscomixx.online", external: true, ssoTarget: "fxstudio" },
+  { icon: Zap, label: "FX Studio", href: "/fx-studio" },
 ];
 
 const galleryTools = [

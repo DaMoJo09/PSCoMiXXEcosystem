@@ -27,6 +27,7 @@ import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import { EmbeddedFxStudio } from "@/components/EmbeddedFxStudio";
 import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
 import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
 import {
@@ -436,6 +437,8 @@ export default function ComicCreator() {
   const [assetLibraryTab, setAssetLibraryTab] = useState<"library" | "fx-studio">("library");
   const [showFxConfirm, setShowFxConfirm] = useState(false);
   const [skipFxConfirm, setSkipFxConfirm] = useState(() => localStorage.getItem("skipFxStudioConfirm") === "true");
+  const [showEmbeddedFx, setShowEmbeddedFx] = useState(false);
+  const [embeddedFxMode, setEmbeddedFxMode] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
@@ -2493,16 +2496,11 @@ export default function ComicCreator() {
         },
       });
 
-      const effectId = result?.id || result?.effects?.[0]?.id;
-      const importUrl = effectId
-        ? `https://www.pscomixx.online/studio?import=${effectId}&returnTo=comixx&project=${effectiveProjectId || ""}`
-        : "https://www.pscomixx.online/studio";
-
       toast.success("Panel sent to FX Studio", {
         id: toastId,
         action: {
           label: "Open FX Studio",
-          onClick: () => window.open(importUrl, "_blank"),
+          onClick: () => { setEmbeddedFxMode("fx"); setShowEmbeddedFx(true); },
         },
       });
     } catch (err: any) {
@@ -4028,7 +4026,8 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => {
-                    window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
+                    setEmbeddedFxMode("fx");
+                    setShowEmbeddedFx(true);
                   }}
                   className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
                   data-testid="tool-fx-studio"
@@ -5803,51 +5802,15 @@ export default function ComicCreator() {
         )}
       </div>
       
-      {showFxConfirm && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]" data-testid="fx-confirm-dialog">
-          <div className="bg-zinc-900 border-2 border-purple-500 w-[380px] p-6 shadow-[4px_4px_0px_0px_rgba(168,85,247,0.4)]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-purple-600/20 border border-purple-500 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-              </div>
-              <h3 className="font-bold text-lg text-white">Open FX Studio?</h3>
-            </div>
-            <p className="text-sm text-zinc-400 mb-5">
-              Browse and import visual effects from FX Studio (www.pscomixx.online) into your asset library for use across all creative modes.
-            </p>
-            <label className="flex items-center gap-2 mb-5 cursor-pointer select-none" data-testid="fx-confirm-skip-checkbox">
-              <input
-                type="checkbox"
-                checked={skipFxConfirm}
-                onChange={(e) => {
-                  setSkipFxConfirm(e.target.checked);
-                  localStorage.setItem("skipFxStudioConfirm", e.target.checked ? "true" : "false");
-                }}
-                className="w-4 h-4 accent-purple-500 bg-zinc-800 border-zinc-600 rounded cursor-pointer"
-              />
-              <span className="text-xs text-zinc-400">Don't ask me again</span>
-            </label>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowFxConfirm(false)}
-                className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold border border-zinc-600 transition-colors"
-                data-testid="fx-confirm-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowFxConfirm(false);
-                  window.open("https://www.pscomixx.online", "_blank", "noopener,noreferrer");
-                }}
-                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold border border-purple-500 transition-colors"
-                data-testid="fx-confirm-open"
-              >
-                Open FX Studio
-              </button>
-            </div>
-          </div>
-        </div>
+      {showEmbeddedFx && (
+        <EmbeddedFxStudio
+          onClose={() => { setShowEmbeddedFx(false); setEmbeddedFxMode(null); }}
+          onAssetsUpdated={() => {
+            setAssetLibraryTab("fx-studio");
+          }}
+          initialMode={embeddedFxMode}
+          projectId={projectId}
+        />
       )}
 
       {showAssetLibrary && (
@@ -6042,6 +6005,11 @@ export default function ComicCreator() {
                 onClose={() => setAssetLibraryTab("library")}
                 onApplyToPanel={applyFxToPanel}
                 onReturnToPanel={returnFxToPanel}
+                onOpenEmbedded={(mode) => {
+                  setShowAssetLibrary(false);
+                  setEmbeddedFxMode(mode || "fx");
+                  setShowEmbeddedFx(true);
+                }}
                 projectId={effectiveProjectId || undefined}
               />
             )}
