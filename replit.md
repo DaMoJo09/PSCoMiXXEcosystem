@@ -94,7 +94,7 @@ Public creator profiles display avatar, cover image, bio, XP progress, social li
 A reusable component for students to submit projects to active assignments.
 
 ### FX Studio Integration
-Bidirectional integration with FX Studio for asset exchange across all creator tools. It supports exporting panels, importing effects, and importing `comic-script` type assets. Local-first storage for FX assets ensures reliability. Layout and script data can be synced, with automatic format detection and conversion.
+Full bidirectional integration with FX Studio (pscomixx.online) covering all 12+ creative modes: FX Studio, Character Creator, Portrait Mode, Graffiti, BG FX, Filter Editor, Cover Maker, Panel Layout, Overlay Studio, Price Tag Maker, Title Maker, Bubble Editor, Script Mode, and Asset Library cloud sync. The layout-sync endpoint accepts all mode types with automatic asset_tag resolution. Local-first `fx_effects` table stores synced assets with upstream mirroring to FX Studio's Supabase edge function. Retry protocol retries without preview_data_url on upstream failure. Cloud sync button enables bidirectional push (CoMiXX → FX Studio). Health check endpoint at `/api/fx-studio/health` monitors upstream connectivity. Asset tag taxonomy covers 28+ tags organized into 9 folder groups. CORS headers support apikey, Authorization, and x-webhook-secret headers for cross-platform auth.
 
 ### PWA & Offline Mode
 Includes a Service Worker for caching and offline use with IndexedDB, featuring conflict resolution, background syncing, and update notifications.

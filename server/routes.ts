@@ -6649,6 +6649,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   const FX_API_URL = process.env.FX_STUDIO_API_URL || "https://upivslgwjtvqymonliib.supabase.co/functions/v1/get-effects";
   const FX_API_KEY = process.env.FX_STUDIO_API_KEY || "";
+  const FX_STORAGE_BASE = "https://upivslgwjtvqymonliib.supabase.co/storage/v1/object/public/asset-library";
   const fxHeaders = () => ({
     "Content-Type": "application/json",
     apikey: FX_API_KEY,
@@ -6657,14 +6658,43 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   async function tryUpstreamSync(method: string, url: string, body?: string): Promise<any | null> {
     if (!FX_API_KEY) return null;
+
+    async function attemptRequest(requestBody?: string): Promise<{ ok: boolean; status: number; parsed: any | null }> {
+      try {
+        const response = await fetchWithTimeout(url, {
+          method,
+          headers: fxHeaders(),
+          ...(requestBody ? { body: requestBody } : {}),
+          timeout: 30000,
+        });
+        if (response.ok) {
+          const text = await response.text();
+          try {
+            return { ok: true, status: response.status, parsed: JSON.parse(text) };
+          } catch {
+            return { ok: false, status: response.status, parsed: null };
+          }
+        }
+        return { ok: false, status: response.status, parsed: null };
+      } catch {
+        return { ok: false, status: 0, parsed: null };
+      }
+    }
+
     try {
-      const response = await fetchWithTimeout(url, {
-        method,
-        headers: fxHeaders(),
-        ...(body ? { body } : {}),
-        timeout: 5000,
-      });
-      if (response.ok) return await response.json();
+      const first = await attemptRequest(body);
+      if (first.ok && first.parsed) return first.parsed;
+
+      if (body && (first.status >= 500 || (first.ok === false && first.status > 0))) {
+        try {
+          const parsed = JSON.parse(body);
+          if (parsed.preview_data_url) {
+            const { preview_data_url, ...rest } = parsed;
+            const retry = await attemptRequest(JSON.stringify(rest));
+            if (retry.ok && retry.parsed) return retry.parsed;
+          }
+        } catch {}
+      }
       return null;
     } catch {
       return null;
@@ -6718,7 +6748,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       asset_tag: row.assetTag,
       preview_data_url: row.previewDataUrl,
       layers,
-      layer_count: layers.length,
+      layer_count: meta.layer_count || layers.length,
       total_frames: meta.total_frames || 0,
       fps: meta.fps || 0,
       canvas_background: row.canvasBackground,
@@ -6727,6 +6757,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       source_mode: row.sourceMode,
       source_panel_id: row.sourcePanelId,
       target_page: row.targetPage,
+      mode_hints: meta.mode_hints || null,
+      script_data: meta.script_data || null,
+      synced_to_cloud: !!meta.synced_to_cloud,
       created_at: row.createdAt,
       updated_at: row.updatedAt,
     };
@@ -6755,6 +6788,16 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const user = req.user as any;
       const body = req.body;
 
+      const effectMetadata = {
+        ...(body.metadata || {}),
+        description: body.description || body.metadata?.description || "",
+        total_frames: body.total_frames || body.metadata?.total_frames || 0,
+        fps: body.fps || body.metadata?.fps || 0,
+        layer_count: body.layer_count || body.metadata?.layer_count || 0,
+        ...(body.mode_hints ? { mode_hints: body.mode_hints } : {}),
+        ...(body.script_data ? { script_data: body.script_data } : {}),
+      };
+
       const [inserted] = await db.insert(fxEffects).values({
         userId: user?.id || null,
         userEmail: user?.email || null,
@@ -6765,28 +6808,34 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         previewDataUrl: body.preview_data_url || null,
         layers: body.layers || [],
         canvasBackground: body.canvas_background || null,
-        metadata: body.metadata || {},
+        metadata: effectMetadata,
         projectId: body.project_id || null,
         sourceMode: body.source_mode || null,
         sourcePanelId: body.source_panel_id || null,
-        targetPage: body.target_page || null,
+        targetPage: body.target_page ?? null,
       }).returning();
 
       tryUpstreamSync("POST", FX_API_URL, JSON.stringify({
-        ...body,
+        name: body.name || "Untitled",
+        description: body.description || "",
+        type: body.type || "static-asset",
+        asset_tag: body.asset_tag || null,
+        preview_data_url: body.preview_data_url || null,
+        layers: body.layers || [],
+        canvas_background: body.canvas_background || null,
+        total_frames: body.total_frames || 0,
+        fps: body.fps || 0,
+        layer_count: body.layer_count || 0,
+        project_id: body.project_id || null,
+        target_page: body.target_page ?? null,
+        source_panel_id: body.source_panel_id || null,
+        mode_hints: body.mode_hints || { comic: {}, vn: {}, cyoa: {} },
+        script_data: body.script_data || null,
         user_email: user?.email,
         user_name: user?.name || user?.username,
       })).catch(() => {});
 
-      res.json({
-        id: inserted.id,
-        user_email: inserted.userEmail,
-        name: inserted.name,
-        type: inserted.type,
-        asset_tag: inserted.assetTag,
-        preview_data_url: inserted.previewDataUrl,
-        created_at: inserted.createdAt,
-      });
+      res.json(mapEffectRow(inserted));
     } catch (error: any) {
       console.error("FX Studio POST error:", error.message);
       res.status(500).json({ message: error.message });
@@ -6839,6 +6888,85 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/fx-studio/effects/:id/sync-to-cloud", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const [row] = await db.select().from(fxEffects).where(eq(fxEffects.id, req.params.id)).limit(1);
+      if (!row) return res.status(404).json({ message: "Effect not found" });
+      if (row.userId && row.userId !== user?.id && row.userEmail !== user?.email && user?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const mapped = mapEffectRow(row);
+      const syncPayload = {
+        name: mapped.name,
+        description: mapped.description,
+        type: mapped.type || "library-asset",
+        asset_tag: mapped.asset_tag,
+        preview_data_url: mapped.preview_data_url,
+        layers: mapped.layers,
+        canvas_background: mapped.canvas_background,
+        total_frames: mapped.total_frames,
+        fps: mapped.fps,
+        layer_count: mapped.layer_count,
+        project_id: mapped.project_id,
+        target_page: mapped.target_page,
+        source_panel_id: mapped.source_panel_id,
+        mode_hints: mapped.mode_hints || { comic: {}, vn: {}, cyoa: {} },
+        script_data: mapped.script_data,
+        user_email: user?.email,
+        user_name: user?.name || user?.username,
+      };
+
+      const result = await tryUpstreamSync("POST", FX_API_URL, JSON.stringify(syncPayload));
+
+      if (result) {
+        const updatedMeta = { ...(row.metadata as any || {}), synced_to_cloud: true, synced_at: new Date().toISOString() };
+        await db.update(fxEffects).set({ metadata: updatedMeta, updatedAt: new Date() }).where(eq(fxEffects.id, req.params.id));
+
+        res.json({ success: true, synced: true, id: row.id, message: "Synced to FX Studio cloud" });
+      } else {
+        res.json({ success: false, synced: false, id: row.id, message: "Upstream sync failed — try again later" });
+      }
+    } catch (error: any) {
+      console.error("Cloud sync error:", error.message);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/fx-studio/health", async (_req, res) => {
+    try {
+      let upstreamStatus = "unknown";
+      if (FX_API_KEY) {
+        try {
+          const response = await fetchWithTimeout(FX_API_URL, {
+            method: "POST",
+            headers: fxHeaders(),
+            body: JSON.stringify({ name: "__health_check__", type: "__ping__" }),
+            timeout: 10000,
+          });
+          upstreamStatus = response.ok ? "connected" : `error_${response.status}`;
+        } catch {
+          upstreamStatus = "unreachable";
+        }
+      } else {
+        upstreamStatus = "no_api_key";
+      }
+
+      const [countResult] = await db.select({ count: sql`count(*)::int` }).from(fxEffects);
+      res.json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        upstream: upstreamStatus,
+        local_effects_count: countResult?.count || 0,
+        fx_api_url: FX_API_URL,
+        storage_base: FX_STORAGE_BASE,
+      });
+    } catch (error: any) {
+      res.status(500).json({ status: "error", message: error.message });
+    }
+  });
+
   // ==========================================
   // FX STUDIO LAYOUT SYNC (public endpoint for SEND TO button)
   // ==========================================
@@ -6846,20 +6974,41 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.options("/api/fx-studio/layout-sync", (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, apikey, Authorization, x-webhook-secret");
     res.sendStatus(204);
   });
 
   app.post("/api/fx-studio/layout-sync", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
-      const { pages, template, title, metadata, script_data, asset_tag, target_page, preview_data_url } = req.body;
+      const incomingApiKey = req.headers["apikey"] as string || "";
+      const incomingAuth = (req.headers["authorization"] as string || "").replace("Bearer ", "");
+      const incomingWebhook = req.headers["x-webhook-secret"] as string || "";
+      const fxKey = process.env.FX_STUDIO_API_KEY || "";
+      const streamingSecret = process.env.PSSTREAMING_WEBHOOK_SECRET || "";
+
+      const isAuthValid = !fxKey ||
+        incomingApiKey === fxKey ||
+        incomingAuth === fxKey ||
+        (streamingSecret && incomingWebhook === streamingSecret);
+
+      if (fxKey && !isAuthValid) {
+        console.warn("Layout-sync: invalid or missing API key");
+      }
+
+      const body = req.body;
+      const {
+        pages, template, title, metadata, script_data, asset_tag, target_page,
+        preview_data_url, name: bodyName, type: bodyType, layers, canvas_background,
+        description, total_frames, fps, layer_count, mode_hints, source_panel_id,
+        project_id, source_mode,
+      } = body;
 
       if (pages && !Array.isArray(pages)) {
         return res.status(400).json({ message: "pages must be an array" });
       }
-      if (!pages && !script_data && !preview_data_url) {
-        return res.status(400).json({ message: "Missing pages, script_data, or preview_data_url" });
+      if (!pages && !script_data && !preview_data_url && !bodyName) {
+        return res.status(400).json({ message: "Missing pages, script_data, preview_data_url, or name" });
       }
       if (pages) {
         for (const page of pages) {
@@ -6869,40 +7018,74 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         }
       }
 
-      const type = script_data ? "comic-script" : preview_data_url ? "static-asset" : "panel-layout";
-      const name = title || `Layout ${new Date().toISOString().slice(0, 16)}`;
+      const type = bodyType || (script_data ? "comic-script" : pages ? "layout-spread" : "static-asset");
+      const name = bodyName || title || `Asset ${new Date().toISOString().slice(0, 16)}`;
+
+      const TAG_DEFAULTS: Record<string, string> = {
+        "comic-script": "comic-script", "script-package": "script",
+        "character": "character-art", "graffiti": "fx-overlay",
+        "background-fx": "background", "filtered-image": "fx-overlay",
+        "cover": "cover-front", "layout-spread": "page-layout",
+        "overlay": "fx-overlay", "price-tag": "prop",
+        "title": "title-card", "bubble": "speech-bubble",
+        "library-asset": "prop", "panel-layout": "page-layout",
+        "static-asset": "fx-overlay",
+      };
+
+      const resolvedTag = asset_tag || TAG_DEFAULTS[type] || "fx-overlay";
+
       const effectMetadata = {
         ...(metadata || {}),
         ...(pages ? { layout_data: { pages, template, title } } : {}),
         ...(script_data ? { script_data } : {}),
-        ...(target_page ? { target_page } : {}),
+        description: description || "",
+        total_frames: total_frames || 0,
+        fps: fps || 0,
+        layer_count: layer_count || 0,
+        ...(mode_hints ? { mode_hints } : {}),
       };
 
       const [inserted] = await db.insert(fxEffects).values({
         name,
         type,
-        assetTag: asset_tag || (type === "comic-script" ? "comic-script" : "interior-page"),
+        assetTag: resolvedTag,
         previewDataUrl: preview_data_url || null,
+        layers: layers || [],
+        canvasBackground: canvas_background || null,
         metadata: effectMetadata,
-        targetPage: target_page || null,
+        targetPage: target_page ?? null,
+        projectId: project_id || null,
+        sourceMode: source_mode || null,
+        sourcePanelId: source_panel_id || null,
       }).returning();
 
       tryUpstreamSync("POST", FX_API_URL, JSON.stringify({
         name,
+        description: description || "",
         type,
-        asset_tag: asset_tag || (type === "comic-script" ? "comic-script" : "interior-page"),
-        ...(target_page ? { target_page } : {}),
-        ...(preview_data_url ? { preview_data_url } : {}),
-        metadata: effectMetadata,
+        asset_tag: resolvedTag,
+        preview_data_url: preview_data_url || null,
+        layers: layers || [],
+        canvas_background: canvas_background || null,
+        total_frames: total_frames || 0,
+        fps: fps || 0,
+        layer_count: layer_count || 0,
+        project_id: project_id || null,
+        target_page: target_page ?? null,
+        source_panel_id: source_panel_id || null,
+        mode_hints: mode_hints || { comic: {}, vn: {}, cyoa: {} },
+        script_data: script_data || null,
       })).catch(() => {});
 
-      const paramKey = type === "comic-script" ? "fromScript" : "fromLayout";
+      const paramKey = type === "comic-script" || type === "script-package" ? "fromScript" : "fromLayout";
 
       res.json({
         success: true,
         effectId: inserted.id,
+        type,
+        asset_tag: resolvedTag,
         redirectUrl: `/comic?${paramKey}=${inserted.id}`,
-        message: `${type === "comic-script" ? "Script" : "Layout"} synced — open redirectUrl to apply`,
+        message: `${name} synced — open redirectUrl to apply`,
       });
     } catch (error: any) {
       console.error("Layout sync error:", error.message);

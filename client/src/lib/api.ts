@@ -391,6 +391,11 @@ export interface FxEffect {
   source_mode?: string;
   source_panel_id?: string;
   metadata?: Record<string, any>;
+  mode_hints?: Record<string, any>;
+  script_data?: any;
+  user_email?: string;
+  user_name?: string;
+  synced_to_cloud?: boolean;
 }
 
 export const fxStudioApi = {
@@ -438,6 +443,7 @@ export const fxStudioApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: payload.name,
+        description: payload.description,
         preview_data_url: payload.preview_data_url,
         asset_tag: payload.asset_tag,
         target_page: payload.target_page,
@@ -448,7 +454,20 @@ export const fxStudioApi = {
         layers: payload.layers || [],
         canvas_background: payload.canvas_background,
         metadata: payload.metadata,
+        total_frames: payload.total_frames,
+        fps: payload.fps,
+        layer_count: payload.layer_count,
+        mode_hints: payload.mode_hints,
+        script_data: payload.script_data,
       }),
+      credentials: "include",
+    });
+    return handleResponse<any>(response);
+  },
+
+  syncToCloud: async (effectId: string) => {
+    const response = await fetch(`${API_BASE}/fx-studio/effects/${effectId}/sync-to-cloud`, {
+      method: "POST",
       credentials: "include",
     });
     return handleResponse<any>(response);
@@ -461,5 +480,10 @@ export const fxStudioApi = {
     const qs = params.toString();
     const response = await fetch(`${API_BASE}/fx-studio/effects${qs ? `?${qs}` : ""}`, { credentials: "include" });
     return handleResponse<FxEffect[]>(response);
+  },
+
+  healthCheck: async () => {
+    const response = await fetch(`${API_BASE}/fx-studio/health`);
+    return handleResponse<{ status: string; timestamp: string; upstream: string }>(response);
   },
 };

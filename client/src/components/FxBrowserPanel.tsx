@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Target, CornerDownLeft, ChevronDown, ChevronRight, FileText, Trash2, Pencil, CheckSquare, Square, XCircle } from "lucide-react";
+import { Sparkles, X, RotateCcw, Download, Search, FolderOpen, ArrowUpRight, Target, CornerDownLeft, ChevronDown, ChevronRight, FileText, Trash2, Pencil, CheckSquare, Square, XCircle, CloudUpload, Check } from "lucide-react";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useLocation } from "wouter";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { toast } from "sonner";
-import { type AssetTag, ASSET_TAG_LABELS, ASSET_FOLDER_GROUPS } from "@/types/asset-tags";
+import { type AssetTag, ASSET_TAG_LABELS, ASSET_FOLDER_GROUPS, FX_MODE_TYPE_MAP } from "@/types/asset-tags";
 
 interface FxBrowserPanelProps {
   onClose: () => void;
@@ -28,7 +28,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
   const [importingFxId, setImportingFxId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderSelection>(activeTag || "all");
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Overlays", "Art Assets"]));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Characters", "Backgrounds", "FX & Overlays", "Text & Bubbles"]));
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { addAsset } = useAssetLibrary();
 
@@ -38,6 +38,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
   const [renameValue, setRenameValue] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [syncingCloudId, setSyncingCloudId] = useState<string | null>(null);
 
   const loadFxEffects = useCallback(async (silent = false) => {
     if (!silent) setFxLoading(true);
@@ -162,6 +163,23 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
     } finally {
       setRenamingId(null);
       setRenameValue("");
+    }
+  }, []);
+
+  const handleCloudSync = useCallback(async (effectId: string) => {
+    setSyncingCloudId(effectId);
+    try {
+      const result = await fxStudioApi.syncToCloud(effectId);
+      if (result.synced) {
+        setFxEffects(prev => prev.map(e => e.id === effectId ? { ...e, synced_to_cloud: true } : e));
+        toast.success(result.message || "Synced to cloud");
+      } else {
+        toast.error(result.message || "Sync failed — try again later");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Cloud sync failed");
+    } finally {
+      setSyncingCloudId(null);
     }
   }, []);
 
@@ -434,15 +452,17 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                             {ASSET_TAG_LABELS[effect.asset_tag] || effect.asset_tag}
                           </span>
                         )}
+                        {effect.type && FX_MODE_TYPE_MAP[effect.type] && (
+                          <span className="text-[9px] bg-purple-900/30 text-purple-300 px-1 border border-purple-800">
+                            {FX_MODE_TYPE_MAP[effect.type].label}
+                          </span>
+                        )}
                         {effect.type === "panel-fx-return" && (
                           <span className="text-[9px] bg-amber-900/30 text-amber-400 px-1 border border-amber-800">FX Return</span>
                         )}
-                        {effect.type === "comixx-panel-export" && (
-                          <span className="text-[9px] bg-purple-900/30 text-purple-400 px-1 border border-purple-800">Exported</span>
+                        {effect.synced_to_cloud && (
+                          <span className="text-[9px] bg-green-900/30 text-green-400 px-1 border border-green-800">Synced</span>
                         )}
-                        {!effect.asset_tag && effect.type && effect.type !== "panel-fx-return" && effect.type !== "comixx-panel-export" && effect.type.split(",").slice(0, 2).map((t, i) => (
-                          <span key={i} className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 border border-zinc-700">{t.trim()}</span>
-                        ))}
                         {effect.layer_count > 0 && (
                           <span className="text-[9px] text-zinc-500">{effect.layer_count}L</span>
                         )}
@@ -484,6 +504,25 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                           <Download className="w-3 h-3" />
                         )}
                         Library
+                      </button>
+                      <button
+                        onClick={() => handleCloudSync(effect.id)}
+                        disabled={syncingCloudId === effect.id || effect.synced_to_cloud}
+                        className={`flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition border-l border-zinc-700 ${
+                          effect.synced_to_cloud
+                            ? "text-green-500 cursor-default"
+                            : "text-blue-400 hover:bg-blue-900/20 disabled:opacity-50"
+                        }`}
+                        title={effect.synced_to_cloud ? "Synced to cloud" : "Sync to FX Studio cloud"}
+                        data-testid={`button-fx-cloud-${effect.id}`}
+                      >
+                        {syncingCloudId === effect.id ? (
+                          <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        ) : effect.synced_to_cloud ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <CloudUpload className="w-3 h-3" />
+                        )}
                       </button>
                       {effect.type === "comic-script" && (
                         <button
