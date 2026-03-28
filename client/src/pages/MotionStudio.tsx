@@ -2423,54 +2423,103 @@ export default function MotionStudio() {
     }
   }, [isPlaying, showComicPreview, currentFrameIndex, frames.length, loopEnabled]);
 
+  const audioBufferCacheRef = useRef<Map<string, AudioBuffer>>(new Map());
+
   useEffect(() => {
     if (!audioClips.length) return;
-    
+
+    const stopAllSources = () => {
+      audioSourcesRef.current.forEach(({ source }) => {
+        try { source.stop(); } catch {}
+      });
+      audioSourcesRef.current.clear();
+    };
+
     if (isPlaying && !audioMuted) {
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext();
       }
       const ctx = audioContextRef.current;
-      
+
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const activeClipIds = new Set<string>();
+
       audioClips.forEach(clip => {
         if (clip.muted) return;
-        if (currentFrameIndex >= clip.startFrame && currentFrameIndex < clip.startFrame + clip.durationFrames) {
+        const inRange = currentFrameIndex >= clip.startFrame && currentFrameIndex < clip.startFrame + clip.durationFrames;
+
+        if (inRange) {
+          activeClipIds.add(clip.id);
+
           if (!audioSourcesRef.current.has(clip.id)) {
-            fetch(clip.src)
-              .then(r => r.arrayBuffer())
-              .then(buf => ctx.decodeAudioData(buf))
-              .then(audioBuffer => {
-                const source = ctx.createBufferSource();
-                const gainNode = ctx.createGain();
-                source.buffer = audioBuffer;
-                gainNode.gain.value = clip.volume * audioVolume;
-                source.connect(gainNode);
-                gainNode.connect(ctx.destination);
-                
-                const framesIntoClip = currentFrameIndex - clip.startFrame;
-                const msPerFrame = frames[currentFrameIndex]?.duration || 1000;
-                const offsetSec = (framesIntoClip * msPerFrame) / 1000;
-                
-                source.start(0, Math.min(offsetSec, audioBuffer.duration));
-                audioSourcesRef.current.set(clip.id, { source, gainNode, buffer: audioBuffer });
-              })
-              .catch(() => {});
+            const startSource = (audioBuffer: AudioBuffer) => {
+              if (ctx.state === "closed") return;
+              const source = ctx.createBufferSource();
+              const gainNode = ctx.createGain();
+              source.buffer = audioBuffer;
+              gainNode.gain.value = clip.volume * audioVolume;
+              source.connect(gainNode);
+              gainNode.connect(ctx.destination);
+
+              const framesIntoClip = currentFrameIndex - clip.startFrame;
+              let offsetMs = 0;
+              for (let i = clip.startFrame; i < clip.startFrame + framesIntoClip && i < frames.length; i++) {
+                offsetMs += frames[i]?.duration || 1000;
+              }
+              const offsetSec = offsetMs / 1000;
+
+              source.start(0, Math.min(offsetSec, audioBuffer.duration));
+              source.onended = () => {
+                audioSourcesRef.current.delete(clip.id);
+              };
+              audioSourcesRef.current.set(clip.id, { source, gainNode, buffer: audioBuffer });
+            };
+
+            const cached = audioBufferCacheRef.current.get(clip.src);
+            if (cached) {
+              startSource(cached);
+            } else {
+              const srcIsDataUrl = clip.src.startsWith("data:");
+              const getArrayBuffer = srcIsDataUrl
+                ? Promise.resolve(Uint8Array.from(atob(clip.src.split(",")[1]), c => c.charCodeAt(0)).buffer)
+                : fetch(clip.src).then(r => r.arrayBuffer());
+
+              getArrayBuffer
+                .then(buf => ctx.decodeAudioData(buf))
+                .then(audioBuffer => {
+                  audioBufferCacheRef.current.set(clip.src, audioBuffer);
+                  if (audioSourcesRef.current.has(clip.id)) return;
+                  startSource(audioBuffer);
+                })
+                .catch((err) => {
+                  console.warn("Audio decode failed for clip:", clip.name, err);
+                });
+            }
+          } else {
+            const existing = audioSourcesRef.current.get(clip.id);
+            if (existing) {
+              existing.gainNode.gain.value = clip.volume * audioVolume;
+            }
           }
         }
       });
-    } else {
-      audioSourcesRef.current.forEach(({ source }) => {
-        try { source.stop(); } catch {}
+
+      audioSourcesRef.current.forEach(({ source }, clipId) => {
+        if (!activeClipIds.has(clipId)) {
+          try { source.stop(); } catch {}
+          audioSourcesRef.current.delete(clipId);
+        }
       });
-      audioSourcesRef.current.clear();
+    } else {
+      stopAllSources();
     }
-    
+
     return () => {
       if (!isPlaying) {
-        audioSourcesRef.current.forEach(({ source }) => {
-          try { source.stop(); } catch {}
-        });
-        audioSourcesRef.current.clear();
+        stopAllSources();
       }
     };
   }, [isPlaying, audioMuted, currentFrameIndex, audioClips, audioVolume]);
