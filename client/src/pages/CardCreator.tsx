@@ -121,12 +121,21 @@ const SPORTS_PACK_TEMPLATES = [
 ];
 
 const RARITY_COLORS: { [key: string]: string } = {
-  Common: "#4a4a4a",
-  Uncommon: "#6b6b6b",
-  Rare: "#8c8c8c",
-  Epic: "#a8a8a8",
-  Legendary: "#c4c4c4",
-  Mythic: "#ffffff",
+  Common: "#6b7280",
+  Uncommon: "#22c55e",
+  Rare: "#3b82f6",
+  Epic: "#a855f7",
+  Legendary: "#f59e0b",
+  Mythic: "#ef4444",
+};
+
+const RARITY_GLOW: { [key: string]: string } = {
+  Common: "none",
+  Uncommon: "0 0 8px rgba(34,197,94,0.4)",
+  Rare: "0 0 15px rgba(59,130,246,0.5), 0 0 30px rgba(59,130,246,0.2)",
+  Epic: "0 0 20px rgba(168,85,247,0.5), 0 0 40px rgba(168,85,247,0.2)",
+  Legendary: "0 0 25px rgba(245,158,11,0.6), 0 0 50px rgba(245,158,11,0.3), 0 0 75px rgba(245,158,11,0.1)",
+  Mythic: "0 0 30px rgba(239,68,68,0.6), 0 0 60px rgba(239,68,68,0.3), 0 0 90px rgba(239,68,68,0.1)",
 };
 
 const RARITY_PATTERNS: { [key: string]: string } = {
@@ -734,7 +743,7 @@ export default function CardCreator() {
         clearInterval(revealInterval);
         setIsRevealing(false);
       }
-    }, 500);
+    }, 800);
   };
 
   const getPackStats = () => {
@@ -2546,7 +2555,20 @@ export default function CardCreator() {
         )}
 
         {showPackOpening && (
-          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 overflow-auto">
+            <style>{`
+              @keyframes packShake { 0%,100%{transform:rotate(0)} 10%{transform:rotate(-3deg)} 20%{transform:rotate(3deg)} 30%{transform:rotate(-5deg)} 40%{transform:rotate(5deg)} 50%{transform:rotate(-3deg)} 60%{transform:rotate(3deg)} 70%{transform:rotate(-1deg)} 80%{transform:rotate(1deg)} 90%{transform:rotate(0)} }
+              @keyframes packBurst { 0%{transform:scale(1);opacity:1} 50%{transform:scale(1.15);opacity:0.8} 100%{transform:scale(0.8);opacity:0} }
+              @keyframes cardFlipIn { 0%{transform:perspective(600px) rotateY(180deg) scale(0.8);opacity:0} 40%{transform:perspective(600px) rotateY(90deg) scale(0.9);opacity:0.5} 100%{transform:perspective(600px) rotateY(0deg) scale(1);opacity:1} }
+              @keyframes cardGlowPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+              @keyframes rarityFlash { 0%{opacity:0.8} 100%{opacity:0} }
+              @keyframes newBadgeBounce { 0%{transform:scale(0) rotate(-12deg)} 50%{transform:scale(1.3) rotate(-12deg)} 100%{transform:scale(1) rotate(-12deg)} }
+              .pack-shake { animation: packShake 0.8s ease-in-out infinite; }
+              .pack-burst { animation: packBurst 0.5s ease-out forwards; }
+              .card-flip-in { animation: cardFlipIn 0.7s ease-out both; }
+              .card-glow-pulse { animation: cardGlowPulse 2s ease-in-out infinite; }
+              .new-badge-bounce { animation: newBadgeBounce 0.5s ease-out both; }
+            `}</style>
             <div className="relative w-full max-w-4xl p-8">
               <button 
                 onClick={() => { setShowPackOpening(false); setRevealedCards([]); }}
@@ -2557,16 +2579,21 @@ export default function CardCreator() {
               </button>
 
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">{packData.name}</h2>
-                <p className="text-zinc-400">
+                <h2 className="text-2xl font-bold font-display mb-2">{packData.name}</h2>
+                <p className="text-zinc-400 font-mono text-sm">
                   {isRevealing ? `Revealing... ${revealedCards.length}/${packData.cardsPerPack}` : `${revealedCards.length} cards revealed`}
                 </p>
+                {isRevealing && (
+                  <div className="w-48 mx-auto mt-3 h-1 bg-zinc-800 overflow-hidden">
+                    <div className="h-full bg-white transition-all duration-500" style={{ width: `${(revealedCards.length / packData.cardsPerPack) * 100}%` }} />
+                  </div>
+                )}
               </div>
 
               {revealedCards.length === 0 && isRevealing && (
                 <div className="flex justify-center items-center h-64">
-                  <div className="relative w-48 aspect-[3/4] animate-pulse">
-                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
+                  <div className="relative w-48 aspect-[3/4] pack-shake">
+                    <div className="absolute inset-0 bg-zinc-900 border-4 border-zinc-600 shadow-2xl overflow-hidden">
                       <img src={packData.packArt} className="w-full h-full object-cover opacity-60" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Sparkles className="w-12 h-12 text-white animate-spin" />
@@ -2576,64 +2603,90 @@ export default function CardCreator() {
                 </div>
               )}
 
-              <div className="grid grid-cols-5 gap-4 justify-items-center">
-                {revealedCards.map((card, idx) => (
-                  <div 
-                    key={card.id}
-                    className="relative w-32 aspect-[2.5/3.5] shadow-xl transform transition-all duration-500 animate-in fade-in slide-in-from-bottom-4"
-                    style={{ 
-                      animationDelay: `${idx * 100}ms`,
-                      backgroundColor: card.borderColor 
-                    }}
-                    data-testid={`revealed-card-${idx}`}
-                  >
-                    <div className="absolute inset-1 bg-white flex flex-col overflow-hidden">
-                      <div 
-                        className="h-6 flex justify-between items-center px-2 border-b"
-                        style={{ borderColor: card.borderColor }}
-                      >
-                        <span className="font-bold text-[8px] uppercase tracking-tight text-black truncate">
-                          {card.name}
-                        </span>
-                      </div>
-                      
-                      <div className="flex-1 relative overflow-hidden">
-                        <img src={card.frontImage} className="w-full h-full object-cover" />
-                        <div 
-                          className="absolute bottom-0 left-0 px-1 py-0.5 text-[6px] font-bold text-white"
-                          style={{ backgroundColor: RARITY_COLORS[card.rarity] }}
-                        >
-                          {card.rarity.toUpperCase()}
+              {(() => {
+                const highestRarity = revealedCards.length > 0 ? revealedCards.reduce((best, c) => {
+                  const order = ["Common","Uncommon","Rare","Epic","Legendary","Mythic"];
+                  return order.indexOf(c.rarity) > order.indexOf(best.rarity) ? c : best;
+                }, revealedCards[0]) : null;
+                const flashColor = highestRarity && ["Epic","Legendary","Mythic"].includes(highestRarity.rarity) ? RARITY_COLORS[highestRarity.rarity] : null;
+                return flashColor && revealedCards.length === 1 ? (
+                  <div className="fixed inset-0 pointer-events-none z-40" style={{ backgroundColor: flashColor, animation: "rarityFlash 0.6s ease-out forwards" }} />
+                ) : null;
+              })()}
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 justify-items-center">
+                {revealedCards.map((card, idx) => {
+                  const rarityIndex = ["Common","Uncommon","Rare","Epic","Legendary","Mythic"].indexOf(card.rarity);
+                  const isHighRarity = rarityIndex >= 3;
+                  return (
+                    <div 
+                      key={card.id}
+                      className="relative w-32 aspect-[2.5/3.5] card-flip-in"
+                      style={{ 
+                        animationDelay: `${idx * 150}ms`,
+                        boxShadow: RARITY_GLOW[card.rarity] || "none"
+                      }}
+                      data-testid={`revealed-card-${idx}`}
+                    >
+                      <div className="absolute inset-0" style={{ backgroundColor: card.borderColor || RARITY_COLORS[card.rarity] }}>
+                        <div className="absolute inset-1 bg-white flex flex-col overflow-hidden">
+                          <div 
+                            className="h-6 flex justify-between items-center px-2 border-b"
+                            style={{ borderColor: card.borderColor || RARITY_COLORS[card.rarity] }}
+                          >
+                            <span className="font-bold text-[8px] uppercase tracking-tight text-black truncate">
+                              {card.name}
+                            </span>
+                          </div>
+                          
+                          <div className="flex-1 relative overflow-hidden">
+                            <img src={card.frontImage} className="w-full h-full object-cover" />
+                            <div 
+                              className="absolute bottom-0 left-0 px-1.5 py-0.5 text-[6px] font-bold text-white uppercase tracking-wider"
+                              style={{ backgroundColor: RARITY_COLORS[card.rarity] }}
+                            >
+                              {card.rarity}
+                            </div>
+                          </div>
+                          
+                          <div className="h-6 px-1 flex items-center justify-between text-black border-t" style={{ borderColor: card.borderColor || RARITY_COLORS[card.rarity] }}>
+                            <span className="text-[8px] font-bold">ATK {card.attack}</span>
+                            <span className="text-[8px] font-bold">DEF {card.defense}</span>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="h-6 px-1 flex items-center justify-between text-black border-t" style={{ borderColor: card.borderColor }}>
-                        <span className="text-[8px] font-bold">ATK {card.attack}</span>
-                        <span className="text-[8px] font-bold">DEF {card.defense}</span>
+
+                      {isHighRarity && (
+                        <div 
+                          className="absolute -top-3 -left-3 px-1.5 py-0.5 text-[7px] font-black text-black uppercase tracking-wider new-badge-bounce"
+                          style={{ backgroundColor: RARITY_COLORS[card.rarity], animationDelay: `${idx * 150 + 500}ms` }}
+                        >
+                          NEW!
+                        </div>
+                      )}
+
+                      <div 
+                        className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center text-[8px] font-bold border-2 border-black text-black"
+                        style={{ backgroundColor: RARITY_COLORS[card.rarity] }}
+                      >
+                        {rarityIndex + 1}
                       </div>
                     </div>
-
-                    <div 
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold border-2 border-black"
-                      style={{ backgroundColor: RARITY_COLORS[card.rarity] }}
-                    >
-                      {RARITIES.indexOf(card.rarity) + 1}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {!isRevealing && revealedCards.length > 0 && (
                 <div className="text-center mt-8 space-y-4">
                   <div className="flex justify-center gap-2 flex-wrap">
-                    {RARITIES.map(rarity => {
+                    {["Common","Uncommon","Rare","Epic","Legendary","Mythic"].map(rarity => {
                       const count = revealedCards.filter(c => c.rarity === rarity).length;
                       if (count === 0) return null;
                       return (
                         <span 
                           key={rarity}
-                          className="px-3 py-1 text-xs font-bold bg-zinc-800 border border-zinc-700"
-                          style={{ borderLeftColor: RARITY_COLORS[rarity], borderLeftWidth: 4 }}
+                          className="px-3 py-1 text-xs font-bold bg-zinc-900 border-2"
+                          style={{ borderColor: RARITY_COLORS[rarity], color: RARITY_COLORS[rarity] }}
                         >
                           {rarity}: {count}
                         </span>

@@ -740,17 +740,36 @@ if(N.length>0)showN(N[0].id);
 
   const previewContent = (
     <div className={`flex-1 text-white flex flex-col items-center justify-center relative ${isFullscreenPreview ? "fixed inset-0 z-50 bg-black" : "bg-black"}`}>
+      <style>{`
+        @keyframes cyoaNodeEnter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cyoaChoiceEnter { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes cyoaEndingPulse { 0%, 100% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 20px 4px currentColor; } }
+        @keyframes cyoaFlash { 0% { opacity: 0.6; } 100% { opacity: 0; } }
+        .cyoa-node-enter { animation: cyoaNodeEnter 0.5s ease-out forwards; }
+        .cyoa-choice-enter { animation: cyoaChoiceEnter 0.35s ease-out forwards; opacity: 0; }
+        .cyoa-ending-pulse { animation: cyoaEndingPulse 2s ease-in-out infinite; }
+      `}</style>
       {getCurrentNodeData()?.image && (
-        <div className="absolute inset-0"><img src={getCurrentNodeData()?.image} className="w-full h-full object-cover opacity-30" /><div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" /></div>
+        <div className="absolute inset-0 transition-opacity duration-700"><img src={getCurrentNodeData()?.image} className="w-full h-full object-cover opacity-30" /><div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" /></div>
       )}
       <div className="max-w-2xl w-full space-y-6 relative z-10 p-8">
         <div className="flex justify-between items-center">
-          <h2 className="font-display font-bold text-xl">Interactive Preview</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-display font-bold text-xl">Interactive Preview</h2>
+            {pathHistory.length > 0 && (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(pathHistory.length, 12) }).map((_, i) => (
+                  <div key={i} className={`w-1.5 h-1.5 transition-all duration-300 ${i < pathHistory.length ? "bg-white" : "bg-zinc-700"}`} />
+                ))}
+                {pathHistory.length > 12 && <span className="text-[9px] text-zinc-500 ml-1">+{pathHistory.length - 12}</span>}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
-            <button onClick={goBack} disabled={pathHistory.length <= 1} className="px-3 py-1 bg-white/10 text-sm disabled:opacity-30 hover:bg-white/20">← Back</button>
-            {storyVariables.length > 0 && <button onClick={() => setShowVarDebug(!showVarDebug)} className={`px-3 py-1 text-sm ${showVarDebug ? "bg-purple-500/30 text-purple-300" : "bg-white/10 hover:bg-white/20"}`}><Variable className="w-4 h-4" /></button>}
-            <button onClick={() => setIsFullscreenPreview(!isFullscreenPreview)} className="px-3 py-1 bg-white/10 text-sm hover:bg-white/20">{isFullscreenPreview ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
-            <button onClick={exitPreview} className="px-3 py-1 bg-white/10 text-sm hover:bg-white/20">Exit</button>
+            <button onClick={goBack} disabled={pathHistory.length <= 1} className="px-3 py-1 bg-white/10 text-sm disabled:opacity-30 hover:bg-white/20 transition-colors">← Back</button>
+            {storyVariables.length > 0 && <button onClick={() => setShowVarDebug(!showVarDebug)} className={`px-3 py-1 text-sm transition-colors ${showVarDebug ? "bg-purple-500/30 text-purple-300" : "bg-white/10 hover:bg-white/20"}`}><Variable className="w-4 h-4" /></button>}
+            <button onClick={() => setIsFullscreenPreview(!isFullscreenPreview)} className="px-3 py-1 bg-white/10 text-sm hover:bg-white/20 transition-colors">{isFullscreenPreview ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+            <button onClick={exitPreview} className="px-3 py-1 bg-white/10 text-sm hover:bg-white/20 transition-colors">Exit</button>
           </div>
         </div>
 
@@ -763,13 +782,21 @@ if(N.length>0)showN(N[0].id);
           </div>
         )}
 
-        {totalEndings > 0 && <div className="text-xs text-white/40 font-mono text-center">Endings discovered: {endingsFound.size} / {totalEndings}</div>}
+        {totalEndings > 0 && (
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-xs text-white/40 font-mono">Endings:</span>
+            {Array.from({ length: totalEndings }).map((_, i) => (
+              <div key={i} className={`w-3 h-3 border transition-all duration-500 ${i < endingsFound.size ? "bg-green-500 border-green-400 shadow-[0_0_6px_rgba(34,197,94,0.5)]" : "border-zinc-700 bg-zinc-900"}`} />
+            ))}
+            <span className="text-[10px] text-zinc-600 font-mono">{endingsFound.size}/{totalEndings}</span>
+          </div>
+        )}
 
         {getCurrentNodeData() && (
-          <div className="space-y-6">
+          <div key={currentNode} className="space-y-6 cyoa-node-enter">
             {getCurrentNodeData()?.image && <div className="aspect-video overflow-hidden border border-white/10"><img src={getCurrentNodeData()?.image} className="w-full h-full object-cover" /></div>}
-            <div className={`p-6 border-2 ${getCurrentNodeData()?.isEnding ? getCurrentNodeData()?.endingType === "good" ? "border-green-500 bg-green-500/10" : getCurrentNodeData()?.endingType === "bad" ? "border-red-500 bg-red-500/10" : "border-yellow-500 bg-yellow-500/10" : "border-white/30 bg-zinc-900/80"}`}>
-              {getCurrentNodeData()?.isEnding && <div className={`text-xs font-bold uppercase mb-4 ${getCurrentNodeData()?.endingType === "good" ? "text-green-500" : getCurrentNodeData()?.endingType === "bad" ? "text-red-500" : "text-yellow-500"}`}>{getCurrentNodeData()?.endingType?.toUpperCase()} ENDING</div>}
+            <div className={`p-6 border-2 transition-all duration-500 ${getCurrentNodeData()?.isEnding ? getCurrentNodeData()?.endingType === "good" ? "border-green-500 bg-green-500/10 cyoa-ending-pulse text-green-50" : getCurrentNodeData()?.endingType === "bad" ? "border-red-500 bg-red-500/10 cyoa-ending-pulse text-red-50" : "border-yellow-500 bg-yellow-500/10 cyoa-ending-pulse text-yellow-50" : "border-white/30 bg-zinc-900/80"}`}>
+              {getCurrentNodeData()?.isEnding && <div className={`text-xs font-bold uppercase mb-4 tracking-widest ${getCurrentNodeData()?.endingType === "good" ? "text-green-400" : getCurrentNodeData()?.endingType === "bad" ? "text-red-400" : "text-yellow-400"}`}>{getCurrentNodeData()?.endingType?.toUpperCase()} ENDING</div>}
               {getCurrentNodeData()?.title && <h3 className="font-display font-bold text-lg mb-3">{getCurrentNodeData()?.title}</h3>}
               <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap"><TypewriterText text={getCurrentNodeData()?.text || ""} speed={textSpeed} onComplete={() => setTypewriterDone(true)} /></div>
             </div>
@@ -780,13 +807,16 @@ if(N.length>0)showN(N[0].id);
               const hiddenCount = allChoices.length - visibleChoices.length;
               return allChoices.length > 0 ? (
                 <div className="space-y-2">
-                  {visibleChoices.length > 0 && <h4 className="text-xs font-bold uppercase text-white/50">Choose your path:</h4>}
+                  {visibleChoices.length > 0 && <h4 className="text-xs font-bold uppercase text-white/50 tracking-wider">Choose your path:</h4>}
                   {visibleChoices.map((choice, i) => (
-                    <button key={i} onClick={() => selectChoice(choice)} className="w-full p-4 bg-white/5 border-2 border-white/20 text-left hover:bg-white/10 hover:border-white/40 transition-all hover:translate-x-1 flex items-center justify-between group" data-testid={`button-choice-${i}`}>
-                      <span>{choice.label}</span>
+                    <button key={i} onClick={() => selectChoice(choice)}
+                      className="cyoa-choice-enter w-full p-4 bg-white/5 border-2 border-white/20 text-left hover:bg-white/10 hover:border-white/50 transition-all duration-200 hover:translate-x-2 hover:shadow-[4px_0_0_rgba(255,255,255,0.3)] flex items-center justify-between group active:scale-[0.98]"
+                      style={{ animationDelay: `${i * 120}ms` }}
+                      data-testid={`button-choice-${i}`}>
+                      <span className="font-medium">{choice.label}</span>
                       <div className="flex items-center gap-2">
                         {choice.effects && choice.effects.length > 0 && <Variable className="w-3 h-3 text-purple-400 opacity-50" />}
-                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-1" />
                       </div>
                     </button>
                   ))}
@@ -798,12 +828,15 @@ if(N.length>0)showN(N[0].id);
 
             {getCurrentNodeData()?.isEnding && (
               <button onClick={() => startPreview()}
-                className="w-full p-4 bg-white text-black font-bold uppercase hover:bg-zinc-200 transition-colors">Restart Story</button>
+                className="w-full p-4 bg-white text-black font-bold uppercase hover:bg-zinc-200 transition-all duration-200 active:scale-[0.98] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]">Restart Story</button>
             )}
           </div>
         )}
 
-        <div className="text-xs text-white/30 text-center font-mono">Path: {pathHistory.join(" → ")}</div>
+        <div className="text-xs text-white/20 text-center font-mono">{pathHistory.map((p, i) => {
+          const n = nodes.find(nd => nd.id === p);
+          return n?.title || p;
+        }).join(" → ")}</div>
       </div>
     </div>
   );
@@ -1038,8 +1071,8 @@ if(N.length>0)showN(N[0].id);
                           <h2 className="text-2xl font-display font-bold mb-2">Choose a Template</h2>
                           <p className="text-zinc-500 text-sm">Pick a starter template or build from scratch.</p>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl mb-8">
-                          {CYOA_TEMPLATES.map(template => (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl mb-8">
+                          {CYOA_TEMPLATES.map((template, tIdx) => (
                             <button
                               key={template.id}
                               onClick={() => {
@@ -1047,18 +1080,23 @@ if(N.length>0)showN(N[0].id);
                                 setTitle(template.title);
                                 toast.success(`"${template.title}" loaded — click any node to edit.`);
                               }}
-                              className="group p-4 bg-zinc-900 border border-zinc-700 hover:border-white text-left transition-colors"
+                              className="group p-5 bg-zinc-900 border-2 border-zinc-700 hover:border-white text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-[4px_4px_0_rgba(255,255,255,0.15)]"
+                              style={{ animationDelay: `${tIdx * 80}ms` }}
                               data-testid={`button-template-${template.id}`}
                             >
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-2xl">{template.emoji}</span>
-                                <h3 className="font-bold text-sm text-white">{template.title}</h3>
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-3xl">{template.emoji}</span>
+                                <div>
+                                  <h3 className="font-bold text-sm text-white font-display">{template.title}</h3>
+                                  <span className="text-[10px] font-mono text-zinc-600">{template.nodes.length} nodes · {template.nodes.filter(n => n.isEnding).length} endings</span>
+                                </div>
                               </div>
-                              <p className="text-zinc-500 text-xs leading-relaxed">{template.desc}</p>
-                              <div className="mt-2 flex items-center gap-2 text-zinc-600 text-[10px] font-mono">
-                                <span>{template.nodes.length} nodes</span>
-                                <span>{"\u2022"}</span>
-                                <span>{template.nodes.filter(n => n.isEnding).length} endings</span>
+                              <p className="text-zinc-400 text-xs leading-relaxed mb-3">{template.desc}</p>
+                              <div className="flex gap-1 flex-wrap">
+                                {template.nodes.slice(0, 3).map(n => (
+                                  <span key={n.id} className="text-[9px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 text-zinc-500">{n.title || n.id}</span>
+                                ))}
+                                {template.nodes.length > 3 && <span className="text-[9px] px-1.5 py-0.5 text-zinc-600">+{template.nodes.length - 3}</span>}
                               </div>
                             </button>
                           ))}
@@ -1067,12 +1105,12 @@ if(N.length>0)showN(N[0].id);
                               addNode();
                               setActiveTab("story");
                             }}
-                            className="group p-4 border border-dashed border-zinc-700 hover:border-white text-left transition-colors"
+                            className="group p-5 border-2 border-dashed border-zinc-700 hover:border-white text-left transition-all duration-200 hover:scale-[1.02] flex flex-col justify-center"
                             data-testid="button-template-blank"
                           >
-                            <div className="flex items-center gap-3 mb-2">
-                              <Plus className="w-6 h-6 text-zinc-500 group-hover:text-white" />
-                              <h3 className="font-bold text-sm text-zinc-400 group-hover:text-white">Blank Project</h3>
+                            <div className="flex items-center gap-3 mb-3">
+                              <Plus className="w-7 h-7 text-zinc-500 group-hover:text-white transition-colors" />
+                              <h3 className="font-bold text-sm text-zinc-400 group-hover:text-white font-display">Blank Project</h3>
                             </div>
                             <p className="text-zinc-600 text-xs leading-relaxed">Start with an empty canvas and build your own story.</p>
                           </button>

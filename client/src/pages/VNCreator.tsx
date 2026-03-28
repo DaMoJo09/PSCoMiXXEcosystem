@@ -311,29 +311,43 @@ function TypewriterText({ text, speed = 30, onComplete }: { text: string; speed?
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   const indexRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setDisplayed("");
     setDone(false);
     indexRef.current = 0;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
     if (speed <= 0) {
       setDisplayed(text);
       setDone(true);
       onComplete?.();
       return;
     }
-    const interval = setInterval(() => {
+
+    const advance = () => {
       indexRef.current++;
       if (indexRef.current >= text.length) {
         setDisplayed(text);
         setDone(true);
         onComplete?.();
-        clearInterval(interval);
-      } else {
-        setDisplayed(text.slice(0, indexRef.current));
+        return;
       }
-    }, speed);
-    return () => clearInterval(interval);
+      setDisplayed(text.slice(0, indexRef.current));
+
+      const char = text[indexRef.current - 1];
+      let delay = speed;
+      if (char === "." || char === "!" || char === "?") delay = speed * 6;
+      else if (char === "," || char === ";") delay = speed * 3;
+      else if (char === "—" || char === "–") delay = speed * 4;
+      else if (char === ":") delay = speed * 3;
+
+      timeoutRef.current = setTimeout(advance, delay);
+    };
+
+    timeoutRef.current = setTimeout(advance, speed);
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, [text, speed]);
 
   return (
@@ -954,6 +968,14 @@ if(S.length>0)showS(0);
 
   const playtestView = (
     <div ref={playtestRef} className={`relative overflow-hidden cursor-pointer ${isFullscreen ? "fixed inset-0 z-50 bg-black" : "h-[70vh]"}`} onClick={handlePlaytestClick} data-testid="playtest-viewport">
+      <style>{`
+        @keyframes vnChoiceFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes vnCharEnterLeft{from{opacity:0;transform:translateX(calc(-50% - 60px))}to{opacity:1;transform:translateX(0)}}
+        @keyframes vnCharEnterRight{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes vnCharEnterCenter{from{opacity:0;transform:translateX(-50%) scale(0.9) translateY(20px)}to{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
+        @keyframes vnSpeakerPop{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+        .vn-speaker-pop{animation:vnSpeakerPop 0.3s ease-out}
+      `}</style>
       <div className={`w-full h-full ${transitionClass}`}>
         <img src={currentBackgroundUrl} className="w-full h-full object-cover" />
         {currentScene?.tintColor && <div className="absolute inset-0" style={{ backgroundColor: currentScene.tintColor, opacity: 0.15 }} />}
@@ -963,8 +985,15 @@ if(S.length>0)showS(0);
         const char = characters.find(c => c.id === sceneChar.id);
         const sprite = char?.sprites.find(s => s.expression === sceneChar.expression || s.url);
         if (!sprite?.url) return null;
-        const positionStyles = { left: { left: "10%", transform: "translateX(0)" }, center: { left: "50%", transform: "translateX(-50%)" }, right: { right: "10%", transform: "translateX(0)" } };
-        return (<div key={sceneChar.id} className="absolute bottom-0 h-[80%] flex items-end transition-all duration-500" style={positionStyles[sceneChar.position]}><img src={sprite.url} className="h-full object-contain" /></div>);
+        const positionStyles: Record<string, React.CSSProperties> = {
+          left: { left: "10%", transform: "translateX(0)", animation: "vnCharEnterLeft 0.6s ease-out both" },
+          center: { left: "50%", animation: "vnCharEnterCenter 0.5s ease-out both" },
+          right: { right: "10%", transform: "translateX(0)", animation: "vnCharEnterRight 0.6s ease-out both" }
+        };
+        const isSpeaking = currentDialogue?.speaker === char?.name;
+        return (<div key={`${sceneChar.id}-${currentScene?.id}`} className="absolute bottom-0 h-[80%] flex items-end transition-all duration-500" style={positionStyles[sceneChar.position]}>
+          <img src={sprite.url} className={`h-full object-contain transition-all duration-300 ${isSpeaking ? "brightness-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" : "brightness-75"}`} />
+        </div>);
       })}
 
       {showTextLog && <TextLog log={textLog} onClose={() => setShowTextLog(false)} />}
@@ -988,7 +1017,9 @@ if(S.length>0)showS(0);
               <div className="mt-6 space-y-2">
                 {currentDialogue.choices.map((choice, i) => (
                   <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); setTypewriterDone(false); setTextSpeed(30); setNvlLines([]); }}
-                    className="block w-full text-left px-4 py-3 bg-white/5 border border-white/20 text-sm hover:bg-white/10 hover:border-white/40 transition-colors" data-testid={`button-choice-${i}`}>{choice.label}</button>
+                    className="block w-full text-left px-5 py-3 bg-white/5 border-2 border-white/20 text-sm hover:bg-white/15 hover:border-white/50 transition-all duration-200 hover:translate-x-2 hover:shadow-[4px_0_0_rgba(255,255,255,0.2)] active:scale-[0.98] font-medium"
+                    style={{ animation: `vnChoiceFade 0.4s ease-out ${i * 0.12}s both` }}
+                    data-testid={`button-choice-${i}`}>{choice.label}</button>
                 ))}
               </div>
             )}
@@ -1000,8 +1031,8 @@ if(S.length>0)showS(0);
         <div className="absolute bottom-0 left-0 right-0 z-10" style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.95) 20%)", padding: "3rem 2.5rem 2.5rem", minHeight: isFullscreen ? "200px" : "180px" }}>
           {currentDialogue ? (
             <>
-              <div className="flex items-center gap-3 mb-2">
-                {sideImageUrl && <img src={sideImageUrl} className="w-12 h-12 rounded-full object-cover border-2 border-white/30 flex-shrink-0" />}
+              <div key={`${currentDialogue.speaker}-${playIndex}`} className="flex items-center gap-3 mb-2 vn-speaker-pop">
+                {sideImageUrl && <img src={sideImageUrl} className="w-12 h-12 rounded-full object-cover border-2 flex-shrink-0" style={{ borderColor: currentSpeakerChar?.color || "rgba(255,255,255,0.3)" }} />}
                 <div className="font-bold font-display uppercase tracking-wider text-sm" style={{ color: currentSpeakerChar?.color || "#fff" }}>{currentDialogue.speaker}</div>
               </div>
               <p className="font-mono text-sm leading-relaxed">
@@ -1011,7 +1042,9 @@ if(S.length>0)showS(0);
                 <div className="mt-4 flex gap-2 flex-wrap">
                   {currentDialogue.choices.map((choice, i) => (
                     <button key={i} onClick={(e) => { e.stopPropagation(); setSelectedScene(choice.target); setPlayIndex(0); setIsPlaying(true); setTypewriterDone(false); setTextSpeed(30); setNvlLines([]); }}
-                      className="px-4 py-2 bg-white/10 border border-white/25 text-sm hover:bg-white/20 hover:border-white/50 transition-all" data-testid={`button-choice-${i}`}>{choice.label}</button>
+                      className="px-5 py-2.5 bg-white/10 border-2 border-white/25 text-sm hover:bg-white/20 hover:border-white/60 transition-all duration-200 hover:translate-y-[-2px] hover:shadow-[0_4px_12px_rgba(255,255,255,0.15)] active:scale-95 font-medium"
+                      style={{ animation: `vnChoiceFade 0.4s ease-out ${i * 0.1}s both` }}
+                      data-testid={`button-choice-${i}`}>{choice.label}</button>
                   ))}
                 </div>
               )}
@@ -1049,6 +1082,12 @@ if(S.length>0)showS(0);
           .vn-transition-slide-left{animation:vnSlideLeft 0.6s ease-out}.vn-transition-slide-right{animation:vnSlideRight 0.6s ease-out}
           @keyframes vnFade{from{opacity:0}to{opacity:1}}@keyframes vnDissolve{0%{opacity:0;filter:blur(8px)}100%{opacity:1;filter:blur(0)}}
           @keyframes vnSlideLeft{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes vnSlideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+          @keyframes vnChoiceFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+          @keyframes vnCharEnterLeft{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:translateX(0)}}
+          @keyframes vnCharEnterRight{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+          @keyframes vnCharEnterCenter{from{opacity:0;transform:scale(0.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+          @keyframes vnSpeakerPop{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+          .vn-speaker-pop{animation:vnSpeakerPop 0.3s ease-out}
         `}</style>
 
         <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
