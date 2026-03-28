@@ -61,7 +61,7 @@ A suite of tools includes:
 - **Card Creator:** Supports TCG and Sports modes with specific card types and a Pack Builder.
 
 ### Print Studio
-Provides a creation-to-print pipeline with an export dashboard, print quote request form, and package offerings.
+Provides a creation-to-print pipeline with an export dashboard, print quote request form, package offerings, and a customer review & rating system for printed products (1-5 stars, verified order badges, product type filtering).
 
 ### Creator Marketplace
 A public storefront for browsing, filtering, and selling projects or asset packs via Stripe Checkout, with content rating and student filtering.

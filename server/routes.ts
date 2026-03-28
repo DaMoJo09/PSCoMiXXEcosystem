@@ -8450,6 +8450,108 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     }
   });
 
+  // =========== Print Product Reviews ===========
+
+  app.get("/api/print-reviews", async (req, res) => {
+    try {
+      const productType = req.query.productType as string | undefined;
+      const reviews = await storage.getPrintProductReviews(productType);
+      res.json(reviews);
+    } catch {
+      res.status(500).json({ message: "Error fetching print reviews" });
+    }
+  });
+
+  app.get("/api/print-reviews/stats", async (req, res) => {
+    try {
+      const productType = req.query.productType as string | undefined;
+      const stats = await storage.getPrintProductReviewStats(productType);
+      res.json(stats);
+    } catch {
+      res.status(500).json({ message: "Error fetching review stats" });
+    }
+  });
+
+  app.get("/api/print-reviews/my", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const reviews = await storage.getUserPrintProductReviews(user.id);
+      res.json(reviews);
+    } catch {
+      res.status(500).json({ message: "Error fetching your reviews" });
+    }
+  });
+
+  app.post("/api/print-reviews", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { productType, rating, title, reviewText, quoteRequestId } = req.body;
+
+      if (!productType || rating === undefined || rating === null) {
+        return res.status(400).json({ message: "Product type and rating are required" });
+      }
+
+      const validProductTypes = ["comic-books", "books-novels", "trading-cards", "posters", "stickers", "t-shirts", "promo-materials"];
+      if (!validProductTypes.includes(productType)) {
+        return res.status(400).json({ message: "Invalid product type" });
+      }
+
+      const existingReviews = await storage.getUserPrintProductReviews(user.id);
+      const alreadyReviewed = existingReviews.find(r => r.productType === productType && (!quoteRequestId || r.quoteRequestId === quoteRequestId));
+      if (alreadyReviewed) {
+        return res.status(409).json({ message: "You have already reviewed this product type" });
+      }
+
+      const parsedRating = Math.floor(Number(rating));
+      if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+        return res.status(400).json({ message: "Rating must be an integer between 1 and 5" });
+      }
+      if (title && typeof title !== "string") return res.status(400).json({ message: "Invalid title" });
+      if (reviewText && typeof reviewText !== "string") return res.status(400).json({ message: "Invalid review text" });
+      if (title && title.length > 120) return res.status(400).json({ message: "Title must be 120 characters or less" });
+      if (reviewText && reviewText.length > 2000) return res.status(400).json({ message: "Review must be 2000 characters or less" });
+
+      let verifiedOrder = false;
+      const userQuotes = await storage.getUserPrintQuoteRequests(user.id);
+      if (quoteRequestId) {
+        const matchingQuote = userQuotes.find(q => q.id === quoteRequestId && q.status === "completed" && q.productType === productType);
+        if (matchingQuote) verifiedOrder = true;
+      } else {
+        const completedQuote = userQuotes.find(q => q.status === "completed" && q.productType === productType);
+        if (completedQuote) verifiedOrder = true;
+      }
+
+      const review = await storage.createPrintProductReview({
+        userId: user.id,
+        productType,
+        rating: parsedRating,
+        title: title || null,
+        reviewText: reviewText || null,
+        quoteRequestId: quoteRequestId || null,
+        verifiedOrder,
+      });
+
+      res.status(201).json(review);
+    } catch {
+      res.status(500).json({ message: "Error creating review" });
+    }
+  });
+
+  app.delete("/api/print-reviews/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const review = await storage.getPrintProductReview(req.params.id);
+      if (!review) return res.status(404).json({ message: "Review not found" });
+      if (review.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ message: "Not authorized to delete this review" });
+      }
+      await storage.deletePrintProductReview(req.params.id);
+      res.json({ message: "Review deleted" });
+    } catch {
+      res.status(500).json({ message: "Error deleting review" });
+    }
+  });
+
   // =========== SSO / JWT Ecosystem Auth ===========
 
   async function getUserSSOData(user: any) {

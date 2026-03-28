@@ -2505,3 +2505,24 @@ export const insertPlatformEventSchema = createInsertSchema(platformEvents).omit
 
 export type InsertPlatformEvent = z.infer<typeof insertPlatformEventSchema>;
 export type PlatformEvent = typeof platformEvents.$inferSelect;
+
+export const printProductReviews = pgTable("print_product_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productType: text("product_type").notNull(),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  reviewText: text("review_text"),
+  verifiedOrder: boolean("verified_order").notNull().default(false),
+  quoteRequestId: varchar("quote_request_id").references(() => printQuoteRequests.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPrintProductReviewSchema = createInsertSchema(printProductReviews).omit({
+  id: true,
+  createdAt: true,
+  verifiedOrder: true,
+});
+
+export type InsertPrintProductReview = z.infer<typeof insertPrintProductReviewSchema>;
+export type PrintProductReview = typeof printProductReviews.$inferSelect;

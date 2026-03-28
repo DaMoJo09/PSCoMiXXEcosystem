@@ -373,6 +373,15 @@ export default function PrintStudio() {
                 <Printer className="w-5 h-5" />
                 REQUEST A QUOTE
               </button>
+              <button
+                data-testid="button-cta-reviews"
+                onClick={() => navigate("/print-studio/reviews")}
+                className="group px-8 py-4 border-2 border-zinc-600 text-zinc-300 font-bold text-base uppercase tracking-wider flex items-center gap-3 hover:border-white hover:text-white transition-all cursor-pointer bg-transparent"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                <Star className="w-5 h-5" />
+                CUSTOMER REVIEWS
+              </button>
             </div>
           </div>
         </section>

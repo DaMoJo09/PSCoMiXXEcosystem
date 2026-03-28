@@ -82,6 +82,7 @@ import PrintStudio from "@/pages/PrintStudio";
 import ExportDashboard from "@/pages/ExportDashboard";
 import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
 import PrintPackages from "@/pages/PrintPackages";
+import PrintReviews from "@/pages/PrintReviews";
 import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import CertificationsPage, { VerifyPage } from "@/pages/CertificationsPage";
 import SSOCallbackPage from "@/pages/SSOCallbackPage";
@@ -217,6 +218,7 @@ function ProtectedRouter() {
         <Route path="/print-studio/export" component={ExportDashboard} />
         <Route path="/print-studio/quote" component={PrintQuoteRequest} />
         <Route path="/print-studio/packages" component={PrintPackages} />
+        <Route path="/print-studio/reviews" component={PrintReviews} />
         <Route path="/marketplace" component={MarketplacePage} />
         <Route path="/marketplace/sell" component={MarketplaceSellPage} />
         <Route path="/marketplace/purchases" component={MarketplacePurchasesPage} />

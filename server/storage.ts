@@ -102,6 +102,7 @@ import {
   type PublishJob, type InsertPublishJob,
   type EngagementEvent, type InsertEngagementEvent,
   type PrintQuoteRequest, type InsertPrintQuoteRequest,
+  printProductReviews, type PrintProductReview,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, sql, ilike, gt, inArray } from "drizzle-orm";
@@ -487,6 +488,14 @@ export interface IStorage {
   getUserPrintQuoteRequests(userId: string): Promise<PrintQuoteRequest[]>;
   getAllPrintQuoteRequests(): Promise<PrintQuoteRequest[]>;
   updatePrintQuoteStatus(id: string, status: string): Promise<PrintQuoteRequest | undefined>;
+
+  // Print Product Review operations
+  getPrintProductReviews(productType?: string): Promise<any[]>;
+  getPrintProductReview(id: string): Promise<PrintProductReview | undefined>;
+  createPrintProductReview(review: { userId: string; productType: string; rating: number; title?: string; reviewText?: string; quoteRequestId?: string; verifiedOrder: boolean }): Promise<PrintProductReview>;
+  getUserPrintProductReviews(userId: string): Promise<PrintProductReview[]>;
+  deletePrintProductReview(id: string): Promise<boolean>;
+  getPrintProductReviewStats(productType?: string): Promise<{ averageRating: number; totalReviews: number; distribution: Record<number, number> }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3413,6 +3422,63 @@ export class DatabaseStorage implements IStorage {
   async updatePrintQuoteStatus(id: string, status: string): Promise<PrintQuoteRequest | undefined> {
     const [result] = await db.update(printQuoteRequests).set({ status }).where(eq(printQuoteRequests.id, id)).returning();
     return result || undefined;
+  }
+
+  async getPrintProductReviews(productType?: string): Promise<any[]> {
+    const conditions = productType ? [eq(printProductReviews.productType, productType)] : [];
+    return db.select({
+      id: printProductReviews.id,
+      userId: printProductReviews.userId,
+      productType: printProductReviews.productType,
+      rating: printProductReviews.rating,
+      title: printProductReviews.title,
+      reviewText: printProductReviews.reviewText,
+      verifiedOrder: printProductReviews.verifiedOrder,
+      quoteRequestId: printProductReviews.quoteRequestId,
+      createdAt: printProductReviews.createdAt,
+      authorName: users.name,
+      authorAvatar: users.avatar,
+    })
+      .from(printProductReviews)
+      .innerJoin(users, eq(printProductReviews.userId, users.id))
+      .where(conditions.length > 0 ? conditions[0] : undefined)
+      .orderBy(desc(printProductReviews.createdAt));
+  }
+
+  async getPrintProductReview(id: string): Promise<PrintProductReview | undefined> {
+    const [result] = await db.select().from(printProductReviews).where(eq(printProductReviews.id, id));
+    return result || undefined;
+  }
+
+  async createPrintProductReview(review: { userId: string; productType: string; rating: number; title?: string; reviewText?: string; quoteRequestId?: string; verifiedOrder: boolean }): Promise<PrintProductReview> {
+    const [result] = await db.insert(printProductReviews).values(review).returning();
+    return result;
+  }
+
+  async getUserPrintProductReviews(userId: string): Promise<PrintProductReview[]> {
+    return db.select().from(printProductReviews).where(eq(printProductReviews.userId, userId)).orderBy(desc(printProductReviews.createdAt));
+  }
+
+  async deletePrintProductReview(id: string): Promise<boolean> {
+    const result = await db.delete(printProductReviews).where(eq(printProductReviews.id, id));
+    return (result?.rowCount ?? 0) > 0;
+  }
+
+  async getPrintProductReviewStats(productType?: string): Promise<{ averageRating: number; totalReviews: number; distribution: Record<number, number> }> {
+    const conditions = productType ? [eq(printProductReviews.productType, productType)] : [];
+    const reviews = await db.select({ rating: printProductReviews.rating })
+      .from(printProductReviews)
+      .where(conditions.length > 0 ? conditions[0] : undefined);
+    
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let total = 0;
+    reviews.forEach(r => { distribution[r.rating] = (distribution[r.rating] || 0) + 1; total += r.rating; });
+    
+    return {
+      averageRating: reviews.length > 0 ? total / reviews.length : 0,
+      totalReviews: reviews.length,
+      distribution,
+    };
   }
 }
 
