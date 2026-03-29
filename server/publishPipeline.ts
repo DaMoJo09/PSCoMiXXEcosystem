@@ -49,6 +49,7 @@ function mapProjectType(type: string): PSContentBundle["content_type"] {
     cyoa: "cyoa",
     cover: "cover",
     motion: "motion",
+    hop: "hop",
   };
   return map[type] || "comic";
 }
@@ -244,6 +245,26 @@ function buildEmergentPayload(bundle: PSContentBundle): Record<string, any> {
       payload.card_image_url = bundle.cover_asset_url || "";
       if (projectData?.stats) payload.stats = projectData.stats;
       if (projectData?.rarity) payload.rarity = projectData.rarity;
+      break;
+    }
+
+    case "hop": {
+      if (projectData?.scenes) {
+        payload.scenes = projectData.scenes;
+        payload.loop_mode = projectData.loopMode || "single_loop";
+        payload.clip_length_mode = projectData.clipLengthMode || "30s";
+        payload.total_duration = projectData.totalDuration || 0;
+        payload.hop_type = projectData.type || "single";
+        if (projectData.audioTrack) {
+          payload.audio_track = projectData.audioTrack;
+        }
+        if (projectData.seriesId) {
+          payload.series_id = projectData.seriesId;
+          payload.series_title = projectData.seriesTitle;
+          payload.episode_number = projectData.episodeNumber;
+        }
+        payload.preview_settings = projectData.previewSettings || { autoplay: true, mutedByDefault: false, showCaptions: true };
+      }
       break;
     }
 

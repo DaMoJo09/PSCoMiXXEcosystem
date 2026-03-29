@@ -44,6 +44,7 @@ const typeLabels: Record<string, string> = {
   cover: "Cover Art",
   motion: "Motion",
   cyoa: "CYOA",
+  hop: "HOP",
 };
 
 const CERT_ICON_MAP: Record<string, any> = {
@@ -198,6 +199,7 @@ export default function Dashboard() {
                       <option value="vn">Visual Novel</option>
                       <option value="cyoa">CYOA</option>
                       <option value="motion">Motion Graphics</option>
+                      <option value="hop">HOP</option>
                     </select>
                   </div>
                   <Button 

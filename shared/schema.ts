@@ -204,6 +204,20 @@ export const comicDataSchema = z.object({
         data: z.any(),
       }),
     })),
+    themeMusic: z.object({
+      src: z.string(),
+      name: z.string(),
+      volume: z.number().default(0.5),
+      loop: z.boolean().default(true),
+      autoplay: z.boolean().default(true),
+    }).optional(),
+    sfxTracks: z.array(z.object({
+      id: z.string(),
+      src: z.string(),
+      name: z.string(),
+      trigger: z.enum(["on_enter", "on_click", "manual"]).default("on_enter"),
+      volume: z.number().default(0.8),
+    })).optional(),
   })),
 });
 
@@ -300,6 +314,52 @@ export const motionDataSchema = z.object({
     params: z.record(z.any()),
   })),
 });
+
+export const hopSceneSchema = z.object({
+  id: z.string(),
+  order: z.number(),
+  assetType: z.enum(["image", "gif", "video", "text_card", "motion_scene"]),
+  assetUrl: z.string().optional(),
+  textOverlay: z.string().optional(),
+  caption: z.string().optional(),
+  duration: z.number(),
+  transition: z.enum(["cut", "fade", "zoom", "glitch"]).default("cut"),
+  loopInScene: z.boolean().default(false),
+  effects: z.array(z.string()).optional(),
+});
+
+export const hopDataSchema = z.object({
+  type: z.enum(["single", "series"]),
+  clipLengthMode: z.enum(["30s", "90s", "custom"]).default("30s"),
+  loopMode: z.enum(["single_loop", "full_series_loop", "manual_advance"]).default("single_loop"),
+  audioTrack: z.object({
+    src: z.string(),
+    name: z.string(),
+    volume: z.number().default(0.8),
+    loop: z.boolean().default(true),
+    bpm: z.number().optional(),
+    fadeIn: z.number().optional(),
+    fadeOut: z.number().optional(),
+  }).optional(),
+  scenes: z.array(hopSceneSchema),
+  coverImage: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  visibility: z.enum(["private", "unlisted", "public"]).default("private"),
+  totalDuration: z.number().optional(),
+  previewSettings: z.object({
+    autoplay: z.boolean().default(true),
+    mutedByDefault: z.boolean().default(false),
+    showCaptions: z.boolean().default(true),
+  }).optional(),
+  streamingSyncStatus: z.enum(["draft", "queued", "published", "failed"]).default("draft"),
+  seriesId: z.string().optional(),
+  seriesTitle: z.string().optional(),
+  episodeNumber: z.number().optional(),
+  partLabel: z.string().optional(),
+});
+
+export type HopScene = z.infer<typeof hopSceneSchema>;
+export type HopData = z.infer<typeof hopDataSchema>;
 
 // Portfolio Artworks table - for showcasing finished work
 export const portfolioArtworks = pgTable("portfolio_artworks", {

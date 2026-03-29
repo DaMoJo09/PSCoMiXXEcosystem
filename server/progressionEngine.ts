@@ -82,6 +82,10 @@ const XP_VALUES: Record<string, number> = {
   assignment_complete: 60,
   subscription_started: 100,
   first_share: 50,
+  hop_created: 25,
+  hop_saved: 25,
+  hop_published: 100,
+  hop_series_created: 150,
 };
 
 export function getXpForAction(action: string): number {

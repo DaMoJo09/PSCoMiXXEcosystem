@@ -22,6 +22,7 @@ import VNCreator from "@/pages/VNCreator";
 import AdminDashboard from "@/pages/AdminDashboard";
 import MotionStudio from "@/pages/MotionStudio";
 import CYOABuilder from "@/pages/CYOABuilder";
+import HopCreator from "@/pages/HopCreator";
 
 import PromptFactory from "@/pages/PromptFactory";
 import StoryForge from "@/pages/StoryForge";
@@ -165,6 +166,7 @@ function ProtectedRouter() {
         <Route path="/creator/vn" component={VNCreator} />
         <Route path="/creator/cyoa" component={CYOABuilder} />
         <Route path="/creator/cover" component={CoverCreator} />
+        <Route path="/creator/hop" component={HopCreator} />
 
         <Route path="/fx-studio" component={FxStudioPage} />
         <Route path="/tools/prompt" component={PromptFactory} />
