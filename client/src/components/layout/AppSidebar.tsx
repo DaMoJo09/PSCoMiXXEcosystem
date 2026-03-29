@@ -72,7 +72,7 @@ const creatorTools = [
   { icon: CreditCard, label: "Card Creator", href: "/creator/card" },
   { icon: BookOpen, label: "Visual Novel", href: "/creator/vn" },
   { icon: GitBranch, label: "CYOA Builder", href: "/creator/cyoa" },
-
+  { icon: Zap, label: "HOP Creator", href: "/creator/hop" },
 ];
 
 const aiTools = [

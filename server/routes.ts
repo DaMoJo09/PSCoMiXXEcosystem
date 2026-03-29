@@ -610,7 +610,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       
       const validActions = ['save', 'export', 'generate', 'publish', 'project_created', 'export_completed', 
         'ai_generation', 'profile_complete', 'first_login', 'daily_login', 'lesson_complete', 
-        'assignment_complete', 'challenge_participation', 'first_share', 'subscription_started'];
+        'assignment_complete', 'challenge_participation', 'first_share', 'subscription_started',
+        'hop_created', 'hop_saved', 'hop_published', 'hop_series_created'];
       if (!action || !validActions.includes(action)) {
         return res.status(400).json({ message: "Invalid action type" });
       }
@@ -1394,6 +1395,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const project = await storage.createProject(result.data);
       processProgressionEvent(req.user!.id, "project_created", project.id, "project").catch(() => {});
+      if (result.data.type === "hop") {
+        processProgressionEvent(req.user!.id, "hop_created", project.id, "project").catch(() => {});
+        const hopData = result.data.data as any;
+        if (hopData?.type === "series") {
+          processProgressionEvent(req.user!.id, "hop_series_created", project.id, "project").catch(() => {});
+        }
+      }
       res.status(201).json(project);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1411,6 +1419,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const updated = await storage.updateProject(req.params.id, req.body);
+      if (project.type === "hop") {
+        processProgressionEvent(req.user!.id, "hop_saved", req.params.id, "project").catch(() => {});
+      }
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1448,6 +1459,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (req.body.title) updatePayload.title = req.body.title;
       if (req.body.thumbnail) updatePayload.thumbnail = req.body.thumbnail;
       const updated = await storage.updateProject(req.params.id, updatePayload);
+      if (project.type === "hop") {
+        processProgressionEvent(req.user!.id, "hop_saved", req.params.id, "project").catch(() => {});
+      }
       res.json({ saved: true, id: updated?.id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -5681,6 +5695,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(400).json({ message: result.error });
       }
       processProgressionEvent(req.user!.id, "publish", project.id, "project").catch(() => {});
+      if (project.type === "hop") {
+        processProgressionEvent(req.user!.id, "hop_published", project.id, "project").catch(() => {});
+      }
       res.json({ jobId: result.jobId, message: "Publishing pipeline started" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

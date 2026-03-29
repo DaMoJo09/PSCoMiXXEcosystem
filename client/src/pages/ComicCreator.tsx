@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
@@ -126,10 +126,19 @@ interface Panel {
   coverRole?: "front-cover" | "back-cover";
 }
 
+interface SpreadAudio {
+  src: string;
+  name: string;
+  volume: number;
+  loop: boolean;
+  autoplay: boolean;
+}
+
 interface Spread {
   id: string;
   leftPage: Panel[];
   rightPage: Panel[];
+  themeMusic?: SpreadAudio;
 }
 
 const COMIC_IMAGE_FILTERS = [
@@ -445,6 +454,8 @@ export default function ComicCreator() {
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
+  const spreadAudioRef = useRef<HTMLAudioElement | null>(null);
+  const spreadAudioInputRef = useRef<HTMLInputElement>(null);
   
   const [showPreview, setShowPreview] = useState(false);
   const [previewPage, setPreviewPage] = useState(0);
@@ -4082,6 +4093,70 @@ export default function ComicCreator() {
                   <ZoomIn className="w-4 h-4" />
                 </button>
               </div>
+              <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-2">
+                <input
+                  ref={spreadAudioInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !file.type.startsWith("audio/")) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setSpreads(prev => prev.map((sp, i) =>
+                        i === currentSpreadIndex
+                          ? { ...sp, themeMusic: { src: reader.result as string, name: file.name.replace(/\.[^.]+$/, ""), volume: 0.5, loop: true, autoplay: true } }
+                          : sp
+                      ));
+                      toast.success(`Theme music added: ${file.name}`);
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+                {currentSpread?.themeMusic ? (
+                  <>
+                    <Music className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[10px] text-emerald-300 max-w-20 truncate">{currentSpread.themeMusic.name}</span>
+                    <button
+                      onClick={() => {
+                        if (spreadAudioRef.current) {
+                          if (spreadAudioRef.current.paused) {
+                            spreadAudioRef.current.volume = currentSpread.themeMusic!.volume;
+                            spreadAudioRef.current.loop = currentSpread.themeMusic!.loop;
+                            spreadAudioRef.current.play().catch(() => {});
+                          } else {
+                            spreadAudioRef.current.pause();
+                          }
+                        }
+                      }}
+                      className="p-0.5 hover:bg-white/10"
+                      title="Play/Pause theme music"
+                      data-testid="button-spread-audio-play"
+                    >
+                      <Play className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => setSpreads(prev => prev.map((sp, i) => i === currentSpreadIndex ? { ...sp, themeMusic: undefined } : sp))}
+                      className="p-0.5 hover:bg-white/10 text-red-400"
+                      title="Remove theme music"
+                      data-testid="button-spread-audio-remove"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => spreadAudioInputRef.current?.click()}
+                    className="flex items-center gap-1 px-1.5 py-0.5 hover:bg-white/10 text-zinc-400 hover:text-emerald-400 transition text-[10px]"
+                    title="Add theme music to this spread"
+                    data-testid="button-spread-audio-add"
+                  >
+                    <Music className="w-3 h-3" /> Theme
+                  </button>
+                )}
+              </div>
             </div>
 
             <div 
@@ -6020,6 +6095,16 @@ export default function ComicCreator() {
         feature="Export to PNG"
         requiredTier="creator"
       />
+
+      {currentSpread?.themeMusic && (
+        <audio
+          ref={spreadAudioRef}
+          src={currentSpread.themeMusic.src}
+          loop={currentSpread.themeMusic.loop}
+          autoPlay={currentSpread.themeMusic.autoplay}
+          className="hidden"
+        />
+      )}
 
     </Layout>
   );

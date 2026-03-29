@@ -1153,7 +1153,7 @@ export type EngagementEvent = typeof engagementEvents.$inferSelect;
 export const psContentBundleSchema = z.object({
   contract_version: z.literal("v1"),
   content_id: z.string().uuid(),
-  content_type: z.enum(["comic", "comic_issue", "visual_novel", "cyoa", "trading_card", "cover", "motion"]),
+  content_type: z.enum(["comic", "comic_issue", "visual_novel", "cyoa", "trading_card", "cover", "motion", "hop"]),
   title: z.string(),
   description: z.string().optional(),
   cover_asset_url: z.string().optional(),

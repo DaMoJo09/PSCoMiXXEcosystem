@@ -93,6 +93,12 @@ Public creator profiles display avatar, cover image, bio, XP progress, social li
 ### Assignment Submit Button
 A reusable component for students to submit projects to active assignments.
 
+### HOPs (Hot One-Page Stories)
+A viral short-form content format for the streaming platform. Route: `/creator/hop`. Supports single HOPs and series. Each HOP has scenes with assets (image/gif/video/audio), text overlays, captions, and transitions (cut/fade/zoom/glitch). Audio track support with loop/volume controls. Clip length modes: 30s, 90s, custom. Loop modes: single_loop, full_series_loop, manual_advance. Fullscreen preview player with loop counter and audio sync. XP events: `hop_created` (25 XP), `hop_saved` (25 XP), `hop_published` (100 XP), `hop_series_created` (150 XP). Integrated into publish pipeline as `hop` content type. Files: `client/src/pages/HopCreator.tsx`, `shared/schema.ts` (hopDataSchema, hopSceneSchema).
+
+### Comic Audio Enhancement
+Per-spread theme music support in the Comic Creator. Each spread can have attached audio with volume, loop, and autoplay controls. Audio uploaded as base64 data URLs. Controls in the spread navigation bar (add/play/pause/remove). Hidden `<audio>` element handles playback with autoPlay support. SpreadAudio interface: src, name, volume, loop, autoplay.
+
 ### FX Studio Integration
 Full bidirectional integration with FX Studio (pscomixx.online) covering all 12+ creative modes. FX Studio opens in a new browser tab via `window.open()` (iframe embedding blocked by Lovable hosting headers). The `useFxStudio` hook manages the tab lifecycle, `postMessage` bridge for real-time asset return (`panel-fx-return`, `asset-export`, `fx-studio-ready`, `fx-studio-closed` events), and tab-closed polling. A `FxStudioStatusBar` component shows connection status at the bottom of the screen while FX Studio is open. The sidebar, comic creator toolbar, and motion studio toolbar all open FX Studio in a new tab. The layout-sync endpoint accepts all mode types with automatic asset_tag resolution. Local-first `fx_effects` table stores synced assets with upstream mirroring to FX Studio's Supabase edge function. Retry protocol retries without preview_data_url on upstream failure. Cloud sync button enables bidirectional push (CoMiXX → FX Studio). Health check at `/api/fx-studio/health`. Asset tag taxonomy covers 28+ tags organized into 9 folder groups. The `/fx-studio` route auto-opens FX Studio in a new tab.
 
