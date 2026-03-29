@@ -229,6 +229,10 @@ interface CardData {
   statLine?: string;
   grade?: string;
   school?: string;
+  logo?: string;
+  logoPosition?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  logoSize?: number;
+  logoOpacity?: number;
 }
 
 interface PackData {
@@ -285,6 +289,7 @@ export default function CardCreator() {
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const cardPreviewRef = useRef<HTMLDivElement>(null);
 
   const switchCardMode = (newMode: "tcg" | "sports") => {
@@ -565,6 +570,18 @@ export default function CardCreator() {
     e.target.value = "";
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updateCard({ logo: event.target?.result as string, logoPosition: cardData.logoPosition || "top-right", logoSize: cardData.logoSize || 48, logoOpacity: cardData.logoOpacity ?? 100 });
+      toast.success("Logo added to card");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const handleAIGenerated = (url: string) => {
     if (side === "front") {
       updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 });
@@ -609,6 +626,26 @@ export default function CardCreator() {
     return {
       filter: `contrast(${100 + (f.contrast - 50)}%) brightness(${100 + (f.brightness - 50)}%) saturate(${f.saturation}%)${f.grayscale ? ' grayscale(100%)' : ''}${f.sepia ? ' sepia(100%)' : ''}`
     };
+  };
+
+  const getLogoPositionStyle = (): React.CSSProperties => {
+    const pos = cardData.logoPosition || "top-right";
+    const size = cardData.logoSize || 48;
+    const opacity = (cardData.logoOpacity ?? 100) / 100;
+    const base: React.CSSProperties = {
+      position: "absolute",
+      width: `${size}px`,
+      height: `${size}px`,
+      objectFit: "contain",
+      opacity,
+      zIndex: 10,
+      pointerEvents: "none",
+    };
+    if (pos.includes("top")) base.top = "8px";
+    if (pos.includes("bottom")) base.bottom = "8px";
+    if (pos.includes("left")) base.left = "8px";
+    if (pos.includes("right")) base.right = "8px";
+    return base;
   };
 
   const addCardToPack = () => {
@@ -1131,6 +1168,81 @@ export default function CardCreator() {
                       <span className="text-zinc-500 text-xs"><Upload className="w-4 h-4 mx-auto mb-1" /> Upload</span>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t border-zinc-700">
+                  <label className="text-xs font-bold uppercase text-zinc-400">School / Team Logo</label>
+                  <div
+                    onClick={() => logoInputRef.current?.click()}
+                    className="aspect-[3/1] bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white relative overflow-hidden"
+                  >
+                    {cardData.logo ? (
+                      <img src={cardData.logo} className="h-full object-contain p-2" data-testid="img-logo-preview" />
+                    ) : (
+                      <span className="text-zinc-500 text-xs flex flex-col items-center"><Upload className="w-4 h-4 mb-1" /> Upload Logo</span>
+                    )}
+                  </div>
+                  {cardData.logo && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase">Position</label>
+                        <div className="grid grid-cols-4 gap-1 mt-1">
+                          {([
+                            { key: "top-left", label: "TL" },
+                            { key: "top-right", label: "TR" },
+                            { key: "bottom-left", label: "BL" },
+                            { key: "bottom-right", label: "BR" },
+                          ] as const).map(pos => (
+                            <button
+                              key={pos.key}
+                              onClick={() => updateCard({ logoPosition: pos.key })}
+                              className={`py-1 text-[9px] font-bold transition ${
+                                (cardData.logoPosition || "top-right") === pos.key
+                                  ? "bg-cyan-600 text-white"
+                                  : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
+                              }`}
+                              data-testid={`button-logo-pos-${pos.key}`}
+                            >
+                              {pos.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase flex justify-between">
+                          <span>Size</span>
+                          <span>{cardData.logoSize || 48}px</span>
+                        </label>
+                        <input
+                          type="range" min="20" max="100" step="2"
+                          value={cardData.logoSize || 48}
+                          onChange={(e) => updateCard({ logoSize: Number(e.target.value) })}
+                          className="w-full h-1 accent-cyan-500 mt-1"
+                          data-testid="slider-logo-size"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase flex justify-between">
+                          <span>Opacity</span>
+                          <span>{cardData.logoOpacity ?? 100}%</span>
+                        </label>
+                        <input
+                          type="range" min="10" max="100" step="5"
+                          value={cardData.logoOpacity ?? 100}
+                          onChange={(e) => updateCard({ logoOpacity: Number(e.target.value) })}
+                          className="w-full h-1 accent-cyan-500 mt-1"
+                          data-testid="slider-logo-opacity"
+                        />
+                      </div>
+                      <button
+                        onClick={() => updateCard({ logo: undefined })}
+                        className="w-full py-1 text-[10px] bg-zinc-800 hover:bg-red-900/30 text-red-400 border border-zinc-700 transition"
+                        data-testid="button-remove-logo"
+                      >
+                        Remove Logo
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-zinc-700">
@@ -2319,6 +2431,9 @@ export default function CardCreator() {
                   cardMode === "sports" ? (
                   <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
                     <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
+                      {cardData.logo && side === "front" && (
+                        <img src={cardData.logo} style={getLogoPositionStyle()} alt="Logo" data-testid="card-logo-sports" />
+                      )}
                       <div className="flex-1 relative overflow-hidden">
                         <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} />
                         {cardData.filters.halftone && (
@@ -2387,7 +2502,10 @@ export default function CardCreator() {
                   </div>
                   ) : (
                   <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
-                    <div className="absolute inset-2 bg-white flex flex-col">
+                    <div className="absolute inset-2 bg-white flex flex-col relative">
+                      {cardData.logo && (
+                        <img src={cardData.logo} style={getLogoPositionStyle()} alt="Logo" data-testid="card-logo-tcg" />
+                      )}
                       <div className="h-10 flex justify-between items-center px-3 border-b-2" style={{ borderColor: cardData.borderColor }}>
                         {cardData.nameArch !== 0 ? (
                           <svg viewBox="0 0 300 40" className="flex-1 h-full" preserveAspectRatio="xMidYMid meet">
@@ -2516,6 +2634,7 @@ export default function CardCreator() {
 
         <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />
         <input ref={backInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "back")} />
+        <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
 
         {showAIGen && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
