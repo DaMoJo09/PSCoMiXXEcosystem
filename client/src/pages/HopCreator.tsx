@@ -235,16 +235,44 @@ export default function HopCreator() {
   }, [showPreview, isPlaying, previewSceneIndex, scenes, loopMode]);
 
   useEffect(() => {
-    if (audioRef.current && audioTrack) {
-      if (isPlaying && !audioMuted) {
-        audioRef.current.volume = audioTrack.volume;
-        audioRef.current.loop = audioTrack.loop;
-        audioRef.current.play().catch(() => {});
+    const el = audioRef.current;
+    if (!el || !audioTrack) return;
+    let cancelled = false;
+    el.volume = audioTrack.volume;
+    el.loop = audioTrack.loop;
+
+    const shouldPlay = isPlaying && !audioMuted && showPreview;
+
+    if (shouldPlay) {
+      const doPlay = () => {
+        if (cancelled) return;
+        el.play().catch(() => {});
+      };
+      if (el.readyState >= 3) {
+        doPlay();
       } else {
-        audioRef.current.pause();
+        el.addEventListener("canplaythrough", doPlay, { once: true });
+        return () => {
+          cancelled = true;
+          el.removeEventListener("canplaythrough", doPlay);
+        };
       }
+    } else {
+      el.pause();
     }
-  }, [isPlaying, audioMuted, audioTrack]);
+
+    return () => { cancelled = true; };
+  }, [isPlaying, audioMuted, audioTrack, showPreview]);
+
+  useEffect(() => {
+    if (showPreview && audioRef.current) {
+      audioRef.current.currentTime = 0;
+    }
+    if (!showPreview && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [showPreview]);
 
   const selectedScene = scenes.find(s => s.id === selectedSceneId);
   const currentPreviewScene = scenes[previewSceneIndex];
@@ -387,13 +415,31 @@ export default function HopCreator() {
               <p className="text-[10px] text-zinc-600">No audio — click upload to add a loop</p>
             )}
             {audioTrack && (
-              <input
-                type="range" min="0" max="100"
-                value={audioTrack.volume * 100}
-                onChange={(e) => setAudioTrack(prev => prev ? { ...prev, volume: Number(e.target.value) / 100 } : null)}
-                className="w-full h-1 accent-orange-500"
-                data-testid="slider-audio-volume"
-              />
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] text-zinc-500 w-6">{Math.round(audioTrack.volume * 100)}%</span>
+                  <input
+                    type="range" min="0" max="100"
+                    value={audioTrack.volume * 100}
+                    onChange={(e) => {
+                      const vol = Number(e.target.value) / 100;
+                      setAudioTrack(prev => prev ? { ...prev, volume: vol } : null);
+                      if (audioRef.current) audioRef.current.volume = vol;
+                    }}
+                    className="flex-1 h-1 accent-orange-500"
+                    data-testid="slider-audio-volume"
+                  />
+                </div>
+                <button
+                  onClick={() => setAudioTrack(prev => prev ? { ...prev, loop: !prev.loop } : null)}
+                  className={`flex items-center gap-1 px-2 py-1 text-[9px] transition w-full ${
+                    audioTrack.loop ? "bg-orange-900/30 text-orange-400 border border-orange-500/50" : "bg-zinc-800 text-zinc-500 border border-white/10"
+                  }`}
+                  data-testid="button-audio-loop-toggle"
+                >
+                  <Repeat className="w-3 h-3" /> {audioTrack.loop ? "Looping audio" : "Play once"}
+                </button>
+              </div>
             )}
           </div>
 
@@ -574,13 +620,37 @@ export default function HopCreator() {
 
                   <div>
                     <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold">Duration (seconds)</label>
+                    <div className="flex items-center gap-1 mt-1">
+                      <input
+                        type="number" min="0.5" max="90" step="0.5"
+                        value={selectedScene.duration}
+                        onChange={(e) => handleUpdateScene(selectedScene.id, { duration: Math.max(0.5, Number(e.target.value)) })}
+                        className="w-16 bg-zinc-900 border border-white/10 text-xs text-white p-1.5 outline-none"
+                        data-testid="input-scene-duration"
+                      />
+                      <span className="text-[10px] text-zinc-500">s</span>
+                    </div>
                     <input
-                      type="number" min="1" max="90" step="1"
+                      type="range" min="0.5" max="30" step="0.5"
                       value={selectedScene.duration}
-                      onChange={(e) => handleUpdateScene(selectedScene.id, { duration: Math.max(1, Number(e.target.value)) })}
-                      className="w-full mt-1 bg-zinc-900 border border-white/10 text-xs text-white p-1.5 outline-none"
-                      data-testid="input-scene-duration"
+                      onChange={(e) => handleUpdateScene(selectedScene.id, { duration: Number(e.target.value) })}
+                      className="w-full mt-1 h-1 accent-orange-500"
+                      data-testid="slider-scene-duration"
                     />
+                    <div className="flex gap-1 mt-1">
+                      {[1, 2, 3, 5, 10, 15].map(d => (
+                        <button
+                          key={d}
+                          onClick={() => handleUpdateScene(selectedScene.id, { duration: d })}
+                          className={`px-1.5 py-0.5 text-[9px] transition ${
+                            selectedScene.duration === d ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
+                          }`}
+                          data-testid={`button-duration-preset-${d}`}
+                        >
+                          {d}s
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -681,7 +751,7 @@ export default function HopCreator() {
         </div>
       </div>
 
-      {audioTrack && <audio ref={audioRef} src={audioTrack.src} preload="auto" />}
+      {audioTrack && <audio ref={audioRef} src={audioTrack.src} preload="auto" loop={audioTrack.loop} />}
 
       {showPreview && (
         <div className="fixed inset-0 bg-black z-[80] flex flex-col" data-testid="hop-preview">
@@ -706,6 +776,16 @@ export default function HopCreator() {
               <span className="text-xs text-orange-400 font-mono flex items-center gap-1">
                 <Repeat className="w-3 h-3" /> {loopCount}
               </span>
+              {audioTrack && (
+                <button
+                  onClick={() => setAudioMuted(!audioMuted)}
+                  className="p-1.5 hover:bg-zinc-800 transition ml-2"
+                  title={audioMuted ? "Unmute audio" : "Mute audio"}
+                  data-testid="preview-audio-toggle"
+                >
+                  {audioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                </button>
+              )}
             </div>
             <button
               onClick={() => { setShowPreview(false); setIsPlaying(false); setLoopCount(0); }}
