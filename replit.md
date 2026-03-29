@@ -76,7 +76,7 @@ A Webtoons-style browse page with search, sorting, a comic reader, "like" and co
 Allows creators to group comics into series with chapters, supporting auto-numbering, subscriptions, featured series, and per-series stats.
 
 ### Motion Studio
-Supports video/GIF export with progress tracking, drawing layers, selection tools, shape tools, fill tool, eyedropper, audio clip integration with a timeline, and a virtualized frame list.
+Supports video/GIF export with progress tracking, drawing layers, selection tools, shape tools, fill tool, eyedropper, and a virtualized frame list. Features a professional NLE-style timeline with: draggable audio clips (move, resize from edges), pull-from-edge to duplicate and extend audio clips, right-click context menus for copy/paste/duplicate on both frames and audio clips, Ctrl+C/V/D keyboard shortcuts, and a keyframe editor panel with per-frame animation properties (x, y, scale, rotation, opacity) with easing curve selection (linear, ease-in, ease-out, bounce, elastic). Yellow diamond indicators on timeline show keyframe positions. Track visibility and lock toggles are interactive.
 
 ### Platform Analytics Dashboard
 An admin-only dashboard provides 50+ KPIs across various tabs (growth, engagement, content, revenue, AI & platform, user health, schools), utilizing SQL aggregation queries for fast loading.

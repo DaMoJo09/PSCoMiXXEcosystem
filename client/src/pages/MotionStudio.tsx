@@ -111,7 +111,7 @@ interface Frame {
   opacity?: number;
   blendMode?: string;
   easing?: string;
-  keyframe?: { x: number; y: number; scale: number; rotation: number; opacity: number };
+  keyframe?: KeyframeData;
 }
 
 interface Track {
@@ -130,6 +130,32 @@ interface AudioClip {
   durationFrames: number;
   volume: number;
   muted: boolean;
+}
+
+type TimelineDragMode = "move" | "resize-right" | "resize-left" | "pull-duplicate" | null;
+
+interface TimelineDragState {
+  mode: TimelineDragMode;
+  clipId: string;
+  startMouseX: number;
+  originalStartFrame: number;
+  originalDuration: number;
+  duplicatedId?: string;
+}
+
+interface TimelineClipboard {
+  type: "frame" | "audio";
+  frameData?: Frame;
+  audioData?: AudioClip;
+}
+
+interface KeyframeData {
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  easing: string;
 }
 
 const COLORS = [
@@ -411,7 +437,7 @@ export default function MotionStudio() {
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   
   // Track state
-  const [tracks] = useState<Track[]>([
+  const [tracks, setTracks] = useState<Track[]>([
     { id: "track_video", name: "Video", type: "video", visible: true, locked: false },
     { id: "track_effects", name: "Effects", type: "effects", visible: true, locked: false },
     { id: "track_audio", name: "Audio", type: "audio", visible: true, locked: false },
@@ -520,8 +546,10 @@ export default function MotionStudio() {
   const [isDraggingScrubber, setIsDraggingScrubber] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
   
-  // Keyframes (per-frame animation properties)
-  const [keyframes, setKeyframes] = useState<Record<string, { x: number; y: number; scale: number; rotation: number; opacity: number }>>({});
+  // Keyframes (per-frame animation properties with easing)
+  const [keyframes, setKeyframes] = useState<Record<string, KeyframeData>>({});
+  const [showKeyframeEditor, setShowKeyframeEditor] = useState(false);
+  const [selectedKeyframeId, setSelectedKeyframeId] = useState<string | null>(null);
 
   const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
   const [audioVolume, setAudioVolume] = useState(1);
@@ -530,12 +558,20 @@ export default function MotionStudio() {
   const audioSourcesRef = useRef<Map<string, { source: AudioBufferSourceNode; gainNode: GainNode; buffer: AudioBuffer }>>(new Map());
   const audioFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Timeline NLE state
+  const [timelineDrag, setTimelineDrag] = useState<TimelineDragState | null>(null);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<TimelineClipboard | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: "frame" | "audio"; id: string } | null>(null);
+  const timelineTrackRef = useRef<HTMLDivElement>(null);
+
   // Global mouse/keyboard handlers for drag operations
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       setIsDraggingScrubber(false);
       setIsDraggingLayer(false);
       setDragStart(null);
+      setTimelineDrag(null);
     };
     
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -544,6 +580,8 @@ export default function MotionStudio() {
         setIsDraggingLayer(false);
         setIsResizingLayer(null);
         setDragStart(null);
+        setTimelineDrag(null);
+        setContextMenu(null);
       }
     };
     
@@ -1170,6 +1208,192 @@ export default function MotionStudio() {
       };
     }));
   }, [currentFrameIndex, vectorPaths, activeEffects, frameOpacity, blendMode, selectedEasing, keyframes, frames]);
+
+  // Timeline NLE helpers
+  const pixelsToFrames = useCallback((px: number, trackWidth: number) => {
+    return Math.round((px / trackWidth) * Math.max(frames.length, 1));
+  }, [frames.length]);
+
+  const handleTimelineClipMouseDown = useCallback((e: React.MouseEvent, clip: AudioClip, mode: TimelineDragMode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const trackEl = timelineTrackRef.current || (e.currentTarget.closest('[data-timeline-track]') as HTMLDivElement);
+    if (!trackEl) return;
+
+    if (mode === "pull-duplicate") {
+      const newId = `clip_${Date.now()}`;
+      const newClip: AudioClip = {
+        ...clip,
+        id: newId,
+        startFrame: clip.startFrame + clip.durationFrames,
+      };
+      setAudioClips(prev => [...prev, newClip]);
+      setTimelineDrag({
+        mode: "resize-right",
+        clipId: newId,
+        startMouseX: e.clientX,
+        originalStartFrame: newClip.startFrame,
+        originalDuration: newClip.durationFrames,
+        duplicatedId: newId,
+      });
+      setSelectedClipId(newId);
+    } else {
+      setTimelineDrag({
+        mode,
+        clipId: clip.id,
+        startMouseX: e.clientX,
+        originalStartFrame: clip.startFrame,
+        originalDuration: clip.durationFrames,
+      });
+      setSelectedClipId(clip.id);
+    }
+  }, []);
+
+  const handleTimelineMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!timelineDrag) return;
+    const trackEl = timelineTrackRef.current || (e.currentTarget.closest('[data-timeline-track]') as HTMLDivElement);
+    if (!trackEl) return;
+    const trackWidth = trackEl.getBoundingClientRect().width;
+    const deltaX = e.clientX - timelineDrag.startMouseX;
+    const deltaFrames = pixelsToFrames(deltaX, trackWidth);
+
+    setAudioClips(prev => prev.map(clip => {
+      if (clip.id !== (timelineDrag.duplicatedId || timelineDrag.clipId)) return clip;
+      if (timelineDrag.mode === "move") {
+        return { ...clip, startFrame: Math.max(0, timelineDrag.originalStartFrame + deltaFrames) };
+      }
+      if (timelineDrag.mode === "resize-right") {
+        return { ...clip, durationFrames: Math.max(1, timelineDrag.originalDuration + deltaFrames) };
+      }
+      if (timelineDrag.mode === "resize-left") {
+        const originalEnd = timelineDrag.originalStartFrame + timelineDrag.originalDuration;
+        const newStart = Math.max(0, Math.min(originalEnd - 1, timelineDrag.originalStartFrame + deltaFrames));
+        return { ...clip, startFrame: newStart, durationFrames: originalEnd - newStart };
+      }
+      return clip;
+    }));
+  }, [timelineDrag, pixelsToFrames]);
+
+  const handleTimelineMouseUp = useCallback(() => {
+    setTimelineDrag(null);
+  }, []);
+
+  // Copy/Paste/Duplicate
+  const copySelectedFrame = useCallback(() => {
+    if (frames[currentFrameIndex]) {
+      setClipboard({ type: "frame", frameData: { ...frames[currentFrameIndex], id: `frame_${Date.now()}` } });
+      toast.success("Frame copied");
+    }
+  }, [frames, currentFrameIndex]);
+
+  const copySelectedClip = useCallback(() => {
+    if (selectedClipId) {
+      const clip = audioClips.find(c => c.id === selectedClipId);
+      if (clip) {
+        setClipboard({ type: "audio", audioData: { ...clip, id: `clip_${Date.now()}` } });
+        toast.success("Audio clip copied");
+      }
+    }
+  }, [selectedClipId, audioClips]);
+
+  const pasteFromClipboard = useCallback(() => {
+    if (!clipboard) return;
+    if (clipboard.type === "frame" && clipboard.frameData) {
+      const newFrame = { ...clipboard.frameData, id: `frame_${Date.now()}` };
+      setFrames(prev => [...prev.slice(0, currentFrameIndex + 1), newFrame, ...prev.slice(currentFrameIndex + 1)]);
+      toast.success("Frame pasted");
+    }
+    if (clipboard.type === "audio" && clipboard.audioData) {
+      const newClip = { ...clipboard.audioData, id: `clip_${Date.now()}`, startFrame: currentFrameIndex };
+      setAudioClips(prev => [...prev, newClip]);
+      toast.success("Audio clip pasted");
+    }
+  }, [clipboard, currentFrameIndex]);
+
+  const duplicateCurrentFrame = useCallback(() => {
+    if (frames[currentFrameIndex]) {
+      const dup = { ...frames[currentFrameIndex], id: `frame_${Date.now()}` };
+      setFrames(prev => [...prev.slice(0, currentFrameIndex + 1), dup, ...prev.slice(currentFrameIndex + 1)]);
+      setCurrentFrameIndex(currentFrameIndex + 1);
+      toast.success("Frame duplicated");
+    }
+  }, [frames, currentFrameIndex]);
+
+  const duplicateSelectedClip = useCallback(() => {
+    if (selectedClipId) {
+      const clip = audioClips.find(c => c.id === selectedClipId);
+      if (clip) {
+        const dup: AudioClip = { ...clip, id: `clip_${Date.now()}`, startFrame: clip.startFrame + clip.durationFrames };
+        setAudioClips(prev => [...prev, dup]);
+        toast.success("Audio clip duplicated");
+      }
+    }
+  }, [selectedClipId, audioClips]);
+
+  // Keyframe helpers
+  const addKeyframe = useCallback(() => {
+    const frameId = frames[currentFrameIndex]?.id;
+    if (!frameId) return;
+    setKeyframes(prev => ({
+      ...prev,
+      [frameId]: prev[frameId] || { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, easing: "linear" }
+    }));
+    setSelectedKeyframeId(frameId);
+    setShowKeyframeEditor(true);
+    toast.success(`Keyframe added at frame ${currentFrameIndex + 1}`);
+  }, [frames, currentFrameIndex]);
+
+  const removeKeyframe = useCallback((frameId: string) => {
+    setKeyframes(prev => {
+      const next = { ...prev };
+      delete next[frameId];
+      return next;
+    });
+    if (selectedKeyframeId === frameId) setSelectedKeyframeId(null);
+    toast.success("Keyframe removed");
+  }, [selectedKeyframeId]);
+
+  const updateKeyframe = useCallback((frameId: string, updates: Partial<KeyframeData>) => {
+    setKeyframes(prev => ({
+      ...prev,
+      [frameId]: { ...(prev[frameId] || { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, easing: "linear" }), ...updates }
+    }));
+  }, []);
+
+  // Keyboard shortcuts for timeline
+  useEffect(() => {
+    const handleTimelineKeys = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.contentEditable === "true") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        e.preventDefault();
+        if (selectedClipId) copySelectedClip();
+        else copySelectedFrame();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        e.preventDefault();
+        pasteFromClipboard();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "d") {
+        e.preventDefault();
+        if (selectedClipId) duplicateSelectedClip();
+        else duplicateCurrentFrame();
+      }
+      if (e.key === "k" && !e.ctrlKey && !e.metaKey) {
+        addKeyframe();
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedClipId) {
+          setAudioClips(prev => prev.filter(c => c.id !== selectedClipId));
+          setSelectedClipId(null);
+          toast.success("Audio clip deleted");
+        }
+      }
+    };
+    document.addEventListener("keydown", handleTimelineKeys);
+    return () => document.removeEventListener("keydown", handleTimelineKeys);
+  }, [selectedClipId, copySelectedClip, copySelectedFrame, pasteFromClipboard, duplicateSelectedClip, duplicateCurrentFrame, addKeyframe]);
 
   const handleSave = async () => {
     if (!effectiveProjectId) return;
@@ -2710,7 +2934,7 @@ export default function MotionStudio() {
     } else {
       setKeyframes(prev => ({
         ...prev,
-        [frameId]: { x: 0, y: 0, scale: 100, rotation: 0, opacity: 100 }
+        [frameId]: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, easing: "linear" }
       }));
       toast.success("Keyframe added");
     }
@@ -3634,41 +3858,91 @@ export default function MotionStudio() {
             </div>
           </div>
 
-          {/* Timeline */}
-          <div className="h-48 bg-[#111111] border-t border-[#252525] flex flex-col shrink-0">
-            <div className="h-8 bg-[#141414] border-b border-[#252525] flex items-center px-3">
-              <div className="w-40 shrink-0 text-xs text-zinc-500 font-medium">Tracks</div>
+          {/* Professional NLE Timeline */}
+          <div className="h-56 bg-[#111111] border-t border-[#252525] flex flex-col shrink-0" onClick={() => setContextMenu(null)}>
+            {/* Timeline toolbar */}
+            <div className="h-8 bg-[#141414] border-b border-[#252525] flex items-center px-3 gap-2">
+              <div className="w-40 shrink-0 text-xs text-zinc-500 font-medium flex items-center gap-2">
+                <span>Tracks</span>
+                <button
+                  onClick={addKeyframe}
+                  className="p-0.5 hover:bg-[#252525] rounded text-zinc-500 hover:text-yellow-400 transition"
+                  title="Add keyframe (K)"
+                  data-testid="button-add-keyframe"
+                >
+                  <Diamond className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setShowKeyframeEditor(!showKeyframeEditor)}
+                  className={`p-0.5 rounded transition ${showKeyframeEditor ? 'bg-yellow-500/20 text-yellow-400' : 'hover:bg-[#252525] text-zinc-500'}`}
+                  title="Keyframe editor"
+                  data-testid="button-toggle-keyframe-editor"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <div className="flex-1 relative">
                 <div className="absolute inset-0 flex items-end">
-                  {Array.from({ length: 11 }).map((_, i) => (
-                    <div key={i} className="flex-1 border-l border-[#303030] h-3 relative">
-                      <span className="absolute -left-2 -top-4 text-[10px] text-zinc-600">{i}s</span>
-                    </div>
-                  ))}
+                  {Array.from({ length: Math.max(frames.length + 1, 11) }).map((_, i) => {
+                    const totalDuration = frames.slice(0, i).reduce((sum, f) => sum + f.duration, 0);
+                    return (
+                      <div key={i} className="flex-1 border-l border-[#303030] h-3 relative" style={{ minWidth: 1 }}>
+                        <span className="absolute -left-3 -top-4 text-[10px] text-zinc-600 font-mono">{(totalDuration / 1000).toFixed(1)}s</span>
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+                <span className="text-zinc-600">Ctrl+C/V/D</span>
+                {clipboard && <span className="text-emerald-500 ml-1">{clipboard.type === "frame" ? "Frame" : "Clip"} copied</span>}
               </div>
             </div>
             
             <div className="flex-1 overflow-y-auto">
               {tracks.map(track => (
-                <div key={track.id} className="h-12 flex border-b border-[#1a1a1a] group">
+                <div key={track.id} className="h-14 flex border-b border-[#1a1a1a] group">
                   <div className="w-40 shrink-0 bg-[#141414] border-r border-[#252525] flex items-center px-2 gap-2">
-                    <button className="p-1 hover:bg-[#252525] rounded">
+                    <button
+                      onClick={() => {
+                        const idx = tracks.findIndex(t => t.id === track.id);
+                        const updated = [...tracks];
+                        updated[idx] = { ...updated[idx], visible: !updated[idx].visible };
+                        setTracks(updated);
+                      }}
+                      className="p-1 hover:bg-[#252525] rounded"
+                      data-testid={`button-track-visible-${track.id}`}
+                    >
                       {track.visible ? <Eye className="w-3.5 h-3.5 text-zinc-400" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-600" />}
                     </button>
-                    <button className="p-1 hover:bg-[#252525] rounded">
+                    <button
+                      onClick={() => {
+                        const idx = tracks.findIndex(t => t.id === track.id);
+                        const updated = [...tracks];
+                        updated[idx] = { ...updated[idx], locked: !updated[idx].locked };
+                        setTracks(updated);
+                      }}
+                      className="p-1 hover:bg-[#252525] rounded"
+                      data-testid={`button-track-lock-${track.id}`}
+                    >
                       {track.locked ? <Lock className="w-3.5 h-3.5 text-zinc-600" /> : <Unlock className="w-3.5 h-3.5 text-zinc-400" />}
                     </button>
                     <span className="text-xs text-zinc-300 flex-1">{track.name}</span>
                     {track.type === "video" && <Film className="w-3.5 h-3.5 text-white" />}
                     {track.type === "effects" && <Sparkles className="w-3.5 h-3.5 text-white" />}
-                    {track.type === "audio" && <Music className="w-3.5 h-3.5 text-white" />}
+                    {track.type === "audio" && (
+                      <button onClick={() => audioFileInputRef.current?.click()} className="p-0.5 hover:bg-[#252525] rounded" title="Add audio clip" data-testid="button-add-audio-clip">
+                        <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                      </button>
+                    )}
                   </div>
                   <div 
-                    className="flex-1 bg-[#0d0d0d] relative cursor-pointer" 
-                    ref={timelineRef}
+                    className="flex-1 bg-[#0d0d0d] relative cursor-pointer select-none" 
+                    ref={track.type === "audio" ? timelineTrackRef : timelineRef}
+                    data-timeline-track={track.type}
                     onMouseDown={(e) => {
                       if (track.type !== "video") return;
+                      if (track.locked) return;
                       setIsDraggingScrubber(true);
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
@@ -3676,8 +3950,13 @@ export default function MotionStudio() {
                       const newIndex = Math.min(Math.max(0, Math.floor(percentage * frames.length)), frames.length - 1);
                       saveCurrentFrame();
                       setCurrentFrameIndex(newIndex);
+                      setSelectedClipId(null);
                     }}
                     onMouseMove={(e) => {
+                      if (timelineDrag) {
+                        handleTimelineMouseMove(e);
+                        return;
+                      }
                       if (!isDraggingScrubber || track.type !== "video") return;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
@@ -3688,64 +3967,155 @@ export default function MotionStudio() {
                         setCurrentFrameIndex(newIndex);
                       }
                     }}
-                    onMouseUp={() => setIsDraggingScrubber(false)}
-                    onMouseLeave={() => setIsDraggingScrubber(false)}
+                    onMouseUp={() => { setIsDraggingScrubber(false); handleTimelineMouseUp(); }}
+                    onMouseLeave={() => { setIsDraggingScrubber(false); }}
                   >
-                    {track.type === "video" && frames.map((frame, idx) => (
-                      <div key={frame.id}
-                        className={`absolute top-1 bottom-1 rounded-lg cursor-pointer transition-all group ${
-                          idx === currentFrameIndex 
-                            ? 'bg-white text-black' 
-                            : 'bg-zinc-800 hover:bg-zinc-700'
-                        }`}
-                        style={{ left: `${(idx * 10)}%`, width: `${Math.max(8, 100 / Math.max(frames.length, 1) - 1)}%` }}
-                        onClick={(e) => { e.stopPropagation(); saveCurrentFrame(); setCurrentFrameIndex(idx); }}>
-                        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/80 font-medium truncate px-1">
-                          {idx + 1}
-                        </span>
-                        {/* Keyframe Diamond Indicator */}
-                        {keyframes[frame.id] && (
-                          <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45" />
-                        )}
-                        {/* Frame duration indicator */}
-                        <div className="absolute bottom-0.5 right-1 text-[8px] text-white/40 font-mono">
-                          {(frame.duration / 1000).toFixed(1)}s
+                    {/* Video frames */}
+                    {track.type === "video" && track.visible && frames.map((frame, idx) => {
+                      const frameWidth = Math.max(8, 100 / Math.max(frames.length, 1) - 0.5);
+                      const frameLeft = (idx / Math.max(frames.length, 1)) * 100;
+                      const isSelected = idx === currentFrameIndex;
+                      const hasKf = !!keyframes[frame.id];
+                      return (
+                        <div key={frame.id}
+                          className={`absolute top-1 bottom-1 rounded cursor-pointer transition-colors ${
+                            isSelected ? 'bg-white ring-1 ring-white' : 'bg-zinc-800 hover:bg-zinc-700'
+                          }`}
+                          style={{ left: `${frameLeft}%`, width: `${frameWidth}%` }}
+                          onClick={(e) => { e.stopPropagation(); saveCurrentFrame(); setCurrentFrameIndex(idx); setSelectedClipId(null); }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            saveCurrentFrame();
+                            setCurrentFrameIndex(idx);
+                            setContextMenu({ x: e.clientX, y: e.clientY, type: "frame", id: frame.id });
+                          }}
+                          data-testid={`timeline-frame-${idx}`}
+                        >
+                          <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-medium truncate px-0.5 ${isSelected ? 'text-black' : 'text-white/80'}`}>
+                            {idx + 1}
+                          </span>
+                          {hasKf && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedKeyframeId(frame.id); setShowKeyframeEditor(true); }}
+                              className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-yellow-400 rotate-45 hover:bg-yellow-300 z-10 cursor-pointer"
+                              title={`Keyframe: ${keyframes[frame.id]?.easing || 'linear'}`}
+                              data-testid={`keyframe-diamond-${idx}`}
+                            />
+                          )}
+                          <div className={`absolute bottom-0 right-0.5 text-[7px] font-mono ${isSelected ? 'text-black/50' : 'text-white/30'}`}>
+                            {(frame.duration / 1000).toFixed(1)}s
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    {track.type === "audio" && (
-                      <div className="absolute inset-0 flex items-center px-1">
+                      );
+                    })}
+
+                    {/* Effects track - keyframe visualization */}
+                    {track.type === "effects" && track.visible && frames.map((frame, idx) => {
+                      const hasKf = !!keyframes[frame.id];
+                      if (!hasKf) return null;
+                      const frameLeft = (idx / Math.max(frames.length, 1)) * 100;
+                      const kf = keyframes[frame.id];
+                      return (
+                        <div key={frame.id}
+                          className="absolute top-2 bottom-2 flex items-center justify-center cursor-pointer"
+                          style={{ left: `${frameLeft}%`, width: `${100 / Math.max(frames.length, 1)}%` }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedKeyframeId(frame.id); setShowKeyframeEditor(true); }}
+                          data-testid={`effects-keyframe-${idx}`}
+                        >
+                          <div className="w-2.5 h-2.5 bg-yellow-400 rotate-45" />
+                          <span className="absolute -bottom-0.5 text-[7px] text-yellow-400/60 font-mono">
+                            {kf.easing?.slice(0, 3)}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {/* Audio clips - NLE style with drag, resize, pull-to-duplicate */}
+                    {track.type === "audio" && track.visible && (
+                      <div className={`absolute inset-0 ${track.locked ? 'pointer-events-none opacity-50' : ''}`}>
                         {audioClips.map(clip => {
                           const left = (clip.startFrame / Math.max(frames.length, 1)) * 100;
                           const width = (clip.durationFrames / Math.max(frames.length, 1)) * 100;
+                          const isActive = selectedClipId === clip.id;
                           return (
                             <div
                               key={clip.id}
-                              className={`absolute top-1 bottom-1 rounded-lg ${clip.muted ? 'bg-zinc-700' : 'bg-emerald-900/80 border border-emerald-500/50'} flex items-center px-2 gap-1 cursor-pointer group`}
-                              style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
-                              title={clip.name}
+                              className={`absolute top-1 bottom-1 rounded group/clip select-none ${
+                                clip.muted ? 'bg-zinc-700/80' : 'bg-emerald-900/80'
+                              } ${isActive ? 'ring-2 ring-emerald-400 z-20' : 'z-10'}`}
+                              style={{ left: `${left}%`, width: `${Math.max(Math.min(width, 100 - left), 2)}%` }}
+                              title={`${clip.name} | Drag to move, edges to resize, past end to duplicate`}
+                              onMouseDown={(e) => handleTimelineClipMouseDown(e, clip, "move")}
+                              onClick={(e) => { e.stopPropagation(); setSelectedClipId(clip.id); }}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedClipId(clip.id);
+                                setContextMenu({ x: e.clientX, y: e.clientY, type: "audio", id: clip.id });
+                              }}
+                              data-testid={`audio-clip-${clip.id}`}
                             >
-                              <Music className="w-3 h-3 text-emerald-400 shrink-0" />
-                              <span className="text-[9px] text-emerald-300 truncate z-10">{clip.name}</span>
-                              <svg className="absolute inset-0 w-full h-full opacity-30" preserveAspectRatio="none" viewBox="0 0 100 20">
-                                {Array.from({ length: 50 }).map((_, i) => {
-                                  const h = Math.abs(Math.sin(i * 0.7 + clip.id.charCodeAt(clip.id.length - 1)) * 8) + 2;
-                                  return <rect key={i} x={i * 2} y={10 - h / 2} width="1.2" height={h} fill="#10b981" />;
-                                })}
-                              </svg>
-                              <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 z-10">
+                              {/* Left resize handle */}
+                              <div
+                                className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize z-30 hover:bg-emerald-400/30 rounded-l"
+                                onMouseDown={(e) => handleTimelineClipMouseDown(e, clip, "resize-left")}
+                                data-testid={`audio-clip-resize-left-${clip.id}`}
+                              >
+                                <div className="absolute left-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-emerald-400/50 rounded" />
+                              </div>
+
+                              {/* Clip content */}
+                              <div className="absolute inset-x-2 inset-y-0 flex items-center gap-1 overflow-hidden">
+                                <Music className="w-3 h-3 text-emerald-400 shrink-0" />
+                                <span className="text-[9px] text-emerald-300 truncate">{clip.name}</span>
+                                <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                  {Array.from({ length: 50 }).map((_, i) => {
+                                    const h = Math.abs(Math.sin(i * 0.7 + clip.id.charCodeAt(clip.id.length - 1)) * 8) + 2;
+                                    return <rect key={i} x={i * 2} y={10 - h / 2} width="1.2" height={h} fill="#10b981" />;
+                                  })}
+                                </svg>
+                              </div>
+
+                              {/* Hover controls */}
+                              <div className="absolute top-0.5 right-6 flex items-center gap-0.5 opacity-0 group-hover/clip:opacity-100 z-30">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setAudioClips(prev => prev.map(c => c.id === clip.id ? { ...c, muted: !c.muted } : c)); }}
                                   className="p-0.5 hover:bg-black/50 rounded"
+                                  data-testid={`audio-clip-mute-${clip.id}`}
                                 >
                                   {clip.muted ? <VolumeX className="w-3 h-3 text-zinc-400" /> : <Volume2 className="w-3 h-3 text-emerald-400" />}
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setAudioClips(prev => prev.filter(c => c.id !== clip.id)); }}
+                                  onClick={(e) => { e.stopPropagation(); setAudioClips(prev => prev.filter(c => c.id !== clip.id)); if (selectedClipId === clip.id) setSelectedClipId(null); }}
                                   className="p-0.5 hover:bg-red-900/50 rounded"
+                                  data-testid={`audio-clip-delete-${clip.id}`}
                                 >
                                   <Trash2 className="w-3 h-3 text-red-400" />
                                 </button>
+                              </div>
+
+                              {/* Right resize handle */}
+                              <div
+                                className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-30 hover:bg-emerald-400/30 rounded-r"
+                                onMouseDown={(e) => handleTimelineClipMouseDown(e, clip, "resize-right")}
+                                data-testid={`audio-clip-resize-right-${clip.id}`}
+                              >
+                                <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-emerald-400/50 rounded" />
+                              </div>
+
+                              {/* Pull-to-duplicate handle (right edge extension zone) */}
+                              <div
+                                className="absolute -right-3 top-0 bottom-0 w-3 cursor-copy z-20 opacity-0 group-hover/clip:opacity-100"
+                                onMouseDown={(e) => handleTimelineClipMouseDown(e, clip, "pull-duplicate")}
+                                title="Pull to duplicate & extend"
+                                data-testid={`audio-clip-pull-dup-${clip.id}`}
+                              >
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5">
+                                  <div className="w-1 h-1 bg-emerald-400/60 rounded-full" />
+                                  <div className="w-1 h-1 bg-emerald-400/60 rounded-full" />
+                                  <div className="w-1 h-1 bg-emerald-400/60 rounded-full" />
+                                </div>
                               </div>
                             </div>
                           );
@@ -3754,24 +4124,158 @@ export default function MotionStudio() {
                           <button
                             onClick={() => audioFileInputRef.current?.click()}
                             className="w-full h-full flex items-center justify-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50 transition"
+                            data-testid="button-add-audio-empty"
                           >
                             <Plus className="w-3 h-3" /> Add Audio
                           </button>
                         )}
                       </div>
                     )}
-                    {/* Enhanced Playhead - draggable */}
+
+                    {/* Playhead */}
                     <div 
-                      className="absolute top-0 bottom-0 w-0.5 bg-white z-10 cursor-ew-resize"
+                      className="absolute top-0 bottom-0 w-0.5 bg-white z-30 pointer-events-none"
                       style={{ left: `${(currentFrameIndex / Math.max(frames.length, 1)) * 100}%` }}>
-                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
-                      <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45" />
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rotate-45" />
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rotate-45" />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* Keyframe Editor Panel */}
+            {showKeyframeEditor && selectedKeyframeId && keyframes[selectedKeyframeId] && (
+              <div className="h-28 bg-[#0a0a0a] border-t border-yellow-500/30 flex items-stretch px-3 py-2 gap-4 overflow-x-auto">
+                <div className="flex flex-col justify-center gap-1 min-w-24">
+                  <span className="text-[10px] text-yellow-400 font-semibold uppercase">Keyframe</span>
+                  <span className="text-[9px] text-zinc-500">Frame: {frames.findIndex(f => f.id === selectedKeyframeId) + 1}</span>
+                  <div className="flex gap-1 mt-1">
+                    <button
+                      onClick={() => removeKeyframe(selectedKeyframeId)}
+                      className="px-2 py-0.5 text-[9px] bg-red-900/30 text-red-400 rounded hover:bg-red-900/50"
+                      data-testid="button-remove-keyframe"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                {[
+                  { key: "x" as const, label: "X", min: -1920, max: 1920, step: 1 },
+                  { key: "y" as const, label: "Y", min: -1080, max: 1080, step: 1 },
+                  { key: "scale" as const, label: "Scale", min: 0.1, max: 5, step: 0.1 },
+                  { key: "rotation" as const, label: "Rotation", min: -360, max: 360, step: 1 },
+                  { key: "opacity" as const, label: "Opacity", min: 0, max: 1, step: 0.05 },
+                ].map(prop => (
+                  <div key={prop.key} className="flex flex-col justify-center gap-1 min-w-20">
+                    <label className="text-[9px] text-zinc-500 uppercase">{prop.label}</label>
+                    <input
+                      type="number"
+                      step={prop.step}
+                      min={prop.min}
+                      max={prop.max}
+                      value={keyframes[selectedKeyframeId][prop.key]}
+                      onChange={(e) => updateKeyframe(selectedKeyframeId, { [prop.key]: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-zinc-900 border border-white/10 rounded px-2 py-1 text-[10px] text-white outline-none focus:border-yellow-500/50"
+                      data-testid={`keyframe-input-${prop.key}`}
+                    />
+                    <input
+                      type="range"
+                      min={prop.min}
+                      max={prop.max}
+                      step={prop.step}
+                      value={keyframes[selectedKeyframeId][prop.key]}
+                      onChange={(e) => updateKeyframe(selectedKeyframeId, { [prop.key]: parseFloat(e.target.value) })}
+                      className="w-full h-1 accent-yellow-400"
+                    />
+                  </div>
+                ))}
+                <div className="flex flex-col justify-center gap-1 min-w-24">
+                  <label className="text-[9px] text-zinc-500 uppercase">Easing</label>
+                  <select
+                    value={keyframes[selectedKeyframeId].easing}
+                    onChange={(e) => updateKeyframe(selectedKeyframeId, { easing: e.target.value })}
+                    className="bg-zinc-900 border border-white/10 rounded px-2 py-1 text-[10px] text-white outline-none focus:border-yellow-500/50"
+                    data-testid="keyframe-easing-select"
+                  >
+                    {EASING_PRESETS.map(ep => (
+                      <option key={ep.id} value={ep.id}>{ep.name}</option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-1 mt-1">
+                    <TrendingUp className="w-3 h-3 text-yellow-400/60" />
+                    <span className="text-[8px] text-zinc-600">{keyframes[selectedKeyframeId].easing}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowKeyframeEditor(false)}
+                  className="ml-auto self-start p-1 hover:bg-[#252525] rounded"
+                >
+                  <X className="w-3.5 h-3.5 text-zinc-500" />
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Context Menu */}
+          {contextMenu && (
+            <div
+              className="fixed z-50 bg-[#1a1a1a] border border-white/20 rounded-lg shadow-2xl py-1 min-w-36"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onClick={() => setContextMenu(null)}
+            >
+              {contextMenu.type === "frame" && (
+                <>
+                  <button onClick={() => { copySelectedFrame(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-copy-frame">
+                    <Copy className="w-3 h-3" /> Copy Frame <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+C</span>
+                  </button>
+                  <button onClick={() => { pasteFromClipboard(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2 disabled:opacity-30" disabled={!clipboard || clipboard.type !== "frame"} data-testid="ctx-paste-frame">
+                    <ClipboardPaste className="w-3 h-3" /> Paste Frame <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+V</span>
+                  </button>
+                  <button onClick={() => { duplicateCurrentFrame(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-duplicate-frame">
+                    <Copy className="w-3 h-3" /> Duplicate <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+D</span>
+                  </button>
+                  <div className="border-t border-white/10 my-0.5" />
+                  <button onClick={() => { addKeyframe(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-yellow-400 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-add-keyframe">
+                    <Diamond className="w-3 h-3" /> {keyframes[contextMenu.id] ? "Edit Keyframe" : "Add Keyframe"} <span className="ml-auto text-zinc-600 text-[10px]">K</span>
+                  </button>
+                  {keyframes[contextMenu.id] && (
+                    <button onClick={() => { removeKeyframe(contextMenu.id); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-remove-keyframe">
+                      <Trash2 className="w-3 h-3" /> Remove Keyframe
+                    </button>
+                  )}
+                  <div className="border-t border-white/10 my-0.5" />
+                  <button onClick={() => { setFrames(prev => prev.filter((_, i) => i !== currentFrameIndex)); setContextMenu(null); if (currentFrameIndex > 0) setCurrentFrameIndex(currentFrameIndex - 1); }} className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-white/10 flex items-center gap-2" disabled={frames.length <= 1} data-testid="ctx-delete-frame">
+                    <Trash2 className="w-3 h-3" /> Delete Frame <span className="ml-auto text-zinc-600 text-[10px]">Del</span>
+                  </button>
+                </>
+              )}
+              {contextMenu.type === "audio" && (
+                <>
+                  <button onClick={() => { copySelectedClip(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-copy-clip">
+                    <Copy className="w-3 h-3" /> Copy Clip <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+C</span>
+                  </button>
+                  <button onClick={() => { pasteFromClipboard(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2 disabled:opacity-30" disabled={!clipboard || clipboard.type !== "audio"} data-testid="ctx-paste-clip">
+                    <ClipboardPaste className="w-3 h-3" /> Paste Clip <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+V</span>
+                  </button>
+                  <button onClick={() => { duplicateSelectedClip(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-duplicate-clip">
+                    <Copy className="w-3 h-3" /> Duplicate <span className="ml-auto text-zinc-600 text-[10px]">Ctrl+D</span>
+                  </button>
+                  <div className="border-t border-white/10 my-0.5" />
+                  <button onClick={() => {
+                    const clip = audioClips.find(c => c.id === contextMenu.id);
+                    if (clip) setAudioClips(prev => prev.map(c => c.id === clip.id ? { ...c, muted: !c.muted } : c));
+                    setContextMenu(null);
+                  }} className="w-full px-3 py-1.5 text-left text-xs text-zinc-300 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-mute-clip">
+                    <VolumeX className="w-3 h-3" /> Toggle Mute
+                  </button>
+                  <button onClick={() => { setAudioClips(prev => prev.filter(c => c.id !== contextMenu.id)); setSelectedClipId(null); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-white/10 flex items-center gap-2" data-testid="ctx-delete-clip">
+                    <Trash2 className="w-3 h-3" /> Delete Clip <span className="ml-auto text-zinc-600 text-[10px]">Del</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </main>
 
         {/* Right Inspector Panel */}
