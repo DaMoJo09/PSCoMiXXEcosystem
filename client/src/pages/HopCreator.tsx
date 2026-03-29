@@ -83,6 +83,46 @@ export default function HopCreator() {
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const audioPlayIdRef = useRef(0);
+
+  const startAudioFromBeginning = useCallback(() => {
+    const el = audioRef.current;
+    if (!el || !audioTrack) return;
+    const playId = ++audioPlayIdRef.current;
+    el.volume = audioTrack.volume;
+    el.loop = audioTrack.loop;
+    el.currentTime = 0;
+    const attempt = () => {
+      if (audioPlayIdRef.current !== playId) return;
+      el.play().catch(() => {});
+    };
+    if (el.readyState >= 2) {
+      attempt();
+    } else {
+      el.load();
+      el.addEventListener("canplay", () => { if (audioPlayIdRef.current === playId) attempt(); }, { once: true });
+    }
+  }, [audioTrack]);
+
+  const resumeAudio = useCallback(() => {
+    const el = audioRef.current;
+    if (!el || !audioTrack) return;
+    const playId = ++audioPlayIdRef.current;
+    el.volume = audioTrack.volume;
+    el.loop = audioTrack.loop;
+    if (el.readyState >= 2) {
+      el.play().catch(() => {});
+    } else {
+      el.load();
+      el.addEventListener("canplay", () => { if (audioPlayIdRef.current === playId) el.play().catch(() => {}); }, { once: true });
+    }
+  }, [audioTrack]);
+
+  const pauseAudioNow = useCallback(() => {
+    audioPlayIdRef.current++;
+    const el = audioRef.current;
+    if (el) { el.pause(); }
+  }, []);
 
   useEffect(() => {
     if (existingProject) {
@@ -262,44 +302,14 @@ export default function HopCreator() {
   }, [showPreview, isPlaying, previewSceneIndex, scenes, loopMode]);
 
   useEffect(() => {
-    let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const trySetup = () => {
-      const el = audioRef.current;
-      if (!el || !audioTrack) return;
-      el.volume = audioTrack.volume;
-      el.loop = audioTrack.loop;
-
-      const shouldPlay = isPlaying && !audioMuted && showPreview;
-
-      if (shouldPlay) {
-        const doPlay = () => {
-          if (cancelled) return;
-          el.play().catch(() => {});
-        };
-        if (el.readyState >= 3) {
-          doPlay();
-        } else {
-          el.load();
-          el.addEventListener("canplaythrough", doPlay, { once: true });
-        }
-      } else {
-        el.pause();
-      }
-    };
-
-    trySetup();
-    retryTimer = setTimeout(trySetup, 100);
-
-    return () => {
-      cancelled = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      const el = audioRef.current;
-      if (el) {
-        el.removeEventListener("canplaythrough", () => {});
-      }
-    };
+    const el = audioRef.current;
+    if (!el || !audioTrack) return;
+    el.volume = audioTrack.volume;
+    el.loop = audioTrack.loop;
+    const shouldPlay = isPlaying && !audioMuted && showPreview;
+    if (!shouldPlay) {
+      el.pause();
+    }
   }, [isPlaying, audioMuted, audioTrack, showPreview]);
 
   useEffect(() => {
@@ -340,7 +350,7 @@ export default function HopCreator() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setShowPreview(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); }}
+            onClick={() => { setShowPreview(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) { startAudioFromBeginning(); } }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition"
             data-testid="button-preview"
           >
@@ -910,7 +920,7 @@ export default function HopCreator() {
           <div className="flex items-center justify-between px-4 py-2 bg-zinc-950/80 shrink-0">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setIsPlaying(!isPlaying); }}
+                onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) { resumeAudio(); } else { pauseAudioNow(); } }}
                 className="p-2 bg-zinc-800 hover:bg-zinc-700 transition"
                 data-testid="preview-play-pause"
               >
@@ -930,7 +940,7 @@ export default function HopCreator() {
               </span>
               {audioTrack && (
                 <button
-                  onClick={() => setAudioMuted(!audioMuted)}
+                  onClick={() => { const next = !audioMuted; setAudioMuted(next); if (!next && isPlaying) { resumeAudio(); } else { pauseAudioNow(); } }}
                   className="p-1.5 hover:bg-zinc-800 transition ml-2"
                   title={audioMuted ? "Unmute audio" : "Mute audio"}
                   data-testid="preview-audio-toggle"
@@ -940,7 +950,7 @@ export default function HopCreator() {
               )}
             </div>
             <button
-              onClick={() => { setShowPreview(false); setIsPlaying(false); setLoopCount(0); }}
+              onClick={() => { setShowPreview(false); setIsPlaying(false); setLoopCount(0); pauseAudioNow(); }}
               className="p-2 hover:bg-zinc-800 transition"
               data-testid="preview-close"
             >
@@ -970,13 +980,17 @@ export default function HopCreator() {
                         key={`video-${previewSceneIndex}-${currentPreviewScene.id}`}
                         src={currentPreviewScene.assetUrl}
                         className="max-w-full max-h-full object-contain"
-                        autoPlay
+                        autoPlay={isPlaying}
                         playsInline
                         muted
                         loop={currentPreviewScene.loopInScene}
-                        onLoadedData={(e) => {
-                          const vid = e.currentTarget;
-                          vid.play().catch(() => {});
+                        ref={(vid) => {
+                          if (!vid || !isPlaying) return;
+                          const tryPlay = () => { vid.play().catch(() => {}); };
+                          vid.onloadeddata = tryPlay;
+                          vid.oncanplay = tryPlay;
+                          if (vid.readyState >= 2) tryPlay();
+                          else vid.load();
                         }}
                         data-testid="preview-video"
                       />
