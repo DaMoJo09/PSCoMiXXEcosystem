@@ -27,7 +27,8 @@ import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
-import { EmbeddedFxStudio } from "@/components/EmbeddedFxStudio";
+import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
 import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
 import {
@@ -437,8 +438,10 @@ export default function ComicCreator() {
   const [assetLibraryTab, setAssetLibraryTab] = useState<"library" | "fx-studio">("library");
   const [showFxConfirm, setShowFxConfirm] = useState(false);
   const [skipFxConfirm, setSkipFxConfirm] = useState(() => localStorage.getItem("skipFxStudioConfirm") === "true");
-  const [showEmbeddedFx, setShowEmbeddedFx] = useState(false);
-  const [embeddedFxMode, setEmbeddedFxMode] = useState<string | null>(null);
+  const fxStudio = useFxStudio({
+    projectId: projectId || undefined,
+    onAssetsUpdated: () => setAssetLibraryTab("fx-studio"),
+  });
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
   const [zoom, setZoom] = useState(100);
@@ -2500,7 +2503,7 @@ export default function ComicCreator() {
         id: toastId,
         action: {
           label: "Open FX Studio",
-          onClick: () => { setEmbeddedFxMode("fx"); setShowEmbeddedFx(true); },
+          onClick: () => { fxStudio.openFxStudio({ mode: "fx" }); },
         },
       });
     } catch (err: any) {
@@ -4026,8 +4029,7 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => {
-                    setEmbeddedFxMode("fx");
-                    setShowEmbeddedFx(true);
+                    fxStudio.openFxStudio({ mode: "fx" });
                   }}
                   className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
                   data-testid="tool-fx-studio"
@@ -5802,16 +5804,12 @@ export default function ComicCreator() {
         )}
       </div>
       
-      {showEmbeddedFx && (
-        <EmbeddedFxStudio
-          onClose={() => { setShowEmbeddedFx(false); setEmbeddedFxMode(null); }}
-          onAssetsUpdated={() => {
-            setAssetLibraryTab("fx-studio");
-          }}
-          initialMode={embeddedFxMode}
-          projectId={projectId}
-        />
-      )}
+      <FxStudioStatusBar
+        isOpen={fxStudio.isOpen}
+        connected={fxStudio.connected}
+        onFocus={() => fxStudio.openFxStudio()}
+        onClose={() => fxStudio.closeFxStudio()}
+      />
 
       {showAssetLibrary && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -6007,8 +6005,7 @@ export default function ComicCreator() {
                 onReturnToPanel={returnFxToPanel}
                 onOpenEmbedded={(mode) => {
                   setShowAssetLibrary(false);
-                  setEmbeddedFxMode(mode || "fx");
-                  setShowEmbeddedFx(true);
+                  fxStudio.openFxStudio({ mode: mode || "fx" });
                 }}
                 projectId={effectiveProjectId || undefined}
               />

@@ -24,7 +24,8 @@ import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/h
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
-import { EmbeddedFxStudio } from "@/components/EmbeddedFxStudio";
+import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { apiRequest } from "@/lib/queryClient";
@@ -491,9 +492,10 @@ export default function MotionStudio() {
   // Asset Browser
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
   
-  // Embedded FX Studio (www.pscomixx.online)
-  const [showEmbeddedFx, setShowEmbeddedFx] = useState(false);
-  const [embeddedFxMode, setEmbeddedFxMode] = useState<string | null>(null);
+  const fxStudio = useFxStudio({
+    projectId: effectiveProjectId || undefined,
+    onAssetsUpdated: () => loadFxEffects(),
+  });
   
   // FX Studio Browser (www.pscomixx.online sync)
   const [showFxBrowser, setShowFxBrowser] = useState(false);
@@ -2826,10 +2828,10 @@ export default function MotionStudio() {
             Assets
           </button>
           
-          {/* FX Studio Button - opens embedded FX Studio (www.pscomixx.online) */}
-          <button onClick={() => { setEmbeddedFxMode("fx"); setShowEmbeddedFx(true); }}
+          {/* FX Studio Button - opens FX Studio in new tab (www.pscomixx.online) */}
+          <button onClick={() => fxStudio.openFxStudio({ mode: "fx" })}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
-              showEmbeddedFx 
+              fxStudio.isOpen 
                 ? 'bg-purple-600 text-white' 
                 : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300'
             }`}
@@ -4690,16 +4692,12 @@ export default function MotionStudio() {
           </div>
         </div>
       )}
-      {showEmbeddedFx && (
-        <EmbeddedFxStudio
-          onClose={() => { setShowEmbeddedFx(false); setEmbeddedFxMode(null); }}
-          onAssetsUpdated={() => {
-            loadFxEffects();
-          }}
-          initialMode={embeddedFxMode}
-          projectId={effectiveProjectId}
-        />
-      )}
+      <FxStudioStatusBar
+        isOpen={fxStudio.isOpen}
+        connected={fxStudio.connected}
+        onFocus={() => fxStudio.openFxStudio()}
+        onClose={() => fxStudio.closeFxStudio()}
+      />
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
