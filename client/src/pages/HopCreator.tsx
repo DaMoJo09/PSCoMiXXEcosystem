@@ -262,42 +262,54 @@ export default function HopCreator() {
   }, [showPreview, isPlaying, previewSceneIndex, scenes, loopMode]);
 
   useEffect(() => {
-    const el = audioRef.current;
-    if (!el || !audioTrack) return;
     let cancelled = false;
-    el.volume = audioTrack.volume;
-    el.loop = audioTrack.loop;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const shouldPlay = isPlaying && !audioMuted && showPreview;
+    const trySetup = () => {
+      const el = audioRef.current;
+      if (!el || !audioTrack) return;
+      el.volume = audioTrack.volume;
+      el.loop = audioTrack.loop;
 
-    if (shouldPlay) {
-      const doPlay = () => {
-        if (cancelled) return;
-        el.play().catch(() => {});
-      };
-      if (el.readyState >= 3) {
-        doPlay();
-      } else {
-        el.addEventListener("canplaythrough", doPlay, { once: true });
-        return () => {
-          cancelled = true;
-          el.removeEventListener("canplaythrough", doPlay);
+      const shouldPlay = isPlaying && !audioMuted && showPreview;
+
+      if (shouldPlay) {
+        const doPlay = () => {
+          if (cancelled) return;
+          el.play().catch(() => {});
         };
+        if (el.readyState >= 3) {
+          doPlay();
+        } else {
+          el.load();
+          el.addEventListener("canplaythrough", doPlay, { once: true });
+        }
+      } else {
+        el.pause();
       }
-    } else {
-      el.pause();
-    }
+    };
 
-    return () => { cancelled = true; };
+    trySetup();
+    retryTimer = setTimeout(trySetup, 100);
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      const el = audioRef.current;
+      if (el) {
+        el.removeEventListener("canplaythrough", () => {});
+      }
+    };
   }, [isPlaying, audioMuted, audioTrack, showPreview]);
 
   useEffect(() => {
-    if (showPreview && audioRef.current) {
-      audioRef.current.currentTime = 0;
-    }
-    if (!showPreview && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    const el = audioRef.current;
+    if (!el) return;
+    if (showPreview) {
+      el.currentTime = 0;
+    } else {
+      el.pause();
+      el.currentTime = 0;
     }
   }, [showPreview]);
 
@@ -563,7 +575,7 @@ export default function HopCreator() {
                   <div className="aspect-video bg-zinc-900 border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden">
                     {selectedScene.assetUrl ? (
                       selectedScene.assetType === "video" ? (
-                        <video src={selectedScene.assetUrl} className="w-full h-full object-contain" controls data-testid="scene-video-preview" />
+                        <video key={selectedScene.id} src={selectedScene.assetUrl} className="w-full h-full object-contain" controls playsInline data-testid="scene-video-preview" />
                       ) : (
                         <img src={selectedScene.assetUrl} alt="" className="w-full h-full object-contain" data-testid="scene-image-preview" />
                       )
@@ -794,7 +806,7 @@ export default function HopCreator() {
         </div>
       </div>
 
-      {audioTrack && <audio ref={audioRef} src={audioTrack.src} preload="auto" loop={audioTrack.loop} />}
+      {audioTrack && <audio key={audioTrack.src.slice(0, 64)} ref={audioRef} src={audioTrack.src} preload="auto" loop={audioTrack.loop} />}
 
       {showProjectPicker && (
         <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4" data-testid="project-picker-overlay">
@@ -955,11 +967,17 @@ export default function HopCreator() {
                   <>
                     {currentPreviewScene.assetType === "video" ? (
                       <video
+                        key={`video-${previewSceneIndex}-${currentPreviewScene.id}`}
                         src={currentPreviewScene.assetUrl}
                         className="max-w-full max-h-full object-contain"
                         autoPlay
-                        muted={audioMuted}
+                        playsInline
+                        muted
                         loop={currentPreviewScene.loopInScene}
+                        onLoadedData={(e) => {
+                          const vid = e.currentTarget;
+                          vid.play().catch(() => {});
+                        }}
                         data-testid="preview-video"
                       />
                     ) : (
