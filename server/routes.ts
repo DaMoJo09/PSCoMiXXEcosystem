@@ -6824,7 +6824,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const [row] = await db.select().from(fxEffects).where(eq(fxEffects.id, req.params.id)).limit(1);
       if (!row) {
         const upstream = await tryUpstreamSync("GET", `${FX_API_URL}?id=${req.params.id}`);
-        if (upstream) return res.json(upstream);
+        if (upstream) {
+          const effect = Array.isArray(upstream) ? upstream[0] : upstream?.data?.[0] || upstream;
+          if (effect) return res.json(effect);
+        }
         return res.status(404).json({ message: "Effect not found" });
       }
       if (row.userId && row.userId !== user?.id && row.userEmail !== user?.email && user?.role !== "admin") {
