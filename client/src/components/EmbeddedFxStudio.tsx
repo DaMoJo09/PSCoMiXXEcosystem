@@ -1,4 +1,4 @@
-import { Zap, ExternalLink, X, Wifi, WifiOff } from "lucide-react";
+import { Zap, ExternalLink, X, Wifi, WifiOff, RefreshCw } from "lucide-react";
 
 interface FxStudioStatusBarProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ export function FxStudioStatusBar({ isOpen, connected, onFocus, onClose }: FxStu
         <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-yellow-400 animate-pulse"}`} />
       </div>
       <span className="text-[11px] text-zinc-400">
-        {connected ? "Open in another tab — edits sync back automatically" : "Opening in another tab..."}
+        {connected ? "Connected — edits sync back automatically" : "Tab open — waiting for handshake..."}
       </span>
       <div className="flex items-center gap-1 ml-2">
         {connected ? (

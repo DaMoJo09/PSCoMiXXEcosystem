@@ -48,8 +48,23 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const [connected, setConnected] = useState(false);
   const studioWindowRef = useRef<Window | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const optionsRef = useRef(options);
   optionsRef.current = options;
+
+  const clearPing = useCallback(() => {
+    if (pingRef.current) {
+      clearInterval(pingRef.current);
+      pingRef.current = null;
+    }
+  }, []);
+
+  const clearPoll = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -59,6 +74,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
 
       switch (type) {
         case "fx-studio-ready":
+        case "fx-studio-pong":
           setConnected(true);
           break;
 
@@ -86,32 +102,56 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           setIsOpen(false);
           setConnected(false);
           studioWindowRef.current = null;
+          clearPing();
           break;
       }
     };
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+  }, [clearPing]);
+
+  const sendPing = useCallback(() => {
+    const win = studioWindowRef.current;
+    if (!win || win.closed) return;
+    for (const origin of ALLOWED_ORIGINS) {
+      try {
+        win.postMessage({ type: "comixx-ping" }, origin);
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {
     if (isOpen) {
       pollRef.current = setInterval(() => {
-        if (studioWindowRef.current?.closed) {
+        const win = studioWindowRef.current;
+        if (win?.closed) {
           setIsOpen(false);
           setConnected(false);
           studioWindowRef.current = null;
-          if (pollRef.current) clearInterval(pollRef.current);
+          clearPoll();
+          clearPing();
           if (optionsRef.current.onAssetsUpdated) {
             optionsRef.current.onAssetsUpdated();
           }
         }
       }, 2000);
+
+      clearPing();
+      let pingCount = 0;
+      pingRef.current = setInterval(() => {
+        sendPing();
+        pingCount++;
+        if (pingCount > 30) {
+          clearPing();
+        }
+      }, 2000);
     }
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      clearPoll();
+      clearPing();
     };
-  }, [isOpen]);
+  }, [isOpen, sendPing, clearPoll, clearPing]);
 
   const openFxStudio = useCallback(({
     mode,
@@ -136,6 +176,12 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     const url = `${FX_STUDIO_BASE}${modePath}${params.toString() ? "?" + params.toString() : ""}`;
 
     const win = window.open(url, "fx-studio");
+    if (!win) {
+      toast.error("Popup blocked — please allow popups for this site and try again");
+      setIsOpen(false);
+      setConnected(false);
+      return;
+    }
     studioWindowRef.current = win;
     setIsOpen(true);
     setConnected(false);
@@ -143,10 +189,14 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
 
   const sendToFxStudio = useCallback((data: Record<string, unknown>) => {
     if (studioWindowRef.current && !studioWindowRef.current.closed) {
-      studioWindowRef.current.postMessage(
-        { type: "comixx-panel-data", payload: data },
-        FX_STUDIO_BASE
-      );
+      for (const origin of ALLOWED_ORIGINS) {
+        try {
+          studioWindowRef.current.postMessage(
+            { type: "comixx-panel-data", payload: data },
+            origin
+          );
+        } catch {}
+      }
     }
   }, []);
 
@@ -157,7 +207,8 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     setIsOpen(false);
     setConnected(false);
     studioWindowRef.current = null;
-  }, []);
+    clearPing();
+  }, [clearPing]);
 
   const checkApiConnection = useCallback(async () => {
     try {
