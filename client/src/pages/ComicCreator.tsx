@@ -361,7 +361,7 @@ export default function ComicCreator() {
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
   const { user, isStudent } = useAuth();
-  const { showWhatsNext } = usePostAction();
+  const { showWhatsNext, fireXpAction } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
@@ -913,7 +913,7 @@ export default function ComicCreator() {
       if (!res.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Comic saved");
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+      fireXpAction("save");
       showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
@@ -1567,7 +1567,7 @@ export default function ComicCreator() {
       link.click();
       
       toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      fireXpAction("export");
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export page");
@@ -1635,7 +1635,7 @@ export default function ComicCreator() {
       }
       
       toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      fireXpAction("export");
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export pages");
@@ -1932,7 +1932,7 @@ export default function ComicCreator() {
         + spreads.reduce((n, s) => n + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)
         + (effectiveBackCover ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      fireXpAction("export");
       showWhatsNext();
     } catch (error) {
       console.error("PDF export error:", error);
@@ -1957,7 +1957,7 @@ export default function ComicCreator() {
       link.click();
       
       toast.success("Project data exported!");
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      fireXpAction("export");
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export project data");

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2 } from "lucide-react";
 import { useCreateProject } from "@/hooks/useProjects";
+import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
 
 const ONBOARDING_PREFIX = "pscomixx_onboarding_complete";
@@ -22,14 +23,7 @@ export function useOnboarding(userId?: number) {
 
 const comicTemplate = {
   spreads: [
-    {
-      id: "spread-1",
-      panels: [
-        { id: "panel-1", x: 5, y: 5, width: 45, height: 48, elements: [], backgroundColor: "#ffffff" },
-        { id: "panel-2", x: 52, y: 5, width: 45, height: 48, elements: [], backgroundColor: "#ffffff" },
-        { id: "panel-3", x: 5, y: 55, width: 93, height: 42, elements: [], backgroundColor: "#ffffff" },
-      ],
-    },
+    { id: "spread_1", leftPage: [], rightPage: [] },
   ],
   comicMeta: { title: "My First Comic", genre: "action", style: "manga" },
 };
@@ -47,12 +41,11 @@ const cardTemplate = {
 
 const motionTemplate = {
   frames: [
-    { id: "frame-1", layers: [], duration: 100, visible: true },
-    { id: "frame-2", layers: [], duration: 100, visible: true },
-    { id: "frame-3", layers: [], duration: 100, visible: true },
-    { id: "frame-4", layers: [], duration: 100, visible: true },
+    { id: "frame_1", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_1", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 },
+    { id: "frame_2", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_2", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 },
+    { id: "frame_3", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_3", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 },
   ],
-  tracks: [{ id: "track-1", name: "Layer 1", visible: true, locked: false }],
+  tracks: [{ id: "track_1", name: "Layer 1", visible: true, locked: false }],
   audioClips: [],
 };
 
@@ -106,6 +99,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [xpAnimated, setXpAnimated] = useState(false);
   const [, navigate] = useLocation();
   const createProject = useCreateProject();
+  const { fireXpAction } = usePostAction();
 
   const totalSteps = 3;
 
@@ -130,8 +124,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         forceNew: true,
       });
 
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "first_login" }), credentials: "include" });
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "project_created" }), credentials: "include" });
+      fireXpAction("first_login");
+      fireXpAction("project_created");
 
       setTimeout(() => {
         setStep(2);
@@ -140,7 +134,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
         setTimeout(() => {
           onComplete();
-          navigate("/dashboard");
+          navigate(`${mode.href}?id=${project.id}`);
         }, 3000);
       }, 1500);
     } catch (error: any) {

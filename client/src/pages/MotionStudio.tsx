@@ -402,7 +402,7 @@ export default function MotionStudio() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { hasFeature, isAdmin } = useSubscription();
-  const { showWhatsNext } = usePostAction();
+  const { showWhatsNext, fireXpAction } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState("Export");
 

@@ -270,7 +270,7 @@ export default function CardCreator() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile } = useAssetLibrary();
-  const { showWhatsNext } = usePostAction();
+  const { showWhatsNext, fireXpAction } = usePostAction();
 
   const [mode, setMode] = useState<"single" | "pack">("single");
   const [side, setSide] = useState<"front" | "back">("front");
@@ -518,7 +518,7 @@ export default function CardCreator() {
       }
       pendingSaveRef.current = false;
       toast.success("Card saved");
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+      fireXpAction("save");
       showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
@@ -548,7 +548,7 @@ export default function CardCreator() {
       link.click();
       
       toast.success(`Exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
-      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      fireXpAction("export");
       showWhatsNext();
     } catch (error) {
       console.error("Export error:", error);
