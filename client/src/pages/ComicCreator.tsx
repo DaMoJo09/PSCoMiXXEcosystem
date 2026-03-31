@@ -27,6 +27,7 @@ import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
+import { YouAreLiveModal } from "@/components/YouAreLiveModal";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
 import { useFxStudio } from "@/hooks/useFxStudio";
@@ -898,14 +899,20 @@ export default function ComicCreator() {
     onError: (err: any) => toast.error(err.message || "Failed to send to portfolio"),
   });
 
+  const [liveResult, setLiveResult] = useState<any>(null);
+
   const publishProject = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/projects/${effectiveProjectId}/publish`, { visibility: "public" });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
-      toast.success("Publishing started!");
+      if (data.streamingUrl) {
+        setLiveResult(data);
+      } else {
+        toast.success("Publishing started!");
+      }
     },
     onError: (err: any) => toast.error(err.message || "Failed to publish"),
   });
@@ -6173,6 +6180,13 @@ export default function ComicCreator() {
           loop={currentSpread.themeMusic.loop}
           autoPlay={currentSpread.themeMusic.autoplay}
           className="hidden"
+        />
+      )}
+
+      {liveResult && (
+        <YouAreLiveModal
+          publishResult={liveResult}
+          onClose={() => setLiveResult(null)}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown, Eye, Heart, Monitor } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -95,6 +95,72 @@ const moreModes = [
   { title: "HOP", href: "/creator/hop", type: "hop", desc: "Hot One-Page Stories", icon: Zap },
   { title: "FX Studio", href: "/fx-studio", type: "fx", desc: "Visual effects library", icon: Sparkles },
 ];
+
+function FeaturedOnStage() {
+  const [, navigate] = useLocation();
+  const { data: featured = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/community/featured-on-stage"],
+    queryFn: async () => {
+      const res = await fetch("/api/community/featured-on-stage");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  if (isLoading || featured.length === 0) return null;
+
+  return (
+    <section data-testid="featured-on-stage-section">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-display font-bold flex items-center gap-2">
+          <Monitor className="w-5 h-5" /> Featured on Stage
+        </h2>
+        <a
+          href="https://psstreaming.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-cyan-400 hover:underline font-mono flex items-center gap-1"
+          data-testid="link-go-to-stage"
+        >
+          Go to PS Streaming <ArrowRight className="w-3 h-3" />
+        </a>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {featured.slice(0, 6).map((item: any) => (
+          <div
+            key={item.id}
+            onClick={() => navigate(`/community/read/${item.id}`)}
+            className="group border-2 border-zinc-800 hover:border-white bg-card cursor-pointer transition-all hover:shadow-hard"
+            data-testid={`card-featured-${item.id}`}
+          >
+            <div className="aspect-[3/4] overflow-hidden border-b border-zinc-800 relative">
+              <img
+                src={item.thumbnail}
+                alt={item.title}
+                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+              />
+              <div className="absolute top-1 right-1 bg-black/80 border border-zinc-700 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase">
+                {item.type}
+              </div>
+            </div>
+            <div className="p-2">
+              <h3 className="text-xs font-bold truncate" data-testid={`text-featured-title-${item.id}`}>
+                {item.title}
+              </h3>
+              <p className="text-[10px] text-zinc-500 truncate">{item.creator_name}</p>
+              <div className="flex items-center gap-2 mt-1 text-[9px] text-zinc-600">
+                <span className="flex items-center gap-0.5">
+                  <Eye className="w-2.5 h-2.5" /> {item.views || 0}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const { data: projects, isLoading } = useProjects();
@@ -652,6 +718,8 @@ export default function Dashboard() {
             </button>
           </div>
         </section>
+
+        <FeaturedOnStage />
 
         <section>
           <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">

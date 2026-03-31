@@ -5811,7 +5811,16 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (project.type === "hop") {
         processProgressionEvent(req.user!.id, "hop_published", project.id, "project").catch(() => {});
       }
-      res.json({ jobId: result.jobId, message: "Publishing pipeline started" });
+      res.json({ 
+        jobId: result.jobId, 
+        message: "Publishing pipeline started",
+        streamingUrl: `https://psstreaming.com/watch/${project.id}`,
+        communityUrl: `/community/read/${project.id}`,
+        projectTitle: project.title,
+        projectType: project.type,
+        thumbnail: project.thumbnail,
+        creatorName: req.user!.name,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -7638,6 +7647,46 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         isSubscribed = await storage.isSubscribedToSeries((req.user as any).id, req.params.id);
       }
       res.json({ ...series, comics, subscriberCount, isSubscribed });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/featured-on-stage", async (_req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT p.id, p.title, p.type, p.thumbnail, p.status,
+               u.name as creator_name, u.id as creator_id,
+               COALESCE(p.view_count, 0) as views,
+               p.updated_at
+        FROM projects p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.status IN ('published', 'approved')
+          AND p.thumbnail IS NOT NULL
+        ORDER BY p.updated_at DESC
+        LIMIT 6
+      `);
+      res.json(result.rows || []);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/community/my-stage-stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const result = await db.execute(sql`
+        SELECT 
+          COUNT(*) FILTER (WHERE status IN ('published', 'approved')) as published_count,
+          COALESCE(SUM(view_count) FILTER (WHERE status IN ('published', 'approved')), 0) as total_views
+        FROM projects
+        WHERE user_id = ${userId}
+      `);
+      const row = result.rows?.[0] || { published_count: 0, total_views: 0 };
+      res.json({
+        publishedCount: Number(row.published_count) || 0,
+        totalViews: Number(row.total_views) || 0,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

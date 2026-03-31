@@ -446,6 +446,42 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
         {renderSectionLabel("My Work")}
         {galleryTools.map((item) => renderNavLink(item))}
 
+        {communityEnabled && !isStudent && (
+          isExpanded ? (
+            <div className="mt-4 mx-2 border border-cyan-500/30 bg-cyan-500/5 p-3" data-testid="sidebar-your-stage">
+              <div className="text-[10px] font-bold uppercase text-cyan-400 mb-2 flex items-center gap-1.5">
+                <Monitor className="w-3 h-3" /> Your Stage
+              </div>
+              <button
+                onClick={() => handleSSORedirect("streaming")}
+                className="w-full text-left text-sm font-medium text-foreground hover:text-cyan-400 transition-colors flex items-center justify-between py-1"
+                data-testid="button-go-to-stage"
+              >
+                <span>Go to Stage</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+              <Link
+                href="/ecosystem/publish"
+                className="w-full text-left text-sm font-medium text-foreground hover:text-cyan-400 transition-colors flex items-center justify-between py-1"
+                data-testid="nav-publish-from-stage"
+                onClick={() => onMobileClose?.()}
+              >
+                <span>Publish Now</span>
+                <Rocket className="w-3 h-3" />
+              </Link>
+            </div>
+          ) : (
+            <button
+              onClick={() => handleSSORedirect("streaming")}
+              className="flex items-center justify-center py-2.5 text-cyan-400 hover:text-cyan-300 transition-colors"
+              title="Your Stage"
+              data-testid="button-go-to-stage-collapsed"
+            >
+              <Monitor className="w-4 h-4" />
+            </button>
+          )
+        )}
+
         {marketplaceEnabled && (
           <>
             {renderSectionLabel("Marketplace")}
