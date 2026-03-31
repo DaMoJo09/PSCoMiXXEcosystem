@@ -130,6 +130,19 @@ const socialTools = [
   { icon: Search, label: "Find Creators", href: "/social/search" },
 ];
 
+function useStageStats() {
+  const [stats, setStats] = useState<{ publishedCount: number; totalViews: number } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/community/my-stage-stats", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  return stats;
+}
+
 function useXpStatus() {
   const [xpData, setXpData] = useState<{
     xp: number; level: number; levelTitle: string;
@@ -265,6 +278,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { enabled: motionStudioEnabled } = useFeatureFlag("motion_studio_enabled");
   const xpStatus = useXpStatus();
   const usageStatus = useUsageStatus();
+  const stageStats = useStageStats();
   const xp = xpStatus?.xp ?? (user?.xp || 0);
   const level = xpStatus?.level ?? (user?.level || 1);
   const levelTitle = xpStatus?.levelTitle ?? "";
@@ -452,6 +466,13 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               <div className="text-[10px] font-bold uppercase text-cyan-400 mb-2 flex items-center gap-1.5">
                 <Monitor className="w-3 h-3" /> Your Stage
               </div>
+              {stageStats && (
+                <div className="flex items-center gap-3 mb-2 text-[11px] font-mono text-zinc-400" data-testid="stage-stats">
+                  <span data-testid="stage-published-count">{stageStats.publishedCount} published</span>
+                  <span className="text-zinc-600">|</span>
+                  <span data-testid="stage-total-views">{stageStats.totalViews} views</span>
+                </div>
+              )}
               <button
                 onClick={() => handleSSORedirect("streaming")}
                 className="w-full text-left text-sm font-medium text-foreground hover:text-cyan-400 transition-colors flex items-center justify-between py-1"
@@ -474,7 +495,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
             <button
               onClick={() => handleSSORedirect("streaming")}
               className="flex items-center justify-center py-2.5 text-cyan-400 hover:text-cyan-300 transition-colors"
-              title="Your Stage"
+              title={`Your Stage${stageStats ? ` (${stageStats.publishedCount} published)` : ""}`}
               data-testid="button-go-to-stage-collapsed"
             >
               <Monitor className="w-4 h-4" />

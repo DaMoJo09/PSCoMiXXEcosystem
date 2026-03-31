@@ -2,7 +2,6 @@ import { Layout } from "@/components/layout/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { YouAreLiveModal } from "@/components/YouAreLiveModal";
 import { Link } from "wouter";
 import { useState } from "react";
 import { 
@@ -18,7 +17,16 @@ export default function PublishModule() {
   const [channelName, setChannelName] = useState("");
   const [channelSlug, setChannelSlug] = useState("");
   const [channelDescription, setChannelDescription] = useState("");
-  const [publishResult, setPublishResult] = useState<any>(null);
+  const { data: recentProjects } = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/projects");
+      return res.json();
+    },
+    enabled: isAuthenticated,
+  });
+
+  const previewProject = recentProjects?.find((p: any) => p.thumbnail) || recentProjects?.[0];
 
   const { data: myChannels } = useQuery({
     queryKey: ["ecosystem", "my-channels"],
@@ -270,18 +278,33 @@ export default function PublishModule() {
           <section className="mb-12">
             <h2 className="text-xl font-black mb-6" data-testid="text-section-streaming-preview">YOUR CONTENT ON PS STREAMING</h2>
             <div className="bg-zinc-900 border-4 border-zinc-800 p-6">
-              <div className="flex items-start gap-6">
+              <div className="flex items-start gap-6 flex-col md:flex-row">
                 <div className="w-48 shrink-0">
                   <div className="border-2 border-zinc-700">
                     <div className="bg-zinc-800 px-2 py-1 flex items-center gap-1.5 border-b border-zinc-700">
                       <Monitor className="w-3 h-3 text-cyan-400" />
                       <span className="text-[9px] font-mono text-zinc-500 uppercase">psstreaming.com</span>
                     </div>
-                    <div className="aspect-[3/4] bg-black flex items-center justify-center">
-                      <div className="text-center px-4">
-                        <Rocket className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
-                        <p className="text-[10px] text-zinc-600 font-mono">Your work here</p>
-                      </div>
+                    <div className="aspect-[3/4] bg-black flex items-center justify-center overflow-hidden">
+                      {previewProject?.thumbnail ? (
+                        <img
+                          src={previewProject.thumbnail}
+                          alt={previewProject.title}
+                          className="w-full h-full object-cover"
+                          data-testid="img-streaming-preview"
+                        />
+                      ) : (
+                        <div className="text-center px-4">
+                          <Rocket className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+                          <p className="text-[10px] text-zinc-600 font-mono">Your work here</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-zinc-800 px-2 py-1.5 border-t border-zinc-700">
+                      <p className="text-xs font-bold truncate" data-testid="text-preview-title">
+                        {previewProject?.title || "Your Next Creation"}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">by {user?.name || "You"}</p>
                     </div>
                   </div>
                 </div>
@@ -369,12 +392,6 @@ export default function PublishModule() {
           </section>
         </div>
       </div>
-      {publishResult && (
-        <YouAreLiveModal
-          publishResult={publishResult}
-          onClose={() => setPublishResult(null)}
-        />
-      )}
     </Layout>
   );
 }
