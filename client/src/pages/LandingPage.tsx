@@ -237,27 +237,13 @@ export default function LandingPage() {
         </span>
       </div>
 
-      <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-2 sm:gap-4 items-center">
-        <button
-          data-testid="button-view-pricing"
-          onClick={() => navigate("/pricing")}
-          className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors bg-transparent border-none cursor-pointer hidden sm:block"
-        >
-          Pricing
-        </button>
+      <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-3 items-center">
         <button
           data-testid="button-login"
           onClick={() => navigate("/login")}
-          className="text-sm text-zinc-400 hover:text-white uppercase tracking-wider font-mono transition-colors bg-transparent border-none cursor-pointer"
+          className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors bg-transparent border-none cursor-pointer"
         >
           Login
-        </button>
-        <button
-          data-testid="button-signup"
-          onClick={() => navigate("/signup")}
-          className="text-sm px-4 py-2 bg-white text-black hover:bg-zinc-200 uppercase tracking-wider font-mono transition-colors border-none cursor-pointer"
-        >
-          Sign Up
         </button>
       </div>
 
@@ -301,89 +287,57 @@ export default function LandingPage() {
           className="relative z-10 min-h-screen flex flex-col items-center justify-center p-8"
           style={{ position: 'relative', zIndex: 10, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}
         >
-          <div className="text-center mb-6 relative">
+          <div className="text-center mb-4 relative inline-block">
             {glitchText && (
-              <>
-                <h1
-                  className="absolute inset-0 text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tight text-cyan-500 opacity-70"
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    transform: `translate(${glitchOffset.x - 3}px, ${glitchOffset.y}px)`,
-                    clipPath: 'polygon(0 0, 100% 0, 100% 45%, 0 45%)',
-                  }}
-                >
-                  <span className="block">PRESS</span>
-                  <span className="block">START</span>
-                </h1>
-                <h1
-                  className="absolute inset-0 text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tight text-red-500 opacity-70"
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    transform: `translate(${glitchOffset.x + 3}px, ${glitchOffset.y}px)`,
-                    clipPath: 'polygon(0 55%, 100% 55%, 100% 100%, 0 100%)',
-                  }}
-                >
-                  <span className="block">PRESS</span>
-                  <span className="block">START</span>
-                </h1>
-              </>
+              <span
+                className="absolute inset-0 text-sm sm:text-base font-black uppercase tracking-[0.3em] text-cyan-500 opacity-70"
+                style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  transform: `translate(${glitchOffset.x - 2}px, ${glitchOffset.y}px)`,
+                }}
+              >
+                PRESS START COMIXX
+              </span>
             )}
-
-            <h1
-              className="text-4xl sm:text-6xl md:text-8xl font-black uppercase mb-2 tracking-tight text-white relative"
+            <span
+              className="text-sm sm:text-base font-black uppercase tracking-[0.3em] text-zinc-500 relative"
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 900,
-                textTransform: 'uppercase',
-                letterSpacing: '-0.025em',
-                color: '#fff',
-                position: 'relative',
                 textShadow: glitchText
-                  ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff, 0 0 80px rgba(255,255,255,0.8)`
-                  : '0 0 60px rgba(255,255,255,0.5), 0 0 120px rgba(255,255,255,0.2)',
-                transform: glitchText ? `translate(${glitchOffset.x * 0.5}px, ${glitchOffset.y * 0.5}px)` : 'none',
-                transition: glitchText ? 'none' : 'transform 0.1s ease-out',
+                  ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff`
+                  : 'none',
               }}
             >
-              <span style={{ display: 'block' }}>PRESS</span>
-              <span style={{ display: 'block' }}>START</span>
-            </h1>
-
-            <div
-              className="w-full max-w-md h-1 bg-white mx-auto mb-4"
-              style={{
-                boxShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4)',
-                transform: glitchText ? `scaleX(${0.9 + Math.random() * 0.2})` : 'scaleX(1)',
-              }}
-            />
-
-            <h2
-              className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] relative mb-8"
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                background: glitchText
-                  ? 'linear-gradient(to bottom, #ff0000, #00ffff)'
-                  : 'linear-gradient(to bottom, #ffffff, #666666)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                filter: glitchText ? 'blur(1px)' : 'none',
-                transform: glitchText ? `translate(${-glitchOffset.x}px, ${-glitchOffset.y}px)` : 'none',
-              }}
-            >
-              COMIXX
-            </h2>
+              PRESS START COMIXX
+            </span>
           </div>
 
-          <h3
-            className="text-xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-center mb-4"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          <div
+            className="w-32 h-px bg-zinc-600 mx-auto mb-8"
+            style={{
+              boxShadow: glitchText ? '0 0 10px rgba(255,255,255,0.5)' : 'none',
+              transform: glitchText ? `scaleX(${0.9 + Math.random() * 0.2})` : 'scaleX(1)',
+            }}
+          />
+
+          <h1
+            className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tight text-center mb-6 text-white"
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              textShadow: glitchText
+                ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff, 0 0 80px rgba(255,255,255,0.8)`
+                : '0 0 40px rgba(255,255,255,0.3)',
+              transform: glitchText ? `translate(${glitchOffset.x * 0.3}px, ${glitchOffset.y * 0.3}px)` : 'none',
+              transition: glitchText ? 'none' : 'transform 0.1s ease-out',
+            }}
             data-testid="text-tagline"
           >
-            Create. Publish. Get seen. Level up.
-          </h3>
+            <span className="block">CREATE. PUBLISH.</span>
+            <span className="block">GET SEEN. LEVEL UP.</span>
+          </h1>
 
           <p
-            className="text-sm sm:text-base md:text-lg text-zinc-400 text-center mb-10 max-w-xl font-mono px-4"
+            className="text-sm sm:text-lg md:text-xl text-zinc-400 text-center mb-12 max-w-2xl font-mono px-4"
             data-testid="text-subtitle"
           >
             The all-in-one creative studio for comics, cards, motion art, and more.
@@ -392,7 +346,7 @@ export default function LandingPage() {
           <button
             data-testid="button-start-creating"
             onClick={() => navigate("/signup")}
-            className="group px-8 sm:px-12 py-4 sm:py-5 bg-white text-black font-black text-lg sm:text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative border-none cursor-pointer"
+            className="group px-10 sm:px-14 py-4 sm:py-5 bg-white text-black font-black text-lg sm:text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative border-none cursor-pointer"
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
               boxShadow: glitchText
@@ -405,7 +359,7 @@ export default function LandingPage() {
             <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
           </button>
 
-          <div className="w-full max-w-4xl mt-12">
+          <div className="w-full max-w-4xl mt-14">
             <EventCarousel featuredOnly={true} variant="dark" />
           </div>
         </div>
