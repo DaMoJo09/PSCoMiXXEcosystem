@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Search, BookOpen, Users, ChevronLeft, ChevronRight, BookMarked, GitBranch, Monitor } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -46,6 +46,7 @@ interface CommunitySeries {
 }
 
 export default function CommunityLibrary() {
+  const [, navigate] = useLocation();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "popular">("newest");
@@ -309,75 +310,74 @@ export default function CommunityLibrary() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" data-testid="comics-grid">
                 {comics.map((comic) => (
-                  <Link
+                  <div
                     key={comic.id}
-                    href={`/community/read/${comic.id}`}
                     data-testid={`card-comic-${comic.id}`}
+                    onClick={() => navigate(`/community/read/${comic.id}`)}
+                    className="group border-2 border-zinc-800 bg-zinc-900 hover:border-cyan-500 transition-all cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10"
                   >
-                    <div className="group border-2 border-zinc-800 bg-zinc-900 hover:border-cyan-500 transition-all cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10">
-                      <div className="aspect-[2/3] relative overflow-hidden">
-                        {comic.thumbnail ? (
-                          <img
-                            src={comic.thumbnail}
-                            alt={comic.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            data-testid={`img-thumbnail-${comic.id}`}
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/30 flex items-center justify-center">
-                            <BookOpen className="w-12 h-12 text-zinc-700" />
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2">
-                          <span className="px-2 py-1 text-xs font-bold bg-black/80 border border-zinc-600 text-zinc-300">
-                            {comic.pageCount} pg
+                    <div className="aspect-[2/3] relative overflow-hidden">
+                      {comic.thumbnail ? (
+                        <img
+                          src={comic.thumbnail}
+                          alt={comic.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          data-testid={`img-thumbnail-${comic.id}`}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/30 flex items-center justify-center">
+                          <BookOpen className="w-12 h-12 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <span className="px-2 py-1 text-xs font-bold bg-black/80 border border-zinc-600 text-zinc-300">
+                          {comic.pageCount} pg
+                        </span>
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+
+                    <div className="p-3 border-t border-zinc-800">
+                      <h3
+                        className="font-bold text-white text-sm truncate mb-2"
+                        data-testid={`text-comic-title-${comic.id}`}
+                      >
+                        {comic.title}
+                      </h3>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {comic.creatorAvatar ? (
+                            <img
+                              src={comic.creatorAvatar}
+                              alt={comic.creatorName}
+                              className="w-5 h-5 rounded-full object-cover border border-zinc-700"
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
+                              <Users className="w-3 h-3 text-zinc-500" />
+                            </div>
+                          )}
+                          <span
+                            className="text-zinc-400 text-xs truncate"
+                            data-testid={`text-creator-${comic.id}`}
+                          >
+                            {comic.creatorName}
                           </span>
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-
-                      <div className="p-3 border-t border-zinc-800">
-                        <h3
-                          className="font-bold text-white text-sm truncate mb-2"
-                          data-testid={`text-comic-title-${comic.id}`}
+                        <a
+                          href={`https://psstreaming.com/watch/${comic.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-500 hover:text-cyan-400 transition-colors"
+                          title="Watch on PS Streaming"
+                          data-testid={`link-streaming-${comic.id}`}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {comic.title}
-                        </h3>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {comic.creatorAvatar ? (
-                              <img
-                                src={comic.creatorAvatar}
-                                alt={comic.creatorName}
-                                className="w-5 h-5 rounded-full object-cover border border-zinc-700"
-                              />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
-                                <Users className="w-3 h-3 text-zinc-500" />
-                              </div>
-                            )}
-                            <span
-                              className="text-zinc-400 text-xs truncate"
-                              data-testid={`text-creator-${comic.id}`}
-                            >
-                              {comic.creatorName}
-                            </span>
-                          </div>
-                          <a
-                            href={`https://psstreaming.com/watch/${comic.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-cyan-500 hover:text-cyan-400 transition-colors"
-                            title="Watch on PS Streaming"
-                            data-testid={`link-streaming-${comic.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Monitor className="w-4 h-4" />
-                          </a>
-                        </div>
+                          <Monitor className="w-4 h-4" />
+                        </a>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
 
