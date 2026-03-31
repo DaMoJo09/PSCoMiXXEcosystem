@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2 } from "lucide-react";
 import { useCreateProject } from "@/hooks/useProjects";
-import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
 
 const ONBOARDING_PREFIX = "pscomixx_onboarding_complete";
@@ -168,7 +167,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [xpAnimated, setXpAnimated] = useState(false);
   const [, navigate] = useLocation();
   const createProject = useCreateProject();
-  const { fireXpAction } = usePostAction();
+  const [earnedXp, setEarnedXp] = useState(0);
 
   const totalSteps = 3;
 
@@ -193,9 +192,22 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         forceNew: true,
       });
 
-      fireXpAction("first_login");
-      fireXpAction("project_created");
-      fireXpAction("publish");
+      let totalXp = 0;
+      for (const action of ["first_login", "project_created"]) {
+        try {
+          const xpRes = await fetch("/api/xp/action", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action }),
+            credentials: "include",
+          });
+          if (xpRes.ok) {
+            const xpData = await xpRes.json();
+            totalXp += xpData.xpGained || 0;
+          }
+        } catch { /* continue */ }
+      }
+      setEarnedXp(totalXp);
 
       setTimeout(() => {
         setStep(2);
@@ -370,7 +382,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               >
                 <Zap className="w-5 h-5 text-yellow-400" />
                 <div className="text-left">
-                  <p className="text-lg font-black text-white" data-testid="text-xp-earned">+75 XP</p>
+                  <p className="text-lg font-black text-white" data-testid="text-xp-earned">+{earnedXp || 75} XP</p>
                   <p className="text-[10px] text-zinc-500 font-mono uppercase">First login + Project created</p>
                 </div>
               </div>
