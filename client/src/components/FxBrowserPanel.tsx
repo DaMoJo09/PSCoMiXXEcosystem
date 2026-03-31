@@ -472,7 +472,10 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
                         {effect.type === "panel-fx-return" && (
                           <span className="text-[9px] bg-amber-900/30 text-amber-400 px-1 border border-amber-800">FX Return</span>
                         )}
-                        {effect.synced_to_cloud && (
+                        {(effect as any)._source === "cloud" && (
+                          <span className="text-[9px] bg-blue-900/30 text-blue-400 px-1 border border-blue-800">Cloud</span>
+                        )}
+                        {effect.synced_to_cloud && !(effect as any)._source && (
                           <span className="text-[9px] bg-green-900/30 text-green-400 px-1 border border-green-800">Synced</span>
                         )}
                         {effect.layer_count > 0 && (

@@ -6785,7 +6785,56 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         .limit(limit)
         .offset(offset);
 
-      res.json(localData.map(mapEffectRow));
+      const localMapped = localData.map(mapEffectRow);
+
+      if (FX_API_KEY && offset === 0) {
+        try {
+          const upstreamParams = new URLSearchParams();
+          upstreamParams.set("limit", String(limit));
+          upstreamParams.set("offset", "0");
+          if (req.query.asset_tag) upstreamParams.set("asset_tag", req.query.asset_tag as string);
+          if (req.query.project_id) upstreamParams.set("project_id", req.query.project_id as string);
+          if (req.query.search) upstreamParams.set("search", req.query.search as string);
+          if (userEmail) upstreamParams.set("user_email", userEmail);
+
+          const upstreamRes = await fetchWithTimeout(
+            `${FX_API_URL}?${upstreamParams.toString()}`,
+            { method: "GET", headers: fxHeaders(), timeout: 3000 }
+          );
+
+          if (upstreamRes.ok) {
+            const upstreamJson = await upstreamRes.json();
+            const upstreamEffects: any[] = Array.isArray(upstreamJson) ? upstreamJson : upstreamJson?.data || [];
+
+            const seenIds = new Set(localMapped.map((e: any) => e.id));
+            const seenNames = new Set(localMapped.map((e: any) => e.name?.toLowerCase()));
+            const merged: any[] = [];
+            const maxCloudItems = Math.max(0, limit - localMapped.length);
+
+            for (const ue of upstreamEffects) {
+              if (merged.length >= maxCloudItems) break;
+              const nameLower = ue.name?.toLowerCase();
+              if (!seenIds.has(ue.id) && !seenNames.has(nameLower)) {
+                seenIds.add(ue.id);
+                if (nameLower) seenNames.add(nameLower);
+                merged.push({
+                  ...ue,
+                  _source: "cloud",
+                });
+              }
+            }
+
+            if (merged.length > 0) {
+              res.json([...localMapped, ...merged]);
+              return;
+            }
+          }
+        } catch (err: any) {
+          console.error("[fx-list] upstream fetch failed (non-blocking):", err.message);
+        }
+      }
+
+      res.json(localMapped);
     } catch (error: any) {
       console.error("FX effects GET error:", error.message);
       res.status(500).json({ message: error.message });
