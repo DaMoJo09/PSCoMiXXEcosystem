@@ -546,7 +546,10 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               <div className={`flex items-center gap-1 ${(xpStatus?.currentStreak || 0) > 0 ? "text-orange-400" : "text-zinc-600"}`} data-testid="sidebar-streak">
                 <Flame className={`w-3 h-3 ${(xpStatus?.currentStreak || 0) >= 3 ? "animate-pulse" : ""}`} />
                 <span className="text-[10px] font-black">{xpStatus?.currentStreak || 0}d</span>
-                {(xpStatus?.currentStreak || 0) > 0 && (xpStatus?.currentStreak || 0) < 7 && (
+                {(xpStatus?.currentStreak || 0) < 3 && (
+                  <span className="text-[9px] text-zinc-500 font-mono">3d: +50 XP</span>
+                )}
+                {(xpStatus?.currentStreak || 0) >= 3 && (xpStatus?.currentStreak || 0) < 7 && (
                   <span className="text-[9px] text-zinc-500 font-mono">7d: +150 XP</span>
                 )}
                 {(xpStatus?.currentStreak || 0) >= 7 && (xpStatus?.currentStreak || 0) < 30 && (
@@ -557,7 +560,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
                 <div className="flex items-center gap-1 text-cyan-400 flex-1 min-w-0" data-testid="sidebar-next-unlock">
                   <ArrowRight className="w-3 h-3 shrink-0" />
                   <span className="text-[10px] font-bold truncate">
-                    Lv{xpStatus.nextUnlock.level}: {xpStatus.nextUnlock.title}
+                    {xpStatus.nextUnlock.level ? `Lv${xpStatus.nextUnlock.level}: ` : ""}{xpStatus.nextUnlock.title}
                   </span>
                 </div>
               )}
