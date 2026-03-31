@@ -27,7 +27,7 @@ import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
-import { YouAreLiveModal } from "@/components/YouAreLiveModal";
+import { YouAreLiveModal, type PublishResult } from "@/components/YouAreLiveModal";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
 import { useFxStudio } from "@/hooks/useFxStudio";
@@ -899,7 +899,7 @@ export default function ComicCreator() {
     onError: (err: any) => toast.error(err.message || "Failed to send to portfolio"),
   });
 
-  const [liveResult, setLiveResult] = useState<any>(null);
+  const [liveResult, setLiveResult] = useState<PublishResult | null>(null);
 
   const publishProject = useMutation({
     mutationFn: async () => {

@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Monitor, ExternalLink, Copy, CheckCircle2, X } from "lucide-react";
+import { Monitor, ExternalLink, Copy, CheckCircle2, X, Eye } from "lucide-react";
 import { toast } from "sonner";
 
-interface PublishResult {
+export interface PublishResult {
   streamingUrl: string;
   projectTitle: string;
   projectType?: string;
   thumbnail?: string | null;
   creatorName?: string;
+  viewCount?: number;
 }
 
 interface YouAreLiveModalProps {
@@ -46,6 +47,9 @@ export function YouAreLiveModal({ publishResult, onClose }: YouAreLiveModalProps
           <p className="text-zinc-400 text-sm mt-2">
             "{publishResult.projectTitle}" is now on PS Streaming
           </p>
+          <div className="flex items-center justify-center gap-1 mt-2 text-xs text-zinc-500" data-testid="text-live-views">
+            <Eye className="w-3 h-3" /> {publishResult.viewCount ?? 0} views
+          </div>
         </div>
 
         {publishResult.thumbnail && (

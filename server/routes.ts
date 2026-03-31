@@ -5820,6 +5820,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         projectType: project.type,
         thumbnail: project.thumbnail,
         creatorName: req.user!.name,
+        viewCount: project.viewCount ?? 0,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -7658,9 +7659,16 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         SELECT p.id, p.title, p.type, p.thumbnail, p.status,
                u.name as creator_name, u.id as creator_id,
                COALESCE(p.view_count, 0) as views,
+               COALESCE(likes_agg.like_count, 0) as likes,
                p.updated_at
         FROM projects p
         JOIN users u ON p.user_id = u.id
+        LEFT JOIN (
+          SELECT content_id, COUNT(*) as like_count
+          FROM engagement_events
+          WHERE event_type = 'like'
+          GROUP BY content_id
+        ) likes_agg ON likes_agg.content_id = p.id
         WHERE p.status IN ('published', 'approved')
           AND p.thumbnail IS NOT NULL
         ORDER BY p.updated_at DESC

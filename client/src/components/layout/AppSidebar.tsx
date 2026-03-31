@@ -449,20 +449,10 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
         {isExpanded && <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>}
         {!isExpanded && <div className="h-2" />}
         {creatorTools.filter(item => item.href !== "/creator/motion" || motionStudioEnabled).map((item) => renderNavLink(item))}
-        
-        {aiToolsEnabled && (
-          <>
-            {renderSectionLabel("AI Tools")}
-            {aiTools.map((item) => renderNavLink(item))}
-          </>
-        )}
-
-        {renderSectionLabel("My Work")}
-        {galleryTools.map((item) => renderNavLink(item))}
 
         {communityEnabled && !isStudent && (
           isExpanded ? (
-            <div className="mt-4 mx-2 border border-cyan-500/30 bg-cyan-500/5 p-3" data-testid="sidebar-your-stage">
+            <div className="mt-2 mx-2 border border-cyan-500/30 bg-cyan-500/5 p-3" data-testid="sidebar-your-stage">
               <div className="text-[10px] font-bold uppercase text-cyan-400 mb-2 flex items-center gap-1.5">
                 <Monitor className="w-3 h-3" /> Your Stage
               </div>
@@ -502,6 +492,16 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
             </button>
           )
         )}
+        
+        {aiToolsEnabled && (
+          <>
+            {renderSectionLabel("AI Tools")}
+            {aiTools.map((item) => renderNavLink(item))}
+          </>
+        )}
+
+        {renderSectionLabel("My Work")}
+        {galleryTools.map((item) => renderNavLink(item))}
 
         {marketplaceEnabled && (
           <>

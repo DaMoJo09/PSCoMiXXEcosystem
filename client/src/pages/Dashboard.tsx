@@ -153,6 +153,9 @@ function FeaturedOnStage() {
                 <span className="flex items-center gap-0.5">
                   <Eye className="w-2.5 h-2.5" /> {item.views || 0}
                 </span>
+                <span className="flex items-center gap-0.5">
+                  <Heart className="w-2.5 h-2.5" /> {item.likes || 0}
+                </span>
               </div>
             </div>
           </div>
