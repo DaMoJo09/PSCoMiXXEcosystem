@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { X, ChevronRight, ChevronLeft, Sparkles, Palette, Film, Layers, BookOpen, GitBranch, Lightbulb, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2 } from "lucide-react";
+import { useCreateProject } from "@/hooks/useProjects";
+import { toast } from "sonner";
 
 const ONBOARDING_PREFIX = "pscomixx_onboarding_complete";
 
@@ -17,35 +20,36 @@ export function useOnboarding(userId?: number) {
   return { completed, markComplete };
 }
 
-const tools = [
-  { id: "comic", label: "Comics", icon: Layers, desc: "Sequential art panel builder" },
-  { id: "card", label: "Trading Cards", icon: Sparkles, desc: "TCG card forge & battle system" },
-  { id: "motion", label: "Motion Comics", icon: Film, desc: "Animate your panels with timeline" },
-  { id: "vn", label: "Visual Novels", icon: BookOpen, desc: "Interactive fiction engine" },
-  { id: "cyoa", label: "CYOA Stories", icon: GitBranch, desc: "Branching narrative builder" },
-  { id: "cover", label: "Cover Design", icon: Palette, desc: "Full wrap cover designer" },
-];
-
-const tips = [
+const modes = [
   {
-    icon: Zap,
-    title: "Quick Start from Dashboard",
-    desc: "Use the Quick Start buttons to jump straight into any creator mode.",
+    id: "comic",
+    label: "Comic",
+    desc: "Draw panels, add speech bubbles, tell your story page by page.",
+    icon: Palette,
+    color: "border-cyan-500",
+    glow: "shadow-[0_0_20px_rgba(6,182,212,0.3)]",
+    href: "/creator/comic",
+    templateTitle: "My First Comic",
   },
   {
-    icon: Lightbulb,
-    title: "AI-Powered Prompts",
-    desc: "Visit Prompt Factory to generate prompts for your AI image tools.",
+    id: "card",
+    label: "Trading Card",
+    desc: "Design collectible cards with stats, art, and effects.",
+    icon: CreditCard,
+    color: "border-green-500",
+    glow: "shadow-[0_0_20px_rgba(34,197,94,0.3)]",
+    href: "/creator/card",
+    templateTitle: "My First Card",
   },
   {
-    icon: Layers,
-    title: "Drag & Drop Everything",
-    desc: "All creators support drag-and-drop for images, bubbles, and effects.",
-  },
-  {
-    icon: Sparkles,
-    title: "Community & Marketplace",
-    desc: "Publish your work, browse the community library, and sell on the marketplace.",
+    id: "motion",
+    label: "Short Clip",
+    desc: "Animate frames on a timeline with audio and effects.",
+    icon: Film,
+    color: "border-amber-500",
+    glow: "shadow-[0_0_20px_rgba(245,158,11,0.3)]",
+    href: "/creator/motion",
+    templateTitle: "My First Clip",
   },
 ];
 
@@ -55,26 +59,49 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
-  const [selectedTools, setSelectedTools] = useState<string[]>([]);
-
-  const toggleTool = (id: string) => {
-    setSelectedTools((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
-  };
+  const [selectedMode, setSelectedMode] = useState<string | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [xpAnimated, setXpAnimated] = useState(false);
+  const [, navigate] = useLocation();
+  const createProject = useCreateProject();
 
   const totalSteps = 3;
 
-  const handleNext = () => {
-    if (step < totalSteps - 1) {
-      setStep(step + 1);
-    } else {
-      onComplete();
-    }
+  const handleModeSelect = (modeId: string) => {
+    setSelectedMode(modeId);
   };
 
-  const handleBack = () => {
-    if (step > 0) setStep(step - 1);
+  const handleGoCreate = async () => {
+    if (!selectedMode) return;
+
+    const mode = modes.find(m => m.id === selectedMode);
+    if (!mode) return;
+
+    setStep(1);
+
+    try {
+      const project = await createProject.mutateAsync({
+        title: mode.templateTitle,
+        type: selectedMode,
+        status: "draft",
+        data: {},
+        forceNew: true,
+      });
+
+      setTimeout(() => {
+        setStep(2);
+        setShowCelebration(true);
+        setTimeout(() => setXpAnimated(true), 300);
+
+        setTimeout(() => {
+          onComplete();
+          navigate(`${mode.href}?id=${project.id}`);
+        }, 3000);
+      }, 1500);
+    } catch (error: any) {
+      toast.error("Could not create project. Try again.");
+      setStep(0);
+    }
   };
 
   const handleSkip = () => {
@@ -82,11 +109,14 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" data-testid="onboarding-overlay">
-      <div className="relative w-full max-w-lg mx-4 bg-zinc-950 border border-white/20 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      data-testid="onboarding-overlay"
+    >
+      <div className="relative w-full max-w-2xl mx-4 bg-zinc-950 border border-white/20 shadow-2xl">
         <button
           onClick={handleSkip}
-          className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors z-10"
+          className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors z-10"
           data-testid="button-onboarding-skip"
         >
           <X className="w-5 h-5" />
@@ -96,123 +126,161 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
               key={i}
-              className={`h-1 flex-1 transition-colors ${
-                i <= step ? "bg-white" : "bg-white/20"
+              className={`h-1 flex-1 transition-all duration-500 ${
+                i <= step ? "bg-white" : "bg-white/10"
               }`}
               data-testid={`progress-step-${i}`}
             />
           ))}
         </div>
 
-        <div className="p-6 min-h-[400px] flex flex-col">
+        <div className="p-6 sm:p-8 min-h-[420px] flex flex-col">
           {step === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-16 h-16 bg-white text-black flex items-center justify-center text-3xl font-bold font-display">
-                PS
+            <div className="flex-1 flex flex-col">
+              <div className="text-center mb-8">
+                <p className="text-xs text-zinc-500 uppercase tracking-[0.3em] font-mono mb-3">
+                  PRESS START COMIXX
+                </p>
+                <h2
+                  className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white mb-2"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  data-testid="text-onboarding-question"
+                >
+                  What do you want to make?
+                </h2>
+                <p className="text-xs text-zinc-500 font-mono">
+                  Pick one. You can always explore more later.
+                </p>
               </div>
-              <h2 className="text-3xl font-display font-bold uppercase tracking-tighter text-white" data-testid="text-onboarding-welcome">
-                Welcome to Press Start CoMiXX
-              </h2>
-              <p className="text-white/60 font-mono text-sm max-w-sm leading-relaxed">
-                Your all-in-one creative studio for comics, cards, motion graphics, visual novels, and more.
-              </p>
-              <p className="text-white/40 font-mono text-xs">
-                Let's get you set up in 30 seconds.
-              </p>
-            </div>
-          )}
 
-          {step === 1 && (
-            <div className="flex-1 flex flex-col space-y-4">
-              <h2 className="text-xl font-display font-bold uppercase tracking-tighter text-white" data-testid="text-onboarding-tools">
-                Pick Your Tools
-              </h2>
-              <p className="text-white/60 font-mono text-xs">
-                Select the creator modes you're interested in. You can always change this later.
-              </p>
-              <div className="grid grid-cols-2 gap-3 flex-1">
-                {tools.map((tool) => {
-                  const Icon = tool.icon;
-                  const selected = selectedTools.includes(tool.id);
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+                {modes.map((mode) => {
+                  const Icon = mode.icon;
+                  const selected = selectedMode === mode.id;
                   return (
                     <button
-                      key={tool.id}
-                      onClick={() => toggleTool(tool.id)}
-                      className={`p-3 border text-left transition-all ${
+                      key={mode.id}
+                      onClick={() => handleModeSelect(mode.id)}
+                      className={`p-5 border-2 text-left transition-all flex flex-col ${
                         selected
-                          ? "border-white bg-white/10"
-                          : "border-white/20 hover:border-white/40 bg-transparent"
+                          ? `${mode.color} bg-white/5 ${mode.glow}`
+                          : "border-zinc-800 hover:border-zinc-600 bg-transparent"
                       }`}
-                      data-testid={`button-tool-select-${tool.id}`}
+                      data-testid={`button-mode-${mode.id}`}
                     >
-                      <Icon className={`w-5 h-5 mb-2 ${selected ? "text-white" : "text-white/50"}`} />
-                      <h3 className="text-sm font-bold font-display text-white">{tool.label}</h3>
-                      <p className="text-[10px] text-white/50 mt-1">{tool.desc}</p>
+                      <Icon className={`w-8 h-8 mb-3 ${selected ? "text-white" : "text-zinc-500"}`} />
+                      <h3
+                        className="text-lg font-black uppercase tracking-tight text-white mb-1"
+                        style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                      >
+                        {mode.label}
+                      </h3>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed flex-1">
+                        {mode.desc}
+                      </p>
+                      {selected && (
+                        <div className="mt-3 flex items-center gap-1 text-[10px] text-white font-bold uppercase">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                        </div>
+                      )}
                     </button>
                   );
                 })}
               </div>
-            </div>
-          )}
 
-          {step === 2 && (
-            <div className="flex-1 flex flex-col space-y-4">
-              <h2 className="text-xl font-display font-bold uppercase tracking-tighter text-white" data-testid="text-onboarding-tips">
-                Quick Tips
-              </h2>
-              <p className="text-white/60 font-mono text-xs">
-                A few things to help you hit the ground running.
-              </p>
-              <div className="space-y-3 flex-1">
-                {tips.map((tip, i) => {
-                  const Icon = tip.icon;
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 p-3 border border-white/10 bg-white/5"
-                      data-testid={`tip-item-${i}`}
-                    >
-                      <Icon className="w-5 h-5 text-white/70 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h3 className="text-sm font-bold font-display text-white">{tip.title}</h3>
-                        <p className="text-[11px] text-white/50 mt-0.5">{tip.desc}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex items-center justify-between pt-6 mt-6 border-t border-white/10">
+                <p className="text-[10px] text-zinc-600 font-mono">
+                  Create. Publish. Get seen. Level up.
+                </p>
+                <button
+                  onClick={handleGoCreate}
+                  disabled={!selectedMode || createProject.isPending}
+                  className={`px-6 py-2.5 font-black text-sm uppercase tracking-wider flex items-center gap-2 transition-all border-none cursor-pointer ${
+                    selectedMode
+                      ? "bg-white text-black hover:bg-zinc-200"
+                      : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                  }`}
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  data-testid="button-onboarding-go"
+                >
+                  {createProject.isPending ? "Setting up..." : "Let's go"}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/10">
-            <div>
-              {step > 0 && (
-                <button
-                  onClick={handleBack}
-                  className="flex items-center gap-1 text-sm text-white/60 hover:text-white transition-colors font-mono"
-                  data-testid="button-onboarding-back"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Back
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-white/40 font-mono">
-                {step + 1} / {totalSteps}
-              </span>
-              <button
-                onClick={handleNext}
-                className="px-5 py-2 bg-white text-black font-bold text-sm font-display uppercase tracking-wider hover:bg-zinc-200 transition-colors flex items-center gap-1"
-                data-testid="button-onboarding-next"
+          {step === 1 && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
+              <div className="w-16 h-16 border-2 border-white flex items-center justify-center animate-pulse">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <h2
+                className="text-2xl font-black uppercase tracking-tight text-white"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                data-testid="text-onboarding-loading"
               >
-                {step === totalSteps - 1 ? "Go to Dashboard" : "Next"}
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                Setting up your workspace...
+              </h2>
+              <p className="text-sm text-zinc-500 font-mono">
+                Loading your {modes.find(m => m.id === selectedMode)?.label.toLowerCase()} template
+              </p>
+              <div className="w-48 h-1 bg-zinc-800 overflow-hidden">
+                <div className="h-full bg-white animate-[loading_1.5s_ease-in-out_infinite]" />
+              </div>
             </div>
-          </div>
+          )}
+
+          {step === 2 && showCelebration && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
+              <div
+                className={`w-20 h-20 border-4 border-white flex items-center justify-center transition-all duration-700 ${
+                  xpAnimated ? "scale-110 shadow-[0_0_40px_rgba(255,255,255,0.5)]" : "scale-100"
+                }`}
+              >
+                <Trophy className="w-10 h-10 text-yellow-400" />
+              </div>
+
+              <div>
+                <h2
+                  className="text-3xl font-black uppercase tracking-tight text-white mb-2"
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  data-testid="text-onboarding-celebration"
+                >
+                  You're in!
+                </h2>
+                <p className="text-zinc-400 font-mono text-sm">
+                  Your first project is ready.
+                </p>
+              </div>
+
+              <div
+                className={`flex items-center gap-3 px-6 py-3 border-2 border-white bg-white/5 transition-all duration-700 ${
+                  xpAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+                }`}
+              >
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <div className="text-left">
+                  <p className="text-lg font-black text-white" data-testid="text-xp-earned">+75 XP</p>
+                  <p className="text-[10px] text-zinc-500 font-mono uppercase">First login + Project created</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-600 font-mono animate-pulse">
+                Opening your creator...
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes loading {
+          0% { width: 0%; margin-left: 0; }
+          50% { width: 60%; margin-left: 20%; }
+          100% { width: 0%; margin-left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }

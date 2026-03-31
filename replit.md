@@ -118,7 +118,7 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 A marketing landing page at `/landing` and `/welcome` showcasing features, audience sections, "How It Works," testimonials, pricing CTA, and legal links.
 
 ### New User Onboarding
-An `OnboardingWizard` guides new users through a 3-step flow on their first login.
+An action-driven `OnboardingWizard` guides new users through: (1) "What do you want to make?" with 3 mode choices (Comic, Card, Short Clip), (2) auto-creates a template project in the selected mode, (3) XP celebration showing +75 XP earned (first_login + project_created) then redirects into the creator. A `WhatsNextPrompt` component shows contextual post-creation prompts (Publish, Portfolio, Keep Creating). An `XPCelebration` component provides a full-screen momentary level-up animation for first XP events. Dashboard header uses "Create. Publish. Get seen. Level up." messaging, with 3 primary mode hero cards (Comic, Card, Motion) and a collapsible "More Creator Tools" section for VN, CYOA, HOP, and FX Studio.
 
 ### File Storage
 Local disk storage at `uploads/` directory with DB tracking via `exported_files` table. Supports base64 upload, max 50MB file size, and MIME type allowlist. Uploads are scanned by content moderation.

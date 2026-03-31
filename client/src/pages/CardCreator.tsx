@@ -15,6 +15,7 @@ import { AIGenerator } from "@/components/tools/AIGenerator";
 import { DrawingWorkspace } from "@/components/tools/DrawingWorkspace";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
+import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { PostComposer } from "@/components/social/PostComposer";
@@ -269,6 +270,7 @@ export default function CardCreator() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile } = useAssetLibrary();
+  const { showWhatsNext } = usePostAction();
 
   const [mode, setMode] = useState<"single" | "pack">("single");
   const [side, setSide] = useState<"front" | "back">("front");
@@ -517,6 +519,7 @@ export default function CardCreator() {
       pendingSaveRef.current = false;
       toast.success("Card saved");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+      showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {

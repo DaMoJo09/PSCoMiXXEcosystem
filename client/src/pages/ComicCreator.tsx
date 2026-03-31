@@ -17,6 +17,7 @@ import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter,
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
+import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -360,6 +361,7 @@ export default function ComicCreator() {
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
   const { hasFeature, isAdmin } = useSubscription();
   const { user, isStudent } = useAuth();
+  const { showWhatsNext } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
@@ -912,6 +914,7 @@ export default function ComicCreator() {
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Comic saved");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save" }), credentials: "include" });
+      showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {

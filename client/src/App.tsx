@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
 import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
+import { PostActionProvider } from "@/contexts/PostActionContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -255,15 +256,17 @@ function App() {
           <AssetLibraryProvider>
             <CrossModeAssetProvider>
               <EcosystemProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <SonnerToaster theme="dark" position="bottom-right" />
-                  <KeyboardShortcutsDialog />
-                  <InstallBanner />
-                  <NetworkStatusToast />
-                  <UpdatePrompt />
-                  <ProtectedRouter />
-                </TooltipProvider>
+                <PostActionProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <SonnerToaster theme="dark" position="bottom-right" />
+                    <KeyboardShortcutsDialog />
+                    <InstallBanner />
+                    <NetworkStatusToast />
+                    <UpdatePrompt />
+                    <ProtectedRouter />
+                  </TooltipProvider>
+                </PostActionProvider>
               </EcosystemProvider>
             </CrossModeAssetProvider>
           </AssetLibraryProvider>

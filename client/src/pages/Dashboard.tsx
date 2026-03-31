@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2 } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -60,13 +60,38 @@ const CERT_ACCENT_COLORS = [
   { border: "border-yellow-500", bg: "bg-yellow-500/10", text: "text-yellow-400", bar: "bg-yellow-500" },
 ];
 
-const quickActions = [
-  { title: "New Comic", href: "/creator/comic", type: "comic", desc: "Sequential art builder" },
-  { title: "New Motion", href: "/creator/motion", type: "motion", desc: "Motion comic studio" },
-  { title: "New Card", href: "/creator/card", type: "card", desc: "TCG card forge" },
-  { title: "New Visual Novel", href: "/creator/vn", type: "vn", desc: "Interactive fiction" },
-  { title: "New CYOA", href: "/creator/cyoa", type: "cyoa", desc: "Branching story builder" },
+const primaryModes = [
+  {
+    title: "New Comic",
+    href: "/creator/comic",
+    type: "comic",
+    desc: "Sequential art builder with panels, bubbles, and AI tools",
+    icon: Palette,
+    color: "border-l-cyan-500",
+  },
+  {
+    title: "New Card",
+    href: "/creator/card",
+    type: "card",
+    desc: "Design trading cards with stats, art, and collectible effects",
+    icon: CreditCard,
+    color: "border-l-green-500",
+  },
+  {
+    title: "New Motion",
+    href: "/creator/motion",
+    type: "motion",
+    desc: "Animate frames on a timeline with audio and keyframes",
+    icon: Film,
+    color: "border-l-amber-500",
+  },
+];
 
+const moreModes = [
+  { title: "Visual Novel", href: "/creator/vn", type: "vn", desc: "Interactive fiction engine", icon: BookOpen },
+  { title: "CYOA Story", href: "/creator/cyoa", type: "cyoa", desc: "Branching narrative builder", icon: GitBranch },
+  { title: "HOP", href: "/creator/hop", type: "hop", desc: "Hot One-Page Stories", icon: Zap },
+  { title: "FX Studio", href: "/fx-studio", type: "fx", desc: "Visual effects library", icon: Sparkles },
 ];
 
 export default function Dashboard() {
@@ -79,6 +104,7 @@ export default function Dashboard() {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
 
   const { data: certs = [] } = useQuery<any[]>({
     queryKey: ["/api/certifications"],
@@ -123,9 +149,13 @@ export default function Dashboard() {
   };
 
   const handleQuickCreate = async (type: string, href: string) => {
+    if (type === "fx") {
+      navigate(href);
+      return;
+    }
     try {
       const project = await createProject.mutateAsync({
-        title: `Untitled ${typeLabels[type]}`,
+        title: `Untitled ${typeLabels[type] || type}`,
         type,
         status: "draft",
         data: {},
@@ -145,15 +175,19 @@ export default function Dashboard() {
 
         <div className="flex items-end justify-between border-b border-border pb-6">
           <div>
-            <h1 className="text-4xl font-display font-bold uppercase tracking-tighter" data-testid="text-dashboard-title">
-              Creator Hub
+            <h1
+              className="text-2xl sm:text-3xl font-black uppercase tracking-tight"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              data-testid="text-dashboard-title"
+            >
+              Create. Publish. Get seen. Level up.
             </h1>
-            <p className="text-muted-foreground mt-2 font-mono" data-testid="text-welcome">
-              Welcome back, {user?.name}. Ready to create?
+            <p className="text-muted-foreground mt-2 font-mono text-sm" data-testid="text-welcome">
+              Welcome back, {user?.name}.
             </p>
           </div>
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={logout}
               className="px-4 py-2 bg-secondary hover:bg-border transition-colors font-medium text-sm border border-border flex items-center gap-2"
               data-testid="button-logout"
@@ -163,7 +197,7 @@ export default function Dashboard() {
             </button>
             <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
               <DialogTrigger asChild>
-                <button 
+                <button
                   className="px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium text-sm flex items-center gap-2 shadow-hard-sm"
                   data-testid="button-new-project"
                 >
@@ -202,8 +236,8 @@ export default function Dashboard() {
                       <option value="hop">HOP</option>
                     </select>
                   </div>
-                  <Button 
-                    onClick={handleCreateProject} 
+                  <Button
+                    onClick={handleCreateProject}
                     className="w-full bg-white text-black hover:bg-zinc-200"
                     disabled={createProject.isPending}
                     data-testid="button-create-project"
@@ -317,30 +351,69 @@ export default function Dashboard() {
         )}
 
         <section>
-          <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2">
-            <Star className="w-5 h-5" /> Quick Start
+          <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2" data-testid="text-start-creating">
+            <Star className="w-5 h-5" /> Start Creating
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {quickActions.map((action) => (
-              <button 
-                key={action.title} 
-                onClick={() => handleQuickCreate(action.type, action.href)}
-                className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card h-full text-left min-h-[140px]"
-                data-testid={`button-quick-${action.type}`}
-              >
-                <div>
-                  <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4 leading-tight">
-                    {action.title}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {primaryModes.map((mode) => {
+              const Icon = mode.icon;
+              return (
+                <button
+                  key={mode.type}
+                  onClick={() => handleQuickCreate(mode.type, mode.href)}
+                  className={`group p-6 border-2 border-zinc-800 border-l-4 ${mode.color} hover:border-white hover:shadow-hard transition-all bg-card text-left`}
+                  data-testid={`button-quick-${mode.type}`}
+                >
+                  <Icon className="w-8 h-8 mb-3 text-zinc-400 group-hover:text-white transition-colors" />
+                  <h3
+                    className="text-lg font-black uppercase tracking-tight group-hover:underline decoration-2 underline-offset-4"
+                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {mode.title}
                   </h3>
-                  <p className="text-[10px] text-muted-foreground mt-2 leading-tight">
-                    {action.desc}
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                    {mode.desc}
                   </p>
-                </div>
-                <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-5px] group-hover:translate-x-0">
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </button>
-            ))}
+                  <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4">
+            <button
+              onClick={() => setMoreToolsOpen(!moreToolsOpen)}
+              className="flex items-center gap-2 text-sm text-zinc-500 hover:text-white font-mono uppercase tracking-wider transition-colors"
+              data-testid="button-toggle-more-tools"
+            >
+              {moreToolsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              More Creator Tools
+            </button>
+            {moreToolsOpen && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                {moreModes.map((mode) => {
+                  const Icon = mode.icon;
+                  return (
+                    <button
+                      key={mode.type}
+                      onClick={() => handleQuickCreate(mode.type, mode.href)}
+                      className="group p-4 border border-zinc-800 hover:border-zinc-600 hover:shadow-hard transition-all bg-card text-left"
+                      data-testid={`button-more-${mode.type}`}
+                    >
+                      <Icon className="w-5 h-5 mb-2 text-zinc-500" />
+                      <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
+                        {mode.title}
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {mode.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
@@ -349,20 +422,7 @@ export default function Dashboard() {
             <Wrench className="w-5 h-5" /> Tools & Utilities
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <button 
-              onClick={() => navigate("/fx-studio")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
-              data-testid="button-tool-fx-studio"
-            >
-              <Sparkles className="w-6 h-6 mb-2" />
-              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
-                FX Studio
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Visual effects library
-              </p>
-            </button>
-            <button 
+            <button
               onClick={() => navigate("/tools/prompt")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-prompt"
@@ -375,7 +435,7 @@ export default function Dashboard() {
                 AI prompt generator
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/tools/story")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-story"
@@ -388,7 +448,7 @@ export default function Dashboard() {
                 Plot & narrative tools
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/tools/import")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-import"
@@ -401,7 +461,7 @@ export default function Dashboard() {
                 Photos, scripts & assets
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/creator/cover")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-cover"
@@ -414,7 +474,7 @@ export default function Dashboard() {
                 Design book & comic covers
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/settings")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-tool-settings"
@@ -435,7 +495,7 @@ export default function Dashboard() {
             <Share2 className="w-5 h-5" /> Publish & Share
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <button 
+            <button
               onClick={() => navigate("/print-studio")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-print"
@@ -448,7 +508,7 @@ export default function Dashboard() {
                 PDF export & print-ready output
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate(`/portfolio${user?.id ? `/${user.id}` : ""}`)}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-portfolio"
@@ -461,7 +521,7 @@ export default function Dashboard() {
                 Your digital portfolio & QR links
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/community")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-gallery"
@@ -474,7 +534,7 @@ export default function Dashboard() {
                 Browse & showcase work
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/marketplace")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-marketplace"
@@ -487,7 +547,7 @@ export default function Dashboard() {
                 Sell & buy creator content
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/print-studio/export")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-export"
@@ -500,7 +560,7 @@ export default function Dashboard() {
                 High-res & web-ready exports
               </p>
             </button>
-            <button 
+            <button
               onClick={() => navigate("/certifications")}
               className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
               data-testid="button-publish-certs"
@@ -584,7 +644,7 @@ export default function Dashboard() {
               </button>
             )}
           </div>
-          
+
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Spinner className="size-8" />
@@ -592,15 +652,15 @@ export default function Dashboard() {
           ) : projects && projects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {projects.slice(0, 4).map((project) => (
-                <div 
+                <div
                   key={project.id}
                   onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
                   className="group border border-border bg-card hover:shadow-hard transition-all cursor-pointer"
                   data-testid={`card-project-${project.id}`}
                 >
                   <div className="aspect-[4/3] overflow-hidden border-b border-border relative">
-                    <img 
-                      src={project.thumbnail || typeImages[project.type] || noirComic} 
+                    <img
+                      src={project.thumbnail || typeImages[project.type] || noirComic}
                       alt={project.title}
                       className="w-full h-full object-contain bg-black/50 grayscale group-hover:grayscale-0 transition-all duration-500"
                     />
@@ -628,7 +688,7 @@ export default function Dashboard() {
                       <h3 className="font-bold font-display truncate pr-2" data-testid={`text-project-title-${project.id}`}>
                         {project.title}
                       </h3>
-                      <button 
+                      <button
                         className="text-muted-foreground hover:text-red-500 transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();

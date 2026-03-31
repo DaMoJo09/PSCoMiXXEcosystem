@@ -19,6 +19,7 @@ import {
   FileVideo, Settings2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePostAction } from "@/contexts/PostActionContext";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
@@ -401,6 +402,7 @@ export default function MotionStudio() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { hasFeature, isAdmin } = useSubscription();
+  const { showWhatsNext } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState("Export");
 
@@ -1425,6 +1427,7 @@ export default function MotionStudio() {
         data: { title, data: { frames: updatedFrames, tracks, audioClips } },
       });
       toast.success("Project saved");
+      showWhatsNext();
     } catch {
       toast.error("Failed to save");
     }
