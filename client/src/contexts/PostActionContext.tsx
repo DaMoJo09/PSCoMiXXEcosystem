@@ -2,17 +2,26 @@ import { createContext, useContext, useState, useCallback } from "react";
 import { WhatsNextPrompt } from "@/components/WhatsNextPrompt";
 import { XPCelebration } from "@/components/XPCelebration";
 
+const MILESTONE_ACTIONS = new Set([
+  "first_login",
+  "project_created",
+  "publish",
+  "first_share",
+  "hop_published",
+  "hop_series_created",
+  "subscription_started",
+  "profile_complete",
+]);
+
 const XP_ACTION_LABELS: Record<string, string | undefined> = {
   first_login: "Welcome to PSCoMiXX!",
   project_created: "Project created",
-  save: "Project saved",
-  export: "Export complete",
   publish: "Published!",
-  daily_login: "Daily streak",
-  ai_generation: "AI generated",
   first_share: "First share",
-  hop_created: "HOP created",
   hop_published: "HOP published",
+  hop_series_created: "HOP series created",
+  subscription_started: "Subscription started",
+  profile_complete: "Profile complete",
 };
 
 interface PostActionContextValue {
@@ -53,7 +62,7 @@ export function PostActionProvider({ children }: { children: React.ReactNode }) 
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.xpGained > 0) {
+        if (data.xpGained > 0 && MILESTONE_ACTIONS.has(action)) {
           const label = XP_ACTION_LABELS[action] || action.replace(/_/g, " ");
           setCelebration({ xp: data.xpGained, reason: label });
         }

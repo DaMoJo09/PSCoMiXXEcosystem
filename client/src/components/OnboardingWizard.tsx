@@ -188,13 +188,14 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       await createProject.mutateAsync({
         title: mode.templateTitle,
         type: selectedMode,
-        status: "draft",
+        status: "published",
         data: templateMap[selectedMode] || {},
         forceNew: true,
       });
 
       fireXpAction("first_login");
       fireXpAction("project_created");
+      fireXpAction("publish");
 
       setTimeout(() => {
         setStep(2);
@@ -203,7 +204,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
         setTimeout(() => {
           onComplete();
-          navigate("/dashboard");
+          navigate("/");
         }, 3000);
       }, 1500);
     } catch {
