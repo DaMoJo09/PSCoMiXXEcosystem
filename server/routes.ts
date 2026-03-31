@@ -6725,11 +6725,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           try {
             return { ok: true, status: response.status, parsed: JSON.parse(text) };
           } catch {
+            console.error(`[upstream-sync] ${method} ${url} — response OK but not JSON:`, text.slice(0, 200));
             return { ok: false, status: response.status, parsed: null };
           }
         }
+        const errText = await response.text().catch(() => "");
+        console.error(`[upstream-sync] ${method} ${url} — HTTP ${response.status}:`, errText.slice(0, 500));
         return { ok: false, status: response.status, parsed: null };
-      } catch {
+      } catch (err: any) {
+        console.error(`[upstream-sync] ${method} ${url} — network error:`, err.message);
         return { ok: false, status: 0, parsed: null };
       }
     }
@@ -6995,14 +6999,25 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       let upstreamStatus = "unknown";
       if (FX_API_KEY) {
         try {
-          const response = await fetchWithTimeout(FX_API_URL, {
-            method: "POST",
+          const response = await fetchWithTimeout(`${FX_API_URL}?limit=1`, {
+            method: "GET",
             headers: fxHeaders(),
-            body: JSON.stringify({ name: "__health_check__", type: "__ping__" }),
             timeout: 10000,
           });
-          upstreamStatus = response.ok ? "connected" : `error_${response.status}`;
-        } catch {
+          if (response.ok) {
+            const text = await response.text();
+            try {
+              const parsed = JSON.parse(text);
+              const hasData = Array.isArray(parsed) || (parsed?.data && Array.isArray(parsed.data));
+              upstreamStatus = hasData ? "connected" : "connected_unknown_format";
+            } catch {
+              upstreamStatus = "connected_not_json";
+            }
+          } else {
+            upstreamStatus = `error_${response.status}`;
+          }
+        } catch (err: any) {
+          console.error("[fx-health] upstream check failed:", err.message);
           upstreamStatus = "unreachable";
         }
       } else {
