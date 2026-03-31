@@ -250,7 +250,7 @@ export async function syncPendingChanges(): Promise<{ synced: number; failed: nu
       } else if (response.status === 409) {
         const serverData = await response.json().catch(() => null);
         const bodyData = JSON.parse(item.body || '{}');
-        const projectId = item.url.match(/\/api\/projects\/(\d+)/)?.[1];
+        const projectId = item.url.match(/\/api\/projects\/([^/]+)/)?.[1];
         if (projectId) {
           conflicts.push({
             projectId,
@@ -263,6 +263,10 @@ export async function syncPendingChanges(): Promise<{ synced: number; failed: nu
         const deleteTx = db.transaction(STORE_QUEUE, 'readwrite');
         deleteTx.objectStore(STORE_QUEUE).delete(item.id);
         synced++;
+      } else if (response.status === 404 || response.status === 403 || response.status === 401) {
+        const deleteTx = db.transaction(STORE_QUEUE, 'readwrite');
+        deleteTx.objectStore(STORE_QUEUE).delete(item.id);
+        failed++;
       } else {
         failed++;
       }
@@ -313,11 +317,13 @@ export function startBackgroundSync(): () => void {
   };
 }
 
+export type SaveResult = 'saved' | 'not_found' | 'offline' | 'error';
+
 export async function saveProjectWithOfflineFallback(
   projectId: string | number,
   data: { title: string; data: any },
   type: string = 'comic'
-): Promise<boolean> {
+): Promise<SaveResult> {
   const url = `/api/projects/${projectId}/autosave`;
   const body = JSON.stringify(data);
   const headers = { 'Content-Type': 'application/json' };
@@ -334,7 +340,13 @@ export async function saveProjectWithOfflineFallback(
         setLastSyncTime(Date.now());
         currentSyncStatus.lastSyncTime = Date.now();
         notifyListeners();
-        return true;
+        return 'saved';
+      }
+      if (response.status === 404) {
+        return 'not_found';
+      }
+      if (response.status === 403 || response.status === 401) {
+        return 'error';
       }
       throw new Error('Server error');
     } catch {
@@ -344,7 +356,7 @@ export async function saveProjectWithOfflineFallback(
         ...data,
       });
       await queueOfflineAction({ url, method: 'POST', headers, body });
-      return false;
+      return 'offline';
     }
   } else {
     await saveProjectOffline({
@@ -353,6 +365,6 @@ export async function saveProjectWithOfflineFallback(
       ...data,
     });
     await queueOfflineAction({ url, method: 'POST', headers, body });
-    return false;
+    return 'offline';
   }
 }

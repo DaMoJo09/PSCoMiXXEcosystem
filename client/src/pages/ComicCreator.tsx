@@ -21,7 +21,7 @@ import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
-import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
+import { saveProjectWithOfflineFallback, type SaveResult } from "@/lib/offlineStorage";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
@@ -757,23 +757,32 @@ export default function ComicCreator() {
   latestDataRef.current = { title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId };
 
   const projectConfirmedRef = useRef(false);
+  const saveDisabledRef = useRef(false);
   useEffect(() => {
     projectConfirmedRef.current = !!project;
+    if (project) saveDisabledRef.current = false;
   }, [project]);
   useEffect(() => {
     projectConfirmedRef.current = false;
+    saveDisabledRef.current = false;
   }, [projectId]);
 
   const flushSave = useCallback(async () => {
     const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
-    if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current) return;
+    if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current || saveDisabledRef.current) return;
     pendingSaveRef.current = false;
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
     const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
-    await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) } }, 'comic');
+    const result = await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) } }, 'comic');
+    if (result === 'not_found') {
+      saveDisabledRef.current = true;
+      toast.error("Project no longer exists. Redirecting to a new project...");
+      creationAttempted.current = false;
+      navigate("/creator/comic", { replace: true });
+    }
   }, []);
 
   useEffect(() => {
@@ -799,7 +808,7 @@ export default function ComicCreator() {
 
   useEffect(() => {
     return () => {
-      if (pendingSaveRef.current && projectConfirmedRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
@@ -814,7 +823,7 @@ export default function ComicCreator() {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (pendingSaveRef.current && projectConfirmedRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
