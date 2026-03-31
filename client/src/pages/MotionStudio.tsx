@@ -28,7 +28,7 @@ import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { useSubscription } from "@/hooks/use-subscription";
-import { UpgradeModal } from "@/components/UpgradeModal";
+import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
 import { apiRequest } from "@/lib/queryClient";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 
@@ -405,6 +405,7 @@ export default function MotionStudio() {
   const { showWhatsNext, fireXpAction } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState("Export");
+  const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
 
   const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
     defaultTag: "fx-overlay",
@@ -1869,8 +1870,11 @@ export default function MotionStudio() {
 
   const handleExport = async () => {
     if (!hasFeature("export") && !isAdmin) {
-      setUpgradeFeatureName("Export");
-      setShowUpgradeModal(true);
+      const shown = showDiscovery("motion_export");
+      if (!shown) {
+        setUpgradeFeatureName("Motion Export");
+        setShowUpgradeModal(true);
+      }
       return;
     }
     try {
@@ -5213,6 +5217,11 @@ export default function MotionStudio() {
         onClose={() => setShowUpgradeModal(false)}
         feature={upgradeFeatureName}
         requiredTier="creator"
+      />
+      <ProFeatureDiscovery
+        isOpen={discoveryOpen}
+        onClose={closeDiscovery}
+        featureKey={discoveryFeature}
       />
     </div>
   );

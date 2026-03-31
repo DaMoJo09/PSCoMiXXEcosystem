@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
@@ -12,6 +12,7 @@ import { useState } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 import { XPWidget } from "@/components/XPWidget";
+import { useSubscription } from "@/hooks/use-subscription";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,9 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const { completed: onboardingComplete, markComplete: markOnboardingComplete } = useOnboarding(user?.id);
+  const { getMaxProjects, tier, getTierName } = useSubscription();
+  const maxProjects = getMaxProjects();
+  const projectCount = projects?.length || 0;
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
@@ -628,6 +632,57 @@ export default function Dashboard() {
             </a>
           </div>
         </section>
+
+        {maxProjects > 0 && (
+          <section data-testid="project-slots-section">
+            <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
+              <Folder className="w-5 h-5" /> Project Slots
+              <span className="text-sm font-mono text-zinc-400 ml-2">{projectCount}/{maxProjects}</span>
+            </h2>
+            <div className="flex gap-3 flex-wrap">
+              {Array.from({ length: Math.min(maxProjects, 6) }).map((_, i) => {
+                const project = projects?.[i];
+                if (project) {
+                  return (
+                    <div
+                      key={project.id}
+                      onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
+                      className="w-20 h-20 border-2 border-zinc-700 bg-card flex flex-col items-center justify-center cursor-pointer hover:border-white transition-colors"
+                      title={project.title}
+                      data-testid={`slot-filled-${i}`}
+                    >
+                      <Folder className="w-5 h-5 text-zinc-400 mb-1" />
+                      <span className="text-[8px] font-mono text-zinc-500 truncate max-w-[70px] text-center">{project.title}</span>
+                    </div>
+                  );
+                }
+                if (i < maxProjects) {
+                  return (
+                    <div
+                      key={`empty-${i}`}
+                      onClick={() => setNewProjectOpen(true)}
+                      className="w-20 h-20 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors"
+                      data-testid={`slot-empty-${i}`}
+                    >
+                      <Plus className="w-5 h-5 text-zinc-600" />
+                    </div>
+                  );
+                }
+                return null;
+              })}
+              {maxProjects <= 6 && (
+                <div
+                  onClick={() => navigate("/pricing")}
+                  className="w-20 h-20 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors"
+                  data-testid="slot-upgrade"
+                >
+                  <Lock className="w-4 h-4 text-amber-500 mb-1" />
+                  <span className="text-[8px] font-bold text-amber-500 uppercase">Upgrade</span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section>
           <div className="flex items-center justify-between mb-6">

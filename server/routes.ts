@@ -6664,6 +6664,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const aiCount = await storage.getUsageCount(userId, "ai_generation", "daily", getTodayKey());
       const exportCount = await storage.getUsageCount(userId, "export", "monthly", getMonthKey());
+      const userProjects = await storage.getProjectsByUserId(userId);
+      const projectCount = userProjects.length;
 
       res.json({
         tier,
@@ -6676,6 +6678,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           used: exportCount,
           limit: entitlements.exportsPerMonth,
           remaining: entitlements.exportsPerMonth === -1 ? -1 : Math.max(0, entitlements.exportsPerMonth - exportCount),
+        },
+        projects: {
+          used: projectCount,
+          limit: entitlements.maxProjects,
+          remaining: entitlements.maxProjects === -1 ? -1 : Math.max(0, entitlements.maxProjects - projectCount),
         },
       });
     } catch (error: any) {

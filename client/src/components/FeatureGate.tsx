@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "./UpgradeModal";
-import { Lock } from "lucide-react";
+import { Lock, Crown } from "lucide-react";
 
 interface FeatureGateProps {
   feature: "ai" | "export" | "commercial" | "batch";
@@ -41,13 +41,16 @@ export function FeatureGate({
     <>
       <div 
         onClick={() => setShowUpgrade(true)}
-        className="cursor-pointer opacity-60 hover:opacity-80 transition-opacity relative"
+        className="cursor-pointer opacity-60 hover:opacity-80 transition-opacity relative group"
         title={`Upgrade to unlock ${featureName}`}
+        data-testid={`gate-${feature}`}
       >
         {children}
         {showLockIcon && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <Lock className="w-6 h-6 text-white" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60">
+            <Lock className="w-5 h-5 text-white mb-1" />
+            <span className="text-[10px] font-bold text-white uppercase tracking-wider">Unlock {featureName}</span>
+            <span className="text-[9px] text-cyan-400 font-mono mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Click to upgrade</span>
           </div>
         )}
       </div>
@@ -99,10 +102,13 @@ export function GatedButton({
         onClick={handleClick}
         className={`${className} ${!hasAccess ? "relative" : ""}`}
         disabled={disabled}
+        data-testid={`gated-${feature}`}
       >
         {children}
         {!hasAccess && (
-          <Lock className="w-3 h-3 ml-1 inline-block" />
+          <span className="inline-flex items-center gap-1 ml-1">
+            <Crown className="w-3 h-3 text-amber-500" />
+          </span>
         )}
       </button>
       <UpgradeModal 

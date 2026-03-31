@@ -26,7 +26,7 @@ import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
-import { UpgradeModal } from "@/components/UpgradeModal";
+import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
 import { useFxStudio } from "@/hooks/useFxStudio";
@@ -359,10 +359,11 @@ export default function ComicCreator() {
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
-  const { hasFeature, isAdmin } = useSubscription();
+  const { hasFeature, isAdmin, tier } = useSubscription();
   const { user, isStudent } = useAuth();
   const { showWhatsNext, fireXpAction } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
 
@@ -1567,6 +1568,13 @@ export default function ComicCreator() {
       link.click();
       
       toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
+      if (!hasFeature("export") || tier === "creator") {
+        toast("Export includes watermark", {
+          description: "Remove watermark — Upgrade to Pro",
+          action: { label: "Upgrade", onClick: () => window.location.href = "/pricing" },
+          duration: 6000,
+        });
+      }
       fireXpAction("export");
       showWhatsNext();
     } catch (error) {
@@ -6099,8 +6107,14 @@ export default function ComicCreator() {
       <UpgradeModal 
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 
-        feature="Export to PNG"
+        feature="Export"
         requiredTier="creator"
+      />
+
+      <ProFeatureDiscovery
+        isOpen={discoveryOpen}
+        onClose={closeDiscovery}
+        featureKey={discoveryFeature}
       />
 
       {currentSpread?.themeMusic && (

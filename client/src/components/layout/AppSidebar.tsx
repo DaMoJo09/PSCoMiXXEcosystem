@@ -148,6 +148,23 @@ function useXpStatus() {
   return xpData;
 }
 
+function useUsageStatus() {
+  const [usage, setUsage] = useState<{
+    tier: string;
+    ai: { used: number; limit: number; remaining: number };
+    export: { used: number; limit: number; remaining: number };
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/usage/status", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(setUsage)
+      .catch(() => {});
+  }, []);
+
+  return usage;
+}
+
 function useInstallPrompt() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -247,6 +264,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { enabled: communityEnabled } = useFeatureFlag("community_enabled");
   const { enabled: motionStudioEnabled } = useFeatureFlag("motion_studio_enabled");
   const xpStatus = useXpStatus();
+  const usageStatus = useUsageStatus();
   const xp = xpStatus?.xp ?? (user?.xp || 0);
   const level = xpStatus?.level ?? (user?.level || 1);
   const levelTitle = xpStatus?.levelTitle ?? "";
@@ -565,6 +583,15 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
                 </div>
               )}
             </div>
+            {usageStatus && usageStatus.tier !== "studio" && usageStatus.tier !== "lifetime" && (
+              <div className="pt-2 mt-1 border-t border-zinc-800 space-y-1.5" data-testid="sidebar-usage-counters">
+                <UsageBar label="AI" used={usageStatus.ai.used} limit={usageStatus.ai.limit} unit="/day" />
+                <UsageBar label="Exports" used={usageStatus.export.used} limit={usageStatus.export.limit} unit="/mo" />
+                <Link href="/pricing" className="block text-[9px] text-cyan-400 hover:text-cyan-300 font-bold uppercase mt-1" data-testid="link-sidebar-upgrade">
+                  Upgrade for more
+                </Link>
+              </div>
+            )}
           </div>
         )}
         {user && !isExpanded && (
@@ -708,6 +735,27 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
         </div>
       </div>
     </aside>
+  );
+}
+
+function UsageBar({ label, used, limit, unit }: { label: string; used: number; limit: number; unit: string }) {
+  if (limit === -1) return null;
+  const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+  const isAmber = pct >= 75 && pct < 90;
+  const isRed = pct >= 90;
+  const barColor = isRed ? "bg-red-500" : isAmber ? "bg-amber-500" : "bg-zinc-400";
+  const textColor = isRed ? "text-red-400" : isAmber ? "text-amber-400" : "text-zinc-400";
+
+  return (
+    <div data-testid={`usage-${label.toLowerCase()}`}>
+      <div className="flex justify-between items-center mb-0.5">
+        <span className={`text-[10px] font-bold ${textColor}`}>{label}</span>
+        <span className={`text-[10px] font-mono ${textColor}`}>{used}/{limit}{unit}</span>
+      </div>
+      <div className="w-full h-1.5 bg-zinc-800 overflow-hidden">
+        <div className={`h-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }
 
