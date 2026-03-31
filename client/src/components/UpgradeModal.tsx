@@ -59,7 +59,7 @@ export function UpgradeModal({ isOpen, onClose, feature, requiredTier = "creator
   };
 
   const details = FEATURE_DETAILS[feature];
-  const effectiveTier = details?.tier || requiredTier;
+  const effectiveTier = requiredTier || details?.tier || "creator";
   const info = tierInfo[effectiveTier] || tierInfo.creator;
   const Icon = info.icon;
 

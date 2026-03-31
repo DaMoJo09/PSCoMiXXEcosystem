@@ -2065,9 +2065,9 @@ export type UsageTracking = typeof usageTracking.$inferSelect;
 // Tier Entitlements Definition
 export const tierEntitlements = {
   free: {
-    export: false,
+    export: true,
     commercial: false,
-    ai: false,
+    ai: true,
     batch: false,
     maxProjects: 3,
     maxStorage: 100, // MB

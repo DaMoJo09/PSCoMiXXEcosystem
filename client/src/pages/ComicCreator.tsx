@@ -13,7 +13,7 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
-import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package, Crown } from "lucide-react";
+import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package, Crown, X as XIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -374,6 +374,7 @@ export default function ComicCreator() {
   const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
+  const [showWatermarkBanner, setShowWatermarkBanner] = useState(false);
 
   const resolveAssetUrl = useCallback(async (asset: { id: string; url: string }): Promise<string> => {
     if (asset.url) return asset.url;
@@ -1576,12 +1577,8 @@ export default function ComicCreator() {
       link.click();
       
       toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
-      if (!hasFeature("export") || tier === "creator") {
-        toast("Export includes watermark", {
-          description: "Remove watermark — Upgrade to Pro",
-          action: { label: "Upgrade", onClick: () => window.location.href = "/pricing" },
-          duration: 6000,
-        });
+      if (tier === "free" || tier === "creator") {
+        setShowWatermarkBanner(true);
       }
       fireXpAction("export");
       showWhatsNext();
@@ -6143,6 +6140,31 @@ export default function ComicCreator() {
         onClose={closeDiscovery}
         featureKey={discoveryFeature}
       />
+
+      {showWatermarkBanner && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-amber-500/95 text-black px-4 py-3 flex items-center justify-between" data-testid="banner-watermark">
+          <div className="flex items-center gap-3">
+            <Crown className="w-5 h-5" />
+            <span className="text-sm font-black">Your export includes a watermark</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/pricing")}
+              className="px-4 py-1.5 bg-black text-white font-black text-xs uppercase hover:bg-zinc-800 transition-colors"
+              data-testid="button-watermark-upgrade"
+            >
+              Upgrade to Pro — Remove watermark
+            </button>
+            <button
+              onClick={() => setShowWatermarkBanner(false)}
+              className="p-1 hover:bg-amber-600 transition-colors"
+              data-testid="button-watermark-dismiss"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {currentSpread?.themeMusic && (
         <audio
