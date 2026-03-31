@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Crown, Zap, Star, Rocket, X, Sparkles, Film, Package, Shield, Check } from "lucide-react";
 import { Link } from "wouter";
 

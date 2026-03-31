@@ -101,7 +101,10 @@ export default function MarketplaceSellPage() {
     e.preventDefault();
 
     if (!hasFeature("commercial") && !isAdmin) {
-      showDiscovery("commercial_license");
+      const shown = showDiscovery("commercial_license");
+      if (!shown) {
+        window.location.href = "/pricing";
+      }
       return;
     }
 

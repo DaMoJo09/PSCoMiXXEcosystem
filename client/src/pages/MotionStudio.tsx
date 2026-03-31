@@ -5216,7 +5216,7 @@ export default function MotionStudio() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         feature={upgradeFeatureName}
-        requiredTier="creator"
+        requiredTier="pro"
       />
       <ProFeatureDiscovery
         isOpen={discoveryOpen}
