@@ -1,9 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { marketplaceApi, projectsApi } from "@/lib/api";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/use-subscription";
+import { ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
 import { ArrowLeft, DollarSign, Package, Tag, Image, FileText, Upload, X, Gift } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +27,14 @@ const LISTING_MODES = [
 export default function MarketplaceSellPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { hasFeature, isAdmin } = useSubscription();
+  const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
+
+  useEffect(() => {
+    if (!hasFeature("commercial") && !isAdmin) {
+      showDiscovery("commercial_license");
+    }
+  }, []);
 
   const [listingMode, setListingMode] = useState<"project" | "asset_pack">("project");
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -446,6 +456,11 @@ export default function MarketplaceSellPage() {
           </form>
         </div>
       </div>
+      <ProFeatureDiscovery
+        isOpen={discoveryOpen}
+        onClose={closeDiscovery}
+        featureKey={discoveryFeature}
+      />
     </Layout>
   );
 }

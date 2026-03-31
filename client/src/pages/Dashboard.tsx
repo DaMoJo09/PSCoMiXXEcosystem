@@ -105,6 +105,17 @@ export default function Dashboard() {
   const { getMaxProjects, tier, getTierName } = useSubscription();
   const maxProjects = getMaxProjects();
   const projectCount = projects?.length || 0;
+
+  const { data: usageData } = useQuery<{
+    tier: string;
+    ai: { used: number; limit: number; remaining: number };
+    export: { used: number; limit: number; remaining: number };
+    projects: { used: number; limit: number; remaining: number };
+  }>({
+    queryKey: ["/api/usage/status"],
+    enabled: !!user,
+  });
+
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
@@ -255,6 +266,56 @@ export default function Dashboard() {
         </div>
 
         <XPWidget />
+
+        {usageData && usageData.ai.limit > 0 && usageData.ai.remaining <= 0 && (
+          <div className="p-4 border-2 border-red-500 bg-red-500/10 flex items-center justify-between" data-testid="banner-ai-limit">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-red-400" />
+              <div>
+                <p className="text-sm font-black uppercase text-white">
+                  You've used {usageData.ai.used}/{usageData.ai.limit} AI generations today
+                </p>
+                <p className="text-xs text-zinc-400 mt-0.5">Upgrade for more daily AI generations</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/pricing")}
+              className="px-4 py-2 bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-colors shrink-0"
+              data-testid="button-ai-limit-upgrade"
+            >
+              Upgrade Now
+            </button>
+          </div>
+        )}
+
+        {usageData && usageData.ai.limit > 0 && usageData.ai.remaining > 0 && usageData.ai.used > 0 && (
+          <div className="p-3 border border-zinc-700 bg-zinc-900 flex items-center justify-between" data-testid="banner-ai-usage">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-4 h-4 text-zinc-400" />
+              <span className="text-xs font-mono text-zinc-400">
+                AI: {usageData.ai.used}/{usageData.ai.limit} today
+              </span>
+              <div className="w-24 h-1.5 bg-zinc-800 overflow-hidden">
+                <div
+                  className={`h-full transition-all ${
+                    (usageData.ai.used / usageData.ai.limit) >= 0.9 ? "bg-red-500" :
+                    (usageData.ai.used / usageData.ai.limit) >= 0.75 ? "bg-amber-500" : "bg-zinc-400"
+                  }`}
+                  style={{ width: `${Math.min((usageData.ai.used / usageData.ai.limit) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+            {(usageData.ai.used / usageData.ai.limit) >= 0.75 && (
+              <button
+                onClick={() => navigate("/pricing")}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-bold uppercase"
+                data-testid="button-ai-usage-upgrade"
+              >
+                Get more
+              </button>
+            )}
+          </div>
+        )}
 
         {certs.length > 0 && (
           <section>
@@ -637,49 +698,51 @@ export default function Dashboard() {
           <section data-testid="project-slots-section">
             <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
               <Folder className="w-5 h-5" /> Project Slots
-              <span className="text-sm font-mono text-zinc-400 ml-2">{projectCount}/{maxProjects}</span>
+              <span className={`text-sm font-mono ml-2 ${projectCount >= maxProjects ? "text-red-400" : "text-zinc-400"}`}>
+                {projectCount}/{maxProjects} used
+              </span>
             </h2>
             <div className="flex gap-3 flex-wrap">
-              {Array.from({ length: Math.min(maxProjects, 6) }).map((_, i) => {
+              {Array.from({ length: maxProjects }).map((_, i) => {
                 const project = projects?.[i];
                 if (project) {
                   return (
                     <div
                       key={project.id}
                       onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
-                      className="w-20 h-20 border-2 border-zinc-700 bg-card flex flex-col items-center justify-center cursor-pointer hover:border-white transition-colors"
+                      className="w-24 h-24 border-2 border-zinc-700 bg-card flex flex-col items-center justify-center cursor-pointer hover:border-white transition-colors"
                       title={project.title}
                       data-testid={`slot-filled-${i}`}
                     >
                       <Folder className="w-5 h-5 text-zinc-400 mb-1" />
-                      <span className="text-[8px] font-mono text-zinc-500 truncate max-w-[70px] text-center">{project.title}</span>
+                      <span className="text-[8px] font-mono text-zinc-500 truncate max-w-[80px] text-center">{project.title}</span>
+                      <span className="text-[7px] font-mono text-zinc-600 uppercase mt-0.5">{typeLabels[project.type] || project.type}</span>
                     </div>
                   );
                 }
-                if (i < maxProjects) {
-                  return (
-                    <div
-                      key={`empty-${i}`}
-                      onClick={() => setNewProjectOpen(true)}
-                      className="w-20 h-20 border-2 border-dashed border-zinc-700 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors"
-                      data-testid={`slot-empty-${i}`}
-                    >
-                      <Plus className="w-5 h-5 text-zinc-600" />
-                    </div>
-                  );
-                }
-                return null;
+                return (
+                  <div
+                    key={`empty-${i}`}
+                    onClick={() => setNewProjectOpen(true)}
+                    className="w-24 h-24 border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors"
+                    data-testid={`slot-empty-${i}`}
+                  >
+                    <Plus className="w-5 h-5 text-zinc-600 mb-1" />
+                    <span className="text-[8px] font-bold text-zinc-600 uppercase">Available</span>
+                  </div>
+                );
               })}
-              {maxProjects <= 6 && (
-                <div
-                  onClick={() => navigate("/pricing")}
-                  className="w-20 h-20 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors"
-                  data-testid="slot-upgrade"
-                >
-                  <Lock className="w-4 h-4 text-amber-500 mb-1" />
-                  <span className="text-[8px] font-bold text-amber-500 uppercase">Upgrade</span>
-                </div>
-              )}
+              <div
+                onClick={() => navigate("/pricing")}
+                className="w-24 h-24 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors group"
+                data-testid="slot-upgrade"
+              >
+                <Lock className="w-4 h-4 text-amber-500 mb-1" />
+                <span className="text-[8px] font-bold text-amber-500 uppercase">
+                  {tier === "free" ? "Creator: 20" : tier === "creator" ? "Pro: 100" : "Studio: Unlimited"}
+                </span>
+                <span className="text-[7px] text-amber-500/60 font-mono mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Upgrade</span>
+              </div>
             </div>
           </section>
         )}

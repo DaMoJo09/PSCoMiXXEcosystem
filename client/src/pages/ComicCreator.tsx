@@ -13,7 +13,7 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
-import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package } from "lucide-react";
+import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package, Crown } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
@@ -1584,7 +1584,10 @@ export default function ComicCreator() {
 
   const handleExportAllPagesPNG = async () => {
     if (!hasFeature("export") && !isAdmin) {
-      setShowUpgradeModal(true);
+      const shown = showDiscovery("batch_export");
+      if (!shown) {
+        setShowUpgradeModal(true);
+      }
       return;
     }
     try {
@@ -1824,7 +1827,10 @@ export default function ComicCreator() {
 
   const handleExportFullPDF = async () => {
     if (!hasFeature("export") && !isAdmin) {
-      setShowUpgradeModal(true);
+      const shown = showDiscovery("batch_export");
+      if (!shown) {
+        setShowUpgradeModal(true);
+      }
       return;
     }
     try {
@@ -3923,6 +3929,18 @@ export default function ComicCreator() {
                 <DropdownMenuItem onClick={handleExportFullPDF} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-pdf">
                   <FileText className="w-4 h-4 mr-2" /> Full Comic as PDF (Print-Ready)
                 </DropdownMenuItem>
+                {tier === "free" || tier === "creator" ? (
+                  <>
+                    <DropdownMenuSeparator className="bg-zinc-700" />
+                    <DropdownMenuItem
+                      onClick={() => navigate("/pricing")}
+                      className="hover:bg-zinc-800 cursor-pointer text-amber-400"
+                      data-testid="link-remove-watermark"
+                    >
+                      <Crown className="w-4 h-4 mr-2" /> Remove watermark — Upgrade to Pro
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
                 <DropdownMenuSeparator className="bg-zinc-700" />
                 <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
                   <Save className="w-4 h-4 mr-2" /> Project Data (JSON)
