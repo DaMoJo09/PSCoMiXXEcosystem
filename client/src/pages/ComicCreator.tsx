@@ -363,6 +363,14 @@ export default function ComicCreator() {
   const { user, isStudent } = useAuth();
   const { showWhatsNext, fireXpAction } = usePostAction();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<string>("Export");
+  const [upgradeUsageInfo, setUpgradeUsageInfo] = useState<{ used: number; limit: number } | undefined>();
+
+  const showUpgrade = useCallback((feature: string, usage?: { used: number; limit: number }) => {
+    setUpgradeFeature(feature);
+    setUpgradeUsageInfo(usage);
+    setShowUpgradeModal(true);
+  }, []);
   const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<{ status: "success" | "warning"; messages: string[] } | null>(null);
@@ -381,11 +389,11 @@ export default function ComicCreator() {
 
   const openAIGen = useCallback(() => {
     if (!hasFeature("ai") && !isAdmin) {
-      setShowUpgradeModal(true);
+      showUpgrade("AI Generation");
       return;
     }
     setShowAIGen(true);
-  }, [hasFeature, isAdmin]);
+  }, [hasFeature, isAdmin, showUpgrade]);
   const [title, setTitle] = useState("Untitled Comic");
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -495,7 +503,7 @@ export default function ComicCreator() {
   });
 
   const handleSyncCurrentPage = async () => {
-    if (!hasFeature("export") && !isAdmin) { setShowUpgradeModal(true); return; }
+    if (!hasFeature("export") && !isAdmin) { showUpgrade("Export"); return; }
     try {
       toast.info("Syncing page to CoMiXX...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
@@ -511,7 +519,7 @@ export default function ComicCreator() {
   };
 
   const handleSyncAllPages = async () => {
-    if (!hasFeature("export") && !isAdmin) { setShowUpgradeModal(true); return; }
+    if (!hasFeature("export") && !isAdmin) { showUpgrade("Export"); return; }
     try {
       toast.info("Syncing full comic to CoMiXX...");
       let pageNum = 0;
@@ -1543,7 +1551,7 @@ export default function ComicCreator() {
 
   const handleExportCurrentPagePNG = async () => {
     if (!hasFeature("export") && !isAdmin) {
-      setShowUpgradeModal(true);
+      showUpgrade("Export");
       return;
     }
     try {
@@ -1552,7 +1560,7 @@ export default function ComicCreator() {
         const err = await trackRes.json();
         if (err.code === "EXPORT_LIMIT_REACHED") {
           toast.error(err.message);
-          setShowUpgradeModal(true);
+          showUpgrade("Export", { used: err.used || 0, limit: err.limit || 0 });
           return;
         }
       }
@@ -1586,7 +1594,7 @@ export default function ComicCreator() {
     if (!hasFeature("export") && !isAdmin) {
       const shown = showDiscovery("batch_export");
       if (!shown) {
-        setShowUpgradeModal(true);
+        showUpgrade("Batch Export");
       }
       return;
     }
@@ -1596,7 +1604,7 @@ export default function ComicCreator() {
         const err = await trackRes.json();
         if (err.code === "EXPORT_LIMIT_REACHED") {
           toast.error(err.message);
-          setShowUpgradeModal(true);
+          showUpgrade("Export", { used: err.used || 0, limit: err.limit || 0 });
           return;
         }
       }
@@ -1829,7 +1837,7 @@ export default function ComicCreator() {
     if (!hasFeature("export") && !isAdmin) {
       const shown = showDiscovery("batch_export");
       if (!shown) {
-        setShowUpgradeModal(true);
+        showUpgrade("Batch Export");
       }
       return;
     }
@@ -1839,7 +1847,7 @@ export default function ComicCreator() {
         const err = await trackRes.json();
         if (err.code === "EXPORT_LIMIT_REACHED") {
           toast.error(err.message);
-          setShowUpgradeModal(true);
+          showUpgrade("Export", { used: err.used || 0, limit: err.limit || 0 });
           return;
         }
       }
@@ -6124,9 +6132,10 @@ export default function ComicCreator() {
 
       <UpgradeModal 
         isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
-        feature="Export"
-        requiredTier="creator"
+        onClose={() => { setShowUpgradeModal(false); setUpgradeUsageInfo(undefined); }} 
+        feature={upgradeFeature}
+        requiredTier={upgradeFeature === "AI Generation" ? "creator" : "pro"}
+        usageInfo={upgradeUsageInfo}
       />
 
       <ProFeatureDiscovery

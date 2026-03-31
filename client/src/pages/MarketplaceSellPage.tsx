@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { marketplaceApi, projectsApi } from "@/lib/api";
@@ -29,12 +29,6 @@ export default function MarketplaceSellPage() {
   const { user } = useAuth();
   const { hasFeature, isAdmin } = useSubscription();
   const { isOpen: discoveryOpen, featureKey: discoveryFeature, showDiscovery, closeDiscovery } = useProFeatureDiscovery();
-
-  useEffect(() => {
-    if (!hasFeature("commercial") && !isAdmin) {
-      showDiscovery("commercial_license");
-    }
-  }, []);
 
   const [listingMode, setListingMode] = useState<"project" | "asset_pack">("project");
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -105,6 +99,11 @@ export default function MarketplaceSellPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!hasFeature("commercial") && !isAdmin) {
+      showDiscovery("commercial_license");
+      return;
+    }
 
     if (listingMode === "project" && !selectedProjectId) {
       toast.error("Please select a project");
