@@ -39,7 +39,7 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
       color: "border-amber-500",
       onClick: () => {
         onDismiss();
-        navigate("/dashboard");
+        navigate("/");
       },
     },
   ];
