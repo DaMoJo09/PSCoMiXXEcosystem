@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { WhatsNextPrompt } from "@/components/WhatsNextPrompt";
 import { XPCelebration } from "@/components/XPCelebration";
+import { LevelUpOverlay } from "@/components/LevelUpOverlay";
+import { toast } from "sonner";
 
 const MILESTONE_ACTIONS = new Set([
   "first_login",
@@ -16,13 +18,29 @@ const MILESTONE_ACTIONS = new Set([
 const XP_ACTION_LABELS: Record<string, string | undefined> = {
   first_login: "Welcome to PSCoMiXX!",
   project_created: "Project created",
+  save: "Project saved",
+  export: "Export complete",
   publish: "Published!",
+  daily_login: "Daily streak",
+  ai_generation: "AI generated",
   first_share: "First share",
+  hop_created: "HOP created",
+  hop_saved: "HOP saved",
   hop_published: "HOP published",
   hop_series_created: "HOP series created",
   subscription_started: "Subscription started",
   profile_complete: "Profile complete",
+  export_completed: "Export complete",
+  lesson_complete: "Lesson complete",
+  assignment_complete: "Assignment complete",
 };
+
+interface LevelUpData {
+  level: number;
+  title: string;
+  achievements: { title: string; xpReward: number }[];
+  rewards: { title: string }[];
+}
 
 interface PostActionContextValue {
   showWhatsNext: () => void;
@@ -43,6 +61,7 @@ export function usePostAction() {
 export function PostActionProvider({ children }: { children: React.ReactNode }) {
   const [whatsNextVisible, setWhatsNextVisible] = useState(false);
   const [celebration, setCelebration] = useState<{ xp: number; reason: string } | null>(null);
+  const [levelUp, setLevelUp] = useState<LevelUpData | null>(null);
 
   const showWhatsNext = useCallback(() => {
     setWhatsNextVisible(true);
@@ -62,9 +81,29 @@ export function PostActionProvider({ children }: { children: React.ReactNode }) 
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.xpGained > 0 && MILESTONE_ACTIONS.has(action)) {
+        if (data.xpGained > 0) {
           const label = XP_ACTION_LABELS[action] || action.replace(/_/g, " ");
-          setCelebration({ xp: data.xpGained, reason: label });
+          toast(
+            `+${data.xpGained} XP`,
+            {
+              description: label,
+              duration: 3000,
+              icon: "⚡",
+            }
+          );
+
+          if (MILESTONE_ACTIONS.has(action)) {
+            setCelebration({ xp: data.xpGained, reason: label });
+          }
+        }
+
+        if (data.leveledUp) {
+          setLevelUp({
+            level: data.level,
+            title: data.levelTitle,
+            achievements: data.achievementsUnlocked || [],
+            rewards: data.rewardsUnlocked || [],
+          });
         }
       }
     } catch {
@@ -82,6 +121,15 @@ export function PostActionProvider({ children }: { children: React.ReactNode }) 
           xpAmount={celebration.xp}
           reason={celebration.reason}
           onComplete={() => setCelebration(null)}
+        />
+      )}
+      {levelUp && (
+        <LevelUpOverlay
+          level={levelUp.level}
+          title={levelUp.title}
+          achievements={levelUp.achievements}
+          rewards={levelUp.rewards}
+          onDismiss={() => setLevelUp(null)}
         />
       )}
     </PostActionContext.Provider>

@@ -14,6 +14,8 @@ interface Achievement {
   xpReward: number;
   earned: boolean;
   earnedAt: string | null;
+  progressCurrent: number;
+  progressTarget: number;
 }
 
 const RARITY_COLORS: Record<string, string> = {
@@ -90,6 +92,9 @@ export default function AchievementsPage() {
               {filtered.map(achievement => {
                 const rarityClass = RARITY_COLORS[achievement.rarity] || RARITY_COLORS.common;
                 const CategoryIcon = CATEGORY_ICONS[achievement.category] || Target;
+                const progressPct = achievement.progressTarget > 0
+                  ? Math.round((achievement.progressCurrent / achievement.progressTarget) * 100)
+                  : 0;
 
                 return (
                   <div
@@ -97,7 +102,7 @@ export default function AchievementsPage() {
                     className={`border-4 p-4 transition-colors ${
                       achievement.earned
                         ? `${rarityClass.split(" ")[0]} bg-zinc-900`
-                        : "border-zinc-800 bg-zinc-950 opacity-60"
+                        : "border-zinc-800 bg-zinc-950"
                     }`}
                     data-testid={`card-achievement-${achievement.key}`}
                   >
@@ -113,12 +118,42 @@ export default function AchievementsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-black text-sm uppercase truncate">{achievement.title}</h3>
+                          <h3 className={`font-black text-sm uppercase truncate ${achievement.earned ? "text-white" : "text-zinc-400"}`}>{achievement.title}</h3>
                           <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 border ${rarityClass}`}>
                             {achievement.rarity}
                           </span>
                         </div>
                         <p className="text-xs text-zinc-500 mt-1">{achievement.description}</p>
+
+                        {!achievement.earned && achievement.progressTarget > 1 && (
+                          <div className="mt-2 space-y-1" data-testid={`progress-${achievement.key}`}>
+                            <div className="h-2 bg-zinc-800 w-full border border-zinc-700">
+                              <div
+                                className={`h-full transition-all duration-500 ${
+                                  progressPct >= 75 ? "bg-yellow-400" : progressPct >= 50 ? "bg-cyan-400" : "bg-zinc-500"
+                                }`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                            <p className="text-[10px] text-zinc-500 font-mono">
+                              {achievement.progressCurrent} / {achievement.progressTarget}
+                              {achievement.progressTarget - achievement.progressCurrent > 0 && (
+                                <span className="text-zinc-600 ml-1">
+                                  ({achievement.progressTarget - achievement.progressCurrent} more to unlock)
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+
+                        {!achievement.earned && achievement.progressTarget <= 1 && (
+                          <div className="mt-2">
+                            <p className="text-[10px] text-zinc-600 font-mono uppercase">
+                              {achievement.progressCurrent > 0 ? "Ready to unlock" : "Not yet started"}
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-[10px] text-zinc-600 uppercase flex items-center gap-1">
                             <CategoryIcon className="w-3 h-3" /> {achievement.category}

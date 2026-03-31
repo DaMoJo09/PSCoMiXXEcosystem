@@ -728,16 +728,79 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const userEarned = await db.select().from(userAchievements).where(eq(userAchievements.userId, req.user!.id));
       const earnedMap = new Map(userEarned.map(e => [e.achievementId, e]));
 
-      const result = allAchievements.map(a => ({
-        ...a,
-        earned: earnedMap.has(a.id),
-        earnedAt: earnedMap.get(a.id)?.earnedAt || null,
-        claimedAt: earnedMap.get(a.id)?.claimedAt || null,
-      }));
+      const result = [];
+      for (const a of allAchievements) {
+        let progressCurrent = 0;
+        let progressTarget = 1;
+        const config = a.ruleConfig as Record<string, string | number>;
+
+        if (!earnedMap.has(a.id)) {
+          switch (a.ruleType) {
+            case 'count': {
+              progressTarget = Number(config.count) || 1;
+              const countRes = await db.execute(
+                sql`SELECT COUNT(*) as cnt FROM xp_transactions WHERE user_id = ${req.user!.id} AND action = ${String(config.action)}`
+              );
+              progressCurrent = Math.min(Number((countRes.rows[0] as Record<string, unknown>)?.cnt || 0), progressTarget);
+              break;
+            }
+            case 'threshold': {
+              progressTarget = Number(config.value) || 1;
+              const user = await storage.getUser(req.user!.id);
+              if (config.field === 'xp') progressCurrent = Math.min(user?.xp || 0, progressTarget);
+              if (config.field === 'level') progressCurrent = Math.min(user?.level || 1, progressTarget);
+              break;
+            }
+            case 'streak': {
+              progressTarget = Number(config.days) || 3;
+              const streakRes = await db.execute(
+                sql`SELECT COUNT(DISTINCT DATE(created_at)) as streak_days
+                    FROM xp_transactions WHERE user_id = ${req.user!.id}
+                    AND created_at >= CURRENT_DATE - INTERVAL '${sql.raw(String(config.days || 3))} days'`
+              );
+              progressCurrent = Math.min(Number((streakRes.rows[0] as Record<string, unknown>)?.streak_days || 0), progressTarget);
+              break;
+            }
+            case 'flag': {
+              const flagRes = await db.execute(
+                sql`SELECT COUNT(*) as cnt FROM xp_transactions WHERE user_id = ${req.user!.id} AND action = ${String(config.action)} LIMIT 1`
+              );
+              progressCurrent = Number((flagRes.rows[0] as Record<string, unknown>)?.cnt || 0) > 0 ? 1 : 0;
+              break;
+            }
+          }
+        } else {
+          progressCurrent = 1;
+          progressTarget = 1;
+        }
+
+        result.push({
+          ...a,
+          earned: earnedMap.has(a.id),
+          earnedAt: earnedMap.get(a.id)?.earnedAt || null,
+          claimedAt: earnedMap.get(a.id)?.claimedAt || null,
+          progressCurrent,
+          progressTarget,
+        });
+      }
 
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/progression/xp-history", isAuthenticated, async (req, res) => {
+    try {
+      const { eq, desc } = await import('drizzle-orm');
+      const history = await db.select().from(xpTransactions)
+        .where(eq(xpTransactions.userId, req.user!.id))
+        .orderBy(desc(xpTransactions.createdAt))
+        .limit(20);
+      res.json(history);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ message });
     }
   });
 
@@ -863,6 +926,36 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         sql`SELECT COUNT(*) as cnt FROM progression_notifications WHERE user_id = ${req.user!.id} AND is_read = false`
       );
 
+      const streakResult = await db.execute(
+        sql`SELECT COUNT(DISTINCT DATE(created_at)) as streak_days
+            FROM xp_transactions
+            WHERE user_id = ${req.user!.id}
+            AND created_at >= (
+              SELECT COALESCE(
+                (SELECT d FROM generate_series(CURRENT_DATE, CURRENT_DATE - INTERVAL '365 days', '-1 day'::interval) d
+                 WHERE NOT EXISTS (
+                   SELECT 1 FROM xp_transactions WHERE user_id = ${req.user!.id} AND DATE(created_at) = d::date
+                 )
+                 ORDER BY d DESC LIMIT 1),
+                CURRENT_DATE - INTERVAL '365 days'
+              ) + INTERVAL '1 day'
+            )`
+      );
+      const currentStreak = Number((streakResult.rows[0] as Record<string, unknown>)?.streak_days || 0);
+
+      const allRewards = await db.select().from(rewards).where(eq(rewards.isActive, true));
+      const earnedRewardIds = new Set(unlockedRewards.map(r => r.rewardId));
+      let nextUnlock: { title: string; description: string; type: string; level?: number } | null = null;
+      for (const reward of allRewards) {
+        if (earnedRewardIds.has(reward.id)) continue;
+        const config = reward.unlockConfig as Record<string, number>;
+        if (reward.unlockType === 'level' && config.level) {
+          if (!nextUnlock || config.level < (nextUnlock.level || 999)) {
+            nextUnlock = { title: reward.title, description: reward.description || '', type: reward.rewardType, level: config.level };
+          }
+        }
+      }
+
       res.json({
         xp,
         level,
@@ -874,9 +967,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         achievementsTotal: totalAchievements.length,
         rewardsUnlocked: unlockedRewards.length,
         rewardsClaimable: claimable,
-        unreadNotifications: Number((unreadNotifs.rows[0] as any)?.cnt || 0),
+        unreadNotifications: Number((unreadNotifs.rows[0] as Record<string, unknown>)?.cnt || 0),
         totalMinutes: user.totalMinutes || 0,
         accountType: user.accountType,
+        currentStreak,
+        nextUnlock,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

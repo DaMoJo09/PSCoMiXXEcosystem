@@ -51,6 +51,8 @@ import {
   Gift,
   Target,
   Award,
+  Flame,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,10 +134,12 @@ function useXpStatus() {
   const [xpData, setXpData] = useState<{
     xp: number; level: number; levelTitle: string;
     xpInCurrentLevel: number; xpForNextLevel: number; xpProgress: number;
+    currentStreak?: number;
+    nextUnlock?: { title: string; level?: number } | null;
   } | null>(null);
 
   useEffect(() => {
-    fetch("/api/xp/status", { credentials: "include" })
+    fetch("/api/progression/summary", { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(setXpData)
       .catch(() => {});
@@ -503,14 +507,14 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           <div className="px-4 py-2 space-y-2" data-testid="xp-bar-section">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Star className="w-3.5 h-3.5 text-yellow-400" />
+                <Star className={`w-3.5 h-3.5 text-yellow-400 ${xpProgress >= 90 ? "animate-pulse" : ""}`} />
                 <span className="text-xs font-bold">LVL {level}</span>
               </div>
               <span className="text-[10px] text-muted-foreground font-mono">{xpInLevel}/{xpNeeded} XP</span>
             </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border">
+            <div className={`w-full h-2 bg-muted rounded-full overflow-hidden border ${xpProgress >= 90 ? "border-yellow-500/50 shadow-[0_0_8px_rgba(234,179,8,0.3)]" : "border-border"}`}>
               <div 
-                className="h-full bg-gradient-to-r from-cyan-500 to-yellow-400 transition-all duration-500"
+                className={`h-full transition-all duration-500 ${xpProgress >= 90 ? "bg-yellow-400" : "bg-white"}`}
                 style={{ width: `${xpProgress}%` }}
                 data-testid="xp-progress-bar"
               />
@@ -537,6 +541,20 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
                   {xpSyncing ? "SYNCING" : "SYNC"}
                 </button>
               </div>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <div className={`flex items-center gap-1 ${(xpStatus?.currentStreak || 0) > 0 ? "text-orange-400" : "text-zinc-600"}`} data-testid="sidebar-streak">
+                <Flame className={`w-3 h-3 ${(xpStatus?.currentStreak || 0) >= 3 ? "animate-pulse" : ""}`} />
+                <span className="text-[10px] font-black">{xpStatus?.currentStreak || 0}d</span>
+              </div>
+              {xpStatus?.nextUnlock && (
+                <div className="flex items-center gap-1 text-cyan-400 flex-1 min-w-0" data-testid="sidebar-next-unlock">
+                  <ArrowRight className="w-3 h-3 shrink-0" />
+                  <span className="text-[10px] font-bold truncate">
+                    Lv{xpStatus.nextUnlock.level}: {xpStatus.nextUnlock.title}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
