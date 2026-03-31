@@ -6349,10 +6349,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(403).json({ message: "Students cannot create marketplace listings" });
       }
 
-      const userSub = await storage.getSubscription(req.user!.id);
+      const userSub = await storage.getUserSubscription(req.user!.id);
       const userTier = (userSub?.tier || "free") as TierName;
       const entitlements = tierEntitlements[userTier];
-      if (!entitlements?.commercialLicense) {
+      if (!entitlements?.commercial) {
         return res.status(403).json({
           message: "Commercial license required to create marketplace listings",
           upgradeRequired: true,

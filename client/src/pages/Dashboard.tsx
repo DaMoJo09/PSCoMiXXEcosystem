@@ -8,11 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 import { XPWidget } from "@/components/XPWidget";
 import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import {
   Dialog,
   DialogContent,
@@ -120,6 +121,15 @@ export default function Dashboard() {
   const [newProjectTitle, setNewProjectTitle] = useState("");
   const [newProjectType, setNewProjectType] = useState("comic");
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const checkProjectLimit = useCallback(() => {
+    if (projectCount >= maxProjects && maxProjects > 0) {
+      setShowUpgradeModal(true);
+      return true;
+    }
+    return false;
+  }, [projectCount, maxProjects]);
 
   const { data: certs = [] } = useQuery<any[]>({
     queryKey: ["/api/certifications"],
@@ -145,6 +155,7 @@ export default function Dashboard() {
       toast.error("Please enter a project title");
       return;
     }
+    if (checkProjectLimit()) return;
 
     try {
       const project = await createProject.mutateAsync({
@@ -168,6 +179,7 @@ export default function Dashboard() {
       navigate(href);
       return;
     }
+    if (checkProjectLimit()) return;
     try {
       const project = await createProject.mutateAsync({
         title: `Untitled ${typeLabels[type] || type}`,
@@ -832,6 +844,13 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature="Project Limit"
+        requiredTier={tier === "free" ? "creator" : tier === "creator" ? "pro" : "studio"}
+        usageInfo={{ used: projectCount, limit: maxProjects }}
+      />
     </Layout>
   );
 }
