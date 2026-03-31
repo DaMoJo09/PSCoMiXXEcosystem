@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback } from "react";
 import { WhatsNextPrompt } from "@/components/WhatsNextPrompt";
 import { XPCelebration } from "@/components/XPCelebration";
 
-const XP_ACTION_LABELS: Record<string, string> = {
+const XP_ACTION_LABELS: Record<string, string | undefined> = {
   first_login: "Welcome to PSCoMiXX!",
   project_created: "Project created",
   save: "Project saved",

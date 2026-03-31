@@ -1427,6 +1427,7 @@ export default function MotionStudio() {
         data: { title, data: { frames: updatedFrames, tracks, audioClips } },
       });
       toast.success("Project saved");
+      fireXpAction("save");
       showWhatsNext();
     } catch {
       toast.error("Failed to save");

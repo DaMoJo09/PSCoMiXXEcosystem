@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2 } from "lucide-react";
 import { useCreateProject } from "@/hooks/useProjects";
@@ -21,14 +21,83 @@ export function useOnboarding(userId?: number) {
   return { completed, markComplete };
 }
 
-const comicTemplate = {
+interface ComicSpread {
+  id: string;
+  leftPage: string[];
+  rightPage: string[];
+}
+
+interface ComicMeta {
+  title: string;
+  genre: string;
+  style: string;
+}
+
+interface ComicTemplateData {
+  spreads: ComicSpread[];
+  comicMeta: ComicMeta;
+}
+
+interface CardAbility {
+  name: string;
+  description: string;
+  cost: number;
+}
+
+interface CardTemplateData {
+  name: string;
+  cardType: string;
+  rarity: string;
+  hp: number;
+  attack: number;
+  defense: number;
+  abilities: CardAbility[];
+  flavorText: string;
+}
+
+interface DrawingLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+  blendMode: string;
+  imageData: string;
+}
+
+interface MotionFrame {
+  id: string;
+  imageData: string;
+  vectorPaths: string[];
+  imageLayers: string[];
+  drawingLayers: DrawingLayer[];
+  duration: number;
+}
+
+interface MotionTrack {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+}
+
+interface MotionTemplateData {
+  frames: MotionFrame[];
+  tracks: MotionTrack[];
+  audioClips: unknown[];
+}
+
+type TemplateData = ComicTemplateData | CardTemplateData | MotionTemplateData;
+
+const comicTemplate: ComicTemplateData = {
   spreads: [
     { id: "spread_1", leftPage: [], rightPage: [] },
+    { id: "spread_2", leftPage: [], rightPage: [] },
   ],
   comicMeta: { title: "My First Comic", genre: "action", style: "manga" },
 };
 
-const cardTemplate = {
+const cardTemplate: CardTemplateData = {
   name: "My First Card",
   cardType: "character",
   rarity: "common",
@@ -39,7 +108,7 @@ const cardTemplate = {
   flavorText: "A hero rises from the shadows...",
 };
 
-const motionTemplate = {
+const motionTemplate: MotionTemplateData = {
   frames: [
     { id: "frame_1", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_1", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 },
     { id: "frame_2", imageData: "", vectorPaths: [], imageLayers: [], drawingLayers: [{ id: "dl_2", name: "Layer 1", visible: true, opacity: 100, locked: false, blendMode: "normal", imageData: "" }], duration: 1000 },
@@ -49,7 +118,7 @@ const motionTemplate = {
   audioClips: [],
 };
 
-const templateData: Record<string, any> = {
+const templateMap: Record<string, TemplateData> = {
   comic: comicTemplate,
   card: cardTemplate,
   motion: motionTemplate,
@@ -116,11 +185,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     setStep(1);
 
     try {
-      const project = await createProject.mutateAsync({
+      await createProject.mutateAsync({
         title: mode.templateTitle,
         type: selectedMode,
         status: "draft",
-        data: templateData[selectedMode] || {},
+        data: templateMap[selectedMode] || {},
         forceNew: true,
       });
 
@@ -134,10 +203,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
         setTimeout(() => {
           onComplete();
-          navigate(`${mode.href}?id=${project.id}`);
+          navigate("/dashboard");
         }, 3000);
       }, 1500);
-    } catch (error: any) {
+    } catch {
       toast.error("Could not create project. Try again.");
       setStep(0);
     }
@@ -289,7 +358,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   You're in!
                 </h2>
                 <p className="text-zinc-400 font-mono text-sm">
-                  Your first project is ready.
+                  Your first project is ready on your dashboard.
                 </p>
               </div>
 
@@ -306,7 +375,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
 
               <p className="text-xs text-zinc-600 font-mono animate-pulse">
-                Opening your creator...
+                Taking you to your dashboard...
               </p>
             </div>
           )}

@@ -105,18 +105,3 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
   );
 }
 
-const WHATS_NEXT_KEY = "pscomixx_whats_next_shown";
-
-export function useWhatsNext() {
-  const [showPrompt, setShowPrompt] = useState(false);
-
-  const triggerWhatsNext = () => {
-    setShowPrompt(true);
-  };
-
-  const dismissWhatsNext = () => {
-    setShowPrompt(false);
-  };
-
-  return { showPrompt, triggerWhatsNext, dismissWhatsNext };
-}
