@@ -20,6 +20,48 @@ export function useOnboarding(userId?: number) {
   return { completed, markComplete };
 }
 
+const comicTemplate = {
+  spreads: [
+    {
+      id: "spread-1",
+      panels: [
+        { id: "panel-1", x: 5, y: 5, width: 45, height: 48, elements: [], backgroundColor: "#ffffff" },
+        { id: "panel-2", x: 52, y: 5, width: 45, height: 48, elements: [], backgroundColor: "#ffffff" },
+        { id: "panel-3", x: 5, y: 55, width: 93, height: 42, elements: [], backgroundColor: "#ffffff" },
+      ],
+    },
+  ],
+  comicMeta: { title: "My First Comic", genre: "action", style: "manga" },
+};
+
+const cardTemplate = {
+  name: "My First Card",
+  cardType: "character",
+  rarity: "common",
+  hp: 100,
+  attack: 50,
+  defense: 30,
+  abilities: [{ name: "Quick Strike", description: "Deal 20 damage", cost: 1 }],
+  flavorText: "A hero rises from the shadows...",
+};
+
+const motionTemplate = {
+  frames: [
+    { id: "frame-1", layers: [], duration: 100, visible: true },
+    { id: "frame-2", layers: [], duration: 100, visible: true },
+    { id: "frame-3", layers: [], duration: 100, visible: true },
+    { id: "frame-4", layers: [], duration: 100, visible: true },
+  ],
+  tracks: [{ id: "track-1", name: "Layer 1", visible: true, locked: false }],
+  audioClips: [],
+};
+
+const templateData: Record<string, any> = {
+  comic: comicTemplate,
+  card: cardTemplate,
+  motion: motionTemplate,
+};
+
 const modes = [
   {
     id: "comic",
@@ -84,9 +126,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         title: mode.templateTitle,
         type: selectedMode,
         status: "draft",
-        data: {},
+        data: templateData[selectedMode] || {},
         forceNew: true,
       });
+
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "first_login" }), credentials: "include" });
+      fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "project_created" }), credentials: "include" });
 
       setTimeout(() => {
         setStep(2);
@@ -95,7 +140,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
         setTimeout(() => {
           onComplete();
-          navigate(`${mode.href}?id=${project.id}`);
+          navigate("/dashboard");
         }, 3000);
       }, 1500);
     } catch (error: any) {

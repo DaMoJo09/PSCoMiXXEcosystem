@@ -1928,6 +1928,7 @@ export default function MotionStudio() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Exported with effects applied!");
+    showWhatsNext();
   };
 
   const handleVideoExport = async () => {
@@ -2108,6 +2109,7 @@ export default function MotionStudio() {
       setExportProgress(100);
       setExportStatusText("Done!");
       toast.success(`Exported as ${exportFormat.toUpperCase()} successfully!`);
+      showWhatsNext();
       setTimeout(() => {
         setShowExportDialog(false);
         setIsExporting(false);

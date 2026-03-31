@@ -549,6 +549,7 @@ export default function CardCreator() {
       
       toast.success(`Exported at ${canvas.width}x${canvas.height}px (print-ready ${targetDPI} DPI)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      showWhatsNext();
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export card");
@@ -869,6 +870,7 @@ export default function CardCreator() {
         link.click();
 
         toast.success(`Team sheet exported at ${canvas.width}x${canvas.height}px (${targetDPI} DPI print-ready)`);
+        showWhatsNext();
       } catch (error) {
         console.error("Team print error:", error);
         toast.error("Failed to export team sheet");

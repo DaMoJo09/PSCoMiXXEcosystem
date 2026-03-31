@@ -1568,6 +1568,7 @@ export default function ComicCreator() {
       
       toast.success(`Page exported at ${canvas.width}x${canvas.height}px (print-ready 300 DPI)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      showWhatsNext();
     } catch (error) {
       toast.error("Failed to export page");
     }
@@ -1635,6 +1636,7 @@ export default function ComicCreator() {
       
       toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      showWhatsNext();
     } catch (error) {
       toast.error("Failed to export pages");
     }
@@ -1931,6 +1933,7 @@ export default function ComicCreator() {
         + (effectiveBackCover ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      showWhatsNext();
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Failed to export PDF");
@@ -1955,6 +1958,7 @@ export default function ComicCreator() {
       
       toast.success("Project data exported!");
       fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export" }), credentials: "include" });
+      showWhatsNext();
     } catch (error) {
       toast.error("Failed to export project data");
     }
