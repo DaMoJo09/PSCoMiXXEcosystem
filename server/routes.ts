@@ -752,11 +752,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
               break;
             }
             case 'streak': {
-              progressTarget = Number(config.days) || 3;
+              const streakDays = Math.max(1, Math.min(Number(config.days) || 3, 365));
+              progressTarget = streakDays;
               const streakRes = await db.execute(
                 sql`SELECT COUNT(DISTINCT DATE(created_at)) as streak_days
                     FROM xp_transactions WHERE user_id = ${req.user!.id}
-                    AND created_at >= CURRENT_DATE - INTERVAL '${sql.raw(String(config.days || 3))} days'`
+                    AND created_at >= CURRENT_DATE - make_interval(days => ${streakDays})`
               );
               progressCurrent = Math.min(Number((streakRes.rows[0] as Record<string, unknown>)?.streak_days || 0), progressTarget);
               break;
@@ -949,11 +950,28 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       for (const reward of allRewards) {
         if (earnedRewardIds.has(reward.id)) continue;
         const config = reward.unlockConfig as Record<string, number>;
-        if (reward.unlockType === 'level' && config.level) {
+        if (reward.unlockType === 'level' && config.level && config.level > level) {
           if (!nextUnlock || config.level < (nextUnlock.level || 999)) {
             nextUnlock = { title: reward.title, description: reward.description || '', type: reward.rewardType, level: config.level };
           }
         }
+      }
+
+      const allCerts = await db.select().from(certifications).where(eq(certifications.isActive, true));
+      const earnedCerts = await db.select().from(userCertifications).where(eq(userCertifications.userId, req.user!.id));
+      const earnedCertIds = new Set(earnedCerts.map(c => c.certificationId));
+      for (const cert of allCerts) {
+        if (earnedCertIds.has(cert.id)) continue;
+        const certLevel = cert.requiredLevel || 1;
+        if (certLevel > level) {
+          if (!nextUnlock || certLevel < (nextUnlock.level || 999)) {
+            nextUnlock = { title: cert.title, description: cert.description || '', type: 'certification', level: certLevel };
+          }
+        }
+      }
+
+      if (!nextUnlock) {
+        nextUnlock = { title: "All rewards unlocked!", description: "You've earned everything available", type: "complete" };
       }
 
       res.json({

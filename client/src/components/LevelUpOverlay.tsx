@@ -14,7 +14,7 @@ export function LevelUpOverlay({ level, title, achievements, rewards, onDismiss 
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
-    const timer = setTimeout(onDismiss, 8000);
+    const timer = setTimeout(onDismiss, 3000);
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
