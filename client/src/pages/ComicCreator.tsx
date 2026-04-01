@@ -782,18 +782,25 @@ export default function ComicCreator() {
 
   const projectConfirmedRef = useRef(false);
   const saveDisabledRef = useRef(false);
+  const dataLoadedFromServerRef = useRef(false);
   useEffect(() => {
     projectConfirmedRef.current = !!project;
-    if (project) saveDisabledRef.current = false;
+    if (project) {
+      saveDisabledRef.current = false;
+      dataLoadedFromServerRef.current = true;
+    }
   }, [project]);
   useEffect(() => {
     projectConfirmedRef.current = false;
     saveDisabledRef.current = false;
+    dataLoadedFromServerRef.current = false;
   }, [projectId]);
+
+  const spreadsHaveContent = (s: Spread[]) => s.some(sp => sp.leftPage.some(p => p.contents.length > 0) || sp.rightPage.some(p => p.contents.length > 0));
 
   const flushSave = useCallback(async () => {
     const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
-    if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current || saveDisabledRef.current) return;
+    if (!projectId || !pendingSaveRef.current || !projectConfirmedRef.current || saveDisabledRef.current || !dataLoadedFromServerRef.current) return;
     pendingSaveRef.current = false;
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -832,7 +839,7 @@ export default function ComicCreator() {
 
   useEffect(() => {
     return () => {
-      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current && dataLoadedFromServerRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
@@ -847,7 +854,7 @@ export default function ComicCreator() {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current) {
+      if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current && dataLoadedFromServerRef.current) {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;

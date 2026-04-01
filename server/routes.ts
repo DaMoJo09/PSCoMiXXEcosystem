@@ -1555,6 +1555,22 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       const existingData = (project.data as any) || {};
       const incomingData = req.body.data || {};
+
+      const existingSpreads = existingData.spreads || [];
+      const incomingSpreads = incomingData.spreads || [];
+      const existingHasContent = existingSpreads.some((s: any) => 
+        (s.leftPage || []).some((p: any) => (p.contents || []).length > 0) || 
+        (s.rightPage || []).some((p: any) => (p.contents || []).length > 0)
+      );
+      const incomingHasContent = incomingSpreads.some((s: any) => 
+        (s.leftPage || []).some((p: any) => (p.contents || []).length > 0) || 
+        (s.rightPage || []).some((p: any) => (p.contents || []).length > 0)
+      );
+      if (existingHasContent && !incomingHasContent && incomingSpreads.length > 0) {
+        console.warn(`[autosave] BLOCKED empty spread overwrite for project ${req.params.id} — existing has content, incoming does not`);
+        delete incomingData.spreads;
+      }
+
       const mergedData = { ...existingData, ...incomingData };
       if (incomingData.comicMeta && existingData.comicMeta) {
         const merged = { ...existingData.comicMeta, ...incomingData.comicMeta };
