@@ -48,7 +48,10 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: (failureCount, error) => {
+        if (error instanceof Error && error.message.startsWith("4")) return false;
+        return failureCount < 1;
+      },
     },
     mutations: {
       retry: false,

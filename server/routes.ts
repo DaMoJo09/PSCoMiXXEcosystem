@@ -125,46 +125,47 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   // API Key authentication middleware for external apps
   async function isApiAuthenticated(req: Request, res: Response, next: Function) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid Authorization header', code: 'UNAUTHORIZED' });
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing or invalid Authorization header', code: 'UNAUTHORIZED' });
+      }
+
+      const apiKey = authHeader.substring(7);
+      if (!apiKey.startsWith('psc_')) {
+        return res.status(401).json({ error: 'Invalid API key format', code: 'INVALID_KEY' });
+      }
+
+      const keyHash = hashApiKey(apiKey);
+      const storedKey = await storage.getApiKeyByHash(keyHash);
+
+      if (!storedKey) {
+        return res.status(401).json({ error: 'Invalid API key', code: 'INVALID_KEY' });
+      }
+
+      if (!storedKey.isActive) {
+        return res.status(401).json({ error: 'API key is deactivated', code: 'KEY_DEACTIVATED' });
+      }
+
+      if (storedKey.expiresAt && new Date(storedKey.expiresAt) < new Date()) {
+        return res.status(401).json({ error: 'API key has expired', code: 'KEY_EXPIRED' });
+      }
+
+      storage.updateApiKeyLastUsed(storedKey.id).catch(() => {});
+
+      const user = await storage.getUser(storedKey.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+      }
+
+      (req as any).apiUser = user;
+      (req as any).apiKey = storedKey;
+      (req as any).apiPermissions = storedKey.permissions || ['read'];
+
+      next();
+    } catch (error: any) {
+      res.status(500).json({ error: 'Internal server error', code: 'SERVER_ERROR' });
     }
-
-    const apiKey = authHeader.substring(7);
-    if (!apiKey.startsWith('psc_')) {
-      return res.status(401).json({ error: 'Invalid API key format', code: 'INVALID_KEY' });
-    }
-
-    const keyHash = hashApiKey(apiKey);
-    const storedKey = await storage.getApiKeyByHash(keyHash);
-
-    if (!storedKey) {
-      return res.status(401).json({ error: 'Invalid API key', code: 'INVALID_KEY' });
-    }
-
-    if (!storedKey.isActive) {
-      return res.status(401).json({ error: 'API key is deactivated', code: 'KEY_DEACTIVATED' });
-    }
-
-    if (storedKey.expiresAt && new Date(storedKey.expiresAt) < new Date()) {
-      return res.status(401).json({ error: 'API key has expired', code: 'KEY_EXPIRED' });
-    }
-
-    // Update last used timestamp
-    await storage.updateApiKeyLastUsed(storedKey.id);
-
-    // Get the user associated with this key
-    const user = await storage.getUser(storedKey.userId);
-    if (!user) {
-      return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
-    }
-
-    // Attach user and permissions to request
-    (req as any).apiUser = user;
-    (req as any).apiKey = storedKey;
-    (req as any).apiPermissions = storedKey.permissions || ['read'];
-
-    next();
   }
 
   // Check permission helper

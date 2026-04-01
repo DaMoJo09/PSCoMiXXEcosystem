@@ -87,6 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             levelTitle: data.levelTitle || prev.levelTitle,
             totalMinutes: data.totalMinutes,
           } : null);
+        } else if (res.status === 401) {
+          setUser(null);
+          if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         }
       } catch {}
     };

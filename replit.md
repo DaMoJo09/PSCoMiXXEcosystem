@@ -15,7 +15,7 @@ The frontend is built with React, TypeScript, Vite, and Wouter, featuring a brut
 An Express.js server on Node.js provides RESTful endpoints. It uses session-based authentication with Passport.js (local strategy, scrypt hashing) and secures endpoints with middleware for authentication, role-based authorization, and rate limiting.
 
 ### Data Storage
-PostgreSQL, hosted via Neon serverless, is the primary database, accessed through Drizzle ORM. The schema supports users, polymorphic projects, assets, versions, and audit logs, utilizing JSONB and UUID primary keys. Drizzle Kit manages migrations.
+PostgreSQL, hosted via Neon serverless, is the primary database, accessed through Drizzle ORM. The schema supports users, polymorphic projects, assets, versions, and audit logs, utilizing JSONB and UUID primary keys. Drizzle Kit manages migrations. 25 database indexes are auto-created on startup (projects, engagement_events, assets, follows, bookmarks, notifications, DMs, etc.) for query performance. Session pruning runs every 15 minutes to clean expired sessions.
 
 ### Security
 The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features, AI resilience, audit logging, and SSO support.

@@ -269,9 +269,49 @@ app.use((req, res, next) => {
   next();
 });
 
+async function ensureIndexes() {
+  const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_projects_type ON projects (type)`,
+    `CREATE INDEX IF NOT EXISTS idx_projects_status ON projects (status)`,
+    `CREATE INDEX IF NOT EXISTS idx_projects_user_type ON projects (user_id, type)`,
+    `CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects (created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_projects_series_id ON projects (series_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_engagement_events_content_id ON engagement_events (content_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_engagement_events_type ON engagement_events (event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_engagement_events_content_type ON engagement_events (content_id, event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_engagement_events_user_id ON engagement_events (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_platform_events_user_id ON platform_events (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_platform_events_type ON platform_events (event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_platform_events_created ON platform_events (created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications (user_id, is_read)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows (follower_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows (following_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_comic_comments_comic ON comic_comments (comic_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_comic_bookmarks_user ON comic_bookmarks (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_messages_thread ON dm_messages (thread_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_fx_effects_user ON fx_effects (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_progression_notifications_user ON progression_notifications (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at DESC)`,
+  ];
+  let created = 0;
+  for (const idx of indexes) {
+    try {
+      await db.execute(sql.raw(idx));
+      created++;
+    } catch {
+    }
+  }
+  console.log(`[database] ${created}/${indexes.length} indexes ensured`);
+}
+
 (async () => {
   await initStripe();
   await seedFeatureFlags();
+  await ensureIndexes();
 
   const { seedProgressionData } = await import('./progressionEngine');
   await seedProgressionData();
@@ -306,6 +346,14 @@ app.use((req, res, next) => {
       logInfo("Server started", { port, env: process.env.NODE_ENV || "development" });
     },
   );
+
+  process.on("unhandledRejection", (reason) => {
+    console.error("[CRITICAL] Unhandled promise rejection:", reason);
+  });
+
+  process.on("uncaughtException", (err) => {
+    console.error("[CRITICAL] Uncaught exception:", err);
+  });
 
   const gracefulShutdown = (signal: string) => {
     log(`${signal} received. Shutting down gracefully...`);
