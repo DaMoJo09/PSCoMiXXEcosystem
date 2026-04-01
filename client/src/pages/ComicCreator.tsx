@@ -4,7 +4,7 @@ import {
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
@@ -136,11 +136,23 @@ interface SpreadAudio {
   autoplay: boolean;
 }
 
+interface NarrationBox {
+  text: string;
+  position: "top" | "bottom";
+  style: "caption" | "thought" | "editorial";
+  color?: string;
+  bgColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
+}
+
 interface Spread {
   id: string;
   leftPage: Panel[];
   rightPage: Panel[];
   themeMusic?: SpreadAudio;
+  leftNarration?: NarrationBox;
+  rightNarration?: NarrationBox;
 }
 
 const COMIC_IMAGE_FILTERS = [
@@ -473,6 +485,8 @@ export default function ComicCreator() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewPage, setPreviewPage] = useState(0);
   const [autoLockPanels, setAutoLockPanels] = useState(true);
+  const [showNarratorPanel, setShowNarratorPanel] = useState(false);
+  const [narratorEditingSide, setNarratorEditingSide] = useState<"left" | "right">("left");
   const [comicMeta, setComicMeta] = useState({
     frontCover: "",
     backCover: "",
@@ -741,6 +755,12 @@ export default function ComicCreator() {
 
   const isValidCoverSrc = (src: string | undefined | null): src is string =>
     !!src && (src.startsWith("data:") || src.startsWith("http") || src.startsWith("blob:") || src.startsWith("/"));
+
+  const hasUsableCoverDesign = (cd: any): boolean =>
+    !!cd && (cd.title || cd.frontImage || cd.backImage || cd.author || cd.subtitle || cd.bannerText ||
+      (cd.frontImageLayers?.length > 0) || (cd.backImageLayers?.length > 0) ||
+      (cd.frontLayers?.length > 0) || (cd.backLayers?.length > 0) ||
+      cd.frontBgColor !== defaultCover.frontBgColor || cd.backBgColor !== defaultCover.backBgColor);
 
   const projectData = project?.data as any;
   const effectiveFrontCover = isValidCoverSrc(comicMeta.frontCover) ? comicMeta.frontCover
@@ -1810,6 +1830,12 @@ export default function ComicCreator() {
         });
         if (saveRes.ok) {
           messages.push("Project saved with compiled covers");
+        } else if (saveRes.status === 404) {
+          messages.push("Warning: Project not found on server — covers rendered locally only");
+          hasWarning = true;
+        } else if (saveRes.status === 401 || saveRes.status === 403) {
+          messages.push("Warning: Session expired — covers rendered but not saved");
+          hasWarning = true;
         } else {
           messages.push("Warning: Save returned an error — covers may not be persisted");
           hasWarning = true;
@@ -2903,6 +2929,39 @@ export default function ComicCreator() {
     setSelectedPanelId(null);
     setShowTemplates(false);
     toast.success(`Template "${template.name}" applied (replaced existing panels)`);
+  };
+
+  const renderNarratorOverlay = (narr: NarrationBox | undefined, isPreview = false) => {
+    if (!narr || !narr.text) return null;
+    const styleMap = {
+      caption: { bg: narr.bgColor || "#1a1a1a", color: narr.color || "#f5deb3", border: "#8b7355", ff: narr.fontFamily || "Georgia, serif" },
+      thought: { bg: narr.bgColor || "#0a0a2e", color: narr.color || "#a8c8ff", border: "#4a6fa5", ff: narr.fontFamily || "'Space Grotesk', sans-serif" },
+      editorial: { bg: narr.bgColor || "#2a0a0a", color: narr.color || "#ff9999", border: "#8b3a3a", ff: narr.fontFamily || "'JetBrains Mono', monospace" },
+    };
+    const s = styleMap[narr.style] || styleMap.caption;
+    const fs = narr.fontSize || (isPreview ? 13 : 14);
+    return (
+      <div
+        className={`absolute left-2 right-2 z-[100] pointer-events-none ${narr.position === "top" ? "top-2" : "bottom-2"}`}
+        data-testid="narrator-overlay"
+      >
+        <div
+          className="px-3 py-2 shadow-lg"
+          style={{
+            backgroundColor: s.bg,
+            color: s.color,
+            fontFamily: s.ff,
+            fontSize: `${fs}px`,
+            lineHeight: 1.5,
+            borderLeft: `3px solid ${s.border}`,
+            opacity: 0.95,
+          }}
+        >
+          {narr.style === "editorial" && <span className="text-[9px] uppercase tracking-widest opacity-60 block mb-1">Editor's Note</span>}
+          {narr.text}
+        </div>
+      </div>
+    );
   };
 
   const renderPanel = (panel: Panel, page: "left" | "right") => {
@@ -4211,7 +4270,93 @@ export default function ComicCreator() {
                   </button>
                 )}
               </div>
+              <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-2">
+                <button
+                  onClick={() => setShowNarratorPanel(p => !p)}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 hover:bg-white/10 transition text-[10px] ${
+                    showNarratorPanel ? 'text-amber-400' : (currentSpread?.leftNarration || currentSpread?.rightNarration) ? 'text-amber-300' : 'text-zinc-400 hover:text-amber-400'
+                  }`}
+                  title="Add narrator caption boxes"
+                  data-testid="button-narrator-toggle"
+                >
+                  <MessageSquareText className="w-3.5 h-3.5" /> Narrator
+                </button>
+              </div>
             </div>
+
+            {showNarratorPanel && currentSpread && (
+              <div className="bg-zinc-900 border border-zinc-700 p-3 mb-2 flex gap-4 items-start" data-testid="narrator-edit-panel">
+                <div className="flex gap-2 text-[10px] font-mono mr-2">
+                  <button
+                    onClick={() => setNarratorEditingSide("left")}
+                    className={`px-2 py-1 border ${narratorEditingSide === "left" ? "border-amber-500 text-amber-400 bg-amber-500/10" : "border-zinc-600 text-zinc-400 hover:border-zinc-500"}`}
+                    data-testid="button-narrator-left"
+                  >LEFT PAGE</button>
+                  <button
+                    onClick={() => setNarratorEditingSide("right")}
+                    className={`px-2 py-1 border ${narratorEditingSide === "right" ? "border-amber-500 text-amber-400 bg-amber-500/10" : "border-zinc-600 text-zinc-400 hover:border-zinc-500"}`}
+                    data-testid="button-narrator-right"
+                  >RIGHT PAGE</button>
+                </div>
+                {(() => {
+                  const narr = narratorEditingSide === "left" ? currentSpread.leftNarration : currentSpread.rightNarration;
+                  const updateNarr = (updates: Partial<NarrationBox>) => {
+                    setSpreads(prev => prev.map((sp, i) => {
+                      if (i !== currentSpreadIndex) return sp;
+                      const key = narratorEditingSide === "left" ? "leftNarration" : "rightNarration";
+                      const existing = sp[key] || { text: "", position: "top" as const, style: "caption" as const };
+                      return { ...sp, [key]: { ...existing, ...updates } };
+                    }));
+                  };
+                  const clearNarr = () => {
+                    setSpreads(prev => prev.map((sp, i) => {
+                      if (i !== currentSpreadIndex) return sp;
+                      const key = narratorEditingSide === "left" ? "leftNarration" : "rightNarration";
+                      return { ...sp, [key]: undefined };
+                    }));
+                  };
+                  return (
+                    <div className="flex-1 flex items-start gap-3">
+                      <textarea
+                        value={narr?.text || ""}
+                        onChange={e => updateNarr({ text: e.target.value })}
+                        placeholder="Enter narrator text..."
+                        className="flex-1 bg-black border border-zinc-600 text-white p-2 text-xs font-mono resize-none h-14 focus:border-amber-500 focus:outline-none"
+                        data-testid="input-narrator-text"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <select
+                          value={narr?.position || "top"}
+                          onChange={e => updateNarr({ position: e.target.value as "top" | "bottom" })}
+                          className="bg-black border border-zinc-600 text-white text-[10px] px-1 py-0.5"
+                          data-testid="select-narrator-position"
+                        >
+                          <option value="top">Top</option>
+                          <option value="bottom">Bottom</option>
+                        </select>
+                        <select
+                          value={narr?.style || "caption"}
+                          onChange={e => updateNarr({ style: e.target.value as "caption" | "thought" | "editorial" })}
+                          className="bg-black border border-zinc-600 text-white text-[10px] px-1 py-0.5"
+                          data-testid="select-narrator-style"
+                        >
+                          <option value="caption">Caption</option>
+                          <option value="thought">Thought</option>
+                          <option value="editorial">Editorial</option>
+                        </select>
+                        {narr?.text && (
+                          <button
+                            onClick={clearNarr}
+                            className="text-[10px] text-red-400 hover:text-red-300 border border-red-800 px-1 py-0.5"
+                            data-testid="button-narrator-clear"
+                          >Clear</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             <div 
               className={`flex ${isFullscreen ? "gap-1" : "gap-6"}`}
@@ -4234,6 +4379,7 @@ export default function ComicCreator() {
                   >
                     {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                     {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
+                    {renderNarratorOverlay(currentSpread.leftNarration)}
                     {currentSpread.leftPage.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                         <div className="text-center">
@@ -4487,6 +4633,7 @@ export default function ComicCreator() {
                   >
                     {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                     {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
+                    {renderNarratorOverlay(currentSpread.rightNarration)}
                     {currentSpread.rightPage.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
                         <div className="text-center">
@@ -5638,9 +5785,7 @@ export default function ComicCreator() {
               <div className="relative" style={{ perspective: "2000px" }}>
                 {previewPage === 0 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {effectiveFrontCover ? (
-                      <img src={effectiveFrontCover} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : coverDesignData ? (() => {
+                    {hasUsableCoverDesign(coverDesignData) ? (() => {
                       const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                       return (
                         <div className="absolute inset-0" style={{ backgroundColor: cd.frontBgColor }}>
@@ -5692,7 +5837,9 @@ export default function ComicCreator() {
                           ))}
                         </div>
                       );
-                    })() : (
+                    })() : effectiveFrontCover ? (
+                      <img src={effectiveFrontCover} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-b from-zinc-900 to-black" />
                         <div className="relative z-10 text-center p-8">
@@ -5840,6 +5987,7 @@ export default function ComicCreator() {
                           <p className="text-lg">Empty Page</p>
                         </div>
                       )}
+                      {renderNarratorOverlay(isLeftPage ? spread?.leftNarration : spread?.rightNarration, true)}
                       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-zinc-400 font-mono">
                         Page {previewPage}
                       </div>
@@ -5849,9 +5997,7 @@ export default function ComicCreator() {
 
                 {previewPage === spreads.length * 2 + 1 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {effectiveBackCover ? (
-                      <img src={effectiveBackCover} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : coverDesignData ? (() => {
+                    {hasUsableCoverDesign(coverDesignData) ? (() => {
                       const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                       return (
                         <div className="absolute inset-0" style={{ backgroundColor: cd.backBgColor }}>
@@ -5905,7 +6051,9 @@ export default function ComicCreator() {
                           ))}
                         </div>
                       );
-                    })() : (
+                    })() : effectiveBackCover ? (
+                      <img src={effectiveBackCover} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
                       <>
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-black" />
                         <div className="relative z-10 text-center p-8 max-w-md">

@@ -55,7 +55,7 @@ Features smart project resumption, server-side deduplication, and auto-save-on-u
 
 ### Creator Tools
 A suite of tools includes:
-- **Comic Creator:** Supports drawing, CSS filters, text formatting, auto-save, undo/redo, offline saving, and various export options, including a "Text Page" panel option for prose-heavy content.
+- **Comic Creator:** Supports drawing, CSS filters, text formatting, auto-save, undo/redo, offline saving, and various export options, including a "Text Page" panel option for prose-heavy content. Per-page narrator caption boxes (caption/thought/editorial styles) with top/bottom positioning, visible in both editor and preview.
 - **Visual Novel Creator:** A Ren'Py-inspired engine with scenes, characters, dialogue, and transitions.
 - **CYOA Builder:** An interactive fiction engine with story generation, node editing, variables, and conditional choices.
 - **Card Creator:** Supports TCG and Sports modes with specific card types and a Pack Builder.
