@@ -71,6 +71,7 @@ interface VectorPath {
 
 interface PanelContent {
   id: string;
+  name?: string;
   type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif" | "audio";
   hidden?: boolean;
   transform: TransformState;
@@ -123,6 +124,7 @@ interface Panel {
   zIndex: number;
   locked: boolean;
   hidden?: boolean;
+  name?: string;
   backgroundColor?: string;
   borderColor?: string;
   borderWidth?: number;
@@ -2172,6 +2174,8 @@ export default function ComicCreator() {
   const dragContentRef = useRef<{ panelId: string; dragIdx: number; overIdx: number } | null>(null);
   const dragCoverElRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
   const [panelDragOverIdx, setPanelDragOverIdx] = useState<number | null>(null);
+  const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [contentDragOverIdx, setContentDragOverIdx] = useState<number | null>(null);
   const [coverElDragOverIdx, setCoverElDragOverIdx] = useState<number | null>(null);
 
@@ -2229,6 +2233,33 @@ export default function ComicCreator() {
         [key]: spread[key].map(p => {
           if (p.id !== panelId) return p;
           return { ...p, contents: p.contents.map(c => c.id === contentId ? { ...c, hidden: !c.hidden } : c) };
+        })
+      };
+    }));
+  };
+
+  const renamePanel = (page: "left" | "right", panelId: string, newName: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => 
+          p.id === panelId ? { ...p, name: newName } : p
+        )
+      };
+    }));
+  };
+
+  const renameContent = (page: "left" | "right", panelId: string, contentId: string, newName: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => {
+          if (p.id !== panelId) return p;
+          return { ...p, contents: p.contents.map(c => c.id === contentId ? { ...c, name: newName } : c) };
         })
       };
     }));
@@ -5027,9 +5058,29 @@ export default function ComicCreator() {
                       >
                         {panel.hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                       </button>
-                      <span className="flex-1 truncate font-medium">
-                        {isCover ? (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover") : `Panel ${originalIdx + 1}`}
-                      </span>
+                      {renamingLayerId === panel.id ? (
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => { renamePanel(selectedPage, panel.id, renameValue); setRenamingLayerId(null); }}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') { renamePanel(selectedPage, panel.id, renameValue); setRenamingLayerId(null); }
+                            if (e.key === 'Escape') setRenamingLayerId(null);
+                          }}
+                          className="flex-1 min-w-0 bg-zinc-700 text-white text-xs px-1 py-0.5 border border-cyan-500 outline-none"
+                          data-testid={`input-rename-panel-${panel.id}`}
+                        />
+                      ) : (
+                        <span
+                          className="flex-1 truncate font-medium"
+                          onDoubleClick={(e) => { e.stopPropagation(); setRenamingLayerId(panel.id); setRenameValue(panel.name || (isCover ? (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover") : `Panel ${originalIdx + 1}`)); }}
+                          title="Double-click to rename"
+                        >
+                          {panel.name || (isCover ? (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover") : `Panel ${originalIdx + 1}`)}
+                        </span>
+                      )}
                       {isCover && (
                         <span className={`text-[8px] px-1 py-0.5 font-bold ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white" : "bg-purple-600 text-white"}`}>
                           {panel.coverRole === "front-cover" ? "FC" : "BC"}
@@ -5329,7 +5380,29 @@ export default function ComicCreator() {
                                   {content.hidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
                                 </button>
                                 {typeIcon}
-                                <span className="flex-1 truncate text-[10px]">{typeLabel}</span>
+                                {renamingLayerId === content.id ? (
+                                  <input
+                                    autoFocus
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onBlur={() => { renameContent(selectedPage, panel.id, content.id, renameValue); setRenamingLayerId(null); }}
+                                    onKeyDown={(e) => {
+                                      e.stopPropagation();
+                                      if (e.key === 'Enter') { renameContent(selectedPage, panel.id, content.id, renameValue); setRenamingLayerId(null); }
+                                      if (e.key === 'Escape') setRenamingLayerId(null);
+                                    }}
+                                    className="flex-1 min-w-0 bg-zinc-700 text-white text-[10px] px-1 py-0.5 border border-cyan-500 outline-none"
+                                    data-testid={`input-rename-content-${content.id}`}
+                                  />
+                                ) : (
+                                  <span
+                                    className="flex-1 truncate text-[10px]"
+                                    onDoubleClick={(e) => { e.stopPropagation(); setRenamingLayerId(content.id); setRenameValue(content.name || typeLabel); }}
+                                    title="Double-click to rename"
+                                  >
+                                    {content.name || typeLabel}
+                                  </span>
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); deleteContentFromPanel(selectedPage, panel.id, content.id); if (isContentActive) setSelectedContentId(null); }}
                                   className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400"
