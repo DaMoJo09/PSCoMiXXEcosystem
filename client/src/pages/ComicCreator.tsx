@@ -72,6 +72,7 @@ interface VectorPath {
 interface PanelContent {
   id: string;
   type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif" | "audio";
+  hidden?: boolean;
   transform: TransformState;
   data: {
     url?: string;
@@ -121,6 +122,7 @@ interface Panel {
   contents: PanelContent[];
   zIndex: number;
   locked: boolean;
+  hidden?: boolean;
   backgroundColor?: string;
   borderColor?: string;
   borderWidth?: number;
@@ -1271,7 +1273,7 @@ export default function ComicCreator() {
       ctx2.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
     };
 
-    for (const panel of panels.sort((a, b) => a.zIndex - b.zIndex)) {
+    for (const panel of panels.filter(p => !p.hidden).sort((a, b) => a.zIndex - b.zIndex)) {
       const panelX = (panel.x / 100) * pageWidth;
       const panelY = (panel.y / 100) * pageHeight;
       const panelW = (panel.width / 100) * pageWidth;
@@ -1503,7 +1505,7 @@ export default function ComicCreator() {
         }
       }
 
-      for (const content of panel.contents.sort((a, b) => a.zIndex - b.zIndex)) {
+      for (const content of panel.contents.filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex)) {
         const { transform, data, type } = content;
         const contentX = panelX + (transform.x / editorPanelW) * panelW;
         const contentY = panelY + (transform.y / editorPanelH) * panelH;
@@ -2200,6 +2202,33 @@ export default function ComicCreator() {
           contents.splice(toIdx, 0, moved);
           contents.forEach((c, ci) => { c.zIndex = ci; });
           return { ...p, contents };
+        })
+      };
+    }));
+  };
+
+  const togglePanelVisibility = (page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => 
+          p.id === panelId ? { ...p, hidden: !p.hidden } : p
+        )
+      };
+    }));
+  };
+
+  const toggleContentVisibility = (page: "left" | "right", panelId: string, contentId: string) => {
+    setSpreads(prev => prev.map((spread, i) => {
+      if (i !== currentSpreadIndex) return spread;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return {
+        ...spread,
+        [key]: spread[key].map(p => {
+          if (p.id !== panelId) return p;
+          return { ...p, contents: p.contents.map(c => c.id === contentId ? { ...c, hidden: !c.hidden } : c) };
         })
       };
     }));
@@ -2965,6 +2994,7 @@ export default function ComicCreator() {
   };
 
   const renderPanel = (panel: Panel, page: "left" | "right") => {
+    if (panel.hidden) return null;
     const isSelected = selectedPanelId === panel.id;
     const pageRef = page === "left" ? leftPageRef : rightPageRef;
     
@@ -3409,7 +3439,7 @@ export default function ComicCreator() {
               </div>
             );
           })()}
-          {[...panel.contents].sort((a, b) => a.zIndex - b.zIndex).map(content => (
+          {[...panel.contents].filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex).map(content => (
             <TransformableElement
               key={content.id}
               id={content.id}
@@ -4928,15 +4958,20 @@ export default function ComicCreator() {
                   Auto-lock new panels
                 </label>
               </div>
-              <div className="flex-1 overflow-auto p-2 space-y-1">
+              <div className="flex-1 overflow-auto p-2 space-y-0.5" data-testid="unified-layer-panel">
                 {(() => {
                   const pagePanels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
                   const sortedPanels = [...pagePanels].sort((a, b) => b.zIndex - a.zIndex);
+                  const layerRowClass = (active: boolean, dragOver: boolean, dimmed?: boolean) =>
+                    `px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/row transition-colors ${
+                      active ? 'bg-zinc-600 text-white' : dimmed ? 'bg-zinc-850 text-zinc-500' : 'hover:bg-zinc-800'
+                    } ${dragOver ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`;
                   return sortedPanels.map((panel, visualIdx) => {
                   const isActive = selectedPanelId === panel.id;
                   const originalIdx = pagePanels.findIndex(p => p.id === panel.id);
+                  const isCover = !!panel.coverRole;
                   return (
-                  <div key={panel.id}>
+                  <div key={panel.id} data-testid={`layer-group-${panel.id}`}>
                     <div
                       draggable
                       onDragStart={(e) => {
@@ -4978,368 +5013,353 @@ export default function ComicCreator() {
                         }
                       }}
                       onDragEnd={() => { dragPanelRef.current = null; setPanelDragOverIdx(null); }}
-                      className={`px-2 py-1.5 text-sm cursor-pointer flex items-center gap-1 group ${isActive ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'} ${panelDragOverIdx === visualIdx ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`}
+                      className={`px-2 py-1.5 text-xs cursor-pointer flex items-center gap-1 group ${
+                        isActive ? 'bg-white text-black' : panel.hidden ? 'bg-zinc-850 text-zinc-500' : 'bg-zinc-800 hover:bg-zinc-700'
+                      } ${panelDragOverIdx === visualIdx ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`}
                       onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
                     >
                       <GripVertical className="w-3 h-3 flex-shrink-0 opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing" />
-                      <span className="flex-1 truncate text-xs font-medium">
-                        {panel.coverRole === "front-cover" ? "★ Front Cover" : panel.coverRole === "back-cover" ? "★ Back Cover" : `Panel ${originalIdx + 1}`}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); togglePanelVisibility(selectedPage, panel.id); }}
+                        className={`p-0.5 flex-shrink-0 ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'} ${panel.hidden ? 'opacity-40' : ''}`}
+                        title={panel.hidden ? "Show" : "Hide"}
+                        data-testid={`layer-eye-${panel.id}`}
+                      >
+                        {panel.hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      </button>
+                      <span className="flex-1 truncate font-medium">
+                        {isCover ? (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover") : `Panel ${originalIdx + 1}`}
                       </span>
-                      {panel.coverRole && (
+                      {isCover && (
                         <span className={`text-[8px] px-1 py-0.5 font-bold ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white" : "bg-purple-600 text-white"}`}>
                           {panel.coverRole === "front-cover" ? "FC" : "BC"}
                         </span>
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePanelLock(selectedPage, panel.id); }}
-                        className={`p-0.5 rounded ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'}`}
+                        className={`p-0.5 flex-shrink-0 ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'}`}
                         title={panel.locked ? "Unlock" : "Lock"}
                       >
                         {panel.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-40 group-hover:opacity-100" />}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deletePanel(selectedPage, panel.id); if (isActive) setSelectedPanelId(null); }}
-                        className={`p-0.5 rounded ${isActive ? 'hover:bg-red-200 text-red-600' : 'opacity-0 group-hover:opacity-100 hover:bg-red-900 text-red-400'}`}
-                        title="Delete Panel"
+                        className={`p-0.5 flex-shrink-0 ${isActive ? 'hover:bg-red-200 text-red-600' : 'opacity-0 group-hover:opacity-100 hover:bg-red-900 text-red-400'}`}
+                        title="Delete"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
-                      <span className="text-[10px] opacity-40 ml-0.5 tabular-nums">{panel.contents.length}</span>
                     </div>
-                    {isActive && panel.contents.length > 0 && showPanelContents && (() => {
-                      const sortedContents = [...panel.contents].sort((a, b) => b.zIndex - a.zIndex);
-                      return (
-                      <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
-                        {sortedContents.map((content, visualIdx) => {
-                          const isContentActive = selectedContentId === content.id;
-                          const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? (content.data?.textPanel ? "Text Page" : "Text") : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
-                          return (
-                          <div
-                            key={content.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.stopPropagation();
-                              dragContentRef.current = { panelId: panel.id, dragIdx: visualIdx, overIdx: visualIdx };
-                              e.dataTransfer.effectAllowed = "move";
-                              e.dataTransfer.setData("text/plain", "content");
-                            }}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.dataTransfer.dropEffect = "move";
-                              if (dragContentRef.current && dragContentRef.current.panelId === panel.id && dragContentRef.current.overIdx !== visualIdx) {
-                                dragContentRef.current.overIdx = visualIdx;
-                                setContentDragOverIdx(visualIdx);
-                              }
-                            }}
-                            onDragLeave={() => { if (contentDragOverIdx === visualIdx) setContentDragOverIdx(null); }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (dragContentRef.current && dragContentRef.current.panelId === panel.id) {
-                                const fromVisual = dragContentRef.current.dragIdx;
-                                const toVisual = dragContentRef.current.overIdx;
-                                const fromContent = sortedContents[fromVisual];
-                                const toContent = sortedContents[toVisual];
-                                if (fromContent && toContent) {
-                                  const fromArrayIdx = panel.contents.findIndex(c => c.id === fromContent.id);
-                                  setSpreads(prev => prev.map((spread, si) => {
-                                    if (si !== currentSpreadIndex) return spread;
-                                    const key = selectedPage === "left" ? "leftPage" : "rightPage";
-                                    return {
-                                      ...spread,
-                                      [key]: spread[key].map(p => {
-                                        if (p.id !== panel.id) return p;
-                                        const contents = [...p.contents].map(c => ({ ...c }));
-                                        const [moved] = contents.splice(fromArrayIdx, 1);
-                                        const targetIdx = contents.findIndex(c => c.id === toContent.id);
-                                        contents.splice(fromVisual < toVisual ? targetIdx + 1 : targetIdx, 0, moved);
-                                        contents.forEach((c, ci) => { c.zIndex = ci; });
-                                        return { ...p, contents };
-                                      })
-                                    };
-                                  }));
-                                }
-                                dragContentRef.current = null;
-                                setContentDragOverIdx(null);
-                              }
-                            }}
-                            onDragEnd={() => { dragContentRef.current = null; setContentDragOverIdx(null); }}
-                            className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/item ${isContentActive ? 'bg-zinc-600 text-white' : 'hover:bg-zinc-750'} ${contentDragOverIdx === visualIdx && dragContentRef.current?.panelId === panel.id ? 'border-t border-cyan-400' : 'border-t border-transparent'}`}
-                            onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
-                          >
-                            <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
-                            <span className="flex-1 truncate">{typeLabel}</span>
-                            <span className="text-[9px] opacity-40 tabular-nums">z{content.zIndex}</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteContentFromPanel(selectedPage, panel.id, content.id); if (isContentActive) setSelectedContentId(null); }}
-                              className="p-0.5 rounded opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                          );
-                        })}
-                      </div>
-                      );
-                    })()}
-                    {isActive && panel.coverRole && coverDesignData && (() => {
-                      const cd = { ...defaultCover, ...coverDesignData } as CoverData;
-                      const isFr = panel.coverRole === "front-cover";
-                      const clearFieldMap: Record<string, Partial<CoverData>> = {
-                        "cover-banner": { bannerText: "" },
-                        "cover-publisher": { publisherName: "" },
-                        "cover-issue": { issueNumber: "", issueDate: "" },
-                        "cover-title": { title: "" },
-                        "cover-subtitle": { subtitle: "" },
-                        "cover-tagline": { tagline: "" },
-                        "cover-author": { author: "" },
-                        "cover-price": { showPriceBox: false, priceText: "" },
-                        "cover-back-title": { title: "" },
-                        "cover-blurb": { backBlurb: "" },
-                        "cover-back-author": { author: "" },
-                        "cover-isbn": { isbn: "" },
-                        "cover-back-publisher": { publisherName: "" },
-                      };
-                      const zOrderKey = isFr ? "front" : "back";
-                      const masterIds = isFr
-                        ? ["master-banner", "master-publisher", "master-issue", "master-title", "master-subtitle", "master-tagline", "master-author", "master-price"]
-                        : ["master-back-title", "master-blurb", "master-back-author", "master-isbn", "master-back-publisher"];
-                      const elToMaster: Record<string, string> = {
-                        "cover-banner": "master-banner", "cover-publisher": "master-publisher", "cover-issue": "master-issue",
-                        "cover-title": "master-title", "cover-subtitle": "master-subtitle", "cover-tagline": "master-tagline",
-                        "cover-author": "master-author", "cover-price": "master-price",
-                        "cover-back-title": "master-back-title", "cover-blurb": "master-blurb", "cover-back-author": "master-back-author",
-                        "cover-isbn": "master-isbn", "cover-back-publisher": "master-back-publisher",
-                      };
-                      const frontElements = [
-                        { id: "cover-banner", label: "Banner", visible: !!cd.bannerText, icon: "▬" },
-                        { id: "cover-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
-                        { id: "cover-issue", label: "Issue #", visible: !!cd.issueNumber, icon: "#" },
-                        { id: "cover-title", label: "Title", visible: !!cd.title, icon: "T" },
-                        { id: "cover-subtitle", label: "Subtitle", visible: !!cd.subtitle, icon: "t" },
-                        { id: "cover-tagline", label: "Tagline", visible: !!cd.tagline, icon: "✦" },
-                        { id: "cover-author", label: "Author", visible: !!cd.author, icon: "A" },
-                        { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!cd.priceText, icon: "$" },
-                      ];
-                      const backElements = [
-                        { id: "cover-back-title", label: "Title", visible: !!cd.title, icon: "T" },
-                        { id: "cover-blurb", label: "Blurb", visible: !!cd.backBlurb, icon: "¶" },
-                        { id: "cover-back-author", label: "Author", visible: !!cd.author, icon: "A" },
-                        { id: "cover-isbn", label: "ISBN", visible: !!cd.isbn, icon: "▯" },
-                        { id: "cover-back-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
-                      ];
-                      const currentOrder = cd.elementZOrder || [];
-                      const allElements = isFr ? frontElements : backElements;
-                      const visibleEls = allElements.filter(el => el.visible);
-                      const sortedEls = [...visibleEls].sort((a, b) => {
-                        const aIdx = currentOrder.indexOf(elToMaster[a.id] || "");
-                        const bIdx = currentOrder.indexOf(elToMaster[b.id] || "");
-                        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
-                      });
-                      const textLayers = isFr ? (cd.frontLayers || []) : (cd.backLayers || []);
-                      const imageLayers = isFr ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
-                      const deleteCoverEl = (elId: string) => {
-                        const updates = clearFieldMap[elId];
-                        if (updates) {
-                          updateCoverData(updates as any);
-                          if (selectedContentId === elId) setSelectedContentId(null);
-                        }
-                      };
-                      const deleteImageLayer = (layerId: string) => {
-                        const layerKey = `${isFr ? 'front' : 'back'}ImageLayers` as keyof CoverData;
-                        const layers = (cd[layerKey] as CoverImageLayer[]) || [];
-                        const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
-                        updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
-                      };
-                      const deleteTextLayer = (layerId: string) => {
-                        const layerKey = `${isFr ? 'front' : 'back'}Layers` as keyof CoverData;
-                        const layers = (cd[layerKey] as CoverTextLayer[]) || [];
-                        const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
-                        updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
-                      };
-                      const hiddenSet = new Set(cd.hiddenElements || []);
-                      const toggleVisibility = (elId: string) => {
-                        const next = new Set(hiddenSet);
-                        if (next.has(elId)) next.delete(elId); else next.add(elId);
-                        updateCoverData({ hiddenElements: Array.from(next) });
-                      };
-                      return (
-                        <div className="ml-3 border-l border-zinc-700 space-y-0.5 py-0.5">
-                          <div className="px-2 py-0.5 text-[8px] font-bold text-cyan-400 uppercase tracking-wider flex items-center justify-between">
-                            <span>Cover Elements</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setShowPanelContents(prev => !prev); }}
-                              className="text-[8px] text-zinc-500 hover:text-white px-1"
-                              title="Toggle panel contents"
-                            >
-                              {showPanelContents ? "Hide Contents" : "Show Contents"}
-                            </button>
-                          </div>
-                          {(() => {
-                            const masterMap = new Map(sortedEls.map(el => [elToMaster[el.id] || el.id, el]));
-                            const imgMap = new Map(imageLayers.map(il => [il.id, il]));
-                            const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
-                            const bgKey = isFr ? "frontImage" : "backImage";
-                            const hasBgImage = !!(cd as any)[bgKey];
-                            const bgId = `bg-${isFr ? "front" : "back"}`;
-                            const allIds = new Set([
-                              ...(hasBgImage ? [bgId] : []),
-                              ...sortedEls.map(el => elToMaster[el.id] || el.id),
-                              ...imageLayers.map(il => il.id),
-                              ...textLayers.map(tl => tl.id),
-                            ]);
-                            const unified = [...currentOrder.filter(id => allIds.has(id))];
-                            allIds.forEach(id => { if (!unified.includes(id)) unified.push(id); });
-
-                            const reversedUnified = [...unified].reverse();
-
-                            const reorderCoverElements = (fromIdx: number, toIdx: number) => {
-                              if (fromIdx === toIdx) return;
-                              const reordered = [...reversedUnified];
-                              const [moved] = reordered.splice(fromIdx, 1);
-                              reordered.splice(toIdx, 0, moved);
-                              const newOrder = [...reordered].reverse();
-                              currentOrder.forEach(id => { if (!newOrder.includes(id)) newOrder.push(id); });
-                              updateCoverData({ elementZOrder: newOrder });
-                            };
-
-                            const coverDragProps = (uIdx: number) => ({
-                              draggable: true,
-                              onDragStart: (e: React.DragEvent) => {
-                                e.stopPropagation();
-                                dragCoverElRef.current = { dragIdx: uIdx, overIdx: uIdx };
-                                e.dataTransfer.effectAllowed = "move";
-                                e.dataTransfer.setData("text/plain", "cover-el");
-                              },
-                              onDragOver: (e: React.DragEvent) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.dataTransfer.dropEffect = "move";
-                                if (dragCoverElRef.current && dragCoverElRef.current.overIdx !== uIdx) {
-                                  dragCoverElRef.current.overIdx = uIdx;
-                                  setCoverElDragOverIdx(uIdx);
-                                }
-                              },
-                              onDragLeave: () => { if (coverElDragOverIdx === uIdx) setCoverElDragOverIdx(null); },
-                              onDrop: (e: React.DragEvent) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (dragCoverElRef.current) {
-                                  reorderCoverElements(dragCoverElRef.current.dragIdx, dragCoverElRef.current.overIdx);
-                                  dragCoverElRef.current = null;
-                                  setCoverElDragOverIdx(null);
-                                }
-                              },
-                              onDragEnd: () => { dragCoverElRef.current = null; setCoverElDragOverIdx(null); },
-                            });
-
-                            return (<div key={reversedUnified.join(',')}>{reversedUnified.map((zId, uIdx) => {
+                    {isActive && showPanelContents && (() => {
+                      if (isCover && coverDesignData) {
+                        const cd = { ...defaultCover, ...coverDesignData } as CoverData;
+                        const isFr = panel.coverRole === "front-cover";
+                        const clearFieldMap: Record<string, Partial<CoverData>> = {
+                          "cover-banner": { bannerText: "" }, "cover-publisher": { publisherName: "" },
+                          "cover-issue": { issueNumber: "", issueDate: "" }, "cover-title": { title: "" },
+                          "cover-subtitle": { subtitle: "" }, "cover-tagline": { tagline: "" },
+                          "cover-author": { author: "" }, "cover-price": { showPriceBox: false, priceText: "" },
+                          "cover-back-title": { title: "" }, "cover-blurb": { backBlurb: "" },
+                          "cover-back-author": { author: "" }, "cover-isbn": { isbn: "" }, "cover-back-publisher": { publisherName: "" },
+                        };
+                        const elToMaster: Record<string, string> = {
+                          "cover-banner": "master-banner", "cover-publisher": "master-publisher", "cover-issue": "master-issue",
+                          "cover-title": "master-title", "cover-subtitle": "master-subtitle", "cover-tagline": "master-tagline",
+                          "cover-author": "master-author", "cover-price": "master-price",
+                          "cover-back-title": "master-back-title", "cover-blurb": "master-blurb", "cover-back-author": "master-back-author",
+                          "cover-isbn": "master-isbn", "cover-back-publisher": "master-back-publisher",
+                        };
+                        const frontElements = [
+                          { id: "cover-banner", label: "Banner", visible: !!cd.bannerText, icon: "▬" },
+                          { id: "cover-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
+                          { id: "cover-issue", label: "Issue #", visible: !!cd.issueNumber, icon: "#" },
+                          { id: "cover-title", label: "Title", visible: !!cd.title, icon: "T" },
+                          { id: "cover-subtitle", label: "Subtitle", visible: !!cd.subtitle, icon: "t" },
+                          { id: "cover-tagline", label: "Tagline", visible: !!cd.tagline, icon: "✦" },
+                          { id: "cover-author", label: "Author", visible: !!cd.author, icon: "A" },
+                          { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!cd.priceText, icon: "$" },
+                        ];
+                        const backElements = [
+                          { id: "cover-back-title", label: "Title", visible: !!cd.title, icon: "T" },
+                          { id: "cover-blurb", label: "Blurb", visible: !!cd.backBlurb, icon: "¶" },
+                          { id: "cover-back-author", label: "Author", visible: !!cd.author, icon: "A" },
+                          { id: "cover-isbn", label: "ISBN", visible: !!cd.isbn, icon: "▯" },
+                          { id: "cover-back-publisher", label: "Publisher", visible: !!cd.publisherName, icon: "◈" },
+                        ];
+                        const currentOrder = cd.elementZOrder || [];
+                        const allElements = isFr ? frontElements : backElements;
+                        const visibleEls = allElements.filter(el => el.visible);
+                        const sortedEls = [...visibleEls].sort((a, b) => {
+                          const aIdx = currentOrder.indexOf(elToMaster[a.id] || "");
+                          const bIdx = currentOrder.indexOf(elToMaster[b.id] || "");
+                          return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+                        });
+                        const textLayers = isFr ? (cd.frontLayers || []) : (cd.backLayers || []);
+                        const imageLayers = isFr ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
+                        const deleteCoverEl = (elId: string) => {
+                          const updates = clearFieldMap[elId];
+                          if (updates) { updateCoverData(updates as any); if (selectedContentId === elId) setSelectedContentId(null); }
+                        };
+                        const deleteImageLayer = (layerId: string) => {
+                          const layerKey = `${isFr ? 'front' : 'back'}ImageLayers` as keyof CoverData;
+                          const layers = (cd[layerKey] as CoverImageLayer[]) || [];
+                          const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
+                          updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
+                        };
+                        const deleteTextLayer = (layerId: string) => {
+                          const layerKey = `${isFr ? 'front' : 'back'}Layers` as keyof CoverData;
+                          const layers = (cd[layerKey] as CoverTextLayer[]) || [];
+                          const newOrder = (cd.elementZOrder || []).filter(id => id !== layerId);
+                          updateCoverData({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder } as any);
+                        };
+                        const hiddenSet = new Set(cd.hiddenElements || []);
+                        const toggleVisibility = (elId: string) => {
+                          const next = new Set(hiddenSet);
+                          if (next.has(elId)) next.delete(elId); else next.add(elId);
+                          updateCoverData({ hiddenElements: Array.from(next) });
+                        };
+                        const masterMap = new Map(sortedEls.map(el => [elToMaster[el.id] || el.id, el]));
+                        const imgMap = new Map(imageLayers.map(il => [il.id, il]));
+                        const txtMap = new Map(textLayers.map(tl => [tl.id, tl]));
+                        const bgKey = isFr ? "frontImage" : "backImage";
+                        const hasBgImage = !!(cd as any)[bgKey];
+                        const bgId = `bg-${isFr ? "front" : "back"}`;
+                        const allIds = new Set([
+                          ...(hasBgImage ? [bgId] : []),
+                          ...sortedEls.map(el => elToMaster[el.id] || el.id),
+                          ...imageLayers.map(il => il.id),
+                          ...textLayers.map(tl => tl.id),
+                        ]);
+                        const unified = [...currentOrder.filter(id => allIds.has(id))];
+                        allIds.forEach(id => { if (!unified.includes(id)) unified.push(id); });
+                        const reversedUnified = [...unified].reverse();
+                        const reorderCoverElements = (fromIdx: number, toIdx: number) => {
+                          if (fromIdx === toIdx) return;
+                          const reordered = [...reversedUnified];
+                          const [moved] = reordered.splice(fromIdx, 1);
+                          reordered.splice(toIdx, 0, moved);
+                          const newOrder = [...reordered].reverse();
+                          currentOrder.forEach(id => { if (!newOrder.includes(id)) newOrder.push(id); });
+                          updateCoverData({ elementZOrder: newOrder });
+                        };
+                        const coverDragProps = (uIdx: number) => ({
+                          draggable: true,
+                          onDragStart: (e: React.DragEvent) => {
+                            e.stopPropagation();
+                            dragCoverElRef.current = { dragIdx: uIdx, overIdx: uIdx };
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", "cover-el");
+                          },
+                          onDragOver: (e: React.DragEvent) => {
+                            e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move";
+                            if (dragCoverElRef.current && dragCoverElRef.current.overIdx !== uIdx) {
+                              dragCoverElRef.current.overIdx = uIdx; setCoverElDragOverIdx(uIdx);
+                            }
+                          },
+                          onDragLeave: () => { if (coverElDragOverIdx === uIdx) setCoverElDragOverIdx(null); },
+                          onDrop: (e: React.DragEvent) => {
+                            e.preventDefault(); e.stopPropagation();
+                            if (dragCoverElRef.current) {
+                              reorderCoverElements(dragCoverElRef.current.dragIdx, dragCoverElRef.current.overIdx);
+                              dragCoverElRef.current = null; setCoverElDragOverIdx(null);
+                            }
+                          },
+                          onDragEnd: () => { dragCoverElRef.current = null; setCoverElDragOverIdx(null); },
+                        });
+                        return (
+                          <div className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5">
+                            {reversedUnified.map((zId, uIdx) => {
                               const dragOverClass = coverElDragOverIdx === uIdx ? 'border-t border-cyan-400' : 'border-t border-transparent';
+                              const isHidden = hiddenSet.has(zId);
                               const masterEl = masterMap.get(zId);
                               if (masterEl) {
                                 return (
-                                  <div key={masterEl.id}
-                                    {...coverDragProps(uIdx)}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === masterEl.id ? 'bg-cyan-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
+                                  <div key={masterEl.id} {...coverDragProps(uIdx)}
+                                    className={layerRowClass(selectedContentId === masterEl.id, coverElDragOverIdx === uIdx, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(masterEl.id); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
+                                      {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
+                                    </button>
                                     <span className="w-3 text-center text-[10px] opacity-60">{masterEl.icon}</span>
                                     <span className="flex-1 truncate text-[10px]">{masterEl.label}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
-                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
-                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteCoverEl(masterEl.id); }}
-                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
-                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                      className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400" title="Delete">
+                                      <Trash2 className="w-2.5 h-2.5" /></button>
                                   </div>
                                 );
                               }
                               const il = imgMap.get(zId);
                               if (il) {
                                 return (
-                                  <div key={il.id}
-                                    {...coverDragProps(uIdx)}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-img-${il.id}` ? 'bg-violet-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
+                                  <div key={il.id} {...coverDragProps(uIdx)}
+                                    className={layerRowClass(selectedContentId === `cover-img-${il.id}`, coverElDragOverIdx === uIdx, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
+                                      {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
+                                    </button>
                                     <ImageIcon className="w-3 h-3 text-violet-400 opacity-60 shrink-0" />
                                     <span className="flex-1 truncate text-[10px]">{il.name || "Image"}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
-                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
-                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteImageLayer(il.id); }}
-                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
-                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                      className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400" title="Delete">
+                                      <Trash2 className="w-2.5 h-2.5" /></button>
                                   </div>
                                 );
                               }
                               const tl = txtMap.get(zId);
                               if (tl) {
                                 return (
-                                  <div key={tl.id}
-                                    {...coverDragProps(uIdx)}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${selectedContentId === `cover-txt-${tl.id}` ? 'bg-amber-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
+                                  <div key={tl.id} {...coverDragProps(uIdx)}
+                                    className={layerRowClass(selectedContentId === `cover-txt-${tl.id}`, coverElDragOverIdx === uIdx, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
+                                      className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
+                                      {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
+                                    </button>
                                     <Type className="w-3 h-3 text-amber-400 opacity-60 shrink-0" />
                                     <span className="flex-1 truncate text-[10px]" style={{ color: tl.color }}>{tl.text || "Text"}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
-                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
-                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
                                     <button onClick={(e) => { e.stopPropagation(); deleteTextLayer(tl.id); }}
-                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Delete"
-                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                      className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400" title="Delete">
+                                      <Trash2 className="w-2.5 h-2.5" /></button>
                                   </div>
                                 );
                               }
                               if (zId === bgId && hasBgImage) {
                                 const bgViewKey = isFr ? "front" : "back";
-                                const isBgSelected = selectedContentId === `cover-bg-${bgViewKey}`;
                                 return (
-                                  <div key={bgId}
-                                    {...coverDragProps(uIdx)}
-                                    className={`px-2 py-1 text-xs cursor-pointer flex items-center gap-0.5 group/item ${isBgSelected ? 'bg-green-700 text-white' : 'hover:bg-zinc-750'} ${dragOverClass}`}
+                                  <div key={bgId} {...coverDragProps(uIdx)}
+                                    className={layerRowClass(selectedContentId === `cover-bg-${bgViewKey}`, coverElDragOverIdx === uIdx, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-bg-${bgViewKey}`); }}
                                     data-testid={`layer-stack-item-${bgId}`}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/item:opacity-100 cursor-grab active:cursor-grabbing" />
-                                    <ImageIcon className="w-3 h-3 text-green-400 opacity-60 shrink-0" />
-                                    <span className="flex-1 truncate text-[10px]">{isFr ? "Front" : "Back"} Cover Image</span>
+                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
-                                      className={`p-0.5 opacity-40 group-hover/item:opacity-100 hover:bg-zinc-500 ${hiddenSet.has(zId) ? 'text-zinc-500' : ''}`} title={hiddenSet.has(zId) ? "Show" : "Hide"}
-                                    >{hiddenSet.has(zId) ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}</button>
+                                      className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
+                                      {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
+                                    </button>
+                                    <ImageIcon className="w-3 h-3 text-green-400 opacity-60 shrink-0" />
+                                    <span className="flex-1 truncate text-[10px]">{isFr ? "Front" : "Back"} BG</span>
                                     <button onClick={(e) => {
                                         e.stopPropagation();
                                         updateCoverData({ [bgKey]: null, [`${bgViewKey}BgTransform`]: undefined });
-                                        if (isBgSelected) setSelectedContentId(null);
+                                        if (selectedContentId === `cover-bg-${bgViewKey}`) setSelectedContentId(null);
                                       }}
-                                      className="p-0.5 opacity-0 group-hover/item:opacity-100 hover:bg-red-900 text-red-400" title="Remove Cover Image"
-                                    ><Trash2 className="w-2.5 h-2.5" /></button>
+                                      className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400" title="Delete">
+                                      <Trash2 className="w-2.5 h-2.5" /></button>
                                   </div>
                                 );
                               }
                               return null;
-                            })}</div>);
-                          })()}
-                        </div>
-                      );
+                            })}
+                          </div>
+                        );
+                      }
+                      if (panel.contents.length > 0) {
+                        const sortedContents = [...panel.contents].sort((a, b) => b.zIndex - a.zIndex);
+                        return (
+                          <div className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5">
+                            {sortedContents.map((content, visualIdx) => {
+                              const isContentActive = selectedContentId === content.id;
+                              const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? (content.data?.textPanel ? "Text Page" : "Text") : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
+                              const typeIcon = content.type === "image" || content.type === "gif" ? <ImageIcon className="w-3 h-3 text-violet-400 opacity-60 shrink-0" /> :
+                                content.type === "text" || content.type === "bubble" ? <Type className="w-3 h-3 text-amber-400 opacity-60 shrink-0" /> :
+                                content.type === "drawing" ? <Pen className="w-3 h-3 text-green-400 opacity-60 shrink-0" /> :
+                                content.type === "video" ? <Film className="w-3 h-3 text-blue-400 opacity-60 shrink-0" /> :
+                                content.type === "audio" ? <Volume2 className="w-3 h-3 text-emerald-400 opacity-60 shrink-0" /> :
+                                <Square className="w-3 h-3 text-zinc-400 opacity-60 shrink-0" />;
+                              return (
+                              <div
+                                key={content.id}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.stopPropagation();
+                                  dragContentRef.current = { panelId: panel.id, dragIdx: visualIdx, overIdx: visualIdx };
+                                  e.dataTransfer.effectAllowed = "move";
+                                  e.dataTransfer.setData("text/plain", "content");
+                                }}
+                                onDragOver={(e) => {
+                                  e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move";
+                                  if (dragContentRef.current && dragContentRef.current.panelId === panel.id && dragContentRef.current.overIdx !== visualIdx) {
+                                    dragContentRef.current.overIdx = visualIdx; setContentDragOverIdx(visualIdx);
+                                  }
+                                }}
+                                onDragLeave={() => { if (contentDragOverIdx === visualIdx) setContentDragOverIdx(null); }}
+                                onDrop={(e) => {
+                                  e.preventDefault(); e.stopPropagation();
+                                  if (dragContentRef.current && dragContentRef.current.panelId === panel.id) {
+                                    const fromVisual = dragContentRef.current.dragIdx;
+                                    const toVisual = dragContentRef.current.overIdx;
+                                    const fromContent = sortedContents[fromVisual];
+                                    const toContent = sortedContents[toVisual];
+                                    if (fromContent && toContent) {
+                                      const fromArrayIdx = panel.contents.findIndex(c => c.id === fromContent.id);
+                                      setSpreads(prev => prev.map((spread, si) => {
+                                        if (si !== currentSpreadIndex) return spread;
+                                        const key = selectedPage === "left" ? "leftPage" : "rightPage";
+                                        return {
+                                          ...spread,
+                                          [key]: spread[key].map(p => {
+                                            if (p.id !== panel.id) return p;
+                                            const contents = [...p.contents].map(c => ({ ...c }));
+                                            const [moved] = contents.splice(fromArrayIdx, 1);
+                                            const targetIdx = contents.findIndex(c => c.id === toContent.id);
+                                            contents.splice(fromVisual < toVisual ? targetIdx + 1 : targetIdx, 0, moved);
+                                            contents.forEach((c, ci) => { c.zIndex = ci; });
+                                            return { ...p, contents };
+                                          })
+                                        };
+                                      }));
+                                    }
+                                    dragContentRef.current = null; setContentDragOverIdx(null);
+                                  }
+                                }}
+                                onDragEnd={() => { dragContentRef.current = null; setContentDragOverIdx(null); }}
+                                className={layerRowClass(isContentActive, contentDragOverIdx === visualIdx && dragContentRef.current?.panelId === panel.id, content.hidden)}
+                                onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
+                              >
+                                <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleContentVisibility(selectedPage, panel.id, content.id); }}
+                                  className="p-0.5 flex-shrink-0 hover:bg-zinc-500"
+                                  title={content.hidden ? "Show" : "Hide"}
+                                >
+                                  {content.hidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
+                                </button>
+                                {typeIcon}
+                                <span className="flex-1 truncate text-[10px]">{typeLabel}</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteContentFromPanel(selectedPage, panel.id, content.id); if (isContentActive) setSelectedContentId(null); }}
+                                  className="p-0.5 opacity-0 group-hover/row:opacity-100 hover:bg-red-900 text-red-400"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                      return null;
                     })()}
                     {isActive && (
-                      <div className="ml-3 px-2 py-1 flex gap-1 border-l border-zinc-700">
+                      <div className="ml-4 px-2 py-1 flex gap-1 border-l border-zinc-700">
                         <button
                           onClick={(e) => { e.stopPropagation(); setCoverRole(selectedPage, panel.id, panel.coverRole === "front-cover" ? null : "front-cover"); }}
                           className={`flex-1 py-1 text-[9px] font-bold border ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white border-cyan-500" : "bg-zinc-800 text-zinc-400 border-zinc-600 hover:border-cyan-500 hover:text-cyan-400"}`}
                           data-testid={`cover-set-front-${panel.id}`}
                         >
-                          {panel.coverRole === "front-cover" ? "✓ Front Cover" : "Set Front Cover"}
+                          {panel.coverRole === "front-cover" ? "Front Cover" : "Set Front Cover"}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setCoverRole(selectedPage, panel.id, panel.coverRole === "back-cover" ? null : "back-cover"); }}
                           className={`flex-1 py-1 text-[9px] font-bold border ${panel.coverRole === "back-cover" ? "bg-purple-600 text-white border-purple-500" : "bg-zinc-800 text-zinc-400 border-zinc-600 hover:border-purple-500 hover:text-purple-400"}`}
                           data-testid={`cover-set-back-${panel.id}`}
                         >
-                          {panel.coverRole === "back-cover" ? "✓ Back Cover" : "Set Back Cover"}
+                          {panel.coverRole === "back-cover" ? "Back Cover" : "Set Back Cover"}
                         </button>
                       </div>
                     )}
@@ -5865,7 +5885,7 @@ export default function ComicCreator() {
                   
                   return (
                     <div className="bg-white border-4 border-zinc-800 shadow-2xl relative overflow-hidden" style={{ width: PREVIEW_W, height: PREVIEW_H }}>
-                      {panels?.map(panel => {
+                      {panels?.filter(p => !p.hidden).map(panel => {
                         const editorPanelW = (panel.width / 100) * editorDims.w;
                         const editorPanelH = (panel.height / 100) * editorDims.h;
                         return (
@@ -5912,7 +5932,7 @@ export default function ComicCreator() {
                               </div>
                             );
                           })()}
-                          {panel.contents.map(content => {
+                          {panel.contents.filter(c => !c.hidden).map(content => {
                           const leftPct = editorPanelW > 0 ? (content.transform.x / editorPanelW) * 100 : 0;
                           const topPct = editorPanelH > 0 ? (content.transform.y / editorPanelH) * 100 : 0;
                           const widthPct = editorPanelW > 0 ? (content.transform.width / editorPanelW) * 100 : 100;
