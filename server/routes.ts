@@ -6697,14 +6697,33 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.get("/api/usage/status", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const subscription = await storage.getUserSubscription(userId);
-      const tier = (subscription?.tier || "free") as TierName;
-      const entitlements = tierEntitlements[tier] || tierEntitlements.free;
+      let tier: TierName = "free";
+      let entitlements = tierEntitlements.free;
+      try {
+        const subscription = await storage.getUserSubscription(userId);
+        tier = (subscription?.tier || "free") as TierName;
+        entitlements = tierEntitlements[tier] || tierEntitlements.free;
+      } catch (subErr: any) {
+        console.error(`[usage/status] subscription lookup failed for ${userId}: ${subErr.message}`);
+      }
 
-      const aiCount = await storage.getUsageCount(userId, "ai_generation", "daily", getTodayKey());
-      const exportCount = await storage.getUsageCount(userId, "export", "monthly", getMonthKey());
-      const userProjects = await storage.getProjectsByUserId(userId);
-      const projectCount = userProjects.length;
+      let aiCount = 0;
+      let exportCount = 0;
+      let projectCount = 0;
+      try {
+        [aiCount, exportCount] = await Promise.all([
+          storage.getUsageCount(userId, "ai_generation", "daily", getTodayKey()),
+          storage.getUsageCount(userId, "export", "monthly", getMonthKey()),
+        ]);
+      } catch (usageErr: any) {
+        console.error(`[usage/status] usage count failed for ${userId}: ${usageErr.message}`);
+      }
+      try {
+        const userProjects = await storage.getProjectsByUserId(userId);
+        projectCount = userProjects.length;
+      } catch (projErr: any) {
+        console.error(`[usage/status] project count failed for ${userId}: ${projErr.message}`);
+      }
 
       res.json({
         tier,
@@ -6725,7 +6744,14 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         },
       });
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      console.error(`[usage/status] unexpected error: ${error.message}`);
+      const ent = tierEntitlements.free;
+      res.json({
+        tier: "free",
+        ai: { used: 0, limit: ent.aiGenerationsPerDay, remaining: ent.aiGenerationsPerDay },
+        export: { used: 0, limit: ent.exportsPerMonth, remaining: ent.exportsPerMonth },
+        projects: { used: 0, limit: ent.maxProjects, remaining: ent.maxProjects },
+      });
     }
   });
 
