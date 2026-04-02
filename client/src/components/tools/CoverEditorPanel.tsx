@@ -7,7 +7,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   ChevronsUp, ChevronsDown, ChevronUp, ChevronDown
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
@@ -319,6 +319,123 @@ export interface CoverEditorPanelProps {
   onClose: () => void;
   comicTitle?: string;
   comicAuthor?: string;
+}
+
+interface LayerMeta {
+  id: string;
+  label: string;
+  type: "master" | "text" | "image" | "bg";
+}
+
+function LayerReorderList({
+  layers,
+  hiddenSet,
+  selectedLayerId,
+  selectedLayerIds,
+  onSelect,
+  onToggleVisibility,
+  onReorder,
+}: {
+  layers: LayerMeta[];
+  hiddenSet: Set<string>;
+  selectedLayerId: string | null;
+  selectedLayerIds: string[];
+  onSelect: (id: string) => void;
+  onToggleVisibility: (id: string) => void;
+  onReorder: (newReversedIds: string[]) => void;
+}) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent, idx: number) => {
+    const grip = (e.target as HTMLElement).closest('[data-grip]');
+    if (!grip) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (containerRef.current) {
+      containerRef.current.setPointerCapture(e.pointerId);
+    }
+    setDragIdx(idx);
+    setDropIdx(idx);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (dragIdx === null || !containerRef.current) return;
+    e.preventDefault();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const y = e.clientY - containerRect.top;
+    let insertAt = 0;
+    for (let i = 0; i < itemRefs.current.length; i++) {
+      const el = itemRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const mid = r.top + r.height / 2 - containerRect.top;
+      if (y > mid) insertAt = i + 1;
+    }
+    setDropIdx(insertAt);
+  }, [dragIdx]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (dragIdx === null || dropIdx === null) { setDragIdx(null); setDropIdx(null); return; }
+    if (dragIdx !== dropIdx) {
+      const ids = layers.map(l => l.id);
+      const [moved] = ids.splice(dragIdx, 1);
+      const insertAt = dropIdx > dragIdx ? dropIdx - 1 : dropIdx;
+      ids.splice(insertAt, 0, moved);
+      onReorder(ids);
+    }
+    setDragIdx(null);
+    setDropIdx(null);
+  }, [dragIdx, dropIdx, layers, onReorder]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="space-y-0.5 select-none"
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { setDragIdx(null); setDropIdx(null); }}
+    >
+      {layers.map((layer, idx) => {
+        const isHidden = hiddenSet.has(layer.id);
+        const isSelected = selectedLayerId === layer.id || selectedLayerIds.includes(layer.id);
+        const isDragging = dragIdx === idx;
+        const typeIcon = layer.type === "text" ? "T" : layer.type === "image" ? "I" : layer.type === "bg" ? "BG" : "M";
+        const typeBg = layer.type === "text" ? "bg-cyan-900/40" : layer.type === "image" ? "bg-violet-900/40" : layer.type === "bg" ? "bg-green-900/40" : "bg-zinc-800";
+        const effectiveDropIdx = dropIdx !== null && dragIdx !== null && (dropIdx === dragIdx || dropIdx === dragIdx + 1) ? null : dropIdx;
+        const showDropAbove = effectiveDropIdx !== null && effectiveDropIdx === idx;
+        const showDropBelow = effectiveDropIdx !== null && idx === layers.length - 1 && effectiveDropIdx === layers.length;
+        return (
+          <div key={layer.id} ref={el => { itemRefs.current[idx] = el; }}>
+            {showDropAbove && <div className="h-0.5 bg-cyan-400 rounded-full mx-1 my-0.5" />}
+            <div
+              onPointerDown={(e) => handlePointerDown(e, idx)}
+              onClick={() => onSelect(layer.id)}
+              className={`flex items-center gap-1.5 p-1.5 border transition-colors ${
+                isDragging ? "opacity-40 border-cyan-500 bg-zinc-900" :
+                isSelected ? "border-cyan-500 bg-zinc-800" : "border-zinc-700/50 hover:border-zinc-600"
+              } ${isHidden ? "opacity-40" : ""}`}
+              style={{ touchAction: "none" }}
+              data-testid={`layer-stack-item-${layer.id}`}
+            >
+              <div data-grip className="cursor-grab active:cursor-grabbing p-0.5 -m-0.5 touch-none">
+                <GripVertical className="w-3 h-3 text-zinc-500 hover:text-cyan-400 shrink-0" />
+              </div>
+              <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-bold ${typeBg} text-zinc-300 shrink-0`}>{typeIcon}</span>
+              <span className="text-xs truncate flex-1 min-w-0">{layer.label}</span>
+              <button onClick={(e) => { e.stopPropagation(); onToggleVisibility(layer.id); }}
+                className="p-0.5 hover:text-white text-zinc-500 shrink-0" data-testid={`toggle-visibility-${layer.id}`}>
+                {isHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+            </div>
+            {showDropBelow && <div className="h-0.5 bg-cyan-400 rounded-full mx-1 my-0.5" />}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle, comicAuthor }: CoverEditorPanelProps) {
@@ -1737,53 +1854,18 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   <label className="text-xs font-bold uppercase text-zinc-400">Layer Stack</label>
                   <span className="text-[10px] text-zinc-600">{reversedLayers.length} layers</span>
                 </div>
-                <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Drag to reorder.</p>
-                <div className="space-y-1" key={reversedLayers.map(l => l.id).join(',')}>
-                  {reversedLayers.map((layer, revIdx) => {
-                    const isHidden = hiddenSet.has(layer.id);
-                    const isSelected = selectedLayerId === layer.id || selectedLayerIds.includes(layer.id);
-                    const typeIcon = layer.type === "text" ? "T" : layer.type === "image" ? "I" : layer.type === "bg" ? "BG" : "M";
-                    const typeBg = layer.type === "text" ? "bg-cyan-900/40" : layer.type === "image" ? "bg-violet-900/40" : layer.type === "bg" ? "bg-green-900/40" : "bg-zinc-800";
-                    return (
-                      <div key={layer.id}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.effectAllowed = "move";
-                          e.dataTransfer.setData("text/plain", layer.id);
-                          (e.currentTarget as HTMLElement).style.opacity = "0.4";
-                        }}
-                        onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                          (e.currentTarget as HTMLElement).style.borderTopColor = "#06b6d4";
-                        }}
-                        onDragLeave={(e) => { (e.currentTarget as HTMLElement).style.borderTopColor = ""; }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          (e.currentTarget as HTMLElement).style.borderTopColor = "";
-                          const dragId = e.dataTransfer.getData("text/plain");
-                          if (!dragId || dragId === layer.id) return;
-                          const newReversed = reversedLayers.map(l => l.id).filter(id => id !== dragId);
-                          newReversed.splice(revIdx, 0, dragId);
-                          updateCover({ elementZOrder: [...newReversed].reverse() });
-                        }}
-                        onClick={() => setSelectedLayerId(layer.id)}
-                        className={`flex items-center gap-1.5 p-1.5 border cursor-grab active:cursor-grabbing transition-colors ${
-                          isSelected ? "border-cyan-500 bg-zinc-800" : "border-zinc-700/50 hover:border-zinc-600"
-                        } ${isHidden ? "opacity-40" : ""}`}
-                        data-testid={`layer-stack-item-${layer.id}`}>
-                        <GripVertical className="w-3 h-3 text-zinc-600 shrink-0" />
-                        <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-bold ${typeBg} text-zinc-300 shrink-0`}>{typeIcon}</span>
-                        <span className="text-xs truncate flex-1 min-w-0">{layer.label}</span>
-                        <button onClick={(e) => { e.stopPropagation(); toggleVisibility(layer.id); }}
-                          className="p-0.5 hover:text-white text-zinc-500 shrink-0" data-testid={`toggle-visibility-${layer.id}`}>
-                          {isHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <p className="text-[10px] text-zinc-500">Top = front, bottom = back. Grab handle to reorder.</p>
+                <LayerReorderList
+                  layers={reversedLayers}
+                  hiddenSet={hiddenSet}
+                  selectedLayerId={selectedLayerId}
+                  selectedLayerIds={selectedLayerIds}
+                  onSelect={setSelectedLayerId}
+                  onToggleVisibility={toggleVisibility}
+                  onReorder={(newReversedIds) => {
+                    updateCover({ elementZOrder: [...newReversedIds].reverse() });
+                  }}
+                />
                 {selectedLayerId && (
                   <div className="pt-3 border-t border-zinc-700 space-y-2">
                     <label className="text-[10px] font-bold uppercase text-zinc-500">Quick Actions</label>
