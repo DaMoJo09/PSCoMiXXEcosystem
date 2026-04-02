@@ -52,6 +52,8 @@ interface CYOANode {
   isEnding?: boolean;
   endingType?: "good" | "bad" | "neutral";
   image?: string;
+  audioUrl?: string;
+  audioName?: string;
   color?: NodeColor;
   effects?: VarEffect[];
 }
@@ -395,6 +397,7 @@ export default function CYOABuilder() {
     projectId: effectiveProjectId || undefined,
   });
   const creationAttempted = useRef(false);
+  const cyoaAudioRef = useRef<HTMLAudioElement | null>(null);
   const [storyText, setStoryText] = useState("");
   const [branchPoints, setBranchPoints] = useState(5);
   const [optionsPerBranch, setOptionsPerBranch] = useState(3);
@@ -530,6 +533,12 @@ export default function CYOABuilder() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (cyoaAudioRef.current) { cyoaAudioRef.current.pause(); cyoaAudioRef.current = null; }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!previewMode) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") exitPreview();
@@ -632,6 +641,17 @@ export default function CYOABuilder() {
 
   const [choiceHistory, setChoiceHistory] = useState<CYOAChoice[]>([]);
 
+  const playCyoaAudio = (url?: string) => {
+    if (cyoaAudioRef.current) { cyoaAudioRef.current.pause(); cyoaAudioRef.current = null; }
+    if (url) {
+      const a = new Audio(url);
+      a.loop = true;
+      a.volume = 0.3;
+      a.play().catch(() => {});
+      cyoaAudioRef.current = a;
+    }
+  };
+
   const startPreview = (fromNodeId?: string) => {
     if (nodes.length === 0) { toast.error("Generate CYOA first"); return; }
     const startId = fromNodeId || nodes[0].id;
@@ -640,6 +660,7 @@ export default function CYOABuilder() {
     const startNode = nodes.find(n => n.id === startId);
     if (startNode?.effects) setRuntimeVars(applyEffects(startNode.effects, vars)); else setRuntimeVars(vars);
     if (!fromNodeId) setEndingsFound(new Set());
+    playCyoaAudio(startNode?.audioUrl);
   };
 
   const selectChoice = (choice: CYOAChoice) => {
@@ -650,18 +671,22 @@ export default function CYOABuilder() {
     setRuntimeVars(vars);
     setCurrentNode(choice.target); setPathHistory([...pathHistory, choice.target]); setChoiceHistory([...choiceHistory, choice]); setTypewriterDone(false); setTextSpeed(30);
     if (targetNode?.isEnding) setEndingsFound(prev => { const s = new Set(Array.from(prev)); s.add(choice.target); return s; });
+    playCyoaAudio(targetNode?.audioUrl);
   };
 
   const goBack = () => {
     if (pathHistory.length > 1) {
       const newHistory = pathHistory.slice(0, -1);
       const newChoiceHistory = choiceHistory.slice(0, -1);
-      setPathHistory(newHistory); setChoiceHistory(newChoiceHistory); setCurrentNode(newHistory[newHistory.length - 1]); setTypewriterDone(false); setTextSpeed(30);
+      const prevNodeId = newHistory[newHistory.length - 1];
+      setPathHistory(newHistory); setChoiceHistory(newChoiceHistory); setCurrentNode(prevNodeId); setTypewriterDone(false); setTextSpeed(30);
       setRuntimeVars(replayVarsForPath(newHistory, newChoiceHistory));
+      const prevNode = nodes.find(n => n.id === prevNodeId);
+      playCyoaAudio(prevNode?.audioUrl);
     }
   };
 
-  const exitPreview = () => { setPreviewMode(false); setIsFullscreenPreview(false); setCurrentNode(null); setPathHistory([]); };
+  const exitPreview = () => { setPreviewMode(false); setIsFullscreenPreview(false); setCurrentNode(null); setPathHistory([]); playCyoaAudio(); };
 
   const exportCYOA = (format: "cyoa" | "json" | "txt" | "html") => {
     let data: string; let mimeType = "text/plain";
@@ -1165,6 +1190,28 @@ if(N.length>0)showN(N[0].id);
                                 <button onClick={() => { setSelectedNodeId(node.id); setShowAIGen(true); }} className="flex-1 p-3 bg-white text-black text-sm flex items-center justify-center gap-2"><Wand2 className="w-4 h-4" /> AI Generate</button>
                               </div>
                               {node.image && <div className="relative aspect-video bg-zinc-800 overflow-hidden"><img src={node.image} className="w-full h-full object-cover" /><button onClick={() => updateNode(node.id, { image: undefined })} className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-500"><X className="w-3 h-3" /></button></div>}
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold uppercase text-zinc-400">Node Audio</label>
+                              <div className="flex gap-2">
+                                <label className="flex-1 p-3 bg-zinc-800 text-sm flex items-center justify-center gap-2 hover:bg-zinc-700 cursor-pointer">
+                                  <Upload className="w-4 h-4" /> Upload Audio
+                                  <input type="file" accept="audio/*" className="hidden" data-testid={`input-node-audio-${node.id}`} onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = () => { updateNode(node.id, { audioUrl: reader.result as string, audioName: file.name }); toast.success("Audio added"); };
+                                    reader.readAsDataURL(file);
+                                    e.target.value = "";
+                                  }} />
+                                </label>
+                              </div>
+                              {node.audioUrl && (
+                                <div className="flex items-center gap-2 p-2 bg-zinc-800 border border-zinc-700">
+                                  <audio src={node.audioUrl} controls className="h-8 flex-1" data-testid={`audio-preview-${node.id}`} />
+                                  <button onClick={() => updateNode(node.id, { audioUrl: undefined, audioName: undefined })} className="p-1 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                </div>
+                              )}
                             </div>
                             <div className="space-y-3">
                               <div className="flex justify-between items-center">

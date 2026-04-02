@@ -7389,12 +7389,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         upstreamStatus = "no_api_key";
       }
 
-      const [countResult] = await db.select({ count: sql`count(*)::int` }).from(fxEffects);
+      let localCount = 0;
+      try {
+        const [countResult] = await db.select({ count: sql`count(*)::int` }).from(fxEffects);
+        localCount = countResult?.count || 0;
+      } catch (dbErr: any) {
+        console.error("[fx-health] local DB count failed:", dbErr.message);
+      }
       res.json({
         status: "ok",
         timestamp: new Date().toISOString(),
         upstream: upstreamStatus,
-        local_effects_count: countResult?.count || 0,
+        local_effects_count: localCount,
         fx_api_url: FX_API_URL,
         storage_base: FX_STORAGE_BASE,
       });

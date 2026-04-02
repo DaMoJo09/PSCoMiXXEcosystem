@@ -527,7 +527,8 @@ export default function ComicCreator() {
     try {
       toast.info("Syncing page to CoMiXX...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-      const canvas = await exportPageToCanvas(panels, 1988, 3075);
+      const narr = selectedPage === "left" ? currentSpread.leftNarration : currentSpread.rightNarration;
+      const canvas = await exportPageToCanvas(panels, 1988, 3075, narr);
       const dataUrl = canvas.toDataURL("image/png");
       const pageNum = currentSpreadIndex * 2 + (selectedPage === "left" ? 1 : 2);
       const hasCover = panels.some(p => p.coverRole);
@@ -551,12 +552,12 @@ export default function ComicCreator() {
         const spread = spreads[i];
         if (spread.leftPage.length > 0) {
           pageNum++;
-          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075);
+          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075, spread.leftNarration);
           await syncAsset({ name: `${title} - Page ${pageNum}`, dataUrl: leftCanvas.toDataURL("image/png"), tag: "interior-page", targetPage: pageNum });
         }
         if (spread.rightPage.length > 0) {
           pageNum++;
-          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075);
+          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075, spread.rightNarration);
           await syncAsset({ name: `${title} - Page ${pageNum}`, dataUrl: rightCanvas.toDataURL("image/png"), tag: "interior-page", targetPage: pageNum });
         }
       }
@@ -661,7 +662,23 @@ export default function ComicCreator() {
         setComicMeta(data.comicMeta);
       }
       if (data?.coverDesign) {
-        setCoverDesignData(data.coverDesign);
+        const cd = data.coverDesign;
+        const validIds = new Set<string>();
+        const masterIds = ["master-title", "master-subtitle", "master-author", "master-banner", "master-price", "master-issue", "master-tagline", "master-isbn", "master-blurb", "master-back-title", "master-back-author", "master-back-publisher", "master-publisher", "bg-front", "bg-back"];
+        masterIds.forEach(id => validIds.add(id));
+        for (const l of cd.frontLayers || []) validIds.add(l.id);
+        for (const l of cd.backLayers || []) validIds.add(l.id);
+        for (const l of cd.spineLayers || []) validIds.add(l.id);
+        for (const l of cd.frontImageLayers || []) validIds.add(l.id);
+        for (const l of cd.backImageLayers || []) validIds.add(l.id);
+        for (const l of cd.spineImageLayers || []) validIds.add(l.id);
+        if (cd.elementZOrder) {
+          cd.elementZOrder = cd.elementZOrder.filter((id: string) => validIds.has(id));
+        }
+        if (cd.hiddenElements) {
+          cd.hiddenElements = cd.hiddenElements.filter((id: string) => validIds.has(id));
+        }
+        setCoverDesignData(cd);
       } else {
         setCoverDesignData(undefined);
       }
@@ -1242,7 +1259,9 @@ export default function ComicCreator() {
     return { w: isFullscreen ? 800 : 650, h: isFullscreen ? 1130 : 920 };
   };
 
-  const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number): Promise<HTMLCanvasElement> => {
+  const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number, narration?: NarrationBox): Promise<HTMLCanvasElement> => {
+    await document.fonts.ready;
+
     const canvas = document.createElement("canvas");
     canvas.width = pageWidth;
     canvas.height = pageHeight;
@@ -1512,6 +1531,52 @@ export default function ComicCreator() {
             }
           }
         }
+
+        const coverElZOrder = cd.elementZOrder || [];
+        const textLayers = isFront ? (cd.frontLayers || []) : (cd.backLayers || []);
+        const imageLayers = isFront ? (cd.frontImageLayers || []) : (cd.backImageLayers || []);
+        const allUserLayers = [...textLayers.map(l => ({ ...l, _kind: "text" as const })), ...imageLayers.map(l => ({ ...l, _kind: "image" as const }))];
+        allUserLayers.sort((a, b) => {
+          const ai = coverElZOrder.indexOf(a.id);
+          const bi = coverElZOrder.indexOf(b.id);
+          return (ai >= 0 ? ai : 999) - (bi >= 0 ? bi : 999);
+        });
+        for (const layer of allUserLayers) {
+          if (hiddenEls.has(layer.id)) continue;
+          const t = (layer as any).transform || { x: 0, y: 0, width: 200, height: 50, rotation: 0, scaleX: 1, scaleY: 1 };
+          const lx = panelX + (t.x / 600) * panelW;
+          const ly = panelY + (t.y / 900) * panelH;
+          const lw = (t.width / 600) * panelW;
+          const lh = (t.height / 900) * panelH;
+          ctx.save();
+          ctx.translate(lx + lw / 2, ly + lh / 2);
+          ctx.rotate(((t.rotation || 0) * Math.PI) / 180);
+          ctx.scale(t.scaleX || 1, t.scaleY || 1);
+          ctx.translate(-lw / 2, -lh / 2);
+          if (layer._kind === "image" && (layer as any).src) {
+            try {
+              const lImg = await loadImage((layer as any).src);
+              drawImageCover(ctx, lImg, 0, 0, lw, lh);
+            } catch {}
+          } else if (layer._kind === "text") {
+            const tl = layer as any;
+            ctx.fillStyle = tl.color || "#ffffff";
+            const weight = tl.bold ? "bold " : "";
+            const italic = tl.italic ? "italic " : "";
+            const fontSize = Math.round((tl.fontSize || 24) * (panelW / 600));
+            ctx.font = `${italic}${weight}${fontSize}px ${(tl.fontFamily || "Inter").replace(/'/g, '"')}`;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            const displayText = tl.uppercase ? (tl.text || "").toUpperCase() : (tl.text || "");
+            if (tl.strokeColor && tl.strokeWidth) {
+              ctx.strokeStyle = tl.strokeColor;
+              ctx.lineWidth = tl.strokeWidth;
+              ctx.strokeText(displayText, 0, 0);
+            }
+            ctx.fillText(displayText, 0, 0);
+          }
+          ctx.restore();
+        }
       }
 
       for (const content of panel.contents.filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex)) {
@@ -1594,6 +1659,66 @@ export default function ComicCreator() {
       ctx.restore();
     }
 
+    if (narration?.text) {
+      const styleMap: Record<string, { bg: string; color: string; border: string; ff: string }> = {
+        caption: { bg: narration.bgColor || "#1a1a1a", color: narration.color || "#f5deb3", border: "#8b7355", ff: narration.fontFamily || "Georgia, serif" },
+        thought: { bg: narration.bgColor || "#0a0a2e", color: narration.color || "#a8c8ff", border: "#4a6fa5", ff: narration.fontFamily || "'Space Grotesk', sans-serif" },
+        editorial: { bg: narration.bgColor || "#2a0a0a", color: narration.color || "#ff9999", border: "#8b3a3a", ff: narration.fontFamily || "'JetBrains Mono', monospace" },
+      };
+      const ns = styleMap[narration.style] || styleMap.caption;
+      const fontSize = Math.round((narration.fontSize || 14) * (pageWidth / 650));
+      const pad = Math.round(pageWidth * 0.015);
+      const margin = Math.round(pageWidth * 0.02);
+      const borderW = Math.round(pageWidth * 0.005);
+      const boxW = pageWidth - margin * 2;
+
+      ctx.save();
+      ctx.font = `${fontSize}px ${ns.ff.replace(/'/g, '"')}`;
+      const words = narration.text.split(' ');
+      const lines: string[] = [];
+      let line = '';
+      for (const word of words) {
+        const test = line + word + ' ';
+        if (ctx.measureText(test).width > boxW - pad * 2 - borderW && line) {
+          lines.push(line.trim());
+          line = word + ' ';
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line.trim());
+      const lineH = fontSize * 1.5;
+      const editorialExtra = narration.style === "editorial" ? fontSize * 0.9 : 0;
+      const boxH = lines.length * lineH + pad * 2 + editorialExtra;
+      const boxX = margin;
+      const boxY = narration.position === "top" ? margin : pageHeight - boxH - margin;
+
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = ns.bg;
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.fillStyle = ns.border;
+      ctx.fillRect(boxX, boxY, borderW, boxH);
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = ns.color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      let textY = boxY + pad;
+      if (narration.style === "editorial") {
+        ctx.font = `${Math.round(fontSize * 0.65)}px ${ns.ff.replace(/'/g, '"')}`;
+        ctx.globalAlpha = 0.6;
+        ctx.fillText("EDITOR'S NOTE", boxX + borderW + pad, textY);
+        ctx.globalAlpha = 1;
+        textY += fontSize * 0.9;
+        ctx.font = `${fontSize}px ${ns.ff.replace(/'/g, '"')}`;
+      }
+      for (const l of lines) {
+        ctx.fillText(l, boxX + borderW + pad, textY);
+        textY += lineH;
+      }
+      ctx.restore();
+    }
+
     return canvas;
   };
 
@@ -1616,7 +1741,8 @@ export default function ComicCreator() {
     try {
       toast.info("Exporting print-ready page (300 DPI)...");
       const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
-      const canvas = await exportPageToCanvas(panels, 1988, 3075);
+      const narr = selectedPage === "left" ? currentSpread.leftNarration : currentSpread.rightNarration;
+      const canvas = await exportPageToCanvas(panels, 1988, 3075, narr);
       
       const link = document.createElement("a");
       link.download = `${title.replace(/\s+/g, "_")}_page_${currentSpreadIndex * 2 + (selectedPage === "left" ? 1 : 2)}.png`;
@@ -1671,7 +1797,7 @@ export default function ComicCreator() {
         
         if (spread.leftPage.length > 0) {
           pageNum++;
-          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075);
+          const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075, spread.leftNarration);
           const leftLink = document.createElement("a");
           leftLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           leftLink.href = leftCanvas.toDataURL("image/png");
@@ -1681,7 +1807,7 @@ export default function ComicCreator() {
         
         if (spread.rightPage.length > 0) {
           pageNum++;
-          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075);
+          const rightCanvas = await exportPageToCanvas(spread.rightPage, 1988, 3075, spread.rightNarration);
           const rightLink = document.createElement("a");
           rightLink.download = `${title.replace(/\s+/g, "_")}_page_${String(pageNum).padStart(2, "0")}.png`;
           rightLink.href = rightCanvas.toDataURL("image/png");
@@ -1976,11 +2102,11 @@ export default function ComicCreator() {
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
         if (spread.leftPage.length > 0) {
-          const canvas = await exportPageToCanvas(spread.leftPage, canvasW, canvasH);
+          const canvas = await exportPageToCanvas(spread.leftPage, canvasW, canvasH, spread.leftNarration);
           addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
         }
         if (spread.rightPage.length > 0) {
-          const canvas = await exportPageToCanvas(spread.rightPage, canvasW, canvasH);
+          const canvas = await exportPageToCanvas(spread.rightPage, canvasW, canvasH, spread.rightNarration);
           addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
         }
         if (spreads.length > 3) {
