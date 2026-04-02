@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings, Flag, BarChart3 } from "lucide-react";
+import { Users, FileText, Download, TrendingUp, ShieldCheck, Megaphone, Plus, Trash2, Edit, Star, Calendar, Settings, Flag, BarChart3, UserPlus, UserMinus, Copy, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useAdminStats, useAdminUsers, useAdminProjects } from "@/hooks/useAdmin";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,8 @@ import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { useAllAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from "@/hooks/useAnnouncements";
 import { toast } from "sonner";
+import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,8 +52,18 @@ export default function AdminDashboard() {
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
 
+  const queryClient = useQueryClient();
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [bulkAddOpen, setBulkAddOpen] = useState(false);
+  const [bulkEmailsText, setBulkEmailsText] = useState("");
+  const [bulkTier, setBulkTier] = useState("pro");
+  const [bulkAccountType, setBulkAccountType] = useState("student");
+  const [bulkAddLoading, setBulkAddLoading] = useState(false);
+  const [bulkResults, setBulkResults] = useState<any[] | null>(null);
+  const [bulkRemoveLoading, setBulkRemoveLoading] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [bulkRemoveAction, setBulkRemoveAction] = useState<"downgrade" | "delete">("downgrade");
   const [eventForm, setEventForm] = useState({
     title: "",
     description: "",
@@ -134,6 +146,87 @@ export default function AdminDashboard() {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const handleBulkAdd = async () => {
+    const lines = bulkEmailsText.split(/[\n,;]+/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      toast.error("Enter at least one email");
+      return;
+    }
+    const userList = lines.map(line => {
+      const parts = line.split(/\t+|\s{2,}/);
+      return { email: parts[0]?.trim(), name: parts[1]?.trim() || undefined };
+    });
+
+    setBulkAddLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/users/bulk-add", {
+        users: userList,
+        tier: bulkTier,
+        accountType: bulkAccountType,
+      });
+      const data = await res.json();
+      setBulkResults(data.results);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      const created = data.results.filter((r: any) => r.status === "created").length;
+      const existing = data.results.filter((r: any) => r.status === "exists").length;
+      toast.success(`${created} created, ${existing} already existed`);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkAddLoading(false);
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    if (selectedUserIds.size === 0) {
+      toast.error("Select users to remove first");
+      return;
+    }
+    setBulkRemoveLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/users/bulk-remove", {
+        userIds: Array.from(selectedUserIds),
+        action: bulkRemoveAction,
+      });
+      const data = await res.json();
+      const done = data.results.filter((r: any) => r.status === "done").length;
+      toast.success(`${done} users ${bulkRemoveAction === "delete" ? "deleted" : "downgraded"}`);
+      setSelectedUserIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBulkRemoveLoading(false);
+    }
+  };
+
+  const toggleUserSelection = (id: string) => {
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!users) return;
+    if (selectedUserIds.size === users.filter(u => u.role !== "admin").length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(users.filter(u => u.role !== "admin").map(u => u.id)));
+    }
+  };
+
+  const copyCredentials = () => {
+    if (!bulkResults) return;
+    const created = bulkResults.filter(r => r.status === "created");
+    const text = created.map(r => `${r.email}\t${r.password}`).join("\n");
+    navigator.clipboard.writeText(text);
+    toast.success("Credentials copied to clipboard");
   };
 
   if (user?.role !== "admin") {
@@ -285,12 +378,141 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="border border-border p-6 bg-card">
-          <h3 className="font-display font-bold text-lg mb-6">Recent Users</h3>
+        <div className="border border-border p-6 bg-card" data-testid="bulk-user-management">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display font-bold text-lg flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              User Management
+            </h3>
+            <div className="flex gap-2">
+              {selectedUserIds.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">{selectedUserIds.size} selected</span>
+                  <select
+                    value={bulkRemoveAction}
+                    onChange={(e) => setBulkRemoveAction(e.target.value as any)}
+                    className="bg-zinc-900 border border-white/20 text-white text-xs px-2 py-1"
+                    data-testid="select-bulk-remove-action"
+                  >
+                    <option value="downgrade">Downgrade to Free</option>
+                    <option value="delete">Delete Accounts</option>
+                  </select>
+                  <Button
+                    onClick={handleBulkRemove}
+                    disabled={bulkRemoveLoading}
+                    className={`text-xs ${bulkRemoveAction === "delete" ? "bg-red-600 hover:bg-red-700" : "bg-zinc-700 hover:bg-zinc-600"} text-white border-2 border-black shadow-[3px_3px_0_#000]`}
+                    data-testid="button-bulk-remove"
+                  >
+                    <UserMinus className="w-3 h-3 mr-1" />
+                    {bulkRemoveLoading ? "Processing..." : bulkRemoveAction === "delete" ? "Delete Selected" : "Downgrade Selected"}
+                  </Button>
+                </div>
+              )}
+              <Dialog open={bulkAddOpen} onOpenChange={(open) => { setBulkAddOpen(open); if (!open) setBulkResults(null); }}>
+                <DialogTrigger asChild>
+                  <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-bulk-add-open">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Bulk Add Users
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-zinc-950 border-white/20 max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Bulk Add Users</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label className="text-white">Emails (one per line, or comma-separated)</Label>
+                      <p className="text-xs text-zinc-400">Optional: add a name after the email separated by a tab or double-space</p>
+                      <textarea
+                        value={bulkEmailsText}
+                        onChange={(e) => setBulkEmailsText(e.target.value)}
+                        placeholder={"student1@school.edu\nstudent2@school.edu  Jane Doe\nstudent3@school.edu"}
+                        className="w-full bg-zinc-900 border border-white/20 text-white p-3 font-mono text-sm min-h-[150px]"
+                        data-testid="textarea-bulk-emails"
+                      />
+                      <p className="text-xs text-zinc-500">{bulkEmailsText.split(/[\n,;]+/).filter(l => l.trim()).length} emails detected</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-white">Subscription Tier</Label>
+                        <select
+                          value={bulkTier}
+                          onChange={(e) => setBulkTier(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/20 text-white p-2"
+                          data-testid="select-bulk-tier"
+                        >
+                          <option value="free">Free</option>
+                          <option value="creator">Creator</option>
+                          <option value="pro">Pro</option>
+                          <option value="studio">Studio</option>
+                          <option value="school">School</option>
+                          <option value="lifetime">Lifetime</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-white">Account Type</Label>
+                        <select
+                          value={bulkAccountType}
+                          onChange={(e) => setBulkAccountType(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/20 text-white p-2"
+                          data-testid="select-bulk-account-type"
+                        >
+                          <option value="student">Student (6-17)</option>
+                          <option value="creator">Creator (18+)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleBulkAdd}
+                      disabled={bulkAddLoading}
+                      className="w-full bg-white text-black hover:bg-zinc-200 border-2 border-black shadow-[4px_4px_0_#000]"
+                      data-testid="button-bulk-add-submit"
+                    >
+                      {bulkAddLoading ? "Creating accounts..." : "Create Accounts"}
+                    </Button>
+
+                    {bulkResults && (
+                      <div className="space-y-3 border-t border-white/10 pt-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-white font-bold text-sm">Results</h4>
+                          {bulkResults.some(r => r.status === "created") && (
+                            <Button onClick={copyCredentials} size="sm" className="bg-zinc-800 text-white hover:bg-zinc-700 text-xs" data-testid="button-copy-credentials">
+                              <Copy className="w-3 h-3 mr-1" /> Copy Credentials
+                            </Button>
+                          )}
+                        </div>
+                        <div className="max-h-[250px] overflow-y-auto space-y-1">
+                          {bulkResults.map((r, i) => (
+                            <div key={i} className={`flex items-center gap-2 text-xs font-mono p-2 ${r.status === "created" ? "bg-green-950/30 text-green-400" : r.status === "exists" ? "bg-yellow-950/30 text-yellow-400" : "bg-red-950/30 text-red-400"}`}>
+                              {r.status === "created" ? <CheckCircle className="w-3 h-3 flex-shrink-0" /> : r.status === "exists" ? <AlertCircle className="w-3 h-3 flex-shrink-0" /> : <XCircle className="w-3 h-3 flex-shrink-0" />}
+                              <span className="flex-1 truncate">{r.email}</span>
+                              {r.status === "created" && <span className="text-zinc-400">pass: {r.password}</span>}
+                              {r.status === "exists" && <span>already exists (tier updated)</span>}
+                              {r.status === "error" && <span>{r.error}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left py-3 px-2 w-8">
+                    <input
+                      type="checkbox"
+                      checked={users ? selectedUserIds.size === users.filter(u => u.role !== "admin").length && selectedUserIds.size > 0 : false}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4"
+                      data-testid="checkbox-select-all-users"
+                    />
+                  </th>
                   <th className="text-left py-3 px-4 font-mono text-xs uppercase">Name</th>
                   <th className="text-left py-3 px-4 font-mono text-xs uppercase">Email</th>
                   <th className="text-left py-3 px-4 font-mono text-xs uppercase">Role</th>
@@ -298,17 +520,28 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {users?.slice(0, 10).map((user) => (
-                  <tr key={user.id} className="border-b border-border/50 hover:bg-secondary/20">
-                    <td className="py-3 px-4 font-medium">{user.name}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
+                {users?.map((u) => (
+                  <tr key={u.id} className={`border-b border-border/50 hover:bg-secondary/20 ${selectedUserIds.has(u.id) ? "bg-white/5" : ""}`}>
+                    <td className="py-3 px-2">
+                      {u.role !== "admin" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.has(u.id)}
+                          onChange={() => toggleUserSelection(u.id)}
+                          className="w-4 h-4"
+                          data-testid={`checkbox-user-${u.id}`}
+                        />
+                      )}
+                    </td>
+                    <td className="py-3 px-4 font-medium">{u.name}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{u.email}</td>
                     <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-1 ${user.role === 'admin' ? 'bg-black text-white' : 'bg-secondary'}`}>
-                        {user.role}
+                      <span className={`text-xs px-2 py-1 ${u.role === 'admin' ? 'bg-black text-white' : 'bg-secondary'}`}>
+                        {u.role}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
                     </td>
                   </tr>
                 ))}

@@ -1823,6 +1823,137 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/admin/users/bulk-add", isAdmin, async (req, res) => {
+    try {
+      const { users: userList, tier, accountType, schoolId } = req.body;
+      if (!Array.isArray(userList) || userList.length === 0) {
+        return res.status(400).json({ message: "users array is required" });
+      }
+      if (userList.length > 200) {
+        return res.status(400).json({ message: "Maximum 200 users per batch" });
+      }
+
+      const results: { email: string; status: "created" | "exists" | "error"; password?: string; error?: string }[] = [];
+
+      for (const entry of userList) {
+        const email = (entry.email || "").trim().toLowerCase();
+        if (!email || !email.includes("@")) {
+          results.push({ email: email || "(empty)", status: "error", error: "Invalid email" });
+          continue;
+        }
+        try {
+          const existing = await storage.getUserByEmail(email);
+          if (existing) {
+            if (tier) {
+              const existingSub = await storage.getUserSubscription(existing.id);
+              if (existingSub) {
+                await storage.updateSubscription(existing.id, { tier, status: "active" });
+              } else {
+                await storage.createSubscription({ userId: existing.id, tier, status: "active" });
+              }
+            }
+            results.push({ email, status: "exists" });
+            continue;
+          }
+
+          const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+          let tempPassword = "";
+          for (let i = 0; i < 10; i++) tempPassword += chars[Math.floor(Math.random() * chars.length)];
+
+          const hashed = await hashPassword(tempPassword);
+          const name = entry.name || email.split("@")[0];
+
+          const newUser = await storage.createUser({
+            email,
+            password: hashed,
+            name,
+            role: "creator",
+            accountType: accountType || "student",
+          });
+
+          if (tier) {
+            await storage.createSubscription({
+              userId: newUser.id,
+              tier,
+              status: "active",
+            });
+          }
+
+          if (schoolId) {
+            try {
+              await db.insert(schoolMemberships).values({ userId: newUser.id, schoolId, role: "student" });
+            } catch {}
+          }
+
+          results.push({ email, status: "created", password: tempPassword });
+        } catch (err: any) {
+          results.push({ email, status: "error", error: err.message });
+        }
+      }
+
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: "bulk_add_users",
+        targetType: "user",
+        targetId: "bulk",
+        details: { count: userList.length, created: results.filter(r => r.status === "created").length, existing: results.filter(r => r.status === "exists").length },
+      });
+
+      res.json({ results });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/users/bulk-remove", isAdmin, async (req, res) => {
+    try {
+      const { userIds, action } = req.body;
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ message: "userIds array is required" });
+      }
+      if (userIds.length > 200) {
+        return res.status(400).json({ message: "Maximum 200 users per batch" });
+      }
+
+      const results: { id: string; email?: string; status: "done" | "error"; error?: string }[] = [];
+
+      for (const userId of userIds) {
+        try {
+          if (action === "downgrade") {
+            const existingSub = await storage.getUserSubscription(userId);
+            if (existingSub) {
+              await storage.updateSubscription(userId, { tier: "free", status: "active" });
+            }
+            results.push({ id: userId, status: "done" });
+          } else if (action === "delete") {
+            await storage.deleteUserAccount(userId);
+            results.push({ id: userId, status: "done" });
+          } else {
+            const existingSub = await storage.getUserSubscription(userId);
+            if (existingSub) {
+              await storage.updateSubscription(userId, { tier: "free", status: "inactive" });
+            }
+            results.push({ id: userId, status: "done" });
+          }
+        } catch (err: any) {
+          results.push({ id: userId, status: "error", error: err.message });
+        }
+      }
+
+      await storage.createAdminLog({
+        adminId: req.user!.id,
+        action: `bulk_${action || "downgrade"}_users`,
+        targetType: "user",
+        targetId: "bulk",
+        details: { count: userIds.length, done: results.filter(r => r.status === "done").length },
+      });
+
+      res.json({ results });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/admin/projects", isAdmin, async (req, res) => {
     try {
       const projects = await storage.getAllProjects();
