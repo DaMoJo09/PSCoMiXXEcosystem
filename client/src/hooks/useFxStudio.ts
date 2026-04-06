@@ -23,6 +23,7 @@ const FX_MODES: Record<string, string> = {
   title: "/title",
   bubble: "/bubble",
   script: "/script",
+  hops: "/hops",
 };
 
 export interface FxReturnPayload {

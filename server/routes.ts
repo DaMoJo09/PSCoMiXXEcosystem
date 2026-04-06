@@ -612,7 +612,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const validActions = ['save', 'export', 'generate', 'publish', 'project_created', 'export_completed', 
         'ai_generation', 'profile_complete', 'first_login', 'daily_login', 'lesson_complete', 
         'assignment_complete', 'challenge_participation', 'first_share', 'subscription_started',
-        'hop_created', 'hop_saved', 'hop_published', 'hop_series_created'];
+        'hop_created', 'hop_saved', 'hop_published', 'hop_series_created',
+        'hop_asset_sent', 'hop_comic_converted'];
       if (!action || !validActions.includes(action)) {
         return res.status(400).json({ message: "Invalid action type" });
       }

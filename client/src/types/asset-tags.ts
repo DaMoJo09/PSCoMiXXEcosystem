@@ -26,7 +26,10 @@ export type AssetTag =
   | "chapter-break"
   | "prop"
   | "script"
-  | "comic-script";
+  | "comic-script"
+  | "hop-scene"
+  | "hop-overlay"
+  | "hop-loop";
 
 export type AssetType =
   | "static-asset"
@@ -45,6 +48,7 @@ export type AssetType =
   | "title"
   | "bubble"
   | "script-package"
+  | "hop-asset"
   | string;
 
 export interface SyncPayload {
@@ -82,6 +86,7 @@ export const ASSET_FOLDER_GROUPS: AssetFolderGroup[] = [
   { label: "Art & Drawing", tags: ["graffiti"] },
   { label: "Props & Misc", tags: ["price-tag", "barcode", "logo", "prop"] },
   { label: "Scripts", tags: ["script", "comic-script"] },
+  { label: "HOPs", tags: ["hop-scene", "hop-overlay", "hop-loop"] },
 ];
 
 export const ASSET_TAG_LABELS: Record<AssetTag, string> = {
@@ -113,6 +118,9 @@ export const ASSET_TAG_LABELS: Record<AssetTag, string> = {
   "prop": "Prop",
   "script": "Script",
   "comic-script": "Comic Script",
+  "hop-scene": "HOP Scene",
+  "hop-overlay": "HOP Overlay",
+  "hop-loop": "HOP Loop",
 };
 
 export const FX_MODE_TYPE_MAP: Record<string, { defaultTag: AssetTag; label: string }> = {
@@ -130,6 +138,7 @@ export const FX_MODE_TYPE_MAP: Record<string, { defaultTag: AssetTag; label: str
   "script-package": { defaultTag: "script", label: "Script" },
   "library-asset": { defaultTag: "prop", label: "Library" },
   "comic-script": { defaultTag: "comic-script", label: "Script" },
+  "hop-asset": { defaultTag: "hop-scene", label: "HOP" },
   "comixx-panel-export": { defaultTag: "interior-page", label: "Panel Export" },
   "panel-fx-return": { defaultTag: "fx-overlay", label: "FX Return" },
 };

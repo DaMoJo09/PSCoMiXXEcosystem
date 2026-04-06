@@ -2783,6 +2783,139 @@ export default function ComicCreator() {
     }
   };
 
+  const sendPanelToHop = async (page: "left" | "right", panelId: string) => {
+    const panels = page === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+    const panel = panels.find(p => p.id === panelId);
+    if (!panel) {
+      toast.error("Panel not found");
+      return;
+    }
+
+    const toastId = toast.loading("Capturing panel for HOP Builder...");
+    try {
+      const exportW = 1200;
+      const exportH = 1600;
+      const panelW = (panel.width / 100) * exportW;
+      const panelH = (panel.height / 100) * exportH;
+
+      const singlePanelForExport: Panel[] = [{
+        ...panel,
+        x: 0, y: 0, width: 100, height: 100,
+      }];
+
+      const canvas = await exportPageToCanvas(singlePanelForExport, Math.round(panelW), Math.round(panelH));
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const spreadLabel = `Spread ${currentSpreadIndex + 1}`;
+      const panelLabel = `${page === "left" ? "L" : "R"}-Panel`;
+
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${title || "Untitled"} — ${spreadLabel} ${panelLabel}`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        target_page: currentSpreadIndex,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/comic",
+        source_panel_id: panelId,
+        type: "hop-asset",
+        metadata: {
+          panel_id: panelId,
+          page_side: page,
+          spread_index: currentSpreadIndex,
+        },
+        mode_hints: {
+          hop: {
+            suggestedDuration: 5,
+            assetType: "image",
+            transition: "fade",
+          },
+        },
+      });
+
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+
+      toast.success("Panel sent — opening HOP Builder", { id: toastId });
+
+      fxStudio.openFxStudio({
+        mode: "hops",
+        effectId: result?.id,
+        panelId,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send panel to HOP Builder", { id: toastId });
+    }
+  };
+
+  const convertComicToHop = async () => {
+    if (spreads.length === 0) {
+      toast.error("No spreads to convert");
+      return;
+    }
+
+    const toastId = toast.loading(`Converting ${spreads.length} spreads to HOP scenes...`);
+    try {
+      let sceneOrder = 0;
+      for (let si = 0; si < spreads.length; si++) {
+        const spread = spreads[si];
+        for (const side of ["leftPage", "rightPage"] as const) {
+          const panels = spread[side];
+          if (!panels || panels.length === 0) continue;
+
+          const exportW = 1200;
+          const exportH = 1600;
+          const canvas = await exportPageToCanvas(panels, exportW, exportH);
+          const dataUrl = canvas.toDataURL("image/png");
+
+          await fxStudioApi.pushTaggedAsset({
+            name: `${title || "Untitled"} — Page ${sceneOrder + 1}`,
+            asset_tag: "hop-scene",
+            preview_data_url: dataUrl,
+            target_page: si,
+            project_id: effectiveProjectId || undefined,
+            source_mode: "/creator/comic",
+            type: "hop-asset",
+            metadata: {
+              spread_index: si,
+              page_side: side === "leftPage" ? "left" : "right",
+            },
+            mode_hints: {
+              hop: {
+                sceneOrder,
+                suggestedDuration: 5,
+                assetType: "image",
+                transition: "fade",
+                caption: `Page ${sceneOrder + 1}`,
+              },
+            },
+          });
+          sceneOrder++;
+        }
+      }
+
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_comic_converted" }),
+      }).catch(() => {});
+
+      toast.success(`${sceneOrder} pages sent to HOP Builder`, {
+        id: toastId,
+        action: {
+          label: "Open HOP Builder",
+          onClick: () => { fxStudio.openFxStudio({ mode: "hops" }); },
+        },
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to convert comic to HOP", { id: toastId });
+    }
+  };
+
   const applyFxToPanel = (effect: FxEffect) => {
     if (!selectedPanelId) {
       toast.error("Select a panel first");
@@ -4226,6 +4359,10 @@ export default function ComicCreator() {
                 <DropdownMenuItem onClick={handleSyncAllPages} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400">
                   <Share2 className="w-4 h-4 mr-2" /> Sync All Pages to CoMiXX
                 </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem onClick={convertComicToHop} className="hover:bg-zinc-800 cursor-pointer text-pink-400" data-testid="button-convert-to-hop">
+                  <Film className="w-4 h-4 mr-2" /> Convert Comic to HOP
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             {effectiveProjectId && (
@@ -4700,6 +4837,13 @@ export default function ComicCreator() {
                       >
                         <ExternalLink className="w-4 h-4 mr-2" /> Send to FX Studio
                       </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => sendPanelToHop("left", selectedPanelId)}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                        data-testid="button-send-panel-hop-left"
+                      >
+                        <Film className="w-4 h-4 mr-2" /> Send to HOP
+                      </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>
                         <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -4972,6 +5116,13 @@ export default function ComicCreator() {
                         data-testid="button-send-panel-fx-right"
                       >
                         <ExternalLink className="w-4 h-4 mr-2" /> Send to FX Studio
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={() => sendPanelToHop("right", selectedPanelId)}
+                        className="hover:bg-zinc-800 cursor-pointer"
+                        data-testid="button-send-panel-hop-right"
+                      >
+                        <Film className="w-4 h-4 mr-2" /> Send to HOP
                       </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-700" />
                       <ContextMenuSub>
