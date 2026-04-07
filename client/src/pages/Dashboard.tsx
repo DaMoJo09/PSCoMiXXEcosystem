@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown, Eye, Heart, Monitor } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
-import { useProjects, useDeleteProject, useCreateProject } from "@/hooks/useProjects";
+import { useProjects, useDeleteProject, useCreateProject, useUpdateProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -169,6 +169,7 @@ export default function Dashboard() {
   const { data: projects, isLoading } = useProjects();
   const deleteProject = useDeleteProject();
   const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const { completed: onboardingComplete, markComplete: markOnboardingComplete } = useOnboarding(user?.id);
@@ -214,6 +215,16 @@ export default function Dashboard() {
     try {
       await deleteProject.mutateAsync(id);
       toast.success("Project deleted");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handlePublish = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "published" ? "draft" : "published";
+    try {
+      await updateProject.mutateAsync({ id, data: { status: newStatus } as any });
+      toast.success(newStatus === "published" ? "Published to Community Library!" : "Unpublished — back to draft");
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -889,16 +900,29 @@ export default function Dashboard() {
                       <h3 className="font-bold font-display truncate pr-2" data-testid={`text-project-title-${project.id}`}>
                         {project.title}
                       </h3>
-                      <button
-                        className="text-muted-foreground hover:text-red-500 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(project.id);
-                        }}
-                        data-testid={`button-delete-${project.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          className={`transition-colors ${project.status === "published" ? "text-green-400 hover:text-yellow-500" : "text-muted-foreground hover:text-green-400"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePublish(project.id, project.status);
+                          }}
+                          title={project.status === "published" ? "Unpublish" : "Publish to Community"}
+                          data-testid={`button-publish-${project.id}`}
+                        >
+                          <Globe className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="text-muted-foreground hover:text-red-500 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(project.id);
+                          }}
+                          data-testid={`button-delete-${project.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground font-mono mb-4">
                       Edited {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}

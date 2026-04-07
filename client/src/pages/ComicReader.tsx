@@ -831,10 +831,11 @@ function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContent
   const drawingData = item.data?.drawingData || "";
 
   const transform = item.transform;
-  const leftPct = transform && panelWidth > 0 ? (transform.x / panelWidth) * 100 : 0;
-  const topPct = transform && panelHeight > 0 ? (transform.y / panelHeight) * 100 : 0;
-  const widthPct = transform && panelWidth > 0 ? (transform.width / panelWidth) * 100 : 100;
-  const heightPct = transform && panelHeight > 0 ? (transform.height / panelHeight) * 100 : 100;
+  const hasFullTransform = transform && transform.width && transform.height;
+  const leftPct = hasFullTransform && panelWidth > 0 ? (transform.x / panelWidth) * 100 : 0;
+  const topPct = hasFullTransform && panelHeight > 0 ? (transform.y / panelHeight) * 100 : 0;
+  const widthPct = hasFullTransform && panelWidth > 0 ? (transform.width / panelWidth) * 100 : 100;
+  const heightPct = hasFullTransform && panelHeight > 0 ? (transform.height / panelHeight) * 100 : 100;
 
   const positionStyle: React.CSSProperties = transform ? {
     position: "absolute",
