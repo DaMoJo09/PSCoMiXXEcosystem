@@ -3,8 +3,9 @@ import {
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
   Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map,
-  Variable, Filter, Eye, EyeOff, Code, Sparkles
+  Variable, Filter, Eye, EyeOff, Code, Sparkles, Film
 } from "lucide-react";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -396,6 +397,9 @@ export default function CYOABuilder() {
     sourceMode: "/creator/cyoa",
     projectId: effectiveProjectId || undefined,
   });
+  const fxStudio = useFxStudio({
+    projectId: effectiveProjectId || undefined,
+  });
   const creationAttempted = useRef(false);
   const cyoaAudioRef = useRef<HTMLAudioElement | null>(null);
   const [storyText, setStoryText] = useState("");
@@ -688,6 +692,60 @@ export default function CYOABuilder() {
 
   const exitPreview = () => { setPreviewMode(false); setIsFullscreenPreview(false); setCurrentNode(null); setPathHistory([]); playCyoaAudio(); };
 
+  const sendCyoaToHop = async () => {
+    if (nodes.length === 0) { toast.error("Add at least one node first"); return; }
+    const toastId = toast.loading("Sending CYOA to HOP Builder...");
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200; canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#18181b";
+        ctx.fillRect(0, 0, 1200, 900);
+        ctx.fillStyle = "#22d3ee";
+        ctx.font = "bold 36px sans-serif";
+        ctx.fillText(title, 40, 80);
+        ctx.fillStyle = "#a1a1aa";
+        ctx.font = "18px sans-serif";
+        ctx.fillText(`${nodes.length} nodes • Interactive Fiction`, 40, 120);
+        nodes.slice(0, 8).forEach((node, i) => {
+          const y = 180 + i * 80;
+          ctx.fillStyle = "#27272a";
+          ctx.fillRect(40, y, 1120, 60);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 14px sans-serif";
+          ctx.fillText(node.title || `Node ${i + 1}`, 60, y + 25);
+          ctx.fillStyle = "#71717a";
+          ctx.font = "12px sans-serif";
+          ctx.fillText(node.text.substring(0, 80) + (node.text.length > 80 ? "..." : ""), 60, y + 45);
+        });
+      }
+      const dataUrl = canvas.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${title} — CYOA Story`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/cyoa",
+        type: "hop-asset",
+        metadata: { nodeCount: nodes.length, storyTitle: title },
+        mode_hints: {
+          hop: { suggestedDuration: 5, assetType: "image", transition: "fade" },
+        },
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+      toast.success("CYOA sent — opening HOP Builder", { id: toastId });
+      fxStudio.openFxStudio({ mode: "hops", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send CYOA to HOP Builder", { id: toastId });
+    }
+  };
+
   const exportCYOA = (format: "cyoa" | "json" | "txt" | "html") => {
     let data: string; let mimeType = "text/plain";
     if (format === "html") {
@@ -946,6 +1004,13 @@ if(N.length>0)showN(N[0].id);
                 </div>
               )}
             </div>
+            <button
+              onClick={sendCyoaToHop}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-orange-500/30 text-orange-400 text-sm font-bold flex items-center gap-2"
+              data-testid="button-use-as-hop"
+            >
+              <Film className="w-4 h-4" /> Use as HOP
+            </button>
             <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>

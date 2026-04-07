@@ -3,10 +3,12 @@ import { captureElement } from "@/lib/canvasCapture";
 import { 
   Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
-  Copy, Layers, Eye, Pen, Share2, Printer, Users, Trophy, Grid3X3
+  Copy, Layers, Eye, Pen, Share2, Printer, Users, Trophy, Grid3X3, Film, Music, Volume2
 } from "lucide-react";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
+import { fxStudioApi } from "@/lib/api";
 import type { FxEffect } from "@/lib/api";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -219,6 +221,8 @@ interface CardData {
   imageOffsetX: number;
   imageOffsetY: number;
   imageScale: number;
+  imageRotation: number;
+  audioUrl?: string;
   cardMode?: "tcg" | "sports";
   sport?: string;
   position?: string;
@@ -292,7 +296,12 @@ export default function CardCreator() {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const cardPreviewRef = useRef<HTMLDivElement>(null);
+
+  const fxStudio = useFxStudio({
+    projectId: effectiveProjectId || undefined,
+  });
 
   const switchCardMode = (newMode: "tcg" | "sports") => {
     setCardMode(newMode);
@@ -351,6 +360,7 @@ export default function CardCreator() {
     imageOffsetX: 0,
     imageOffsetY: 0,
     imageScale: 100,
+    imageRotation: 0,
     cardMode: "tcg",
   });
 
@@ -564,7 +574,7 @@ export default function CardCreator() {
     reader.onload = (event) => {
       const url = event.target?.result as string;
       if (side === "front") {
-        updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 });
+        updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100, imageRotation: 0 });
       } else {
         updateCard({ backImage: url });
       }
@@ -588,7 +598,7 @@ export default function CardCreator() {
 
   const handleAIGenerated = (url: string) => {
     if (side === "front") {
-      updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 });
+      updateCard({ frontImage: url, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100, imageRotation: 0 });
     } else {
       updateCard({ backImage: url });
     }
@@ -596,15 +606,60 @@ export default function CardCreator() {
     toast.success("AI image applied");
   };
 
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updateCard({ audioUrl: event.target?.result as string });
+      toast.success("Audio added to card");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const sendCardToHop = async () => {
+    if (!cardPreviewRef.current) { toast.error("Card preview not ready"); return; }
+    const toastId = toast.loading("Sending card to HOP Builder...");
+    try {
+      const el = cardPreviewRef.current;
+      const canvas = await captureElement(el, { scale: 2 });
+      const dataUrl = canvas.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${cardData.name || "Card"} — Trading Card`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/card",
+        type: "hop-asset",
+        metadata: { cardMode, cardName: cardData.name },
+        mode_hints: {
+          hop: { suggestedDuration: 5, assetType: "image", transition: "fade" },
+        },
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+      toast.success("Card sent — opening HOP Builder", { id: toastId });
+      fxStudio.openFxStudio({ mode: "hops", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send card to HOP Builder", { id: toastId });
+    }
+  };
+
   const getImageTransformStyle = (): React.CSSProperties => {
     const s = (cardData.imageScale || 100) / 100;
     const ox = cardData.imageOffsetX || 0;
     const oy = cardData.imageOffsetY || 0;
+    const rot = cardData.imageRotation || 0;
     return {
       width: "100%",
       height: "100%",
       objectFit: "cover" as const,
-      transform: `translate(${ox}px, ${oy}px) scale(${s})`,
+      transform: `translate(${ox}px, ${oy}px) scale(${s}) rotate(${rot}deg)`,
       transformOrigin: "center center",
     };
   };
@@ -679,6 +734,7 @@ export default function CardCreator() {
       imageOffsetX: 0,
       imageOffsetY: 0,
       imageScale: 100,
+      imageRotation: 0,
       cardMode: isSports ? "sports" : "tcg",
       sport: packData.sport,
       position: isSports ? positions[packData.cards.length % positions.length] : "",
@@ -972,6 +1028,13 @@ export default function CardCreator() {
                 <Printer className="w-4 h-4" /> Print Team Sheet
               </button>
             )}
+            <button
+              onClick={sendCardToHop}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-orange-500/30 text-orange-400 text-sm font-bold flex items-center gap-2"
+              data-testid="button-use-as-hop"
+            >
+              <Film className="w-4 h-4" /> Use as HOP
+            </button>
             {effectiveProjectId && (
               <PostComposer
                 projectId={effectiveProjectId}
@@ -1381,13 +1444,60 @@ export default function CardCreator() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-zinc-400">Rotation</span>
+                      <span className="text-xs text-zinc-500">{cardData.imageRotation}°</span>
+                    </div>
+                    <input
+                      type="range" min="-180" max="180" step="1"
+                      value={cardData.imageRotation}
+                      onChange={(e) => updateCard({ imageRotation: Number(e.target.value) })}
+                      className="w-full accent-white"
+                      data-testid="input-image-rotation"
+                    />
+                  </div>
+
                   <button
-                    onClick={() => updateCard({ imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 })}
+                    onClick={() => updateCard({ imageOffsetX: 0, imageOffsetY: 0, imageScale: 100, imageRotation: 0 })}
                     className="w-full py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600"
                     data-testid="button-reset-transform"
                   >
                     Reset Transform
                   </button>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700 space-y-2">
+                  <label className="text-xs font-bold uppercase text-zinc-400">Card Audio</label>
+                  {cardData.audioUrl ? (
+                    <div className="space-y-2">
+                      <audio src={cardData.audioUrl} controls className="w-full h-8" />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => audioInputRef.current?.click()}
+                          className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1"
+                          data-testid="button-replace-audio"
+                        >
+                          <Music className="w-3 h-3" /> Replace
+                        </button>
+                        <button
+                          onClick={() => updateCard({ audioUrl: undefined })}
+                          className="py-1.5 px-2 text-xs bg-zinc-800 hover:bg-red-900 border border-zinc-600 text-red-400"
+                          data-testid="button-remove-audio"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => audioInputRef.current?.click()}
+                      className="w-full py-2 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 border-dashed flex items-center justify-center gap-2"
+                      data-testid="button-add-audio"
+                    >
+                      <Volume2 className="w-3 h-3" /> Add Audio
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -2640,6 +2750,7 @@ export default function CardCreator() {
         <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />
         <input ref={backInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "back")} />
         <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+        <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
 
         {showAIGen && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -2665,7 +2776,7 @@ export default function CardCreator() {
               initialData={side === "front" ? cardData.frontImage : cardData.backImage}
               onSave={(rasterData) => {
                 if (side === "front") {
-                  setCardData(prev => ({ ...prev, frontImage: rasterData, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100 }));
+                  setCardData(prev => ({ ...prev, frontImage: rasterData, imageOffsetX: 0, imageOffsetY: 0, imageScale: 100, imageRotation: 0 }));
                 } else {
                   setCardData(prev => ({ ...prev, backImage: rasterData }));
                 }

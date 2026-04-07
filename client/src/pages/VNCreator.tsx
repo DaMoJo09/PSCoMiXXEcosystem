@@ -4,8 +4,9 @@ import {
   MessageSquare, GitBranch, User, Upload, Wand2, X,
   Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
   BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
-  ChevronLeft, ChevronRight, FileText, Sparkles
+  ChevronLeft, ChevronRight, FileText, Sparkles, Film
 } from "lucide-react";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -494,6 +495,11 @@ export default function VNCreator() {
     sourceMode: "/creator/vn",
     projectId: effectiveProjectId || undefined,
   });
+  const fxStudio = useFxStudio({
+    projectId: effectiveProjectId || undefined,
+  });
+  const vnAudioInputRef = useRef<HTMLInputElement>(null);
+  const [audioUploadSceneId, setAudioUploadSceneId] = useState<string | null>(null);
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
@@ -681,6 +687,74 @@ export default function VNCreator() {
   };
 
   const stopMusic = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } };
+
+  const handleVnAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !audioUploadSceneId) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updateScene(audioUploadSceneId, { musicUrl: event.target?.result as string });
+      toast.success("Audio added to scene");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+    setAudioUploadSceneId(null);
+  };
+
+  const sendVnToHop = async () => {
+    if (scenes.length === 0) { toast.error("Add at least one scene first"); return; }
+    const toastId = toast.loading("Sending VN to HOP Builder...");
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200; canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#18181b";
+        ctx.fillRect(0, 0, 1200, 900);
+        ctx.fillStyle = "#c084fc";
+        ctx.font = "bold 36px sans-serif";
+        ctx.fillText(title, 40, 80);
+        ctx.fillStyle = "#a1a1aa";
+        ctx.font = "18px sans-serif";
+        ctx.fillText(`${scenes.length} scenes • ${characters.length} characters • Visual Novel`, 40, 120);
+        scenes.slice(0, 6).forEach((scene, i) => {
+          const y = 180 + i * 100;
+          ctx.fillStyle = "#27272a";
+          ctx.fillRect(40, y, 1120, 80);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 14px sans-serif";
+          ctx.fillText(scene.name, 60, y + 25);
+          ctx.fillStyle = "#71717a";
+          ctx.font = "12px sans-serif";
+          const firstLine = scene.dialogue[0];
+          if (firstLine) ctx.fillText(`${firstLine.speaker}: ${firstLine.text.substring(0, 60)}...`, 60, y + 50);
+        });
+      }
+      const dataUrl = canvas.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${title} — Visual Novel`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/vn",
+        type: "hop-asset",
+        metadata: { sceneCount: scenes.length, storyTitle: title },
+        mode_hints: {
+          hop: { suggestedDuration: 5, assetType: "image", transition: "fade" },
+        },
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+      toast.success("VN sent — opening HOP Builder", { id: toastId });
+      fxStudio.openFxStudio({ mode: "hops", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send VN to HOP Builder", { id: toastId });
+    }
+  };
 
   const handleExportJSON = () => {
     const data = { title, scenes, characters, backgrounds };
@@ -1155,6 +1229,13 @@ if(S.length>0)showS(0);
                 </div>
               )}
             </div>
+            <button
+              onClick={sendVnToHop}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-orange-500/30 text-orange-400 text-sm font-bold flex items-center gap-2"
+              data-testid="button-use-as-hop"
+            >
+              <Film className="w-4 h-4" /> Use as HOP
+            </button>
             <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
@@ -1202,8 +1283,24 @@ if(S.length>0)showS(0);
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Music URL</label>
-                            <input value={scene.musicUrl || ""} onChange={(e) => updateScene(scene.id, { musicUrl: e.target.value })} className="w-full p-1 bg-zinc-200 text-black text-xs border-none" placeholder="https://..." />
+                            <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Scene Audio</label>
+                            {scene.musicUrl ? (
+                              <div className="flex gap-1 items-center">
+                                <audio src={scene.musicUrl} controls className="h-6 flex-1" style={{ maxWidth: "160px" }} />
+                                <button onClick={() => { setAudioUploadSceneId(scene.id); vnAudioInputRef.current?.click(); }} className="text-[10px] text-zinc-400 hover:text-white px-1">Replace</button>
+                                <button onClick={() => updateScene(scene.id, { musicUrl: undefined })} className="text-[10px] text-red-400 hover:text-red-300 px-1">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setAudioUploadSceneId(scene.id); vnAudioInputRef.current?.click(); }}
+                                className="w-full p-1 bg-zinc-200 text-zinc-600 text-xs border-none cursor-pointer hover:bg-zinc-300 flex items-center justify-center gap-1"
+                                data-testid={`button-scene-audio-${scene.id}`}
+                              >
+                                <Music className="w-3 h-3" /> Upload Audio
+                              </button>
+                            )}
                           </div>
                           <div>
                             <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-1">Tint Color</label>
@@ -1515,6 +1612,8 @@ if(S.length>0)showS(0);
             </div>
           </div>
         )}
+
+        <input ref={vnAudioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleVnAudioUpload} />
 
         {showFxBrowser && (
           <div className="fixed top-16 right-4 w-96 max-h-[80vh] bg-black border border-purple-500/30 shadow-[4px_4px_0px_0px_rgba(168,85,247,0.3)] z-50 overflow-hidden flex flex-col">

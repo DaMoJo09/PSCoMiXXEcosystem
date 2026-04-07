@@ -3,11 +3,13 @@ import { captureElement } from "@/lib/canvasCapture";
 import { 
   Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
   RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen,
-  Undo2, Redo2, Ruler, FileText,
+  Undo2, Redo2, Ruler, FileText, Film, Sparkles, Share2,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   ChevronsUp, ChevronsDown, ChevronUp, ChevronDown
 } from "lucide-react";
+import { fxStudioApi } from "@/lib/api";
+import { useFxStudio } from "@/hooks/useFxStudio";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
@@ -314,6 +316,68 @@ export default function CoverCreator() {
   const [showGuides, setShowGuides] = useState(false);
   const [selectedMasterElement, setSelectedMasterElement] = useState<string | null>(null);
 
+  const fxStudio = useFxStudio({
+    projectId: effectiveProjectId || undefined,
+  });
+
+  const sendCoverToHop = async () => {
+    if (!canvasRef.current) { toast.error("Canvas not ready"); return; }
+    const toastId = toast.loading("Sending cover to HOP Builder...");
+    try {
+      const canvas = await captureElement(canvasRef.current, { scale: 2 });
+      const dataUrl = canvas.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${coverData.title || "Cover"} — Cover Art`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/cover",
+        type: "hop-asset",
+        metadata: { coverTitle: coverData.title },
+        mode_hints: {
+          hop: { suggestedDuration: 5, assetType: "image", transition: "fade" },
+        },
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+      toast.success("Cover sent — opening HOP Builder", { id: toastId });
+      fxStudio.openFxStudio({ mode: "hops", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send cover to HOP Builder", { id: toastId });
+    }
+  };
+
+  const sendCoverToFxStudio = async () => {
+    if (!canvasRef.current) { toast.error("Canvas not ready"); return; }
+    const toastId = toast.loading("Sending cover to FX Studio...");
+    try {
+      const canvas = await captureElement(canvasRef.current, { scale: 2 });
+      const dataUrl = canvas.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${coverData.title || "Cover"} — Cover Art`,
+        asset_tag: "cover",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/cover",
+        type: "static-asset",
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "fx_asset_sent" }),
+      }).catch(() => {});
+      toast.success("Cover sent to FX Studio", { id: toastId });
+      fxStudio.openFxStudio({ mode: "fx", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send cover to FX Studio", { id: toastId });
+    }
+  };
+
   const historyRef = useRef<CoverData[]>([]);
   const historyIndexRef = useRef(-1);
   const isUndoRedoRef = useRef(false);
@@ -558,6 +622,15 @@ export default function CoverCreator() {
         updates[`${viewKey}Layers` as keyof CoverData] = textLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
         updates[`${viewKey}ImageLayers` as keyof CoverData] = imgLayers.filter(l => !selectedLayerIds.includes(l.id)) as any;
         updates.elementZOrder = (coverData.elementZOrder || []).filter(id => !selectedLayerIds.includes(id));
+        if (selectedLayerIds.includes("master-banner")) { updates.bannerBgColor = "transparent"; }
+        if (selectedLayerIds.includes("master-price")) { updates.showPriceBox = false; }
+        if (selectedLayerIds.includes("master-issue")) { updates.issueNumber = ""; }
+        if (selectedLayerIds.includes("master-title")) { updates.title = ""; }
+        if (selectedLayerIds.includes("master-subtitle")) { updates.subtitle = ""; }
+        if (selectedLayerIds.includes("master-author")) { updates.author = ""; }
+        if (selectedLayerIds.includes(`bg-${viewKey}`)) {
+          updates[`${viewKey}BgImage` as keyof CoverData] = "" as any;
+        }
         updateCover(updates);
         setSelectedLayerIds([]);
       }
@@ -1246,7 +1319,7 @@ export default function CoverCreator() {
               </TransformableElement>
             )}
             
-            <TransformableElement
+            {coverData.title && <TransformableElement
               id="master-title"
               initialTransform={coverData.titleTransform || { x: 100, y: 80, width: 400, height: 80, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-title")}
@@ -1288,9 +1361,9 @@ export default function CoverCreator() {
                   />
                 )}
               </div>
-            </TransformableElement>
+            </TransformableElement>}
 
-            <TransformableElement
+            {coverData.subtitle && <TransformableElement
               id="master-subtitle"
               initialTransform={coverData.subtitleTransform || { x: 150, y: 170, width: 300, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-subtitle")}
@@ -1331,9 +1404,9 @@ export default function CoverCreator() {
                   />
                 )}
               </div>
-            </TransformableElement>
+            </TransformableElement>}
 
-            <TransformableElement
+            {coverData.author && <TransformableElement
               id="master-author"
               initialTransform={coverData.authorTransform || { x: 100, y: 650, width: 400, height: 40, rotation: 0, scaleX: 1, scaleY: 1 }}
               isSelected={selectedLayerIds.includes("master-author")}
@@ -1375,7 +1448,7 @@ export default function CoverCreator() {
                   />
                 )}
               </div>
-            </TransformableElement>
+            </TransformableElement>}
           </>
         )}
 
@@ -1653,6 +1726,20 @@ export default function CoverCreator() {
               data-testid="button-open-assets"
             >
               <Layers className="w-4 h-4" /> Assets
+            </button>
+            <button
+              onClick={sendCoverToFxStudio}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-purple-500/30 text-purple-400 text-sm font-medium flex items-center gap-2"
+              data-testid="button-send-fx-studio"
+            >
+              <Sparkles className="w-4 h-4" /> FX Studio
+            </button>
+            <button
+              onClick={sendCoverToHop}
+              className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-orange-500/30 text-orange-400 text-sm font-bold flex items-center gap-2"
+              data-testid="button-use-as-hop"
+            >
+              <Film className="w-4 h-4" /> Use as HOP
             </button>
             <button 
               onClick={handleSave}

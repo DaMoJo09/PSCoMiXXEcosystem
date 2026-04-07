@@ -1868,6 +1868,36 @@ export default function MotionStudio() {
     }));
   }, [currentFrameIndex]);
 
+  const sendMotionToHop = async () => {
+    if (!canvasRef.current) { toast.error("Canvas not ready"); return; }
+    const toastId = toast.loading("Sending frame to HOP Builder...");
+    try {
+      const dataUrl = canvasRef.current.toDataURL("image/png");
+      const result = await fxStudioApi.pushTaggedAsset({
+        name: `${title} — Motion Frame`,
+        asset_tag: "hop-scene",
+        preview_data_url: dataUrl,
+        project_id: effectiveProjectId || undefined,
+        source_mode: "/creator/motion",
+        type: "hop-asset",
+        metadata: { frameIndex: currentFrameIndex, totalFrames: frames.length },
+        mode_hints: {
+          hop: { suggestedDuration: 5, assetType: "image", transition: "fade" },
+        },
+      });
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "hop_asset_sent" }),
+      }).catch(() => {});
+      toast.success("Frame sent — opening HOP Builder", { id: toastId });
+      fxStudio.openFxStudio({ mode: "hops", effectId: result?.id });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send frame to HOP Builder", { id: toastId });
+    }
+  };
+
   const handleExport = async () => {
     if (!hasFeature("export") && !isAdmin) {
       const shown = showDiscovery("motion_export");
@@ -3156,6 +3186,14 @@ export default function MotionStudio() {
             data-testid="button-sync-comixx"
           >
             Sync to CoMiXX
+          </button>
+          <button
+            onClick={sendMotionToHop}
+            className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-orange-500/30 text-orange-400 transition-colors flex items-center gap-2"
+            data-testid="button-use-as-hop"
+          >
+            <Film className="w-3.5 h-3.5" />
+            Use as HOP
           </button>
         </div>
       </header>
