@@ -2511,7 +2511,8 @@ export default function MotionStudio() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
       
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
@@ -2519,9 +2520,13 @@ export default function MotionStudio() {
         else undo();
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectionRect) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         e.preventDefault();
-        copySelection();
+        if (selectionRect) { copySelection(); }
+        else if (selectedLayerId) {
+          const layer = currentImageLayers.find(l => l.id === selectedLayerId);
+          if (layer) { (window as any).__motionLayerClipboard = JSON.parse(JSON.stringify(layer)); toast.success("Layer copied"); }
+        }
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "x" && selectionRect) {
@@ -2529,9 +2534,16 @@ export default function MotionStudio() {
         cutSelection();
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "v" && clipboardImageData) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
         e.preventDefault();
-        pasteSelection();
+        if (clipboardImageData) { pasteSelection(); }
+        else if ((window as any).__motionLayerClipboard) {
+          const clip = (window as any).__motionLayerClipboard as ImageLayer;
+          const dup: ImageLayer = { ...JSON.parse(JSON.stringify(clip)), id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`, name: `${clip.name} copy`, x: clip.x + 10, y: clip.y + 10 };
+          setFrames(prev => prev.map((f, i) => i === currentFrameIndex ? { ...f, imageLayers: [...f.imageLayers, dup] } : f));
+          setSelectedLayerId(dup.id);
+          toast.success("Layer pasted");
+        }
       }
       
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -2561,7 +2573,7 @@ export default function MotionStudio() {
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [drawingMode, selectedPathId, isPenCreating, undo, redo, deleteSelectedPath, finishPenPath, selectionRect, clipboardImageData, copySelection, cutSelection, pasteSelection, deleteSelection, clearSelection]);
+  }, [drawingMode, selectedPathId, isPenCreating, undo, redo, deleteSelectedPath, finishPenPath, selectionRect, clipboardImageData, copySelection, cutSelection, pasteSelection, deleteSelection, clearSelection, selectedLayerId, currentImageLayers, currentFrameIndex]);
 
   // Render vector path
   const renderVectorPath = (path: VectorPath, isPreview = false) => {

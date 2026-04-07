@@ -306,6 +306,7 @@ export default function CoverCreator() {
   const [isCreating, setIsCreating] = useState(!effectiveProjectId);
   const creationAttempted = useRef(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const clipboardRef = useRef<{ textLayers: TextLayer[]; imageLayers: ImageLayer[]; view: string } | null>(null);
   const selectedLayerId = selectedLayerIds[0] || null;
   const setSelectedLayerId = useCallback((id: string | null) => {
     setSelectedLayerIds(id ? [id] : []);
@@ -602,6 +603,8 @@ export default function CoverCreator() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!(e.target as HTMLElement)?.isContentEditable;
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -614,7 +617,49 @@ export default function CoverCreator() {
         e.preventDefault();
         redo();
       }
-      if (e.key === "Delete" && selectedLayerIds.length > 0 && !editingMasterId && !editingTextId) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && !inInput && selectedLayerIds.length > 0 && !editingMasterId && !editingTextId) {
+        e.preventDefault();
+        const viewKey = activeView === "spread" ? "front" : activeView;
+        const textLayers = (coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[]) || [];
+        const imgLayers = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+        const copiedText = textLayers.filter(l => selectedLayerIds.includes(l.id));
+        const copiedImg = imgLayers.filter(l => selectedLayerIds.includes(l.id));
+        if (copiedText.length > 0 || copiedImg.length > 0) {
+          clipboardRef.current = { textLayers: JSON.parse(JSON.stringify(copiedText)), imageLayers: JSON.parse(JSON.stringify(copiedImg)), view: viewKey };
+          toast.success(`Copied ${copiedText.length + copiedImg.length} element(s)`);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && !inInput && clipboardRef.current && !editingMasterId && !editingTextId) {
+        e.preventDefault();
+        const viewKey = activeView === "spread" ? "front" : activeView;
+        const clip = clipboardRef.current;
+        const updates: Partial<CoverData> = {};
+        const newIds: string[] = [];
+        if (clip.textLayers.length > 0) {
+          const existing = (coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[]) || [];
+          const pasted = clip.textLayers.map(l => {
+            const newId = `text_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            newIds.push(newId);
+            return { ...l, id: newId, transform: { ...l.transform, x: l.transform.x + 20, y: l.transform.y + 20 } };
+          });
+          updates[`${viewKey}Layers` as keyof CoverData] = [...existing, ...pasted] as any;
+        }
+        if (clip.imageLayers.length > 0) {
+          const existing = (coverData[`${viewKey}ImageLayers` as keyof CoverData] as ImageLayer[]) || [];
+          const pasted = clip.imageLayers.map(l => {
+            const newId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            newIds.push(newId);
+            return { ...l, id: newId, transform: { ...l.transform, x: l.transform.x + 20, y: l.transform.y + 20 } };
+          });
+          updates[`${viewKey}ImageLayers` as keyof CoverData] = [...existing, ...pasted] as any;
+        }
+        const zOrder = [...(coverData.elementZOrder || []), ...newIds];
+        updates.elementZOrder = zOrder;
+        updateCover(updates);
+        setSelectedLayerIds(newIds);
+        toast.success(`Pasted ${newIds.length} element(s)`);
+      }
+      if (e.key === "Delete" && !inInput && selectedLayerIds.length > 0 && !editingMasterId && !editingTextId) {
         const viewKey = activeView === "spread" ? "front" : activeView;
         const updates: Partial<CoverData> = {};
         const textLayers = coverData[`${viewKey}Layers` as keyof CoverData] as TextLayer[];

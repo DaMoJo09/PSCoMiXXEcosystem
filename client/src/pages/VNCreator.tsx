@@ -503,6 +503,7 @@ export default function VNCreator() {
   const creationAttempted = useRef(false);
   const [activeTab, setActiveTab] = useState<"scenes" | "characters" | "backgrounds">("scenes");
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
+  const sceneClipboardRef = useRef<VNScene | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -665,6 +666,29 @@ export default function VNCreator() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [isPlaying, typewriterDone, playIndex]);
+
+  useEffect(() => {
+    if (isPlaying) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectedScene) {
+        e.preventDefault();
+        const scene = scenes.find(s => s.id === selectedScene);
+        if (scene) { sceneClipboardRef.current = JSON.parse(JSON.stringify(scene)); toast.success("Scene copied"); }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && sceneClipboardRef.current) {
+        e.preventDefault();
+        const clip = sceneClipboardRef.current;
+        const newId = `scene_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        const newScene: VNScene = { ...JSON.parse(JSON.stringify(clip)), id: newId, name: `${clip.name} (Copy)`, label: newId };
+        setScenes(prev => [...prev, newScene]);
+        setSelectedScene(newId);
+        toast.success("Scene pasted");
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isPlaying, selectedScene, scenes]);
 
   useEffect(() => {
     if (autoAdvance && typewriterDone && isPlaying) {

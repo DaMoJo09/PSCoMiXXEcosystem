@@ -466,6 +466,39 @@ export default function CardCreator() {
     }
   }, [project]);
 
+  const cardClipboardRef = useRef<CardData | null>(null);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        e.preventDefault();
+        if (selectedPackCard) {
+          const card = packData.cards.find(c => c.id === selectedPackCard);
+          if (card) { cardClipboardRef.current = JSON.parse(JSON.stringify(card)); toast.success("Card copied"); }
+        } else {
+          cardClipboardRef.current = JSON.parse(JSON.stringify(cardData));
+          toast.success("Card copied");
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && cardClipboardRef.current) {
+        e.preventDefault();
+        const clip = cardClipboardRef.current;
+        if (selectedPackCard || packData.cards.length > 0) {
+          const newCard = { ...JSON.parse(JSON.stringify(clip)), id: `card_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`, name: `${clip.name} (Copy)` };
+          setPackData(prev => ({ ...prev, cards: [...prev.cards, newCard] }));
+          setSelectedPackCard(newCard.id);
+          toast.success("Card pasted to pack");
+        } else {
+          setCardData(JSON.parse(JSON.stringify(clip)));
+          toast.success("Card data pasted");
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [cardData, selectedPackCard, packData]);
+
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
   const latestDataRef = useRef({ cardData, projectId: effectiveProjectId });

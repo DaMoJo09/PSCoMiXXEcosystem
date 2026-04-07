@@ -413,6 +413,7 @@ export default function CYOABuilder() {
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editingNode, setEditingNode] = useState<string | null>(null);
+  const nodeClipboardRef = useRef<CYOANode | null>(null);
   const [backgrounds, setBackgrounds] = useState<CYOABackground[]>([]);
   const [showAIGen, setShowAIGen] = useState(false);
   const [activeTab, setActiveTab] = useState<"story" | "nodes" | "variables" | "assets">("story");
@@ -551,6 +552,30 @@ export default function CYOABuilder() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [previewMode, typewriterDone]);
+
+  useEffect(() => {
+    if (previewMode) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectedNodeId) {
+        e.preventDefault();
+        const node = nodes.find(n => n.id === selectedNodeId);
+        if (node) { nodeClipboardRef.current = JSON.parse(JSON.stringify(node)); toast.success("Node copied"); }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && nodeClipboardRef.current) {
+        e.preventDefault();
+        const clip = nodeClipboardRef.current;
+        const newNode = { ...JSON.parse(JSON.stringify(clip)), id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`, title: `${clip.title || clip.id} (Copy)` };
+        setNodes(prev => [...prev, newNode]);
+        setSelectedNodeId(newNode.id);
+        toast.success("Node pasted");
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
+      if (e.key === "Delete" && selectedNodeId && !editingNode) { deleteNode(selectedNodeId); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [previewMode, selectedNodeId, nodes, editingNode]);
 
   const handleSave = async () => {
     setIsSaving(true);

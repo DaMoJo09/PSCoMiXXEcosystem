@@ -255,6 +255,7 @@ export default function HopCreator() {
 
   const [selectedSceneIdx, setSelectedSceneIdx] = useState(0);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const layerClipboardRef = useRef<HopLayer | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [zoneOutMode, setZoneOutMode] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -712,12 +713,25 @@ export default function HopCreator() {
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selectedLayerId) removeLayer(selectedLayerId);
       }
-      if (e.ctrlKey && e.key === "s") { e.preventDefault(); handleSave(); }
-      if (e.ctrlKey && e.key === "d" && selectedLayerId) { e.preventDefault(); duplicateLayer(selectedLayerId); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectedLayerId) {
+        e.preventDefault();
+        const layer = currentLayers.find(l => l.id === selectedLayerId);
+        if (layer) { layerClipboardRef.current = JSON.parse(JSON.stringify(layer)); toast.success("Layer copied"); }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v" && layerClipboardRef.current) {
+        e.preventDefault();
+        const clip = layerClipboardRef.current;
+        const dup = { ...JSON.parse(JSON.stringify(clip)), id: generateId("layer"), name: `${clip.name} copy`, positionX: clip.positionX + 10, positionY: clip.positionY + 10 };
+        setSceneLayers(sl => ({ ...sl, [currentSceneId]: [...(sl[currentSceneId] || []), dup] }));
+        setSelectedLayerId(dup.id);
+        toast.success("Layer pasted");
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "d" && selectedLayerId) { e.preventDefault(); duplicateLayer(selectedLayerId); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [zoneOutMode, showPreview, selectedLayerId, removeLayer, duplicateLayer, handleSave, pauseAudioNow]);
+  }, [zoneOutMode, showPreview, selectedLayerId, removeLayer, duplicateLayer, handleSave, pauseAudioNow, currentLayers, currentSceneId]);
 
   const handleAddTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();

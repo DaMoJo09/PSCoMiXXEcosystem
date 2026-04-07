@@ -461,6 +461,7 @@ export default function ComicCreator() {
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<"left" | "right">("left");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const clipboardRef = useRef<{ type: "panel"; data: Panel; page: "left" | "right" } | { type: "content"; data: PanelContent; panelId: string; page: "left" | "right" } | null>(null);
   
   const [isDrawingPanel, setIsDrawingPanel] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
@@ -891,8 +892,48 @@ export default function ComicCreator() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
+      const mod = e.ctrlKey || e.metaKey;
       switch(e.key.toLowerCase()) {
-        case 'v': setActiveTool('select'); break;
+        case 'v': {
+          if (mod) {
+            e.preventDefault();
+            if (clipboardRef.current) {
+              const clip = clipboardRef.current;
+              if (clip.type === "panel") {
+                const newPanel: Panel = { ...JSON.parse(JSON.stringify(clip.data)), id: `panel_${Date.now()}`, x: clip.data.x + 5, y: clip.data.y + 5, contents: clip.data.contents.map((c: PanelContent) => ({ ...c, id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })) };
+                const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+                newPanel.zIndex = panels.length;
+                setSpreads(prev => prev.map((spread, i) => i !== currentSpreadIndex ? spread : { ...spread, [selectedPage === "left" ? "leftPage" : "rightPage"]: [...spread[selectedPage === "left" ? "leftPage" : "rightPage"], newPanel] }));
+                setSelectedPanelId(newPanel.id);
+                setSelectedContentId(null);
+                toast.success("Panel pasted");
+              } else if (clip.type === "content" && selectedPanelId) {
+                const newContent: PanelContent = { ...JSON.parse(JSON.stringify(clip.data)), id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, transform: { ...clip.data.transform, x: clip.data.transform.x + 10, y: clip.data.transform.y + 10 } };
+                addContentToPanel(selectedPage, selectedPanelId, newContent, newContent.id);
+                setSelectedContentId(newContent.id);
+                toast.success("Content pasted");
+              }
+            }
+          } else {
+            setActiveTool('select');
+          }
+          break;
+        }
+        case 'c': {
+          if (mod && !editingTextId) {
+            e.preventDefault();
+            const panels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
+            if (selectedContentId && selectedPanelId) {
+              const panel = panels.find(p => p.id === selectedPanelId);
+              const content = panel?.contents.find(c => c.id === selectedContentId);
+              if (content) { clipboardRef.current = { type: "content", data: JSON.parse(JSON.stringify(content)), panelId: selectedPanelId, page: selectedPage }; toast.success("Content copied"); }
+            } else if (selectedPanelId) {
+              const panel = panels.find(p => p.id === selectedPanelId);
+              if (panel) { clipboardRef.current = { type: "panel", data: JSON.parse(JSON.stringify(panel)), page: selectedPage }; toast.success("Panel copied"); }
+            }
+          }
+          break;
+        }
         case 'p': setActiveTool('panel'); break;
         case 'b': setActiveTool('draw'); break;
         case 'e': setActiveTool('erase'); break;
@@ -904,11 +945,11 @@ export default function ComicCreator() {
           break;
         }
         case 'escape': setSelectedPanelId(null); setSelectedContentId(null); break;
-        case 'z': if (e.ctrlKey || e.metaKey) { e.preventDefault(); if (e.shiftKey) { handleRedo(); } else { handleUndo(); } } break;
-        case 'y': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleRedo(); } break;
-        case 's': if (e.ctrlKey || e.metaKey) { e.preventDefault(); handleSave(); } break;
-        case 'f': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
-        case 'r': if (e.ctrlKey || e.metaKey) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); refetchProject(); } break;
+        case 'z': if (mod) { e.preventDefault(); if (e.shiftKey) { handleRedo(); } else { handleUndo(); } } break;
+        case 'y': if (mod) { e.preventDefault(); handleRedo(); } break;
+        case 's': if (mod) { e.preventDefault(); handleSave(); } break;
+        case 'f': if (mod) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
+        case 'r': if (mod) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); refetchProject(); } break;
         case '[': setBrushSize(s => Math.max(1, s - 2)); break;
         case ']': setBrushSize(s => Math.min(100, s + 2)); break;
       }
@@ -916,7 +957,7 @@ export default function ComicCreator() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPanelId, selectedContentId, editingTextId]);
+  }, [selectedPanelId, selectedContentId, editingTextId, selectedPage, currentSpread, currentSpreadIndex]);
 
   const handleDeleteSelected = () => {
     if (selectedContentId && selectedPanelId) {
