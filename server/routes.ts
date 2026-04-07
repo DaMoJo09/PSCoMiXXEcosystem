@@ -13,7 +13,7 @@ function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, and, or, desc, ilike, isNull } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
@@ -9672,6 +9672,106 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  app.get("/api/admin/platform-assets", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { category, search, active } = req.query;
+      let query = db.select().from(platformAssets).orderBy(desc(platformAssets.createdAt));
+      const results = await query;
+      let filtered = results;
+      if (category && category !== "all") filtered = filtered.filter(a => a.category === category);
+      if (active === "true") filtered = filtered.filter(a => a.isActive);
+      if (active === "false") filtered = filtered.filter(a => !a.isActive);
+      if (search) {
+        const s = (search as string).toLowerCase();
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(s) || (a.description || "").toLowerCase().includes(s) || (a.tags || []).some(t => t.toLowerCase().includes(s)));
+      }
+      res.json(filtered);
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.get("/api/admin/platform-assets/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const [asset] = await db.select().from(platformAssets).where(eq(platformAssets.id, req.params.id));
+      if (!asset) return res.status(404).json({ message: "Asset not found" });
+      res.json(asset);
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.post("/api/admin/platform-assets", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data = insertPlatformAssetSchema.parse(req.body);
+      const [asset] = await db.insert(platformAssets).values(data).returning();
+      res.json(asset);
+    } catch (error: any) { res.status(400).json({ message: error.message }); }
+  });
+
+  app.post("/api/admin/platform-assets/bulk", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { assets: items } = req.body;
+      if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "Assets array required" });
+      const parsed = items.map((item: any) => insertPlatformAssetSchema.parse(item));
+      const created = await db.insert(platformAssets).values(parsed).returning();
+      res.json({ created: created.length, assets: created });
+    } catch (error: any) { res.status(400).json({ message: error.message }); }
+  });
+
+  app.put("/api/admin/platform-assets/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const [existing] = await db.select().from(platformAssets).where(eq(platformAssets.id, req.params.id));
+      if (!existing) return res.status(404).json({ message: "Asset not found" });
+      const updateSchema = insertPlatformAssetSchema.partial();
+      const validated = updateSchema.parse(req.body);
+      if (validated.isFree === true) validated.priceInCents = 0;
+      const [updated] = await db.update(platformAssets).set({
+        ...validated,
+        updatedAt: new Date(),
+      }).where(eq(platformAssets.id, req.params.id)).returning();
+      res.json(updated);
+    } catch (error: any) { res.status(400).json({ message: error.message }); }
+  });
+
+  app.delete("/api/admin/platform-assets/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const [deleted] = await db.delete(platformAssets).where(eq(platformAssets.id, req.params.id)).returning();
+      if (!deleted) return res.status(404).json({ message: "Asset not found" });
+      res.json({ success: true });
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.delete("/api/admin/platform-assets/bulk/delete", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: "IDs array required" });
+      let deletedCount = 0;
+      for (const id of ids) {
+        const [d] = await db.delete(platformAssets).where(eq(platformAssets.id, id)).returning();
+        if (d) deletedCount++;
+      }
+      res.json({ deleted: deletedCount });
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.get("/api/platform-assets/store", async (req, res) => {
+    try {
+      const results = await db.select().from(platformAssets).where(eq(platformAssets.isActive, true)).orderBy(desc(platformAssets.createdAt));
+      const safe = results.map(a => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        category: a.category,
+        type: a.type,
+        thumbnailUrl: a.thumbnailUrl,
+        tags: a.tags,
+        priceInCents: a.priceInCents,
+        isFree: a.isFree,
+        downloadCount: a.downloadCount,
+        createdAt: a.createdAt,
+        ...(a.isFree ? { fileUrl: a.fileUrl } : {}),
+      }));
+      res.json(safe);
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
   });
 
   app.post("/api/admin/seed-demo-content", isAuthenticated, isAdmin, async (req, res) => {

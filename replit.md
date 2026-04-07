@@ -27,7 +27,7 @@ The platform implements rate limiting, Helmet.js, strong password policies, secu
 JWT-based Single Sign-On (SSO) is integrated across the PSCoMiXX ecosystem, with CoMiXX acting as the identity provider. The platform integrates with Press Start LMS for educational submissions and offers a robust export and publish pipeline for content bundling (PS Content Bundle v1), validation, and synchronization to the Emergent streaming platform. It also features full bidirectional integration with FX Studio via `postMessage` for asset return and a dedicated `/fx-studio` route.
 
 ### Feature Management & Monetization
-A database-driven feature flag system allows dynamic toggling of features. Subscription and usage tracking supports multiple tiers (Free, Creator, Pro, Studio, Lifetime, School) with server-side usage tracking and frontend feature gating for AI generations, exports, projects, and storage.
+A database-driven feature flag system allows dynamic toggling of features. Subscription and usage tracking supports multiple tiers (Free, Creator, Pro, Studio, Lifetime, School) with server-side usage tracking and frontend feature gating for AI generations, exports, projects, and storage. An Admin Asset Store (`platform_assets` table) provides full CRUD management for curated platform assets (images, audio, fonts, templates, etc.) with free/paid pricing, category/tag organization, bulk import via JSON, and a public store endpoint that protects paid asset file URLs.
 
 ### Content Creation & Management
 The platform offers several creator tools:

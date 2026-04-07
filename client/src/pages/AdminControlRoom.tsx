@@ -7,7 +7,7 @@ import {
   Shield, Users, Mail, Key, Gift, Settings, Activity, 
   ToggleLeft, ToggleRight, Check, X, Plus, Trash2, 
   Download, RefreshCw, Clock, ChevronDown, ChevronRight, ArrowLeft,
-  UserPlus, Crown, Search
+  UserPlus, Crown, Search, Package, Upload, Edit, DollarSign, Eye, EyeOff, Image
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface FeatureFlag {
   id: string;
@@ -276,6 +277,9 @@ export default function AdminControlRoom() {
             </TabsTrigger>
             <TabsTrigger value="team-access" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-team-access">
               <Crown className="w-4 h-4 mr-2" /> Team Access
+            </TabsTrigger>
+            <TabsTrigger value="asset-store" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-asset-store">
+              <Package className="w-4 h-4 mr-2" /> Asset Store
             </TabsTrigger>
           </TabsList>
 
@@ -730,6 +734,10 @@ export default function AdminControlRoom() {
           <TabsContent value="team-access">
             <TeamAccessPanel />
           </TabsContent>
+
+          <TabsContent value="asset-store">
+            <AssetStorePanel />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -935,6 +943,410 @@ function TeamAccessPanel() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+interface PlatformAssetData {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  type: string;
+  fileUrl: string;
+  thumbnailUrl: string | null;
+  tags: string[] | null;
+  priceInCents: number;
+  isFree: boolean;
+  isActive: boolean;
+  downloadCount: number;
+  metadata: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ASSET_CATEGORIES = ["general", "characters", "backgrounds", "effects", "ui", "audio", "fonts", "templates", "stickers", "borders"];
+const ASSET_TYPES = ["image", "audio", "video", "font", "template", "svg", "sprite-sheet"];
+
+const emptyAssetForm = (): Omit<PlatformAssetData, "id" | "downloadCount" | "createdAt" | "updatedAt" | "metadata"> => ({
+  name: "",
+  description: "",
+  category: "general",
+  type: "image",
+  fileUrl: "",
+  thumbnailUrl: "",
+  tags: [],
+  priceInCents: 0,
+  isFree: true,
+  isActive: true,
+});
+
+function AssetStorePanel() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<PlatformAssetData | null>(null);
+  const [form, setForm] = useState(emptyAssetForm());
+  const [bulkJson, setBulkJson] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tagInput, setTagInput] = useState("");
+
+  const { data: assets = [], isLoading } = useQuery<PlatformAssetData[]>({
+    queryKey: ["/api/admin/platform-assets", filterCategory, search],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filterCategory !== "all") params.set("category", filterCategory);
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/admin/platform-assets?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load assets");
+      return res.json();
+    },
+  });
+
+  const createAsset = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/admin/platform-assets", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-assets"] }); setShowAdd(false); setForm(emptyAssetForm()); toast.success("Asset created"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateAsset = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/admin/platform-assets/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-assets"] }); setEditingAsset(null); toast.success("Asset updated"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteAsset = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/platform-assets/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-assets"] }); toast.success("Asset deleted"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkCreate = useMutation({
+    mutationFn: async (items: any[]) => {
+      const res = await fetch("/api/admin/platform-assets/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ assets: items }) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: (data: any) => { queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-assets"] }); setShowBulk(false); setBulkJson(""); toast.success(`${data.created} assets created`); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch("/api/admin/platform-assets/bulk/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+      if (!res.ok) throw new Error((await res.json()).message);
+      return res.json();
+    },
+    onSuccess: (data: any) => { queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-assets"] }); setSelectedIds(new Set()); toast.success(`${data.deleted} assets deleted`); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const addTag = () => {
+    const t = tagInput.trim().toLowerCase();
+    if (t && !(form.tags || []).includes(t)) {
+      setForm(f => ({ ...f, tags: [...(f.tags || []), t] }));
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tag: string) => setForm(f => ({ ...f, tags: (f.tags || []).filter(t => t !== tag) }));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === assets.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(assets.map(a => a.id)));
+  };
+
+  const handleSubmitCreate = () => {
+    if (!form.name || !form.fileUrl) { toast.error("Name and File URL are required"); return; }
+    createAsset.mutate({ ...form, priceInCents: form.isFree ? 0 : form.priceInCents });
+  };
+
+  const handleSubmitUpdate = () => {
+    if (!editingAsset) return;
+    updateAsset.mutate({ id: editingAsset.id, data: { ...form, priceInCents: form.isFree ? 0 : form.priceInCents } });
+  };
+
+  const handleBulkImport = () => {
+    try {
+      const parsed = JSON.parse(bulkJson);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      if (items.length === 0) { toast.error("No items found"); return; }
+      const hasRequired = items.every((i: any) => i.name && i.fileUrl);
+      if (!hasRequired) { toast.error("Each item needs at least name and fileUrl"); return; }
+      bulkCreate.mutate(items);
+    } catch { toast.error("Invalid JSON format"); }
+  };
+
+  const startEdit = (asset: PlatformAssetData) => {
+    setEditingAsset(asset);
+    setForm({
+      name: asset.name,
+      description: asset.description || "",
+      category: asset.category,
+      type: asset.type,
+      fileUrl: asset.fileUrl,
+      thumbnailUrl: asset.thumbnailUrl || "",
+      tags: asset.tags || [],
+      priceInCents: asset.priceInCents,
+      isFree: asset.isFree,
+      isActive: asset.isActive,
+    });
+  };
+
+  const AssetForm = ({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Name *</Label>
+          <Input className="bg-zinc-900 border-zinc-700" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-testid="input-asset-name" />
+        </div>
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Category</Label>
+          <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+            <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-category">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ASSET_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Description</Label>
+        <Textarea className="bg-zinc-900 border-zinc-700 min-h-[60px]" value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} data-testid="input-asset-description" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">File URL *</Label>
+          <Input className="bg-zinc-900 border-zinc-700" value={form.fileUrl} onChange={e => setForm(f => ({ ...f, fileUrl: e.target.value }))} placeholder="https://..." data-testid="input-asset-file-url" />
+        </div>
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Thumbnail URL</Label>
+          <Input className="bg-zinc-900 border-zinc-700" value={form.thumbnailUrl || ""} onChange={e => setForm(f => ({ ...f, thumbnailUrl: e.target.value }))} placeholder="https://..." data-testid="input-asset-thumbnail" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Type</Label>
+          <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+            <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ASSET_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Tags</Label>
+          <div className="flex gap-2">
+            <Input className="bg-zinc-900 border-zinc-700 flex-1" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }} placeholder="Add tag..." data-testid="input-asset-tag" />
+            <Button variant="outline" onClick={addTag} className="border-zinc-700 shrink-0">+</Button>
+          </div>
+          {(form.tags || []).length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {(form.tags || []).map(t => (
+                <Badge key={t} variant="outline" className="border-zinc-600 text-zinc-300 cursor-pointer hover:border-red-500 hover:text-red-400" onClick={() => removeTag(t)}>{t} x</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="border-2 border-zinc-800 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Pricing</Label>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${form.isFree ? "text-green-400" : "text-zinc-500"}`}>FREE</span>
+            <Switch checked={!form.isFree} onCheckedChange={v => setForm(f => ({ ...f, isFree: !v, priceInCents: !v ? 0 : f.priceInCents }))} data-testid="switch-asset-paid" />
+            <span className={`text-xs ${!form.isFree ? "text-amber-400" : "text-zinc-500"}`}>PAID</span>
+          </div>
+        </div>
+        {!form.isFree && (
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">Price (cents)</Label>
+            <Input type="number" className="bg-zinc-900 border-zinc-700 w-40" value={form.priceInCents} onChange={e => setForm(f => ({ ...f, priceInCents: parseInt(e.target.value) || 0 }))} min={0} data-testid="input-asset-price" />
+            <p className="text-xs text-zinc-500 mt-1">${((form.priceInCents || 0) / 100).toFixed(2)} USD</p>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} data-testid="switch-asset-active" />
+        <span className="text-sm text-zinc-300">{form.isActive ? "Active (visible in store)" : "Inactive (hidden)"}</span>
+      </div>
+      {form.fileUrl && (form.type === "image" || form.type === "svg" || form.type === "sprite-sheet") && (
+        <div className="border-2 border-zinc-800 p-2">
+          <p className="text-xs text-zinc-500 mb-1">Preview</p>
+          <img src={form.thumbnailUrl || form.fileUrl} alt="preview" className="max-h-32 object-contain rounded" />
+        </div>
+      )}
+      <Button onClick={onSubmit} className="w-full bg-white text-black hover:bg-zinc-200 font-bold" data-testid="button-submit-asset">{submitLabel}</Button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input className="bg-zinc-900 border-zinc-700 pl-10 w-64" placeholder="Search assets..." value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-assets" />
+          </div>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="bg-zinc-900 border-zinc-700 w-40" data-testid="select-filter-category">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {ASSET_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Badge variant="outline" className="border-zinc-600 text-zinc-300">{assets.length} assets</Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <Button variant="outline" className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white font-bold" onClick={() => { if (confirm(`Delete ${selectedIds.size} selected assets?`)) bulkDelete.mutate([...selectedIds]); }} data-testid="button-bulk-delete">
+              <Trash2 className="w-4 h-4 mr-2" /> Delete {selectedIds.size}
+            </Button>
+          )}
+          <Dialog open={showBulk} onOpenChange={v => { setShowBulk(v); if (!v) setBulkJson(""); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black font-bold" data-testid="button-bulk-add">
+                <Upload className="w-4 h-4 mr-2" /> Bulk Add
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-zinc-950 border-2 border-white max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="font-bold text-xl tracking-tight">BULK ADD ASSETS</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-zinc-400">Paste a JSON array of assets. Each object needs at least <code className="bg-zinc-800 px-1 text-xs">name</code> and <code className="bg-zinc-800 px-1 text-xs">fileUrl</code>.</p>
+                <Textarea className="bg-zinc-900 border-zinc-700 min-h-[200px] font-mono text-xs" value={bulkJson} onChange={e => setBulkJson(e.target.value)} placeholder={`[\n  {\n    "name": "Cool BG Pack",\n    "fileUrl": "https://...",\n    "category": "backgrounds",\n    "type": "image",\n    "isFree": true\n  },\n  ...\n]`} data-testid="textarea-bulk-json" />
+                <Button onClick={handleBulkImport} disabled={!bulkJson.trim() || bulkCreate.isPending} className="w-full bg-white text-black hover:bg-zinc-200 font-bold" data-testid="button-submit-bulk">
+                  {bulkCreate.isPending ? "Importing..." : "Import Assets"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showAdd} onOpenChange={v => { setShowAdd(v); if (!v) { setForm(emptyAssetForm()); setTagInput(""); } }}>
+            <DialogTrigger asChild>
+              <Button className="bg-white text-black hover:bg-zinc-200 font-bold" data-testid="button-add-asset">
+                <Plus className="w-4 h-4 mr-2" /> Add Asset
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-zinc-950 border-2 border-white max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="font-bold text-xl tracking-tight">ADD ASSET</DialogTitle>
+              </DialogHeader>
+              <AssetForm onSubmit={handleSubmitCreate} submitLabel={createAsset.isPending ? "Creating..." : "Create Asset"} />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12 text-zinc-400">Loading assets...</div>
+      ) : assets.length === 0 ? (
+        <Card className="bg-zinc-950 border-2 border-zinc-800">
+          <CardContent className="py-12 text-center">
+            <Package className="w-12 h-12 mx-auto text-zinc-700 mb-4" />
+            <p className="text-zinc-400 font-bold">No assets yet</p>
+            <p className="text-zinc-600 text-sm mt-1">Add your first asset to get the store started.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <input type="checkbox" checked={selectedIds.size === assets.length && assets.length > 0} onChange={selectAll} className="accent-white w-4 h-4" data-testid="checkbox-select-all" />
+            <span className="text-xs text-zinc-500 uppercase tracking-wider">Select All</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {assets.map(asset => (
+              <Card key={asset.id} className={`bg-zinc-950 border-2 ${selectedIds.has(asset.id) ? "border-white" : "border-zinc-800"} transition-all`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <input type="checkbox" checked={selectedIds.has(asset.id)} onChange={() => toggleSelect(asset.id)} className="accent-white w-4 h-4 mt-1 shrink-0" data-testid={`checkbox-asset-${asset.id}`} />
+                    {(asset.thumbnailUrl || asset.fileUrl) && (asset.type === "image" || asset.type === "svg" || asset.type === "sprite-sheet") && (
+                      <img src={asset.thumbnailUrl || asset.fileUrl} alt={asset.name} className="w-16 h-16 object-cover border-2 border-zinc-700 rounded shrink-0" />
+                    )}
+                    {(asset.type !== "image" && asset.type !== "svg" && asset.type !== "sprite-sheet") && (
+                      <div className="w-16 h-16 bg-zinc-900 border-2 border-zinc-700 rounded flex items-center justify-center shrink-0">
+                        <Package className="w-6 h-6 text-zinc-600" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-sm truncate">{asset.name}</h3>
+                        <Badge variant="outline" className="border-zinc-600 text-zinc-400 text-[10px]">{asset.category}</Badge>
+                        <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px]">{asset.type}</Badge>
+                        {asset.isFree ? (
+                          <Badge className="bg-green-900/50 text-green-400 border border-green-700 text-[10px]">FREE</Badge>
+                        ) : (
+                          <Badge className="bg-amber-900/50 text-amber-400 border border-amber-700 text-[10px]">${(asset.priceInCents / 100).toFixed(2)}</Badge>
+                        )}
+                        {!asset.isActive && (
+                          <Badge className="bg-red-900/50 text-red-400 border border-red-700 text-[10px]">HIDDEN</Badge>
+                        )}
+                      </div>
+                      {asset.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{asset.description}</p>}
+                      <div className="flex items-center gap-3 mt-1 text-[10px] text-zinc-600">
+                        <span><Download className="w-3 h-3 inline mr-1" />{asset.downloadCount} downloads</span>
+                        <span>{new Date(asset.createdAt).toLocaleDateString()}</span>
+                        {(asset.tags || []).length > 0 && <span>{(asset.tags || []).join(", ")}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-zinc-800" onClick={() => {
+                        updateAsset.mutate({ id: asset.id, data: { isActive: !asset.isActive } });
+                      }} data-testid={`button-toggle-${asset.id}`}>
+                        {asset.isActive ? <Eye className="w-4 h-4 text-green-400" /> : <EyeOff className="w-4 h-4 text-zinc-600" />}
+                      </Button>
+                      <Dialog open={editingAsset?.id === asset.id} onOpenChange={v => { if (!v) { setEditingAsset(null); setForm(emptyAssetForm()); setTagInput(""); } }}>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-zinc-800" onClick={() => startEdit(asset)} data-testid={`button-edit-${asset.id}`}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-zinc-950 border-2 border-white max-w-lg max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="font-bold text-xl tracking-tight">EDIT ASSET</DialogTitle>
+                          </DialogHeader>
+                          <AssetForm onSubmit={handleSubmitUpdate} submitLabel={updateAsset.isPending ? "Updating..." : "Update Asset"} />
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-900" onClick={() => { if (confirm(`Delete "${asset.name}"?`)) deleteAsset.mutate(asset.id); }} data-testid={`button-delete-${asset.id}`}>
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

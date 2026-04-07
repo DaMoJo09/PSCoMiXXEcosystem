@@ -189,6 +189,34 @@ export const insertAssetPackSchema = createInsertSchema(assetPacks).omit({
 export type InsertAssetPack = z.infer<typeof insertAssetPackSchema>;
 export type AssetPack = typeof assetPacks.$inferSelect;
 
+export const platformAssets = pgTable("platform_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("general"),
+  type: text("type").notNull().default("image"),
+  fileUrl: text("file_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  tags: text("tags").array(),
+  priceInCents: integer("price_in_cents").notNull().default(0),
+  isFree: boolean("is_free").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(true),
+  downloadCount: integer("download_count").notNull().default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPlatformAssetSchema = createInsertSchema(platformAssets).omit({
+  id: true,
+  downloadCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPlatformAsset = z.infer<typeof insertPlatformAssetSchema>;
+export type PlatformAsset = typeof platformAssets.$inferSelect;
+
 // Project type-specific data schemas
 export const comicDataSchema = z.object({
   pages: z.array(z.object({
