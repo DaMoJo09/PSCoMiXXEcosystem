@@ -25,6 +25,7 @@ import { logAuditEvent, auditAuth, auditAdmin, auditStudent } from "./auditLogge
 import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreateUserFromToken } from "./sso";
 import { dispatchWebhook, retryFailedWebhooks, getWebhookLogs, startWebhookRetryWorker } from "./webhookService";
 import { createExportJob, getExportJob, getProjectExports } from "./publishService";
+import { seedDemoContent } from "./seed-content";
 import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
@@ -7542,7 +7543,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
   app.get("/api/community/library", async (req, res) => {
     try {
-      const { search, sort, page, limit } = req.query;
+      const { search, sort, page, limit, type } = req.query;
       const pageNum = Math.max(1, Number(page) || 1);
       const limitNum = Math.min(50, Math.max(1, Number(limit) || 20));
       const offset = (pageNum - 1) * limitNum;
@@ -7552,13 +7553,28 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         sort: (sort as string) || "newest",
         limit: limitNum,
         offset,
+        type: type as string | undefined,
       });
+
+      const getItemCount = (c: any) => {
+        const d = c.data as any;
+        if (!d) return 0;
+        switch (c.type) {
+          case "comic": return d.spreads?.length || 0;
+          case "vn": return d.scenes?.length || 0;
+          case "cyoa": return d.nodes?.length || 0;
+          case "hop": return d.scenes?.length || 0;
+          case "card": return Array.isArray(d) ? d.length : (d.cards?.length || 1);
+          default: return 0;
+        }
+      };
 
       res.json({
         comics: result.comics.map(c => ({
           ...c,
           data: undefined,
-          pageCount: (c.data as any)?.spreads?.length || 0,
+          pageCount: getItemCount(c),
+          projectType: c.type,
         })),
         total: result.total,
         page: pageNum,
@@ -9653,6 +9669,15 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const user = req.user as any;
       await reviewImage(req.params.id, status, user.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/seed-demo-content", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const results = await seedDemoContent(req.user!.id);
+      res.json({ success: true, seeded: results });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

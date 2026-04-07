@@ -242,3 +242,18 @@
     display: none;
   }
 }
+
+@media (pointer: coarse) {
+  button, [role="button"], [role="menuitem"], input, select, textarea {
+    min-height: 44px;
+  }
+}
+
+@media (hover: none) {
+  .group:active .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+  .group:active .group-hover\:scale-105 {
+    transform: scale(1.02);
+  }
+}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Link, useLocation } from "wouter";
-import { Search, BookOpen, Users, ChevronLeft, ChevronRight, BookMarked, GitBranch, Monitor } from "lucide-react";
+import { Search, BookOpen, Users, ChevronLeft, ChevronRight, BookMarked, GitBranch, Monitor, Layers, Film, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface CommunityComic {
@@ -15,6 +15,7 @@ interface CommunityComic {
   status: string;
   createdAt: string;
   userId: string;
+  projectType?: string;
 }
 
 interface CommunityLibraryResponse {
@@ -45,11 +46,38 @@ interface CommunitySeries {
   subscriberCount?: number;
 }
 
+const TYPE_FILTERS = [
+  { key: "all", label: "ALL", icon: Layers },
+  { key: "comic", label: "COMICS", icon: BookOpen },
+  { key: "vn", label: "NOVELS", icon: BookOpen },
+  { key: "cyoa", label: "CYOA", icon: GitBranch },
+  { key: "card", label: "CARDS", icon: Layers },
+  { key: "hop", label: "HOPS", icon: Film },
+] as const;
+
+const TYPE_LABELS: Record<string, string> = {
+  comic: "Comic", vn: "Visual Novel", cyoa: "Adventure", card: "Cards", hop: "HOP", motion: "Motion",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  comic: "border-cyan-500", vn: "border-pink-500", cyoa: "border-green-500", card: "border-amber-500", hop: "border-purple-500", motion: "border-blue-500",
+};
+
+const TYPE_UNIT: Record<string, string> = {
+  comic: "pg", vn: "scenes", cyoa: "nodes", card: "cards", hop: "clips", motion: "frames",
+};
+
+function getViewUrl(id: string, type?: string) {
+  if (type === "comic") return `/community/read/${id}`;
+  return `/community/view/${id}`;
+}
+
 export default function CommunityLibrary() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "popular">("newest");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -73,7 +101,7 @@ export default function CommunityLibrary() {
   });
 
   const { data, isLoading, isError } = useQuery<CommunityLibraryResponse>({
-    queryKey: ["community-library", search, sort, page],
+    queryKey: ["community-library", search, sort, page, typeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
         search,
@@ -81,6 +109,7 @@ export default function CommunityLibrary() {
         page: String(page),
         limit: String(limit),
       });
+      if (typeFilter !== "all") params.set("type", typeFilter);
       const res = await fetch(`/api/community/library?${params}`);
       if (!res.ok) throw new Error("Failed to load community library");
       return res.json();
@@ -103,13 +132,13 @@ export default function CommunityLibrary() {
               COMMUNITY LIBRARY
             </h1>
             <p className="text-zinc-400 text-sm sm:text-lg mb-6 sm:mb-8" data-testid="text-community-subtitle">
-              Discover comics from creators around the world
+              Discover comics, stories, and creations from the community
             </p>
             <div className="max-w-xl mx-auto relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input
                 type="text"
-                placeholder="Search comics..."
+                placeholder="Search projects..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -150,7 +179,7 @@ export default function CommunityLibrary() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/30 flex items-center justify-center">
+                          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                             <BookOpen className="w-10 h-10 text-zinc-700" />
                           </div>
                         )}
@@ -211,7 +240,7 @@ export default function CommunityLibrary() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-purple-900/30 via-zinc-900 to-cyan-900/30 flex items-center justify-center">
+                          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
                             <GitBranch className="w-10 h-10 text-zinc-700" />
                           </div>
                         )}
@@ -258,36 +287,59 @@ export default function CommunityLibrary() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
-            <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Sort by:</span>
-            <button
-              onClick={() => { setSort("newest"); setPage(1); }}
-              className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors ${
-                sort === "newest"
-                  ? "bg-cyan-500 text-black border-cyan-500"
-                  : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
-              }`}
-              data-testid="btn-sort-newest"
-            >
-              NEWEST
-            </button>
-            <button
-              onClick={() => { setSort("popular"); setPage(1); }}
-              className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors ${
-                sort === "popular"
-                  ? "bg-cyan-500 text-black border-cyan-500"
-                  : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
-              }`}
-              data-testid="btn-sort-popular"
-            >
-              POPULAR
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-6 sm:mb-8">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 touch-pan-x -mx-1 px-1">
+              {TYPE_FILTERS.map(f => {
+                const Icon = f.icon;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => { setTypeFilter(f.key); setPage(1); }}
+                    className={`px-3 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 touch-manipulation ${
+                      typeFilter === f.key
+                        ? "bg-cyan-500 text-black border-cyan-500"
+                        : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                    data-testid={`btn-type-${f.key}`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2">
+              <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider self-center">Sort:</span>
+              <button
+                onClick={() => { setSort("newest"); setPage(1); }}
+                className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors touch-manipulation ${
+                  sort === "newest"
+                    ? "bg-cyan-500 text-black border-cyan-500"
+                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                }`}
+                data-testid="btn-sort-newest"
+              >
+                NEWEST
+              </button>
+              <button
+                onClick={() => { setSort("popular"); setPage(1); }}
+                className={`px-4 py-2.5 sm:py-2 text-xs font-bold border-2 transition-colors touch-manipulation ${
+                  sort === "popular"
+                    ? "bg-cyan-500 text-black border-cyan-500"
+                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                }`}
+                data-testid="btn-sort-popular"
+              >
+                POPULAR
+              </button>
+            </div>
           </div>
 
           {isError ? (
             <div className="text-center py-24 border-2 border-dashed border-red-800/50" data-testid="error-state">
               <BookOpen className="w-16 h-16 mx-auto text-red-700 mb-4" />
-              <p className="text-red-400 text-lg font-bold mb-2">Failed to load comics</p>
+              <p className="text-red-400 text-lg font-bold mb-2">Failed to load projects</p>
               <p className="text-zinc-600">Please try again later.</p>
             </div>
           ) : isLoading ? (
@@ -303,82 +355,98 @@ export default function CommunityLibrary() {
           ) : comics.length === 0 ? (
             <div className="text-center py-24 border-2 border-dashed border-zinc-800" data-testid="empty-state">
               <BookOpen className="w-16 h-16 mx-auto text-zinc-700 mb-4" />
-              <p className="text-zinc-400 text-lg font-bold mb-2">No comics published yet.</p>
+              <p className="text-zinc-400 text-lg font-bold mb-2">No published projects yet.</p>
               <p className="text-zinc-600">Be the first to publish!</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" data-testid="comics-grid">
-                {comics.map((comic) => (
-                  <div
-                    key={comic.id}
-                    data-testid={`card-comic-${comic.id}`}
-                    onClick={() => navigate(`/community/read/${comic.id}`)}
-                    className="group border-2 border-zinc-800 bg-zinc-900 hover:border-cyan-500 transition-all cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10"
-                  >
-                    <div className="aspect-[2/3] relative overflow-hidden">
-                      {comic.thumbnail ? (
-                        <img
-                          src={comic.thumbnail}
-                          alt={comic.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          data-testid={`img-thumbnail-${comic.id}`}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 via-zinc-900 to-purple-900/30 flex items-center justify-center">
-                          <BookOpen className="w-12 h-12 text-zinc-700" />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        <span className="px-2 py-1 text-xs font-bold bg-black/80 border border-zinc-600 text-zinc-300">
-                          {comic.pageCount} pg
-                        </span>
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
+                {comics.map((comic) => {
+                  const pType = comic.projectType || "comic";
+                  const borderColor = TYPE_COLORS[pType] || "border-zinc-800";
+                  const unit = TYPE_UNIT[pType] || "items";
+                  const viewUrl = getViewUrl(comic.id, pType);
 
-                    <div className="p-3 border-t border-zinc-800">
-                      <h3
-                        className="font-bold text-white text-sm truncate mb-2"
-                        data-testid={`text-comic-title-${comic.id}`}
-                      >
-                        {comic.title}
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {comic.creatorAvatar ? (
-                            <img
-                              src={comic.creatorAvatar}
-                              alt={comic.creatorName}
-                              className="w-5 h-5 rounded-full object-cover border border-zinc-700"
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
-                              <Users className="w-3 h-3 text-zinc-500" />
-                            </div>
-                          )}
-                          <span
-                            className="text-zinc-400 text-xs truncate"
-                            data-testid={`text-creator-${comic.id}`}
-                          >
-                            {comic.creatorName}
+                  return (
+                    <div
+                      key={comic.id}
+                      data-testid={`card-project-${comic.id}`}
+                      onClick={() => navigate(viewUrl)}
+                      className={`group border-2 ${borderColor}/30 bg-zinc-900 hover:${borderColor} transition-all cursor-pointer hover:shadow-lg touch-manipulation`}
+                    >
+                      <div className="aspect-[2/3] relative overflow-hidden">
+                        {comic.thumbnail ? (
+                          <img
+                            src={comic.thumbnail}
+                            alt={comic.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            data-testid={`img-thumbnail-${comic.id}`}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                            <BookOpen className="w-12 h-12 text-zinc-700" />
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border-2 bg-black/80 ${borderColor} text-zinc-200`}>
+                            {TYPE_LABELS[pType] || pType}
                           </span>
                         </div>
-                        <a
-                          href={`https://psstreaming.com/watch/${comic.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-500 hover:text-cyan-400 transition-colors"
-                          title="Watch on PS Streaming"
-                          data-testid={`link-streaming-${comic.id}`}
-                          onClick={(e) => e.stopPropagation()}
+                        {comic.pageCount > 0 && (
+                          <div className="absolute top-2 right-2">
+                            <span className="px-2 py-1 text-xs font-bold bg-black/80 border border-zinc-600 text-zinc-300">
+                              {comic.pageCount} {unit}
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+
+                      <div className="p-3 border-t border-zinc-800">
+                        <h3
+                          className="font-bold text-white text-sm truncate mb-2"
+                          data-testid={`text-project-title-${comic.id}`}
                         >
-                          <Monitor className="w-4 h-4" />
-                        </a>
+                          {comic.title}
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {comic.creatorAvatar ? (
+                              <img
+                                src={comic.creatorAvatar}
+                                alt={comic.creatorName}
+                                className="w-5 h-5 rounded-full object-cover border border-zinc-700"
+                              />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
+                                <Users className="w-3 h-3 text-zinc-500" />
+                              </div>
+                            )}
+                            <span
+                              className="text-zinc-400 text-xs truncate"
+                              data-testid={`text-creator-${comic.id}`}
+                            >
+                              {comic.creatorName}
+                            </span>
+                          </div>
+                          {pType === "comic" && (
+                            <a
+                              href={`https://psstreaming.com/watch/${comic.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-cyan-500 hover:text-cyan-400 transition-colors"
+                              title="Watch on PS Streaming"
+                              data-testid={`link-streaming-${comic.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Monitor className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {totalPages > 1 && (
@@ -386,7 +454,7 @@ export default function CommunityLibrary() {
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="p-2 border-2 border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 border-2 border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
                     data-testid="btn-page-prev"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -398,10 +466,10 @@ export default function CommunityLibrary() {
                       const showEllipsis = prev !== undefined && p - prev > 1;
                       return (
                         <span key={p} className="flex items-center gap-2">
-                          {showEllipsis && <span className="text-zinc-600 px-1">…</span>}
+                          {showEllipsis && <span className="text-zinc-600 px-1">...</span>}
                           <button
                             onClick={() => setPage(p)}
-                            className={`w-9 h-9 text-xs font-bold border-2 transition-colors ${
+                            className={`w-9 h-9 text-xs font-bold border-2 transition-colors touch-manipulation ${
                               p === page
                                 ? "bg-cyan-500 text-black border-cyan-500"
                                 : "border-zinc-700 text-zinc-400 hover:border-cyan-500"
@@ -416,7 +484,7 @@ export default function CommunityLibrary() {
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="p-2 border-2 border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 border-2 border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
                     data-testid="btn-page-next"
                   >
                     <ChevronRight className="w-4 h-4" />

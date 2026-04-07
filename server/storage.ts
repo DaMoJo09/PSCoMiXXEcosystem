@@ -122,7 +122,7 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
-  getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number }): Promise<{ comics: any[]; total: number }>;
+  getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number; type?: string }): Promise<{ comics: any[]; total: number }>;
   getCommunityComic(id: string): Promise<any | undefined>;
   incrementViewCount(projectId: string): Promise<void>;
 
@@ -596,17 +596,18 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number }): Promise<{ comics: any[]; total: number }> {
-    const { search, sort = "newest", limit = 20, offset = 0 } = options;
+  async getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number; type?: string }): Promise<{ comics: any[]; total: number }> {
+    const { search, sort = "newest", limit = 20, offset = 0, type } = options;
+    const validTypes = ["comic", "vn", "cyoa", "card", "hop", "motion"];
     const conditions = [
-      sql`${projects.type} = 'comic'`,
+      type && validTypes.includes(type) ? sql`${projects.type} = ${type}` : sql`${projects.type} IN ('comic','vn','cyoa','card','hop','motion')`,
       sql`(${projects.status} = 'published' OR ${projects.status} = 'approved')`,
     ];
     if (search) {
       conditions.push(sql`LOWER(${projects.title}) LIKE ${`%${search.toLowerCase()}%`}`);
     }
     const whereClause = sql.join(conditions, sql` AND `);
-    const orderBy = sort === "popular" ? desc(projects.updatedAt) : desc(projects.createdAt);
+    const orderBy = sort === "popular" ? desc(projects.viewCount) : desc(projects.createdAt);
     const comicRows = await db.select({
       id: projects.id,
       title: projects.title,

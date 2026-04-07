@@ -66,6 +66,7 @@ import AchievementsPage from "@/pages/AchievementsPage";
 import RewardsPage from "@/pages/RewardsPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import CommunityLibrary from "@/pages/CommunityLibrary";
+import CommunityViewer from "@/pages/CommunityViewer";
 import ComicReader from "@/pages/ComicReader";
 import SeriesPage from "@/pages/SeriesPage";
 import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
@@ -175,6 +176,7 @@ function ProtectedRouter() {
         <Route path="/tools/cyoa" component={CYOABuilder} />
         <Route path="/creator/comic/preview">{() => <ComicReader isPreview={true} />}</Route>
         <Route path="/community/read/:id" component={ComicReader} />
+        <Route path="/community/view/:id" component={CommunityViewer} />
         <Route path="/community/series/:id" component={SeriesPage} />
         <Route path="/community" component={CommunityLibrary} />
         <Route path="/library" component={LibraryPage} />
