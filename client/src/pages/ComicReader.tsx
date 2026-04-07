@@ -863,10 +863,18 @@ function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContent
       <div style={positionStyle}>
         <img
           src={imgSrc}
-          alt=""
-          className="w-full h-full object-contain"
+          alt={item.data?.alt || ""}
+          className="w-full h-full object-cover"
           style={{ filter: imgFilter !== "none" ? imgFilter : undefined }}
+          loading="eager"
           draggable={false}
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.dataset.retried) {
+              target.dataset.retried = "1";
+              target.src = imgSrc + (imgSrc.includes("?") ? "&" : "?") + "retry=1";
+            }
+          }}
           data-testid={`img-content-${item.id}`}
         />
         {imgOverlay && (
