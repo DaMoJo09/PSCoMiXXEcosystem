@@ -64,6 +64,7 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
       setFxEffects(Array.isArray(effects) ? effects : []);
       setLoaded(true);
     } catch {
+      setLoaded(true);
       if (!silent) toast.error("Failed to load FX Studio effects");
     } finally {
       if (!silent) setFxLoading(false);

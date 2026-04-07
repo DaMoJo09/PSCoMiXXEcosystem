@@ -6852,7 +6852,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         console.error(`[usage/status] usage count failed for ${userId}: ${usageErr.message}`);
       }
       try {
-        const userProjects = await storage.getProjectsByUserId(userId);
+        const userProjects = await storage.getUserProjects(userId);
         projectCount = userProjects.length;
       } catch (projErr: any) {
         console.error(`[usage/status] project count failed for ${userId}: ${projErr.message}`);
@@ -7117,7 +7117,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
           const upstreamRes = await fetchWithTimeout(
             `${FX_API_URL}?${upstreamParams.toString()}`,
-            { method: "GET", headers: fxHeaders(), timeout: 3000 }
+            { method: "GET", headers: fxHeaders(), timeout: 8000 }
           );
 
           if (upstreamRes.ok) {
