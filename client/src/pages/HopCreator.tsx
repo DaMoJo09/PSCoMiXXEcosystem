@@ -278,6 +278,9 @@ export default function HopCreator() {
   const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [transitionClass, setTransitionClass] = useState("");
+  const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
+  const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
+  const [dragReorderLayerId, setDragReorderLayerId] = useState<string | null>(null);
 
   const { data: allProjects } = useProjects(true);
 
@@ -741,6 +744,92 @@ export default function HopCreator() {
     }
   }, [tagInput, tags]);
 
+  const getCanvasScale = useCallback(() => {
+    if (!canvasRef.current) return 1;
+    const rect = canvasRef.current.getBoundingClientRect();
+    return rect.width / viewport.w;
+  }, [viewport.w]);
+
+  const handleTransformStart = useCallback((e: React.MouseEvent | React.TouchEvent, mode: 'move' | 'resize' | 'rotate') => {
+    if (!selectedLayer || selectedLayer.locked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setTransformMode(mode);
+    transformStartRef.current = {
+      mouseX: clientX,
+      mouseY: clientY,
+      layerX: selectedLayer.positionX,
+      layerY: selectedLayer.positionY,
+      layerScale: selectedLayer.scale,
+      layerRotation: selectedLayer.rotation,
+      canvasScale: getCanvasScale(),
+    };
+  }, [selectedLayer, getCanvasScale]);
+
+  useEffect(() => {
+    if (!transformMode || !transformStartRef.current || !selectedLayerId) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if ('touches' in e) e.preventDefault();
+      const start = transformStartRef.current!;
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      const cs = start.canvasScale || 1;
+      if (transformMode === 'move') {
+        const dx = (clientX - start.mouseX) / cs;
+        const dy = (clientY - start.mouseY) / cs;
+        updateLayer(selectedLayerId, {
+          positionX: Math.round(start.layerX + dx),
+          positionY: Math.round(start.layerY + dy),
+        });
+      } else if (transformMode === 'resize') {
+        const dx = (clientX - start.mouseX) / cs;
+        const dy = (clientY - start.mouseY) / cs;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const sign = (dx + dy) > 0 ? 1 : -1;
+        const newScale = Math.max(10, Math.min(500, start.layerScale + sign * (dist / 50) * start.layerScale * 0.5));
+        updateLayer(selectedLayerId, { scale: Math.round(newScale) });
+      } else if (transformMode === 'rotate') {
+        if (!canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2 + (start.layerX * cs);
+        const centerY = rect.top + rect.height / 2 + (start.layerY * cs);
+        const angle = Math.atan2(clientY - centerY, clientX - centerX) * (180 / Math.PI) + 90;
+        updateLayer(selectedLayerId, { rotation: Math.round(angle) });
+      }
+    };
+    const handleUp = () => {
+      setTransformMode(null);
+      transformStartRef.current = null;
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleUp);
+    window.addEventListener('touchcancel', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleUp);
+      window.removeEventListener('touchcancel', handleUp);
+    };
+  }, [transformMode, selectedLayerId, updateLayer]);
+
+  const handleLayerReorder = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const displayLayers = [...(sceneLayers[currentSceneId] || [])].sort((a, b) => b.zIndex - a.zIndex);
+    const fromIdx = displayLayers.findIndex(l => l.id === fromId);
+    const toIdx = displayLayers.findIndex(l => l.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = displayLayers.splice(fromIdx, 1);
+    displayLayers.splice(toIdx, 0, moved);
+    const maxZ = displayLayers.length - 1;
+    const reindexed = displayLayers.map((l, i) => ({ ...l, zIndex: maxZ - i }));
+    setSceneLayers(sl => ({ ...sl, [currentSceneId]: reindexed }));
+  }, [currentSceneId, sceneLayers]);
+
   const previewScene = scenes[previewSceneIndex];
   const previewLayers = previewScene ? (sceneLayers[previewScene.id] || []) : [];
   const previewTextStyle = previewScene ? (sceneTextStyles[previewScene.id] || defaultTextStyle()) : defaultTextStyle();
@@ -1080,8 +1169,66 @@ export default function HopCreator() {
         <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900/50">
           <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
             <div className="relative" style={{ width: `${viewport.w}px`, maxWidth: "100%", maxHeight: "100%" }}>
-              <div className={`border-2 border-zinc-700 overflow-hidden ${transitionClass}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
+              <div className={`border-2 border-zinc-700 overflow-hidden relative ${transitionClass}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
                 {renderCanvas(currentScene, currentLayers, currentTextStyle, canvasRef)}
+                {selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (selectedLayer.type === "media" || selectedLayer.type === "text") && (() => {
+                  const frameSize = Math.max(60, selectedLayer.scale);
+                  return (
+                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
+                      <div
+                        className="absolute pointer-events-auto"
+                        style={{
+                          left: "50%",
+                          top: "50%",
+                          width: `${frameSize}px`,
+                          height: `${frameSize}px`,
+                          transform: `translate(-50%,-50%) translate(${selectedLayer.positionX}px,${selectedLayer.positionY}px) rotate(${selectedLayer.rotation}deg)`,
+                        }}
+                      >
+                        <div
+                          className="absolute inset-0 border-2 border-orange-500/80"
+                          style={{ cursor: transformMode === 'move' ? 'grabbing' : 'move', touchAction: 'none' }}
+                          onMouseDown={(e) => handleTransformStart(e, 'move')}
+                          onTouchStart={(e) => handleTransformStart(e, 'move')}
+                          data-testid="transform-move"
+                        />
+                        {[
+                          { x: 0, y: 0 },
+                          { x: 1, y: 0 },
+                          { x: 0, y: 1 },
+                          { x: 1, y: 1 },
+                        ].map((corner, i) => (
+                          <div
+                            key={i}
+                            className="absolute w-5 h-5 bg-orange-500 border border-white"
+                            style={{
+                              left: corner.x ? '100%' : '0%',
+                              top: corner.y ? '100%' : '0%',
+                              transform: 'translate(-50%,-50%)',
+                              cursor: (corner.x === corner.y) ? 'nwse-resize' : 'nesw-resize',
+                              touchAction: 'none',
+                              minWidth: '20px',
+                              minHeight: '20px',
+                            }}
+                            onMouseDown={(e) => handleTransformStart(e, 'resize')}
+                            onTouchStart={(e) => handleTransformStart(e, 'resize')}
+                            data-testid={`transform-resize-${i}`}
+                          />
+                        ))}
+                        <div
+                          className="absolute left-1/2 flex flex-col items-center"
+                          style={{ bottom: '100%', transform: 'translateX(-50%)', cursor: 'grab', marginBottom: '4px', touchAction: 'none' }}
+                          onMouseDown={(e) => handleTransformStart(e, 'rotate')}
+                          onTouchStart={(e) => handleTransformStart(e, 'rotate')}
+                          data-testid="transform-rotate"
+                        >
+                          <div className="w-5 h-5 rounded-full bg-cyan-500 border border-white" />
+                          <div className="w-px h-3 bg-cyan-500" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {!currentScene?.assetUrl && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -1147,15 +1294,23 @@ export default function HopCreator() {
               </div>
             </div>
             <div className="space-y-0.5 max-h-40 overflow-y-auto">
-              {[...currentLayers].reverse().map(layer => (
+              {[...currentLayers].sort((a, b) => b.zIndex - a.zIndex).map(layer => (
                 <div
                   key={layer.id}
+                  draggable
+                  onDragStart={() => setDragReorderLayerId(layer.id)}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => { e.preventDefault(); if (dragReorderLayerId) { handleLayerReorder(dragReorderLayerId, layer.id); setDragReorderLayerId(null); } }}
+                  onDragEnd={() => setDragReorderLayerId(null)}
                   onClick={() => { setSelectedLayerId(layer.id); setRightContext("layer"); }}
                   className={`flex items-center gap-1 px-1.5 py-1 cursor-pointer transition text-[10px] ${
-                    selectedLayerId === layer.id ? "bg-orange-900/30 border border-orange-500/50" : "bg-zinc-900/30 border border-transparent hover:border-white/10"
+                    selectedLayerId === layer.id ? "bg-orange-900/30 border border-orange-500/50" :
+                    dragReorderLayerId === layer.id ? "opacity-50 bg-zinc-900/30 border border-dashed border-orange-400/50" :
+                    "bg-zinc-900/30 border border-transparent hover:border-white/10"
                   }`}
+                  data-testid={`layer-item-${layer.id}`}
                 >
-                  <GripVertical className="w-2.5 h-2.5 text-zinc-600 shrink-0" />
+                  <GripVertical className="w-2.5 h-2.5 text-zinc-600 shrink-0 cursor-grab" />
                   <span className="text-zinc-500 shrink-0">
                     {layer.type === "media" ? "🖼️" : layer.type === "text" ? "T" : layer.type === "effect" ? "✨" : "T"}
                   </span>
