@@ -7,13 +7,18 @@ import {
   Zap, Clock, Sparkles, Settings2, Loader2, Download,
   Maximize2, SkipForward, SkipBack, FolderOpen, Search,
   Lock, Unlock, Copy, Layers, Monitor, Smartphone, Tablet, Square,
-  Palette, Wand2
+  Palette, Wand2, LayoutGrid, Timer, PenTool, FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useProjects, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { apiRequest } from "@/lib/queryClient";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 import type { HopScene, HopData, Project } from "@shared/schema";
+import HopStudioCanvas from "@/components/hop/HopStudioCanvas";
+import type { CanvasNode, CanvasConnection, CanvasStickyNote, CanvasReferenceImage } from "@/components/hop/HopStudioCanvas";
+import HopWaveformTimeline from "@/components/hop/HopWaveformTimeline";
+import HopExportPanel from "@/components/hop/HopExportPanel";
+import { SCENE_TEMPLATES, SOUND_PACKS, CAMERA_ANGLES, LIGHTING_PRESETS, MOOD_PRESETS } from "@/components/hop/hopSceneTemplates";
 
 type HopLayer = {
   id: string;
@@ -277,6 +282,16 @@ export default function HopCreator() {
   const [rightContext, setRightContext] = useState<"scene" | "layer">("scene");
   const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const [viewMode, setViewMode] = useState<"builder" | "canvas" | "timeline">("builder");
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
+  const [canvasConnections, setCanvasConnections] = useState<CanvasConnection[]>([]);
+  const [canvasStickyNotes, setCanvasStickyNotes] = useState<CanvasStickyNote[]>([]);
+  const [canvasReferenceImages, setCanvasReferenceImages] = useState<CanvasReferenceImage[]>([]);
+  const [canvasAnnotations, setCanvasAnnotations] = useState<{ points: { x: number; y: number }[]; color: string; width: number }[]>([]);
+  const [beatMarkers, setBeatMarkers] = useState<{ id: string; timePosition: number; label?: string; autoDetected: boolean }[]>([]);
+  const [showSceneTemplates, setShowSceneTemplates] = useState(false);
   const [transitionClass, setTransitionClass] = useState("");
   const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
   const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
@@ -348,6 +363,12 @@ export default function HopCreator() {
         if (data.sceneTextStyles) setSceneTextStyles(data.sceneTextStyles);
         if (data.audioClips) setAudioClips(data.audioClips);
         if (data.displayMode) setDisplayMode(data.displayMode);
+        if (data.canvasNodes) setCanvasNodes(data.canvasNodes);
+        if (data.canvasConnections) setCanvasConnections(data.canvasConnections);
+        if (data.canvasStickyNotes) setCanvasStickyNotes(data.canvasStickyNotes);
+        if (data.canvasReferenceImages) setCanvasReferenceImages(data.canvasReferenceImages);
+        if (data.canvasAnnotations) setCanvasAnnotations(data.canvasAnnotations);
+        if (data.beatMarkers) setBeatMarkers(data.beatMarkers);
         if (existingProject.description) setDescription(existingProject.description as string || "");
       }
     }
@@ -368,7 +389,13 @@ export default function HopCreator() {
     sceneTextStyles,
     audioClips,
     displayMode,
-  } as any), [hopType, clipLengthMode, loopMode, scenes, tags, visibility, totalDuration, audioTrack, sceneLayers, sceneTextStyles, audioClips, displayMode]);
+    canvasNodes: canvasNodes.length > 0 ? canvasNodes : undefined,
+    canvasConnections: canvasConnections.length > 0 ? canvasConnections : undefined,
+    canvasStickyNotes: canvasStickyNotes.length > 0 ? canvasStickyNotes : undefined,
+    canvasReferenceImages: canvasReferenceImages.length > 0 ? canvasReferenceImages : undefined,
+    canvasAnnotations: canvasAnnotations.length > 0 ? canvasAnnotations : undefined,
+    beatMarkers: beatMarkers.length > 0 ? beatMarkers : undefined,
+  } as any), [hopType, clipLengthMode, loopMode, scenes, tags, visibility, totalDuration, audioTrack, sceneLayers, sceneTextStyles, audioClips, displayMode, canvasNodes, canvasConnections, canvasStickyNotes, canvasReferenceImages, canvasAnnotations, beatMarkers]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -377,6 +404,16 @@ export default function HopCreator() {
       if (effectiveProjectId) {
         await saveProjectWithOfflineFallback(effectiveProjectId, { title, data: hopData }, "hop");
         toast.success("HOP saved");
+        try {
+          const badgeRes = await apiRequest("POST", "/api/hop/check-badges", {
+            sceneCount: scenes.length,
+            hasMusicSync: beatMarkers.length > 0 || !!audioTrack?.bpm,
+          });
+          const badgeData = await badgeRes.json();
+          if (badgeData.awarded?.length > 0) {
+            toast.success(`Badge earned: ${badgeData.awarded.join(", ")}`);
+          }
+        } catch {}
       } else {
         const project = await createProject.mutateAsync({
           title,
@@ -989,7 +1026,22 @@ export default function HopCreator() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <Zap className="w-4 h-4 text-orange-400" />
-          <span className="text-[10px] text-orange-400 font-bold tracking-wider hidden sm:inline">HOP BUILDER</span>
+          <div className="flex items-center gap-0.5 mr-1">
+            {([
+              { id: "builder" as const, label: "BUILD", icon: LayoutGrid },
+              { id: "canvas" as const, label: "CANVAS", icon: PenTool },
+              { id: "timeline" as const, label: "TIMELINE", icon: Timer },
+            ] as const).map(v => (
+              <button
+                key={v.id}
+                onClick={() => setViewMode(v.id)}
+                className={`flex items-center gap-0.5 px-1.5 py-1 text-[9px] font-bold tracking-wider transition ${viewMode === v.id ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"}`}
+                data-testid={`view-mode-${v.id}`}
+              >
+                <v.icon className="w-3 h-3" /> <span className="hidden sm:inline">{v.label}</span>
+              </button>
+            ))}
+          </div>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -1036,6 +1088,14 @@ export default function HopCreator() {
             {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           </button>
           <button
+            onClick={() => setShowExportPanel(true)}
+            className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition flex items-center gap-1"
+            title="Full Export Panel"
+            data-testid="button-export-panel"
+          >
+            <FileText className="w-3 h-3" /> Export
+          </button>
+          <button
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-1 px-2.5 py-1 text-xs bg-orange-600 hover:bg-orange-500 text-white font-medium transition disabled:opacity-50"
@@ -1047,6 +1107,44 @@ export default function HopCreator() {
         </div>
       </div>
 
+      {viewMode === "canvas" && (
+        <div className="flex-1 overflow-hidden">
+          <HopStudioCanvas
+            nodes={canvasNodes}
+            connections={canvasConnections}
+            stickyNotes={canvasStickyNotes}
+            referenceImages={canvasReferenceImages}
+            annotations={canvasAnnotations}
+            onNodesChange={setCanvasNodes}
+            onConnectionsChange={setCanvasConnections}
+            onStickyNotesChange={setCanvasStickyNotes}
+            onReferenceImagesChange={setCanvasReferenceImages}
+            onAnnotationsChange={setCanvasAnnotations}
+            sceneIds={scenes.map(s => s.id)}
+          />
+        </div>
+      )}
+
+      {viewMode === "timeline" && (
+        <div className="flex-1 overflow-hidden">
+          <HopWaveformTimeline
+            scenes={scenes}
+            audioSrc={audioTrack?.src}
+            audioBpm={audioBpm}
+            beatMarkers={beatMarkers}
+            isPlaying={isPlaying}
+            selectedSceneIdx={selectedSceneIdx}
+            totalDuration={totalDuration}
+            onSceneSelect={(idx) => { setSelectedSceneIdx(idx); setSelectedLayerId(null); setRightContext("scene"); }}
+            onSceneUpdate={(id, updates) => handleUpdateScene(id, updates)}
+            onBeatMarkersChange={setBeatMarkers}
+            onPlayToggle={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }}
+            onAddScene={handleAddScene}
+          />
+        </div>
+      )}
+
+      {viewMode === "builder" && (
       <div className="flex flex-1 overflow-hidden">
         <div className="w-60 bg-zinc-950 border-r border-white/10 flex flex-col shrink-0 overflow-hidden">
           <div className="flex border-b border-white/10 shrink-0">
@@ -1067,9 +1165,14 @@ export default function HopCreator() {
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[9px] text-zinc-500 font-bold">{scenes.length} SCENES · {totalDuration}s</span>
-                  <button onClick={handleAddScene} className="p-1 hover:bg-zinc-800 text-orange-400 transition" data-testid="button-add-scene">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex gap-0.5">
+                    <button onClick={() => setShowSceneTemplates(true)} className="p-1 hover:bg-zinc-800 text-cyan-400 transition" title="From Template" data-testid="button-scene-templates">
+                      <FileText className="w-3 h-3" />
+                    </button>
+                    <button onClick={handleAddScene} className="p-1 hover:bg-zinc-800 text-orange-400 transition" data-testid="button-add-scene">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 {scenes.map((scene, idx) => (
                   <div
@@ -1088,8 +1191,8 @@ export default function HopCreator() {
                         <ImageIcon className="w-4 h-4 text-zinc-600" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-zinc-300 truncate text-[11px]">{scene.textOverlay || scene.caption || `Scene ${idx + 1}`}</div>
-                      <div className="text-[9px] text-zinc-500">{scene.duration}s · {scene.transition}</div>
+                      <div className="text-zinc-300 truncate text-[11px]">{scene.textOverlay || scene.caption || scene.title || `Scene ${idx + 1}`}</div>
+                      <div className="text-[9px] text-zinc-500">{scene.duration}s · {scene.transition}{scene.mood ? ` · ${scene.mood.split(",")[0]}` : ""}{scene.templateId ? " [T]" : ""}</div>
                     </div>
                     <div className="flex flex-col gap-0.5 shrink-0">
                       <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "up"); }} className="p-0.5 hover:bg-zinc-700"><ChevronUp className="w-2.5 h-2.5 text-zinc-500" /></button>
@@ -1564,6 +1667,56 @@ export default function HopCreator() {
                   </label>
 
                   <div className="border-t border-white/10 pt-2 mt-2">
+                    <span className="text-[9px] text-zinc-500 uppercase font-bold">Scene Details</span>
+                    <div className="space-y-1.5 mt-1">
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Mood</label>
+                        <select value={currentScene.mood || ""} onChange={(e) => handleUpdateScene(currentSceneId, { mood: e.target.value || undefined })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
+                          <option value="">None</option>
+                          {MOOD_PRESETS.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Camera Angle</label>
+                        <select value={currentScene.cameraAngle || ""} onChange={(e) => handleUpdateScene(currentSceneId, { cameraAngle: e.target.value || undefined })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
+                          <option value="">None</option>
+                          {CAMERA_ANGLES.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Lighting</label>
+                        <select value={currentScene.lighting || ""} onChange={(e) => handleUpdateScene(currentSceneId, { lighting: e.target.value || undefined })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
+                          <option value="">None</option>
+                          {LIGHTING_PRESETS.map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Location</label>
+                        <input value={currentScene.location || ""} onChange={(e) => handleUpdateScene(currentSceneId, { location: e.target.value || undefined })} placeholder="Scene location..." className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Sound Pack</label>
+                        <select value={currentScene.soundPack || ""} onChange={(e) => handleUpdateScene(currentSceneId, { soundPack: e.target.value || undefined })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
+                          <option value="">None</option>
+                          {SOUND_PACKS.map(sp => <option key={sp.id} value={sp.id}>{sp.label} ({sp.category}){sp.tier === "premium" ? " *" : ""}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Lyrics / Narration</label>
+                        <input value={currentScene.lyricsSegment || ""} onChange={(e) => handleUpdateScene(currentSceneId, { lyricsSegment: e.target.value || undefined })} placeholder="Lyrics segment..." className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-zinc-600">Sync Mode</label>
+                        <div className="flex gap-0.5 mt-0.5">
+                          {(["manual", "snap-to-beat", "fill"] as const).map(mode => (
+                            <button key={mode} onClick={() => handleUpdateScene(currentSceneId, { syncMode: mode })} className={`flex-1 py-0.5 text-[8px] transition ${currentScene.syncMode === mode ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{mode}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-2 mt-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[9px] text-zinc-500 uppercase font-bold">Project Settings</span>
                       <button onClick={() => setShowSettings(!showSettings)} className="p-0.5 hover:bg-zinc-800"><Settings2 className="w-3 h-3 text-zinc-500" /></button>
@@ -1627,6 +1780,7 @@ export default function HopCreator() {
           </div>
         </div>
       </div>
+      )}
 
       {audioTrack && <audio key={audioTrack.src.slice(0, 64)} ref={audioRef} src={audioTrack.src} preload="auto" loop={audioTrack.loop} />}
 
@@ -1669,6 +1823,68 @@ export default function HopCreator() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExportPanel && (
+        <HopExportPanel
+          scenes={scenes}
+          title={title}
+          projectId={effectiveProjectId}
+          totalDuration={totalDuration}
+          userTier="free"
+          canvasRef={canvasRef}
+          onClose={() => setShowExportPanel(false)}
+          renderCanvas={() => canvasRef.current}
+        />
+      )}
+
+      {showSceneTemplates && (
+        <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4" data-testid="scene-templates-overlay">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+              <h3 className="text-sm font-bold text-white">Scene Templates</h3>
+              <button onClick={() => setShowSceneTemplates(false)} className="p-1 hover:bg-zinc-800"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {SCENE_TEMPLATES.map(tmpl => (
+                <button
+                  key={tmpl.id}
+                  onClick={() => {
+                    const scene = createDefaultScene(scenes.length);
+                    const applied: HopScene = {
+                      ...scene,
+                      duration: tmpl.defaults.duration,
+                      transition: tmpl.defaults.transition,
+                      mood: tmpl.defaults.mood,
+                      cameraAngle: tmpl.defaults.cameraAngle,
+                      lighting: tmpl.defaults.lighting,
+                      soundPack: tmpl.defaults.soundPack,
+                      textOverlay: tmpl.defaults.textOverlay,
+                      templateId: tmpl.id,
+                    };
+                    setScenes(prev => [...prev, applied]);
+                    setSelectedSceneIdx(scenes.length);
+                    setShowSceneTemplates(false);
+                    toast.success(`Added "${tmpl.label}" scene`);
+                  }}
+                  className="w-full text-left p-3 bg-zinc-800 border border-white/10 hover:border-orange-500/50 transition"
+                  data-testid={`template-${tmpl.id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">{tmpl.label}</span>
+                    {tmpl.category === "premium" && <span className="text-[7px] text-orange-400 bg-orange-900/30 px-1.5 py-0.5 border border-orange-500/30">PREMIUM</span>}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">{tmpl.description}</p>
+                  <div className="flex gap-2 mt-1 text-[8px] text-zinc-500">
+                    <span>{tmpl.defaults.duration}s</span>
+                    <span>{tmpl.defaults.transition}</span>
+                    {tmpl.defaults.mood && <span>{tmpl.defaults.mood}</span>}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

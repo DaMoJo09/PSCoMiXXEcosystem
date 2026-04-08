@@ -31,7 +31,7 @@ import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage 
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
-import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications } from "@shared/schema";
+import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications, badges, userBadges } from "@shared/schema";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -2546,6 +2546,61 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const badges = await storage.getUserBadges(req.user!.id);
       res.json(badges);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/hop/check-badges", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const sceneCount = typeof req.body.sceneCount === "number" ? req.body.sceneCount : 0;
+      const hasMusicSync = !!req.body.hasMusicSync;
+      const awarded: string[] = [];
+
+      const allBadges = await storage.getAllBadges();
+      const userBadgesList = await storage.getUserBadges(userId);
+      const earnedIds = new Set(userBadgesList.map(ub => ub.badgeId));
+
+      let directorBadge = allBadges.find(b => b.name === "HOP Director");
+      if (!directorBadge) {
+        const [created] = await db.insert(badges).values({
+          name: "HOP Director",
+          description: "Created a HOP with 5+ scenes",
+          icon: "🎬",
+          category: "achievement",
+          xpReward: 50,
+          rarity: "uncommon",
+          requirements: { minScenes: 5 },
+        }).returning();
+        directorBadge = created;
+      }
+
+      let producerBadge = allBadges.find(b => b.name === "HOP Producer");
+      if (!producerBadge) {
+        const [created] = await db.insert(badges).values({
+          name: "HOP Producer",
+          description: "Created a music-synced HOP with beat markers",
+          icon: "🎵",
+          category: "achievement",
+          xpReward: 75,
+          rarity: "rare",
+          requirements: { musicSync: true },
+        }).returning();
+        producerBadge = created;
+      }
+
+      if (sceneCount >= 5 && directorBadge && !earnedIds.has(directorBadge.id)) {
+        await db.insert(userBadges).values({ userId, badgeId: directorBadge.id });
+        awarded.push("HOP Director");
+      }
+
+      if (hasMusicSync && producerBadge && !earnedIds.has(producerBadge.id)) {
+        await db.insert(userBadges).values({ userId, badgeId: producerBadge.id });
+        awarded.push("HOP Producer");
+      }
+
+      res.json({ awarded, message: awarded.length > 0 ? `Earned: ${awarded.join(", ")}` : "No new badges" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
