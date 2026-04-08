@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useRef } from "react";
 import { WhatsNextPrompt } from "@/components/WhatsNextPrompt";
 import { XPCelebration } from "@/components/XPCelebration";
 import { LevelUpOverlay } from "@/components/LevelUpOverlay";
@@ -62,8 +62,12 @@ export function PostActionProvider({ children }: { children: React.ReactNode }) 
   const [whatsNextVisible, setWhatsNextVisible] = useState(false);
   const [celebration, setCelebration] = useState<{ xp: number; reason: string } | null>(null);
   const [levelUp, setLevelUp] = useState<LevelUpData | null>(null);
+  const lastWhatsNextRef = useRef(0);
 
   const showWhatsNext = useCallback(() => {
+    const now = Date.now();
+    if (now - lastWhatsNextRef.current < 60000) return;
+    lastWhatsNextRef.current = now;
     setWhatsNextVisible(true);
   }, []);
 

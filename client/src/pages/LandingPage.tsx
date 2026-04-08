@@ -84,7 +84,8 @@ const creatorTools = [
   { icon: Clapperboard, title: "Motion Studio", description: "Animate your art with keyframes, audio, and timeline editing. Export as video or GIF.", accent: "border-red-500", accentColor: "text-red-400" },
   { icon: BookOpenCheck, title: "Visual Novel", description: "Create Ren'Py-style visual novels with scenes, characters, dialogue trees, and transitions.", accent: "border-violet-500", accentColor: "text-violet-400" },
   { icon: Layers, title: "CYOA Builder", description: "Build branching interactive fiction with variables, conditions, and audio per scene.", accent: "border-green-500", accentColor: "text-green-400" },
-  { icon: Wand2, title: "FX Studio", description: "Effects pipeline for overlays, filters, and asset enhancement. Syncs with all creator modes.", accent: "border-pink-500", accentColor: "text-pink-400" },
+  { icon: Zap, title: "HOPs Studio", description: "Create viral short-form content with beat sync, vibe modes, and instant export for streaming.", accent: "border-pink-500", accentColor: "text-pink-400" },
+  { icon: Wand2, title: "FX Studio", description: "Effects pipeline for overlays, filters, and asset enhancement. Syncs with all creator modes.", accent: "border-orange-500", accentColor: "text-orange-400" },
 ];
 
 const audienceSections = [
@@ -151,7 +152,7 @@ const trustMetrics = [
   { value: "10K+", label: "Projects Created" },
   { value: "500+", label: "Active Creators" },
   { value: "50+", label: "Schools" },
-  { value: "6", label: "Creator Tools" },
+  { value: "7", label: "Creator Tools" },
 ];
 
 export default function LandingPage() {
@@ -211,22 +212,26 @@ export default function LandingPage() {
 
           <div className="w-32 h-px bg-zinc-600 mx-auto mb-8" style={{ boxShadow: glitchText ? '0 0 10px rgba(255,255,255,0.5)' : 'none' }} />
 
-          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tight text-center mb-6 text-white"
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tight text-center mb-4 text-white"
             style={{ fontFamily: "'Space Grotesk', sans-serif", textShadow: glitchText ? `${glitchOffset.x}px ${glitchOffset.y}px 0 #ff0000, ${-glitchOffset.x}px ${-glitchOffset.y}px 0 #00ffff, 0 0 80px rgba(255,255,255,0.8)` : '0 0 40px rgba(255,255,255,0.3)' }}
             data-testid="text-tagline">
-            <span className="block">CREATE. PUBLISH.</span>
-            <span className="block">GET SEEN. LEVEL UP.</span>
+            <span className="block">Create comics, animations,</span>
+            <span className="block">and interactive stories</span>
+            <span className="block text-cyan-400">in minutes.</span>
           </h1>
 
-          <p className="text-sm sm:text-lg md:text-xl text-zinc-400 text-center mb-8 max-w-3xl font-mono px-4" data-testid="text-subtitle">
-            The AI-powered creative studio where students and creators build comics, trading cards, visual novels, animations, and interactive stories — then publish, sell, and earn real certifications.
+          <p className="text-sm sm:text-lg md:text-xl text-zinc-400 text-center mb-3 max-w-2xl font-mono px-4" data-testid="text-subtitle">
+            The AI-powered studio where students and creators go from idea to published work — comics, trading cards, motion art, visual novels, and more.
+          </p>
+          <p className="text-xs sm:text-sm text-zinc-500 text-center mb-8 max-w-xl font-mono px-4">
+            Create. Publish. Get seen. Level up.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-center mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center mb-4">
             <button data-testid="button-start-creating" onClick={() => navigate("/signup")}
               className="group px-10 sm:px-14 py-4 sm:py-5 bg-white text-black font-black text-lg sm:text-xl uppercase tracking-wider flex items-center gap-3 hover:bg-zinc-200 transition-all relative border-none cursor-pointer"
               style={{ fontFamily: "'Space Grotesk', sans-serif", boxShadow: '0 0 30px rgba(255,255,255,0.3)' }}>
-              START CREATING — FREE
+              CREATE YOUR FIRST COMIC — FREE
               <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
               <div className="absolute inset-0 border-2 border-white translate-x-2 translate-y-2 -z-10 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform" />
             </button>
@@ -257,13 +262,53 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* WHAT YOU'LL MAKE */}
+      <section className="relative z-10 py-20 sm:py-28 px-4 sm:px-8 bg-black" data-testid="section-output-showcase">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-14 text-center">
+            <span className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em] block mb-4">NOT JUST TOOLS</span>
+            <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              HERE'S WHAT YOU'LL MAKE
+            </h3>
+            <div className="w-24 h-1 bg-cyan-500 mx-auto mb-6" />
+            <p className="text-sm text-zinc-500 font-mono max-w-2xl mx-auto">
+              Real output. Real formats. Published and portfolio-ready in one session.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[
+              { title: "PRINT COMICS", desc: "300 DPI pages with covers, panels, and speech bubbles", accent: "border-cyan-500" },
+              { title: "TRADING CARDS", desc: "Collectible card packs with stats, art, and effects", accent: "border-green-500" },
+              { title: "MOTION COMICS", desc: "Animated video and GIF exports with audio sync", accent: "border-amber-500" },
+              { title: "VISUAL NOVELS", desc: "Dialogue-driven stories with characters and transitions", accent: "border-violet-500" },
+              { title: "CYOA STORIES", desc: "Branching interactive fiction with choices and variables", accent: "border-red-500" },
+              { title: "VIRAL HOPs", desc: "Short-form loopable content for streaming and social", accent: "border-pink-500" },
+            ].map((output) => (
+              <div key={output.title} className={`border-2 ${output.accent} bg-zinc-950 p-4 text-center`} data-testid={`output-card-${output.title.toLowerCase().replace(/\s/g, '-')}`}>
+                <h4 className="text-sm font-black uppercase tracking-wider mb-2 text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{output.title}</h4>
+                <p className="text-[11px] text-zinc-500 font-mono leading-relaxed">{output.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <button data-testid="button-output-cta" onClick={() => navigate("/signup")}
+              className="px-8 py-3 bg-white text-black font-black text-sm uppercase tracking-wider hover:bg-zinc-200 transition-all border-none cursor-pointer inline-flex items-center gap-2"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              START MAKING YOURS <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* CREATOR TOOLS — THE FULL SUITE */}
-      <section className="relative z-10 py-20 sm:py-28 px-4 sm:px-8 bg-black" data-testid="section-tools">
+      <section className="relative z-10 py-20 sm:py-28 px-4 sm:px-8 bg-black border-t-2 border-zinc-800" data-testid="section-tools">
         <div className="max-w-6xl mx-auto">
           <div className="mb-14 text-center">
             <span className="text-xs font-mono text-zinc-500 uppercase tracking-[0.3em] block mb-4">THE STUDIO</span>
             <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tight mb-4" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-              6 CREATOR TOOLS. ONE PLATFORM.
+              7 CREATOR TOOLS. ONE PLATFORM.
             </h3>
             <div className="w-24 h-1 bg-white mx-auto mb-6" />
             <p className="text-sm text-zinc-500 font-mono max-w-2xl mx-auto">

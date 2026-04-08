@@ -1429,7 +1429,6 @@ export default function MotionStudio() {
       });
       toast.success("Project saved");
       fireXpAction("save");
-      showWhatsNext();
     } catch {
       toast.error("Failed to save");
     }

@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
-import { X, Globe, User, ArrowRight, Palette } from "lucide-react";
+import { X, Globe, User, ArrowRight, Palette, Zap, Play } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface WhatsNextPromptProps {
@@ -13,20 +12,22 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
 
   const actions = [
     {
-      label: "Publish to get seen",
-      desc: "Share your work in the Community Library",
-      icon: Globe,
-      color: "border-cyan-500",
+      label: "Publish now",
+      desc: "Go live on PressPlays streaming and the Community Library",
+      icon: Play,
+      color: "border-cyan-500 bg-cyan-500/10",
+      primary: true,
       onClick: () => {
         onDismiss();
         navigate("/community");
       },
     },
     {
-      label: "Share your portfolio",
-      desc: "Build your public creator profile",
+      label: "Add to portfolio",
+      desc: "Build your public creator profile for scouts and recruiters",
       icon: User,
       color: "border-green-500",
+      primary: false,
       onClick: () => {
         onDismiss();
         navigate(`/portfolio${user?.id ? `/${user.id}` : ""}`);
@@ -34,9 +35,10 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
     },
     {
       label: "Keep creating",
-      desc: "Start a new project from the Dashboard",
+      desc: "Jump back to the Dashboard and start something new",
       icon: Palette,
       color: "border-amber-500",
+      primary: false,
       onClick: () => {
         onDismiss();
         navigate("/");
@@ -49,7 +51,7 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
       data-testid="whats-next-overlay"
     >
-      <div className="relative w-full max-w-md mx-4 bg-zinc-950 border border-white/20 shadow-2xl">
+      <div className="relative w-full max-w-md mx-4 bg-zinc-950 border-2 border-cyan-500/40 shadow-[0_0_40px_rgba(0,255,255,0.1)]">
         <button
           onClick={onDismiss}
           className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors z-10"
@@ -59,9 +61,12 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
         </button>
 
         <div className="p-6 sm:p-8">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono mb-2">
-            Nice work
-          </p>
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-cyan-400" />
+            <p className="text-[10px] text-cyan-400 uppercase tracking-[0.2em] font-mono">
+              Export complete
+            </p>
+          </div>
           <h2
             className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-6"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
@@ -77,10 +82,12 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
                 <button
                   key={action.label}
                   onClick={action.onClick}
-                  className={`w-full p-4 border-2 ${action.color} bg-white/5 text-left flex items-center gap-4 hover:bg-white/10 transition-all group`}
+                  className={`w-full p-4 border-2 ${action.color} text-left flex items-center gap-4 hover:bg-white/10 transition-all group ${action.primary ? "bg-cyan-500/10" : "bg-white/5"}`}
                   data-testid={`button-whats-next-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
                 >
-                  <Icon className="w-6 h-6 text-white flex-shrink-0" />
+                  <div className={`w-10 h-10 border-2 ${action.color.split(' ')[0]} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3
                       className="text-sm font-black uppercase tracking-tight text-white"
@@ -104,4 +111,3 @@ export function WhatsNextPrompt({ onDismiss }: WhatsNextPromptProps) {
     </div>
   );
 }
-

@@ -562,7 +562,6 @@ export default function CardCreator() {
       pendingSaveRef.current = false;
       toast.success("Card saved");
       fireXpAction("save");
-      showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {

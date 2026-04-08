@@ -1029,7 +1029,6 @@ export default function ComicCreator() {
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
       toast.success("Comic saved");
       fireXpAction("save");
-      showWhatsNext();
     } catch (error: any) {
       toast.error(error.message || "Save failed");
     } finally {
@@ -4546,9 +4545,8 @@ export default function ComicCreator() {
             <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/80 px-4 py-2 rounded ${showPreview ? 'hidden' : ''}`}>
               <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
               <button 
-                onClick={async () => { 
+                onClick={() => { 
                   if (currentSpreadIndex > 0) {
-                    if (effectiveProjectId) await handleSave();
                     setCurrentSpreadIndex(currentSpreadIndex - 1);
                   }
                 }}
@@ -4558,9 +4556,8 @@ export default function ComicCreator() {
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button 
-                onClick={async () => {
+                onClick={() => {
                   if (currentSpreadIndex < spreads.length - 1) {
-                    if (effectiveProjectId) await handleSave();
                     setCurrentSpreadIndex(currentSpreadIndex + 1);
                   }
                 }}

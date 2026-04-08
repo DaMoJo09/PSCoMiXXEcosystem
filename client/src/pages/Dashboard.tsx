@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown, Eye, Heart, Monitor } from "lucide-react";
+import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown, Eye, Heart, Monitor, Rocket } from "lucide-react";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject, useUpdateProject } from "@/hooks/useProjects";
@@ -932,9 +932,42 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 border border-border bg-card">
-              <Folder className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground font-mono">No projects yet. Create your first one!</p>
+            <div className="border-2 border-cyan-500/40 bg-zinc-900 p-8 text-center" data-testid="empty-state-quickstart">
+              <div className="w-16 h-16 border-2 border-cyan-500 flex items-center justify-center mx-auto mb-4">
+                <Rocket className="w-8 h-8 text-cyan-400" />
+              </div>
+              <h3
+                className="text-xl font-black uppercase tracking-tight mb-2 text-white"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                Create your first project in 60 seconds
+              </h3>
+              <p className="text-sm text-zinc-500 font-mono mb-6 max-w-md mx-auto">
+                Pick a starter template below and jump right in. No setup required.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+                {[
+                  { label: "Comic Starter", type: "comic", href: "/creator/comic", icon: Palette, accent: "border-cyan-500 hover:bg-cyan-500/10" },
+                  { label: "Viral HOP", type: "hop", href: "/creator/hop", icon: Zap, accent: "border-amber-500 hover:bg-amber-500/10" },
+                  { label: "Card Drop", type: "card", href: "/creator/card", icon: CreditCard, accent: "border-green-500 hover:bg-green-500/10" },
+                  { label: "Quick Story", type: "cyoa", href: "/creator/cyoa", icon: GitBranch, accent: "border-red-500 hover:bg-red-500/10" },
+                ].map((tpl) => {
+                  const TplIcon = tpl.icon;
+                  return (
+                    <button
+                      key={tpl.type}
+                      onClick={() => handleQuickCreate(tpl.type, tpl.href)}
+                      className={`p-4 border-2 ${tpl.accent} bg-zinc-950 text-left transition-all group`}
+                      data-testid={`button-template-${tpl.type}`}
+                    >
+                      <TplIcon className="w-6 h-6 text-zinc-400 group-hover:text-white mb-2" />
+                      <span className="text-sm font-black uppercase tracking-tight text-white block" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                        {tpl.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
