@@ -960,6 +960,17 @@ interface PlatformAssetData {
   isFree: boolean;
   isActive: boolean;
   downloadCount: number;
+  sourceType: string;
+  rightsClass: string;
+  usageMode: string;
+  downloadAllowed: boolean;
+  publishAllowed: boolean;
+  editableByUser: boolean;
+  unlockType: string;
+  xpRequired: number;
+  allowedOutputs: string[] | null;
+  schoolSafe: boolean;
+  licenseNotes: string | null;
   metadata: any;
   createdAt: string;
   updatedAt: string;
@@ -967,8 +978,37 @@ interface PlatformAssetData {
 
 const ASSET_CATEGORIES = ["general", "characters", "backgrounds", "effects", "ui", "audio", "fonts", "templates", "stickers", "borders"];
 const ASSET_TYPES = ["image", "audio", "video", "font", "template", "svg", "sprite-sheet"];
+const SOURCE_TYPES = ["original", "licensed-restricted", "creator-owned", "system-only", "xp-unlockable", "premium-paid", "admin-only"];
+const RIGHTS_CLASSES = ["safe-redistributable", "system-use-only", "embedded-output-only", "creator-owned", "restricted-commercial", "internal-testing"];
+const USAGE_MODES = ["preview-only", "system-use-only", "system-use-and-export", "publish-only", "downloadable", "admin-only"];
+const UNLOCK_TYPES = ["free", "xp", "premium", "hybrid", "founders-pass"];
+const ALLOWED_OUTPUT_OPTIONS = ["comic", "hop", "vn", "cyoa", "card", "motion", "cover"];
 
-const emptyAssetForm = (): Omit<PlatformAssetData, "id" | "downloadCount" | "createdAt" | "updatedAt" | "metadata"> => ({
+type AssetFormData = {
+  name: string;
+  description: string;
+  category: string;
+  type: string;
+  fileUrl: string;
+  thumbnailUrl: string;
+  tags: string[];
+  priceInCents: number;
+  isFree: boolean;
+  isActive: boolean;
+  sourceType: string;
+  rightsClass: string;
+  usageMode: string;
+  downloadAllowed: boolean;
+  publishAllowed: boolean;
+  editableByUser: boolean;
+  unlockType: string;
+  xpRequired: number;
+  allowedOutputs: string[];
+  schoolSafe: boolean;
+  licenseNotes: string;
+};
+
+const emptyAssetForm = (): AssetFormData => ({
   name: "",
   description: "",
   category: "general",
@@ -979,6 +1019,17 @@ const emptyAssetForm = (): Omit<PlatformAssetData, "id" | "downloadCount" | "cre
   priceInCents: 0,
   isFree: true,
   isActive: true,
+  sourceType: "original",
+  rightsClass: "safe-redistributable",
+  usageMode: "system-use-and-export",
+  downloadAllowed: false,
+  publishAllowed: true,
+  editableByUser: false,
+  unlockType: "free",
+  xpRequired: 0,
+  allowedOutputs: [],
+  schoolSafe: true,
+  licenseNotes: "",
 });
 
 function AssetStorePanel() {
@@ -1112,6 +1163,17 @@ function AssetStorePanel() {
       priceInCents: asset.priceInCents,
       isFree: asset.isFree,
       isActive: asset.isActive,
+      sourceType: asset.sourceType || "original",
+      rightsClass: asset.rightsClass || "safe-redistributable",
+      usageMode: asset.usageMode || "system-use-and-export",
+      downloadAllowed: asset.downloadAllowed ?? false,
+      publishAllowed: asset.publishAllowed ?? true,
+      editableByUser: asset.editableByUser ?? false,
+      unlockType: asset.unlockType || "free",
+      xpRequired: asset.xpRequired || 0,
+      allowedOutputs: asset.allowedOutputs || [],
+      schoolSafe: asset.schoolSafe ?? true,
+      licenseNotes: asset.licenseNotes || "",
     });
   };
 
@@ -1191,6 +1253,83 @@ function AssetStorePanel() {
             <p className="text-xs text-zinc-500 mt-1">${((form.priceInCents || 0) / 100).toFixed(2)} USD</p>
           </div>
         )}
+      </div>
+      <div className="border-2 border-zinc-800 p-4 space-y-3">
+        <p className="text-xs text-zinc-400 uppercase tracking-wider font-bold">Rights & Governance</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">Source Type</Label>
+            <Select value={form.sourceType} onValueChange={v => setForm(f => ({ ...f, sourceType: v }))}>
+              <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-source-type"><SelectValue /></SelectTrigger>
+              <SelectContent>{SOURCE_TYPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">Rights Class</Label>
+            <Select value={form.rightsClass} onValueChange={v => setForm(f => ({ ...f, rightsClass: v }))}>
+              <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-rights-class"><SelectValue /></SelectTrigger>
+              <SelectContent>{RIGHTS_CLASSES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">Usage Mode</Label>
+            <Select value={form.usageMode} onValueChange={v => setForm(f => ({ ...f, usageMode: v }))}>
+              <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-usage-mode"><SelectValue /></SelectTrigger>
+              <SelectContent>{USAGE_MODES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">Unlock Type</Label>
+            <Select value={form.unlockType} onValueChange={v => setForm(f => ({ ...f, unlockType: v }))}>
+              <SelectTrigger className="bg-zinc-900 border-zinc-700" data-testid="select-asset-unlock-type"><SelectValue /></SelectTrigger>
+              <SelectContent>{UNLOCK_TYPES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        {(form.unlockType === "xp" || form.unlockType === "hybrid") && (
+          <div>
+            <Label className="text-zinc-400 text-xs uppercase tracking-wider">XP Required</Label>
+            <Input type="number" className="bg-zinc-900 border-zinc-700 w-40" value={form.xpRequired} onChange={e => setForm(f => ({ ...f, xpRequired: parseInt(e.target.value) || 0 }))} min={0} data-testid="input-asset-xp" />
+          </div>
+        )}
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">Allowed Outputs</Label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {ALLOWED_OUTPUT_OPTIONS.map(opt => (
+              <button key={opt} type="button" onClick={() => setForm(f => {
+                const has = f.allowedOutputs.includes(opt);
+                return { ...f, allowedOutputs: has ? f.allowedOutputs.filter(o => o !== opt) : [...f.allowedOutputs, opt] };
+              })} className={`px-2 py-1 text-[10px] border transition ${form.allowedOutputs.includes(opt) ? "bg-white text-black border-white" : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500"}`}>{opt}</button>
+            ))}
+          </div>
+          <p className="text-[10px] text-zinc-600 mt-1">Leave empty = all outputs allowed</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <Switch checked={form.downloadAllowed} onCheckedChange={v => setForm(f => ({ ...f, downloadAllowed: v }))} data-testid="switch-download-allowed" />
+            <span className="text-xs text-zinc-300">Download Allowed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={form.publishAllowed} onCheckedChange={v => setForm(f => ({ ...f, publishAllowed: v }))} data-testid="switch-publish-allowed" />
+            <span className="text-xs text-zinc-300">Publish Allowed</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <Switch checked={form.editableByUser} onCheckedChange={v => setForm(f => ({ ...f, editableByUser: v }))} data-testid="switch-editable" />
+            <span className="text-xs text-zinc-300">Editable by User</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={form.schoolSafe} onCheckedChange={v => setForm(f => ({ ...f, schoolSafe: v }))} data-testid="switch-school-safe" />
+            <span className="text-xs text-zinc-300">School Safe</span>
+          </div>
+        </div>
+        <div>
+          <Label className="text-zinc-400 text-xs uppercase tracking-wider">License Notes</Label>
+          <Textarea className="bg-zinc-900 border-zinc-700 min-h-[40px] text-xs" value={form.licenseNotes} onChange={e => setForm(f => ({ ...f, licenseNotes: e.target.value }))} placeholder="License info, restrictions, attribution..." data-testid="input-license-notes" />
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} data-testid="switch-asset-active" />
@@ -1309,8 +1448,21 @@ function AssetStorePanel() {
                         {!asset.isActive && (
                           <Badge className="bg-red-900/50 text-red-400 border border-red-700 text-[10px]">HIDDEN</Badge>
                         )}
+                        {!asset.schoolSafe && (
+                          <Badge className="bg-orange-900/50 text-orange-400 border border-orange-700 text-[10px]">18+</Badge>
+                        )}
                       </div>
                       {asset.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{asset.description}</p>}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 border border-zinc-700">{asset.sourceType}</span>
+                        <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 border border-zinc-700">{asset.rightsClass}</span>
+                        <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 border border-zinc-700">{asset.usageMode}</span>
+                        {asset.unlockType !== "free" && (
+                          <span className="text-[9px] bg-purple-900/30 text-purple-400 px-1.5 py-0.5 border border-purple-800">{asset.unlockType}{asset.xpRequired > 0 ? ` (${asset.xpRequired} XP)` : ""}</span>
+                        )}
+                        {asset.downloadAllowed && <span className="text-[9px] bg-cyan-900/30 text-cyan-400 px-1 border border-cyan-800">DL</span>}
+                        {!asset.publishAllowed && <span className="text-[9px] bg-red-900/30 text-red-400 px-1 border border-red-800">NO PUB</span>}
+                      </div>
                       <div className="flex items-center gap-3 mt-1 text-[10px] text-zinc-600">
                         <span><Download className="w-3 h-3 inline mr-1" />{asset.downloadCount} downloads</span>
                         <span>{new Date(asset.createdAt).toLocaleDateString()}</span>

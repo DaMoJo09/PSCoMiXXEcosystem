@@ -9755,7 +9755,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
   app.get("/api/platform-assets/store", async (req, res) => {
     try {
-      const results = await db.select().from(platformAssets).where(eq(platformAssets.isActive, true)).orderBy(desc(platformAssets.createdAt));
+      const user = req.user as any;
+      const isStudent = user?.accountType === "student";
+      const isAuthenticated = !!user;
+      let results = await db.select().from(platformAssets).where(eq(platformAssets.isActive, true)).orderBy(desc(platformAssets.createdAt));
+      if (isStudent || !isAuthenticated) results = results.filter(a => a.schoolSafe);
       const safe = results.map(a => ({
         id: a.id,
         name: a.name,
@@ -9767,10 +9771,101 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         priceInCents: a.priceInCents,
         isFree: a.isFree,
         downloadCount: a.downloadCount,
+        sourceType: a.sourceType,
+        rightsClass: a.rightsClass,
+        usageMode: a.usageMode,
+        downloadAllowed: a.downloadAllowed,
+        publishAllowed: a.publishAllowed,
+        unlockType: a.unlockType,
+        xpRequired: a.xpRequired,
+        allowedOutputs: a.allowedOutputs,
+        schoolSafe: a.schoolSafe,
         createdAt: a.createdAt,
-        ...(a.isFree ? { fileUrl: a.fileUrl } : {}),
+        ...(a.downloadAllowed && a.usageMode === "downloadable" ? { fileUrl: a.fileUrl } : a.isFree && a.usageMode !== "preview-only" && a.usageMode !== "admin-only" ? { fileUrl: a.fileUrl } : {}),
       }));
       res.json(safe);
+    } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.post("/api/export/validate", isAuthenticated, async (req, res) => {
+    try {
+      const { assetIds, exportMode = "flattened-image" } = req.body;
+      if (!Array.isArray(assetIds) || assetIds.length === 0) {
+        return res.json({ valid: true, issues: [], assets: [] });
+      }
+      const user = req.user as any;
+      const isStudent = user?.accountType === "student";
+      const userXp = user?.xp || 0;
+      const issues: { assetId: string; assetName: string; reason: string; severity: "block" | "warn" }[] = [];
+      const checkedAssets: any[] = [];
+
+      for (const id of assetIds) {
+        const [asset] = await db.select().from(platformAssets).where(eq(platformAssets.id, id));
+        if (!asset) { issues.push({ assetId: id, assetName: "Unknown", reason: "Asset not found", severity: "block" }); continue; }
+        checkedAssets.push({ id: asset.id, name: asset.name, rightsClass: asset.rightsClass, usageMode: asset.usageMode });
+
+        if (!asset.isActive) {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Asset is no longer active", severity: "block" });
+          continue;
+        }
+        if (isStudent && !asset.schoolSafe) {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Not approved for student accounts", severity: "block" });
+        }
+        if (asset.usageMode === "preview-only") {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Preview-only assets cannot appear in exports", severity: "block" });
+        }
+        if (asset.usageMode === "admin-only") {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Admin-only asset", severity: "block" });
+        }
+        if (exportMode === "downloadable" && !asset.downloadAllowed) {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Asset not allowed for download — will be flattened", severity: "warn" });
+        }
+        if ((exportMode === "publish-to-streaming" || exportMode === "interactive-html") && !asset.publishAllowed) {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Asset not allowed for publishing", severity: "block" });
+        }
+        if (asset.usageMode === "publish-only" && exportMode !== "publish-to-streaming") {
+          issues.push({ assetId: id, assetName: asset.name, reason: "Asset can only be used in streaming publishes", severity: "block" });
+        }
+        if (asset.unlockType === "xp" && asset.xpRequired > 0 && userXp < asset.xpRequired) {
+          issues.push({ assetId: id, assetName: asset.name, reason: `Requires ${asset.xpRequired} XP to use (you have ${userXp})`, severity: "block" });
+        }
+        if (asset.unlockType === "premium" && !asset.isFree) {
+          const userTier = user?.subscriptionTier || "free";
+          const paidTiers = ["creator", "pro", "studio", "lifetime"];
+          if (!paidTiers.includes(userTier)) {
+            issues.push({ assetId: id, assetName: asset.name, reason: "Premium asset — upgrade or purchase required", severity: "block" });
+          }
+        }
+        if (asset.unlockType === "founders-pass") {
+          const userTier = user?.subscriptionTier || "free";
+          if (userTier !== "lifetime" && userTier !== "studio") {
+            issues.push({ assetId: id, assetName: asset.name, reason: "Founders Pass required", severity: "block" });
+          }
+        }
+        if (asset.unlockType === "hybrid" && !asset.isFree) {
+          const userTier = user?.subscriptionTier || "free";
+          const paidTiers = ["creator", "pro", "studio", "lifetime"];
+          const hasTier = paidTiers.includes(userTier);
+          const hasXp = asset.xpRequired > 0 && userXp >= asset.xpRequired;
+          if (!hasTier && !hasXp) {
+            issues.push({ assetId: id, assetName: asset.name, reason: `Requires paid tier or ${asset.xpRequired} XP`, severity: "block" });
+          }
+        }
+        if (asset.allowedOutputs && asset.allowedOutputs.length > 0) {
+          const outputType = req.body.outputType;
+          if (outputType && !asset.allowedOutputs.includes(outputType)) {
+            issues.push({ assetId: id, assetName: asset.name, reason: `Not compatible with ${outputType} output`, severity: "block" });
+          }
+        }
+      }
+
+      const blockers = issues.filter(i => i.severity === "block");
+      res.json({
+        valid: blockers.length === 0,
+        issues,
+        assets: checkedAssets,
+        exportMode,
+      });
     } catch (error: any) { res.status(500).json({ message: error.message }); }
   });
 
