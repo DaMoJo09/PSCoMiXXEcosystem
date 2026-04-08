@@ -105,7 +105,7 @@ import {
   printProductReviews, type PrintProductReview,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, sql, ilike, gt, inArray } from "drizzle-orm";
+import { eq, desc, and, or, count, sql, ilike, gt, gte, lte, isNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -558,7 +558,9 @@ export class DatabaseStorage implements IStorage {
       .limit(200);
   }
 
-  async getUserProjectsMeta(userId: string) {
+  async getUserProjectsMeta(userId: string, filterType?: string) {
+    const conditions = [eq(projects.userId, userId)];
+    if (filterType) conditions.push(eq(projects.type, filterType));
     return db.select({
       id: projects.id,
       userId: projects.userId,
@@ -573,7 +575,7 @@ export class DatabaseStorage implements IStorage {
       updatedAt: projects.updatedAt,
     })
       .from(projects)
-      .where(eq(projects.userId, userId))
+      .where(and(...conditions))
       .orderBy(desc(projects.updatedAt))
       .limit(200);
   }
@@ -2037,17 +2039,14 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveAnnouncements(featuredOnly?: boolean): Promise<Announcement[]> {
     const now = new Date();
-    const results = await db.select()
+    const conditions: any[] = [eq(announcements.isActive, true)];
+    if (featuredOnly) conditions.push(eq(announcements.isFeatured, true));
+    conditions.push(or(isNull(announcements.startDate), lte(announcements.startDate, now)));
+    conditions.push(or(isNull(announcements.endDate), gte(announcements.endDate, now)));
+    return db.select()
       .from(announcements)
-      .where(eq(announcements.isActive, true))
+      .where(and(...conditions))
       .orderBy(desc(announcements.sortOrder), desc(announcements.createdAt));
-    
-    return results.filter(a => {
-      if (featuredOnly && !a.isFeatured) return false;
-      if (a.startDate && new Date(a.startDate) > now) return false;
-      if (a.endDate && new Date(a.endDate) < now) return false;
-      return true;
-    });
   }
 
   async getAnnouncement(id: string): Promise<Announcement | undefined> {

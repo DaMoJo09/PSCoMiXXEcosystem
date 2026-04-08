@@ -1485,9 +1485,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       if (req.body.type && req.body.forceNew !== true) {
-        const userProjects = await storage.getUserProjectsMeta(req.user!.id);
+        const userProjects = await storage.getUserProjectsMeta(req.user!.id, req.body.type);
         const existing = userProjects
-          .filter((p: any) => p.type === req.body.type)
           .sort((a: any, b: any) => {
             const aUpdated = new Date(a.updatedAt).getTime() !== new Date(a.createdAt).getTime();
             const bUpdated = new Date(b.updatedAt).getTime() !== new Date(b.createdAt).getTime();
@@ -9677,17 +9676,18 @@ Sitemap: https://pscomixx.com/sitemap.xml`
   app.get("/api/admin/platform-assets", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { category, search, active } = req.query;
-      let query = db.select().from(platformAssets).orderBy(desc(platformAssets.createdAt));
-      const results = await query;
-      let filtered = results;
-      if (category && category !== "all") filtered = filtered.filter(a => a.category === category);
-      if (active === "true") filtered = filtered.filter(a => a.isActive);
-      if (active === "false") filtered = filtered.filter(a => !a.isActive);
+      const conditions: any[] = [];
+      if (category && category !== "all") conditions.push(eq(platformAssets.category, category as string));
+      if (active === "true") conditions.push(eq(platformAssets.isActive, true));
+      if (active === "false") conditions.push(eq(platformAssets.isActive, false));
       if (search) {
-        const s = (search as string).toLowerCase();
-        filtered = filtered.filter(a => a.name.toLowerCase().includes(s) || (a.description || "").toLowerCase().includes(s) || (a.tags || []).some(t => t.toLowerCase().includes(s)));
+        const s = `%${(search as string).toLowerCase()}%`;
+        conditions.push(or(ilike(platformAssets.name, s), ilike(platformAssets.description, s)));
       }
-      res.json(filtered);
+      const results = await db.select().from(platformAssets)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(platformAssets.createdAt));
+      res.json(results);
     } catch (error: any) { res.status(500).json({ message: error.message }); }
   });
 
@@ -9758,8 +9758,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const user = req.user as any;
       const isStudent = user?.accountType === "student";
       const isAuthenticated = !!user;
-      let results = await db.select().from(platformAssets).where(eq(platformAssets.isActive, true)).orderBy(desc(platformAssets.createdAt));
-      if (isStudent || !isAuthenticated) results = results.filter(a => a.schoolSafe);
+      const conditions = [eq(platformAssets.isActive, true)];
+      if (isStudent || !isAuthenticated) conditions.push(eq(platformAssets.schoolSafe, true));
+      let results = await db.select().from(platformAssets).where(and(...conditions)).orderBy(desc(platformAssets.createdAt));
       const safe = results.map(a => ({
         id: a.id,
         name: a.name,
