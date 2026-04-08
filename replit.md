@@ -21,7 +21,7 @@ An Express.js server on Node.js provides RESTful endpoints. It uses session-base
 PostgreSQL, hosted via Neon serverless, serves as the primary database, accessed through Drizzle ORM. The schema supports users, polymorphic projects, assets, versions, and audit logs. Drizzle Kit manages migrations.
 
 ### Security
-The platform implements rate limiting, Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features (including content moderation using SHA-256 and perceptual hashing), AI resilience, audit logging, and SSO support.
+The platform implements rate limiting (auth: 20/15min, community/store: 60/min, event tracking: 60/min), Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features (including content moderation using SHA-256 and perceptual hashing), AI resilience, audit logging, and SSO support.
 
 ### Ecosystem Integration
 JWT-based Single Sign-On (SSO) is integrated across the PSCoMiXX ecosystem, with CoMiXX acting as the identity provider. The platform integrates with Press Start LMS for educational submissions and offers a robust export and publish pipeline for content bundling (PS Content Bundle v1), validation, and synchronization to the Emergent streaming platform. It also features full bidirectional integration with FX Studio via `postMessage` for asset return and a dedicated `/fx-studio` route.
@@ -74,6 +74,6 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 
 ### Other Integrations
 - **Resend:** Transactional emails.
-- **Stripe:** Payment processing (Stripe Checkout).
+- **Stripe:** Payment processing (Stripe Checkout). Uses Replit Connector with env var fallback (`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`). Admin endpoint `POST /api/admin/seed-stripe-products` creates subscription products/prices. Product-to-tier mapping uses metadata `tier` key or product name matching.
 - **Mad Mixed Media:** Streaming platform for content and creator profile synchronization.
 - **Ecosystem Integration Points:** `pscomixx.com`, `comixx.website`, `www.pscomixx.online`, `psstreaming.online`.

@@ -3,6 +3,12 @@ import Stripe from 'stripe';
 let connectionSettings: any;
 
 async function getCredentials() {
+  const envSecret = process.env.STRIPE_SECRET_KEY;
+  const envPublishable = process.env.STRIPE_PUBLISHABLE_KEY;
+  if (envSecret && envPublishable) {
+    return { publishableKey: envPublishable, secretKey: envSecret };
+  }
+
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? 'repl ' + process.env.REPL_IDENTITY
@@ -11,7 +17,8 @@ async function getCredentials() {
       : null;
 
   if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+    if (envSecret && envPublishable) return { publishableKey: envPublishable, secretKey: envSecret };
+    throw new Error('X_REPLIT_TOKEN not found for repl/depl. Set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY as fallback.');
   }
 
   const connectorName = 'stripe';
@@ -23,25 +30,33 @@ async function getCredentials() {
   url.searchParams.set('connector_names', connectorName);
   url.searchParams.set('environment', targetEnvironment);
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-      'X_REPLIT_TOKEN': xReplitToken
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'X_REPLIT_TOKEN': xReplitToken
+      }
+    });
+
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
+
+    if (connectionSettings?.settings?.publishable && connectionSettings?.settings?.secret) {
+      return {
+        publishableKey: connectionSettings.settings.publishable,
+        secretKey: connectionSettings.settings.secret,
+      };
     }
-  });
-
-  const data = await response.json();
-  
-  connectionSettings = data.items?.[0];
-
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
-    throw new Error(`Stripe ${targetEnvironment} connection not found`);
+  } catch (err) {
+    console.warn('Stripe connector fetch failed, checking env fallback:', (err as Error).message);
   }
 
-  return {
-    publishableKey: connectionSettings.settings.publishable,
-    secretKey: connectionSettings.settings.secret,
-  };
+  if (envSecret && envPublishable) {
+    return { publishableKey: envPublishable, secretKey: envSecret };
+  }
+
+  const isProductionEnv = process.env.REPLIT_DEPLOYMENT === '1';
+  throw new Error(`Stripe ${isProductionEnv ? 'production' : 'development'} connection not found. Set both STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY as fallback.`);
 }
 
 export async function getUncachableStripeClient() {

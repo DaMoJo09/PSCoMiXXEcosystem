@@ -181,6 +181,50 @@ export class StripeService {
       cancelAtPeriodEnd: row.cancel_at_period_end || false,
     };
   }
+
+  async seedSubscriptionProducts() {
+    const stripe = await getUncachableStripeClient();
+
+    const plans = [
+      { name: "PSCoMiXX Creator", tier: "creator", amount: 999, interval: "month" as const, description: "20 projects, 50 AI generations/day, 1 GB storage, 30 exports/month" },
+      { name: "PSCoMiXX Pro", tier: "pro", amount: 1999, interval: "month" as const, description: "100 projects, 200 AI generations/day, 5 GB storage, unlimited exports, commercial license" },
+      { name: "PSCoMiXX Studio", tier: "studio", amount: 3999, interval: "month" as const, description: "Unlimited projects, unlimited AI, 20 GB storage, collaboration tools, API access" },
+      { name: "PSCoMiXX Lifetime", tier: "lifetime", amount: 19900, interval: null, description: "One-time payment. Founders Pass with all Pro features forever, 50 GB storage" },
+    ];
+
+    const created: any[] = [];
+
+    for (const plan of plans) {
+      const existingProducts = await stripe.products.list({ limit: 100 });
+      const existing = existingProducts.data.find(p => p.metadata?.tier === plan.tier && p.active);
+      if (existing) {
+        created.push({ product: existing.id, tier: plan.tier, status: "already_exists" });
+        continue;
+      }
+
+      const product = await stripe.products.create({
+        name: plan.name,
+        description: plan.description,
+        metadata: { tier: plan.tier, platform: "pscomixx" },
+      });
+
+      const priceData: any = {
+        product: product.id,
+        unit_amount: plan.amount,
+        currency: "usd",
+        metadata: { tier: plan.tier },
+      };
+
+      if (plan.interval) {
+        priceData.recurring = { interval: plan.interval };
+      }
+
+      const price = await stripe.prices.create(priceData);
+      created.push({ product: product.id, price: price.id, tier: plan.tier, status: "created" });
+    }
+
+    return created;
+  }
 }
 
 export const stripeService = new StripeService();

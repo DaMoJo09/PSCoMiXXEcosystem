@@ -19,7 +19,7 @@ import { sql, eq, and, or, desc, ilike, isNull } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
-import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
+import { getStripeSync, getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 import { filterContent, isStudentSafe } from "./contentFilter";
 import { logAuditEvent, auditAuth, auditAdmin, auditStudent } from "./auditLogger";
 import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreateUserFromToken } from "./sso";
@@ -175,8 +175,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     return permissions.includes(permission) || permissions.includes('*');
   }
 
-  // Auth routes
-  app.post("/api/auth/signup", async (req, res, next) => {
+  const authRateLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: false, legacyHeaders: false, message: { message: "Too many attempts, please try again later" } });
+  app.post("/api/auth/signup", authRateLimiter, async (req, res, next) => {
     try {
       const earlyAdopterFlag = await storage.getFeatureFlag("early_adopter_gate");
       if (earlyAdopterFlag?.enabled) {
@@ -265,7 +265,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  app.post("/api/auth/login", (req, res, next) => {
+  app.post("/api/auth/login", authRateLimiter, (req, res, next) => {
     const { email, password } = req.body;
     
     if (!email || !password) {
@@ -7540,7 +7540,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // COMMUNITY LIBRARY
   // ==========================================
 
-  app.get("/api/community/library", async (req, res) => {
+  const communityRateLimiter = rateLimit({ windowMs: 60000, max: 60, standardHeaders: false, legacyHeaders: false });
+  app.get("/api/community/library", communityRateLimiter, async (req, res) => {
     try {
       const { search, sort, page, limit, type } = req.query;
       const pageNum = Math.max(1, Number(page) || 1);
@@ -9753,7 +9754,8 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     } catch (error: any) { res.status(500).json({ message: error.message }); }
   });
 
-  app.get("/api/platform-assets/store", async (req, res) => {
+  const storeRateLimiter = rateLimit({ windowMs: 60000, max: 60, standardHeaders: false, legacyHeaders: false });
+  app.get("/api/platform-assets/store", storeRateLimiter, async (req, res) => {
     try {
       const user = req.user as any;
       const isStudent = user?.accountType === "student";
@@ -9868,6 +9870,17 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         exportMode,
       });
     } catch (error: any) { res.status(500).json({ message: error.message }); }
+  });
+
+  app.post("/api/admin/seed-stripe-products", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const results = await stripeService.seedSubscriptionProducts();
+      const sync = await getStripeSync();
+      await sync.syncBackfill();
+      res.json({ success: true, products: results });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.post("/api/admin/seed-demo-content", isAuthenticated, isAdmin, async (req, res) => {
