@@ -4607,7 +4607,7 @@ export default function ComicCreator() {
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
             <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/80 px-4 py-2 rounded ${showPreview ? 'hidden' : ''}`}>
-              <span>Spread {currentSpreadIndex + 1} of {spreads.length}</span>
+              <span>Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.reduce((count, s) => count + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)} pages</span>
               <button 
                 onClick={() => { 
                   if (currentSpreadIndex > 0) {
@@ -6239,7 +6239,7 @@ export default function ComicCreator() {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-zinc-400">
-                  Page {previewPage + 1} of {2 + spreads.length * 2 + comicMeta.bonusCards.length}
+                  Page {previewPage + 1} of {2 + spreads.reduce((c, s) => c + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0) + comicMeta.bonusCards.length}
                 </span>
                 <div className="flex gap-1">
                   <button 

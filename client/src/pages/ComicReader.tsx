@@ -94,6 +94,7 @@ interface ComicData {
     spreads: Spread[];
     coverFront?: string;
     coverBack?: string;
+    coverDesign?: Record<string, any>;
     comicMeta?: {
       frontCover?: string;
       backCover?: string;
@@ -291,7 +292,17 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
 
   const spreads = useMemo(() => comic?.data?.spreads || [], [comic]);
 
-  const allPages = useMemo(() => {
+  const coverDesign = useMemo(() => comic?.data?.coverDesign, [comic]);
+  const hasFrontCover = useMemo(() => {
+    const url = comic?.data?.coverFront || comic?.data?.comicMeta?.frontCover || "";
+    return (url.startsWith("data:image") || url.startsWith("http") || url.startsWith("blob:") || url.startsWith("/")) || !!coverDesign;
+  }, [comic, coverDesign]);
+  const hasBackCover = useMemo(() => {
+    const url = comic?.data?.coverBack || comic?.data?.comicMeta?.backCover || "";
+    return (url.startsWith("data:image") || url.startsWith("http") || url.startsWith("blob:") || url.startsWith("/")) || !!coverDesign;
+  }, [comic, coverDesign]);
+
+  const contentPages = useMemo(() => {
     const pages: { panels: Panel[]; spreadIndex: number }[] = [];
     spreads.forEach((spread, si) => {
       if (spread.leftPage && spread.leftPage.length > 0) {
@@ -303,6 +314,8 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
     });
     return pages;
   }, [spreads]);
+  const allPages = contentPages;
+  const totalPageCount = (hasFrontCover ? 1 : 0) + contentPages.length + (hasBackCover ? 1 : 0);
 
   const goToSpread = (index: number) => {
     if (index >= 0 && index < allPages.length) {
@@ -522,7 +535,7 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                   <ChevronLeft className="w-4 h-4" /> Prev
                 </button>
                 <span className="text-zinc-400 text-sm font-bold" data-testid="text-page-indicator">
-                  {currentSpreadIndex + 1} / {allPages.length}
+                  {currentSpreadIndex + 1 + (hasFrontCover ? 1 : 0)} / {totalPageCount}
                 </span>
                 <button
                   onClick={() => goToSpread(currentSpreadIndex + 1)}
