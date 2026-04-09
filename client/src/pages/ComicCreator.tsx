@@ -4307,34 +4307,54 @@ export default function ComicCreator() {
               </TooltipContent>
             </Tooltip>
             <div className="w-px h-6 bg-zinc-700 mx-2" />
-            <button
-              onClick={async () => {
-                try {
-                  const p = await createProject.mutateAsync({ title: "Untitled Comic", type: "comic", status: "draft", data: {}, forceNew: true } as any);
-                  navigate(`/creator/comic?id=${p.id}`, { replace: true });
-                  window.location.reload();
-                } catch { toast.error("Failed to create new project"); }
-              }}
-              className="px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700"
-              data-testid="button-new-comic"
-            >
-              <Plus className="w-4 h-4" /> New
-            </button>
-            <button
-              onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setTemplateFilter("all"); }}
-              className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
-            >
-              <LayoutGrid className="w-4 h-4" /> Templates
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !effectiveProjectId}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              data-testid="button-save"
-              title={!effectiveProjectId ? "Creating project..." : "Save (Ctrl+S)"}
-            >
-              <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
-            </button>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={async () => {
+                    try {
+                      const p = await createProject.mutateAsync({ title: "Untitled Comic", type: "comic", status: "draft", data: {}, forceNew: true } as any);
+                      navigate(`/creator/comic?id=${p.id}`, { replace: true });
+                      window.location.reload();
+                    } catch { toast.error("Failed to create new project"); }
+                  }}
+                  className="px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700"
+                  data-testid="button-new-comic"
+                >
+                  <Plus className="w-4 h-4" /> New
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Start a fresh comic project</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setTemplateFilter("all"); }}
+                  className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                >
+                  <LayoutGrid className="w-4 h-4" /> Templates
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Choose from pre-made layouts and styles</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !effectiveProjectId}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-save"
+                >
+                  <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+                <p>Save project <span className="text-zinc-400 ml-1">(Ctrl+S)</span></p>
+              </TooltipContent>
+            </Tooltip>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -4362,19 +4382,34 @@ export default function ComicCreator() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200">
+                <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export">
                   <Download className="w-4 h-4" /> Export
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
-                <DropdownMenuItem onClick={handleExportCurrentPagePNG} className="hover:bg-zinc-800 cursor-pointer">
-                  <ImageIcon className="w-4 h-4 mr-2" /> Current Page as PNG
+              <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white w-72">
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Download</p>
+                </div>
+                <DropdownMenuItem onClick={handleExportCurrentPagePNG} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-page-png">
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Current Page as PNG</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">High-res image of the selected page</p>
+                  </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportAllPagesPNG} className="hover:bg-zinc-800 cursor-pointer">
-                  <Layers className="w-4 h-4 mr-2" /> Full Comic as PNGs
+                <DropdownMenuItem onClick={handleExportAllPagesPNG} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-all-png">
+                  <Layers className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Full Comic as PNGs</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Every page as a separate image file</p>
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportFullPDF} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-pdf">
-                  <FileText className="w-4 h-4 mr-2" /> Full Comic as PDF (Print-Ready)
+                  <FileText className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Full Comic as PDF</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Print-ready 300 DPI with covers</p>
+                  </div>
                 </DropdownMenuItem>
                 {tier === "free" || tier === "creator" ? (
                   <>
@@ -4384,24 +4419,49 @@ export default function ComicCreator() {
                       className="hover:bg-zinc-800 cursor-pointer text-amber-400"
                       data-testid="link-remove-watermark"
                     >
-                      <Crown className="w-4 h-4 mr-2" /> Remove watermark — Upgrade to Pro
+                      <Crown className="w-4 h-4 mr-2" /> Remove watermark — Upgrade
                     </DropdownMenuItem>
                   </>
                 ) : null}
                 <DropdownMenuSeparator className="bg-zinc-700" />
-                <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer">
-                  <Save className="w-4 h-4 mr-2" /> Project Data (JSON)
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Publish</p>
+                </div>
+                <DropdownMenuItem onClick={handleSyncCurrentPage} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400" data-testid="button-sync-page">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Sync Page to CoMiXX</span>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">Upload current page to asset library</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSyncAllPages} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400" data-testid="button-sync-all">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Sync All Pages to CoMiXX</span>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">Upload entire comic to asset library</p>
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-700" />
-                <DropdownMenuItem onClick={handleSyncCurrentPage} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400">
-                  <Share2 className="w-4 h-4 mr-2" /> Sync Page to CoMiXX
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSyncAllPages} disabled={isSyncingToCoMiXX} className="hover:bg-zinc-800 cursor-pointer text-cyan-400">
-                  <Share2 className="w-4 h-4 mr-2" /> Sync All Pages to CoMiXX
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-700" />
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Convert</p>
+                </div>
                 <DropdownMenuItem onClick={convertComicToHop} className="hover:bg-zinc-800 cursor-pointer text-pink-400" data-testid="button-convert-to-hop">
-                  <Film className="w-4 h-4 mr-2" /> Convert Comic to HOP
+                  <Film className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Convert to HOP</span>
+                    <p className="text-[10px] text-zinc-600 mt-0.5">Turn pages into a viral short-form clip</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Data</p>
+                </div>
+                <DropdownMenuItem onClick={handleExportProjectJSON} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-export-json">
+                  <Save className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Project Data (JSON)</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Backup project structure and content</p>
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

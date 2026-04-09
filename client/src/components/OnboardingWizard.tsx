@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2 } from "lucide-react";
+import { X, Palette, CreditCard, Film, ArrowRight, Sparkles, Zap, Trophy, CheckCircle2, BookOpen, GitBranch, Play } from "lucide-react";
 import { useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
 
@@ -127,7 +127,8 @@ const modes = [
   {
     id: "comic",
     label: "Comic",
-    desc: "Draw panels, add speech bubbles, tell your story page by page.",
+    desc: "Panels, speech bubbles, covers, and AI art. Export print-ready pages.",
+    output: "Print-ready comic pages",
     icon: Palette,
     color: "border-cyan-500",
     glow: "shadow-[0_0_20px_rgba(6,182,212,0.3)]",
@@ -137,7 +138,8 @@ const modes = [
   {
     id: "card",
     label: "Trading Card",
-    desc: "Design collectible cards with stats, art, and effects.",
+    desc: "Stats, abilities, art, and effects. Build card packs and sell them.",
+    output: "Collectible card packs",
     icon: CreditCard,
     color: "border-green-500",
     glow: "shadow-[0_0_20px_rgba(34,197,94,0.3)]",
@@ -147,13 +149,21 @@ const modes = [
   {
     id: "motion",
     label: "Short Clip",
-    desc: "Animate frames on a timeline with audio and effects.",
+    desc: "Animate frames on a timeline with keyframes and audio. Export as video.",
+    output: "Animated video/GIF",
     icon: Film,
     color: "border-amber-500",
     glow: "shadow-[0_0_20px_rgba(245,158,11,0.3)]",
     href: "/creator/motion",
     templateTitle: "My First Clip",
   },
+];
+
+const xpActions = [
+  { action: "Create a project", xp: "+50 XP" },
+  { action: "Save your work", xp: "+10 XP" },
+  { action: "Export", xp: "+25 XP" },
+  { action: "Publish", xp: "+100 XP" },
 ];
 
 interface OnboardingWizardProps {
@@ -234,7 +244,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
       data-testid="onboarding-overlay"
     >
-      <div className="relative w-full max-w-2xl mx-4 bg-zinc-950 border border-white/20 shadow-2xl">
+      <div className="relative w-full max-w-2xl mx-4 bg-zinc-950 border-2 border-white/20 shadow-2xl">
         <button
           onClick={handleSkip}
           className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors z-10"
@@ -255,12 +265,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           ))}
         </div>
 
-        <div className="p-6 sm:p-8 min-h-[420px] flex flex-col">
+        <div className="p-6 sm:p-8 min-h-[480px] flex flex-col">
           {step === 0 && (
             <div className="flex-1 flex flex-col">
-              <div className="text-center mb-8">
-                <p className="text-xs text-zinc-500 uppercase tracking-[0.3em] font-mono mb-3">
-                  PRESS START COMIXX
+              <div className="text-center mb-6">
+                <p className="text-xs text-cyan-400 uppercase tracking-[0.3em] font-mono mb-3">
+                  START HERE
                 </p>
                 <h2
                   className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white mb-2"
@@ -269,8 +279,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 >
                   What do you want to make?
                 </h2>
-                <p className="text-xs text-zinc-500 font-mono">
-                  Pick one. You can always explore more later.
+                <p className="text-sm text-zinc-400 font-mono max-w-md mx-auto">
+                  Pick one to start. Your first project will be ready in seconds. You can always explore more later.
                 </p>
               </div>
 
@@ -299,8 +309,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                       <p className="text-[11px] text-zinc-500 leading-relaxed flex-1">
                         {mode.desc}
                       </p>
+                      <p className="text-[10px] text-zinc-600 font-mono mt-2 border-t border-zinc-800 pt-2">
+                        You'll make: {mode.output}
+                      </p>
                       {selected && (
-                        <div className="mt-3 flex items-center gap-1 text-[10px] text-white font-bold uppercase">
+                        <div className="mt-2 flex items-center gap-1 text-[10px] text-white font-bold uppercase">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Selected
                         </div>
                       )}
@@ -309,7 +322,20 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 })}
               </div>
 
-              <div className="flex items-center justify-between pt-6 mt-6 border-t border-white/10">
+              <div className="mt-4 p-3 border border-zinc-800 bg-zinc-900/50">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2 flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-yellow-400" /> How you'll earn XP
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {xpActions.map((a) => (
+                    <span key={a.action} className="text-[10px] font-mono text-zinc-500">
+                      {a.action} <span className="text-yellow-400 font-bold">{a.xp}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-white/10">
                 <p className="text-[10px] text-zinc-600 font-mono">
                   Create. Publish. Get seen. Level up.
                 </p>
@@ -371,7 +397,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   You're in!
                 </h2>
                 <p className="text-zinc-400 font-mono text-sm">
-                  Your first project is ready on your dashboard.
+                  Your first project is ready. Start creating and earn XP for everything you do.
                 </p>
               </div>
 
@@ -384,6 +410,23 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <div className="text-left">
                   <p className="text-lg font-black text-white" data-testid="text-xp-earned">+{earnedXp || 75} XP</p>
                   <p className="text-[10px] text-zinc-500 font-mono uppercase">First login + Project created</p>
+                </div>
+              </div>
+
+              <div
+                className={`text-left w-full max-w-xs space-y-1 transition-all duration-700 delay-300 ${
+                  xpAnimated ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-2">Your journey:</p>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+                  <CheckCircle2 className="w-3 h-3 text-green-400 shrink-0" /> Created your first project
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+                  <Play className="w-3 h-3 text-zinc-600 shrink-0" /> Export and share it
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+                  <Play className="w-3 h-3 text-zinc-600 shrink-0" /> Publish to get seen
                 </div>
               </div>
 

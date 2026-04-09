@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Zap, Target, Gift, Flame, ArrowRight, Clock } from "lucide-react";
+import { Zap, Target, Gift, Flame, ArrowRight, Clock, HelpCircle } from "lucide-react";
 
 interface NextUnlock {
   title: string;
@@ -35,10 +35,20 @@ interface XpHistoryEntry {
   createdAt: string;
 }
 
+const xpGuide = [
+  { action: "Daily login", xp: "+25", color: "text-cyan-400" },
+  { action: "Create project", xp: "+50", color: "text-green-400" },
+  { action: "Save work", xp: "+10", color: "text-zinc-400" },
+  { action: "Export", xp: "+25", color: "text-amber-400" },
+  { action: "Publish", xp: "+100", color: "text-cyan-400" },
+  { action: "AI generation", xp: "+15", color: "text-violet-400" },
+];
+
 export function XPWidget() {
   const [data, setData] = useState<ProgressionSummary | null>(null);
   const [history, setHistory] = useState<XpHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     fetch("/api/progression/summary", { credentials: "include" })
@@ -60,6 +70,7 @@ export function XPWidget() {
 
   const progressPct = Math.round(data.xpProgress * 100);
   const nearLevelUp = progressPct >= 90;
+  const xpNeeded = data.xpForNextLevel - data.xpInCurrentLevel;
 
   return (
     <div className="border-4 border-white bg-black p-5 space-y-4" data-testid="widget-xp-progress">
@@ -70,7 +81,7 @@ export function XPWidget() {
           </div>
           <div>
             <h3 className="font-black text-sm uppercase tracking-wider" data-testid="text-level-title">{data.levelTitle}</h3>
-            <p className="text-xs text-zinc-500 font-mono">{data.xp.toLocaleString()} XP</p>
+            <p className="text-xs text-zinc-500 font-mono">{data.xp.toLocaleString()} XP total</p>
           </div>
         </div>
         <Zap className={`w-5 h-5 text-yellow-400 ${nearLevelUp ? "animate-pulse" : ""}`} />
@@ -87,9 +98,20 @@ export function XPWidget() {
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <p className="text-[10px] text-zinc-600 mt-1 font-mono">
-          {data.xpInCurrentLevel.toLocaleString()} / {data.xpForNextLevel.toLocaleString()} XP to next level
-        </p>
+        <div className="flex justify-between mt-1">
+          <p className="text-[10px] text-zinc-600 font-mono">
+            {data.xpInCurrentLevel.toLocaleString()} / {data.xpForNextLevel.toLocaleString()} XP
+          </p>
+          {nearLevelUp ? (
+            <p className="text-[10px] text-yellow-400 font-mono font-bold animate-pulse">
+              {xpNeeded.toLocaleString()} XP to level up!
+            </p>
+          ) : (
+            <p className="text-[10px] text-zinc-600 font-mono">
+              {xpNeeded.toLocaleString()} XP to go
+            </p>
+          )}
+        </div>
       </div>
 
       {data.nextUnlock && (
@@ -141,6 +163,37 @@ export function XPWidget() {
       </div>
 
       <button
+        onClick={() => setShowGuide(!showGuide)}
+        className="w-full flex items-center justify-between px-3 py-2 border-2 border-yellow-500/30 hover:border-yellow-500/60 transition-colors text-left bg-yellow-500/5"
+        data-testid="button-toggle-xp-guide"
+      >
+        <div className="flex items-center gap-2">
+          <HelpCircle className="w-3.5 h-3.5 text-yellow-400" />
+          <span className="text-[10px] text-yellow-400 uppercase font-bold">How to earn XP</span>
+        </div>
+        <ArrowRight className={`w-3 h-3 text-yellow-400/60 transition-transform ${showGuide ? "rotate-90" : ""}`} />
+      </button>
+
+      {showGuide && (
+        <div className="border border-yellow-500/20 bg-yellow-500/5 p-3 space-y-2" data-testid="xp-guide-panel">
+          <p className="text-[10px] text-zinc-400 font-mono mb-2">
+            Every action earns XP. Level up to unlock tools, effects, and certifications.
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {xpGuide.map((item) => (
+              <div key={item.action} className="flex items-center justify-between">
+                <span className="text-[10px] text-zinc-400 font-mono">{item.action}</span>
+                <span className={`text-[10px] font-bold font-mono ${item.color}`}>{item.xp}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-zinc-600 font-mono mt-2 border-t border-zinc-800 pt-2">
+            Tip: Publish your work to earn the most XP and get seen by the community.
+          </p>
+        </div>
+      )}
+
+      <button
         onClick={() => setShowHistory(!showHistory)}
         className="w-full flex items-center justify-between px-3 py-2 border-2 border-zinc-800 hover:border-zinc-600 transition-colors text-left"
         data-testid="button-toggle-xp-history"
@@ -155,7 +208,7 @@ export function XPWidget() {
       {showHistory && (
         <div className="space-y-1 max-h-48 overflow-y-auto" data-testid="xp-history-feed">
           {history.length === 0 ? (
-            <p className="text-[10px] text-zinc-600 font-mono text-center py-4">No XP history yet</p>
+            <p className="text-[10px] text-zinc-600 font-mono text-center py-4">No XP history yet. Create something to start earning!</p>
           ) : (
             history.map(entry => (
               <div key={entry.id} className="flex items-center justify-between px-2 py-1.5 border border-zinc-900 hover:border-zinc-700 transition-colors">
