@@ -825,7 +825,7 @@ export default function CardCreator() {
       templateId,
       name: template.name,
       cardsPerPack: template.cards,
-      rarityDistribution: { ...template.distribution },
+      rarityDistribution: { ...template.distribution } as { [key: string]: number },
       guaranteedRarities: [...template.guaranteed],
     });
     toast.success(`Applied ${template.name} template`);

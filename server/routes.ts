@@ -13,7 +13,7 @@ function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema, xpTransactions } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, and, or, desc, ilike, isNull } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
@@ -6885,7 +6885,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const userId = req.user!.id;
       let tier: TierName = "free";
-      let entitlements = tierEntitlements.free;
+      let entitlements: (typeof tierEntitlements)[TierName] = tierEntitlements.free;
       try {
         const subscription = await storage.getUserSubscription(userId);
         tier = (subscription?.tier || "free") as TierName;
@@ -7448,7 +7448,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       let localCount = 0;
       try {
         const [countResult] = await db.select({ count: sql`count(*)::int` }).from(fxEffects);
-        localCount = countResult?.count || 0;
+        localCount = (countResult?.count as number) || 0;
       } catch (dbErr: any) {
         console.error("[fx-health] local DB count failed:", dbErr.message);
       }
@@ -8294,11 +8294,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     try {
       const listing = await storage.getMarketplaceListing(req.params.id);
       if (!listing) return res.status(404).json({ message: "Not found" });
-      const price = Number(listing.price) === 0 ? "Free" : `$${listing.price}`;
+      const price = listing.priceInCents === 0 ? "Free" : `$${(listing.priceInCents / 100).toFixed(2)}`;
       res.json({
         title: `${listing.title} (${price}) | Press Start CoMixx Marketplace`,
         description: listing.description || `Get "${listing.title}" on Press Start CoMixx Marketplace`,
-        image: listing.coverImage || "https://pscomixx.com/og-image.png",
+        image: listing.thumbnail || "https://pscomixx.com/og-image.png",
         type: "product",
       });
     } catch {
@@ -9406,9 +9406,26 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const user = req.user as any;
       const { priceId, seats } = req.body;
       if (!priceId) return res.status(400).json({ message: "Price ID required" });
+
+      let subscription = await storage.getUserSubscription(user.id);
+      let customerId = subscription?.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripeService.createCustomer(user.email, user.id, user.name || undefined);
+        customerId = customer.id;
+        if (subscription) {
+          await storage.updateSubscription(user.id, { stripeCustomerId: customer.id });
+        } else {
+          await storage.createSubscription({
+            userId: user.id,
+            tier: "free",
+            status: "active",
+            stripeCustomerId: customer.id,
+          });
+        }
+      }
+
       const session = await stripeService.createCheckoutSession(
-        user.id,
-        user.email,
+        customerId,
         priceId,
         `${req.protocol}://${req.get("host")}/teacher?session_id={CHECKOUT_SESSION_ID}`,
         `${req.protocol}://${req.get("host")}/pricing`

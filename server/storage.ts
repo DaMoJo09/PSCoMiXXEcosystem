@@ -1294,30 +1294,24 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async followUser(followerId: string, followingId: string): Promise<UserFollow> {
-    const [follow] = await db.insert(userFollows)
-      .values({ followerId, followingId })
-      .returning();
-    return follow;
+  async followUser(followerId: string, followingId: string): Promise<any> {
+    const existing = await db.select().from(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    if (existing.length > 0) return existing[0];
+    const [result] = await db.insert(userFollows).values({ followerId, followingId }).returning();
+    return result;
   }
 
   async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
-    const result = await db.delete(userFollows)
-      .where(and(
-        eq(userFollows.followerId, followerId),
-        eq(userFollows.followingId, followingId)
-      ));
-    return result.rowCount ? result.rowCount > 0 : false;
+    await db.delete(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    return true;
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    const [follow] = await db.select()
-      .from(userFollows)
-      .where(and(
-        eq(userFollows.followerId, followerId),
-        eq(userFollows.followingId, followingId)
-      ));
-    return !!follow;
+    const result = await db.select().from(userFollows)
+      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
+    return result.length > 0;
   }
 
   async getFollowers(userId: string): Promise<any[]> {
@@ -2822,9 +2816,9 @@ export class DatabaseStorage implements IStorage {
     try {
       await db.delete(dmMessages).where(eq(dmMessages.senderId, userId));
       await db.delete(dmParticipants).where(eq(dmParticipants.userId, userId));
-      await db.delete(socialPostComments).where(eq(socialPostComments.userId, userId));
+      await db.delete(socialPostComments).where(eq(socialPostComments.authorId, userId));
       await db.delete(socialPostLikes).where(eq(socialPostLikes.userId, userId));
-      await db.delete(socialPosts).where(eq(socialPosts.userId, userId));
+      await db.delete(socialPosts).where(eq(socialPosts.authorId, userId));
       await db.delete(userFollows).where(eq(userFollows.followerId, userId));
       await db.delete(userFollows).where(eq(userFollows.followingId, userId));
       await db.delete(notifications).where(eq(notifications.userId, userId));
@@ -3346,38 +3340,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(comicSeries.id, seriesId))
       .returning();
     return result || undefined;
-  }
-
-  async followUser(followerId: string, followingId: string): Promise<any> {
-    const existing = await db.select().from(userFollows)
-      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
-    if (existing.length > 0) return existing[0];
-    const [result] = await db.insert(userFollows).values({ followerId, followingId }).returning();
-    return result;
-  }
-
-  async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
-    await db.delete(userFollows)
-      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
-    return true;
-  }
-
-  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    const result = await db.select().from(userFollows)
-      .where(and(eq(userFollows.followerId, followerId), eq(userFollows.followingId, followingId)));
-    return result.length > 0;
-  }
-
-  async getFollowerCount(userId: string): Promise<number> {
-    const [result] = await db.select({ count: count() }).from(userFollows)
-      .where(eq(userFollows.followingId, userId));
-    return result?.count || 0;
-  }
-
-  async getFollowingCount(userId: string): Promise<number> {
-    const [result] = await db.select({ count: count() }).from(userFollows)
-      .where(eq(userFollows.followerId, userId));
-    return result?.count || 0;
   }
 
   async getUserFollowers(userId: string, limit = 50): Promise<any[]> {

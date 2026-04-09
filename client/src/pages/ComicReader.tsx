@@ -42,6 +42,7 @@ interface PanelContentItem {
     textArch?: number;
     filter?: string;
     filterOverlay?: string;
+    alt?: string;
   };
   src?: string;
   text?: string;

@@ -310,7 +310,7 @@ export default function LearnModule() {
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <AppSidebar />
+      <AppSidebar isExpanded={false} isPinned={false} onTogglePin={() => {}} />
       <main className="flex-1 ml-64 p-8">
         <div className="max-w-6xl mx-auto space-y-8">
           <div className="flex items-center justify-between">

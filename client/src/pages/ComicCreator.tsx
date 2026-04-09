@@ -107,6 +107,8 @@ interface PanelContent {
     textArch?: number;
     filter?: string;
     filterOverlay?: string;
+    textPanel?: boolean;
+    alt?: string;
   };
   zIndex: number;
   locked: boolean;
@@ -119,10 +121,11 @@ interface Panel {
   width: number;
   height: number;
   rotation: number;
-  type: "rectangle" | "circle";
+  type?: "rectangle" | "circle";
+  shape?: "rectangle" | "circle";
   contents: PanelContent[];
   zIndex: number;
-  locked: boolean;
+  locked?: boolean;
   hidden?: boolean;
   name?: string;
   backgroundColor?: string;
@@ -1473,40 +1476,41 @@ export default function ComicCreator() {
           if (!hiddenEls.has("master-author")) {
             drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(30), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           }
-          if (false && cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price")) {
+          if (false && cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price") && ctx) {
             const boxS = scaleFont(36);
             const bx = panelX + panelW - boxS - scaleFont(10);
             const by = panelY + scaleFont(10);
             const bcx = bx + boxS / 2;
             const bcy = by + boxS / 2;
-            ctx.fillStyle = cd.priceBoxColor || cd.bannerBgColor || '#FFD700';
+            const g = ctx!;
+            g.fillStyle = cd.priceBoxColor || cd.bannerBgColor || '#FFD700';
             if (cd.priceBoxShape === 'circle') {
-              ctx.beginPath();
-              ctx.arc(bcx, bcy, boxS / 2, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.strokeStyle = '#000';
-              ctx.lineWidth = 1;
-              ctx.stroke();
+              g.beginPath();
+              g.arc(bcx, bcy, boxS / 2, 0, Math.PI * 2);
+              g.fill();
+              g.strokeStyle = '#000';
+              g.lineWidth = 1;
+              g.stroke();
             } else if (cd.priceBoxShape === 'diamond') {
-              ctx.save();
-              ctx.translate(bcx, bcy);
-              ctx.rotate(Math.PI / 4);
-              ctx.fillRect(-boxS / 2, -boxS / 2, boxS, boxS);
-              ctx.strokeStyle = '#000';
-              ctx.lineWidth = 1;
-              ctx.strokeRect(-boxS / 2, -boxS / 2, boxS, boxS);
-              ctx.restore();
+              g.save();
+              g.translate(bcx, bcy);
+              g.rotate(Math.PI / 4);
+              g.fillRect(-boxS / 2, -boxS / 2, boxS, boxS);
+              g.strokeStyle = '#000';
+              g.lineWidth = 1;
+              g.strokeRect(-boxS / 2, -boxS / 2, boxS, boxS);
+              g.restore();
             } else {
-              ctx.fillRect(bx, by, boxS, boxS);
-              ctx.strokeStyle = '#000';
-              ctx.lineWidth = 1;
-              ctx.strokeRect(bx, by, boxS, boxS);
+              g.fillRect(bx, by, boxS, boxS);
+              g.strokeStyle = '#000';
+              g.lineWidth = 1;
+              g.strokeRect(bx, by, boxS, boxS);
             }
-            ctx.fillStyle = cd.priceBoxTextColor || '#000';
-            ctx.font = `bold ${scaleFont(14)}px Inter`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(cd.priceText, bcx, bcy);
+            g.fillStyle = cd.priceBoxTextColor || '#000';
+            g.font = `bold ${scaleFont(14)}px Inter`;
+            g.textAlign = "center";
+            g.textBaseline = "middle";
+            g.fillText(cd.priceText, bcx, bcy);
           }
         } else {
           if (!hiddenEls.has("master-back-title")) {

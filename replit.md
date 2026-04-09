@@ -64,7 +64,18 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 - `passport`
 
 ### Security
-- `express-rate-limit`
+- `helmet` (CSP, security headers)
+- `express-rate-limit` (global: 200/min, auth: 10/15min, AI: 10/min)
+- Session cookies: httpOnly, secure in production, sameSite lax, 7-day expiry
+- Stripe webhook signature validation
+- Sensitive credentials stored as encrypted Replit Secrets (ADMIN_PASSWORD, EMERGENT_WEBHOOK_SECRET, FX_STUDIO_API_KEY)
+
+### Code Quality
+- TypeScript strict mode with zero errors (`npm run check`)
+- Route-level lazy loading via React.lazy for all pages except Dashboard, AuthPage, and LandingPage
+- Build produces code-split chunks (main bundle ~842KB gzip ~238KB, down from 3.4MB+)
+- Duplicate backend methods consolidated (follow/unfollow/isFollowing)
+- Schema types reconciled between frontend, backend, and shared models
 
 ### UI/Utility Libraries
 - `react`, `typescript`, `vite`, `wouter`, `tailwindcss`

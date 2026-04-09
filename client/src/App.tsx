@@ -13,89 +13,99 @@ import { PostActionProvider } from "@/contexts/PostActionContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
-import Dashboard from "@/pages/Dashboard";
-import ComicCreator from "@/pages/ComicCreator";
-import CardCreator from "@/pages/CardCreator";
-import VNCreator from "@/pages/VNCreator";
-import AdminDashboard from "@/pages/AdminDashboard";
-import MotionStudio from "@/pages/MotionStudio";
-import CYOABuilder from "@/pages/CYOABuilder";
-import HopCreator from "@/pages/HopCreator";
-
-import PromptFactory from "@/pages/PromptFactory";
-import StoryForge from "@/pages/StoryForge";
-import SettingsPage from "@/pages/SettingsPage";
-import AuthPage from "@/pages/AuthPage";
-import AdminLogin from "@/pages/AdminLogin";
-import LandingPage from "@/pages/LandingPage";
-import PortfolioPage from "@/pages/PortfolioPage";
-import LibraryPage from "@/pages/LibraryPage";
-import ExhibitionsPage from "@/pages/ExhibitionsPage";
-import BlogPage from "@/pages/BlogPage";
-import ContactPage from "@/pages/ContactPage";
-import ShopPage from "@/pages/ShopPage";
-import ArtistPage from "@/pages/ArtistPage";
-import EcosystemHub from "@/pages/EcosystemHub";
-import LearnModule from "@/pages/LearnModule";
-import CollaborateModule from "@/pages/CollaborateModule";
-import EarnModule from "@/pages/EarnModule";
-import EventsModule from "@/pages/EventsModule";
-import PublishModule from "@/pages/PublishModule";
-import CardBattle from "@/pages/CardBattle";
-import SocialFeed from "@/pages/SocialFeed";
-import SocialProfile from "@/pages/SocialProfile";
-import SocialMessages from "@/pages/SocialMessages";
-import CollabHub from "@/pages/CollabHub";
-import CollabSession from "@/pages/CollabSession";
-import CommunityChains from "@/pages/CommunityChains";
-import Notifications from "@/pages/Notifications";
-import UserSearch from "@/pages/UserSearch";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import ProfileCard from "@/pages/ProfileCard";
-import ImportCenter from "@/pages/ImportCenter";
-import ScriptImport from "@/pages/ScriptImport";
-import AdminModeration from "@/pages/AdminModeration";
-import AdminControlRoom from "@/pages/AdminControlRoom";
-import AdminReviewQueue from "@/pages/AdminReviewQueue";
-import PricingPage from "@/pages/PricingPage";
-import AchievementsPage from "@/pages/AchievementsPage";
-import RewardsPage from "@/pages/RewardsPage";
-import MarketplacePage from "@/pages/MarketplacePage";
-import CommunityLibrary from "@/pages/CommunityLibrary";
-import CommunityViewer from "@/pages/CommunityViewer";
-import ComicReader from "@/pages/ComicReader";
-import SeriesPage from "@/pages/SeriesPage";
-import MarketplaceListingPage from "@/pages/MarketplaceListingPage";
-import MarketplaceSellPage from "@/pages/MarketplaceSellPage";
-import MarketplacePurchasesPage from "@/pages/MarketplacePurchasesPage";
-import PrivacyPage from "@/pages/PrivacyPage";
-import TermsPage from "@/pages/TermsPage";
-import TeacherDashboard from "@/pages/TeacherDashboard";
-import CreatorProfilePage from "@/pages/CreatorProfilePage";
-import CompliancePage from "@/pages/CompliancePage";
-import AccessibilityPage from "@/pages/AccessibilityPage";
-import SecurityPage from "@/pages/SecurityPage";
-import DisclaimerPage from "@/pages/DisclaimerPage";
-import DMCAPage from "@/pages/DMCAPage";
-import PrintStudio from "@/pages/PrintStudio";
-import ExportDashboard from "@/pages/ExportDashboard";
-import PrintQuoteRequest from "@/pages/PrintQuoteRequest";
-import PrintPackages from "@/pages/PrintPackages";
-import PrintReviews from "@/pages/PrintReviews";
-import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
-import CertificationsPage, { VerifyPage } from "@/pages/CertificationsPage";
-import SSOCallbackPage from "@/pages/SSOCallbackPage";
-import CoverCreator from "@/pages/CoverCreator";
-import FxStudioPage from "@/pages/FxStudioPage";
 import { Spinner } from "@/components/ui/spinner";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcuts";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { NetworkStatusToast } from "@/components/pwa/NetworkStatusToast";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
+
+import Dashboard from "@/pages/Dashboard";
+import AuthPage from "@/pages/AuthPage";
+import LandingPage from "@/pages/LandingPage";
+
+const ComicCreator = lazy(() => import("@/pages/ComicCreator"));
+const CardCreator = lazy(() => import("@/pages/CardCreator"));
+const VNCreator = lazy(() => import("@/pages/VNCreator"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const MotionStudio = lazy(() => import("@/pages/MotionStudio"));
+const CYOABuilder = lazy(() => import("@/pages/CYOABuilder"));
+const HopCreator = lazy(() => import("@/pages/HopCreator"));
+const PromptFactory = lazy(() => import("@/pages/PromptFactory"));
+const StoryForge = lazy(() => import("@/pages/StoryForge"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
+const PortfolioPage = lazy(() => import("@/pages/PortfolioPage"));
+const LibraryPage = lazy(() => import("@/pages/LibraryPage"));
+const ExhibitionsPage = lazy(() => import("@/pages/ExhibitionsPage"));
+const BlogPage = lazy(() => import("@/pages/BlogPage"));
+const ContactPage = lazy(() => import("@/pages/ContactPage"));
+const ShopPage = lazy(() => import("@/pages/ShopPage"));
+const ArtistPage = lazy(() => import("@/pages/ArtistPage"));
+const EcosystemHub = lazy(() => import("@/pages/EcosystemHub"));
+const LearnModule = lazy(() => import("@/pages/LearnModule"));
+const CollaborateModule = lazy(() => import("@/pages/CollaborateModule"));
+const EarnModule = lazy(() => import("@/pages/EarnModule"));
+const EventsModule = lazy(() => import("@/pages/EventsModule"));
+const PublishModule = lazy(() => import("@/pages/PublishModule"));
+const CardBattle = lazy(() => import("@/pages/CardBattle"));
+const SocialFeed = lazy(() => import("@/pages/SocialFeed"));
+const SocialProfile = lazy(() => import("@/pages/SocialProfile"));
+const SocialMessages = lazy(() => import("@/pages/SocialMessages"));
+const CollabHub = lazy(() => import("@/pages/CollabHub"));
+const CollabSession = lazy(() => import("@/pages/CollabSession"));
+const CommunityChains = lazy(() => import("@/pages/CommunityChains"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
+const UserSearch = lazy(() => import("@/pages/UserSearch"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const ProfileCard = lazy(() => import("@/pages/ProfileCard"));
+const ImportCenter = lazy(() => import("@/pages/ImportCenter"));
+const ScriptImport = lazy(() => import("@/pages/ScriptImport"));
+const AdminModeration = lazy(() => import("@/pages/AdminModeration"));
+const AdminControlRoom = lazy(() => import("@/pages/AdminControlRoom"));
+const AdminReviewQueue = lazy(() => import("@/pages/AdminReviewQueue"));
+const PricingPage = lazy(() => import("@/pages/PricingPage"));
+const AchievementsPage = lazy(() => import("@/pages/AchievementsPage"));
+const RewardsPage = lazy(() => import("@/pages/RewardsPage"));
+const MarketplacePage = lazy(() => import("@/pages/MarketplacePage"));
+const CommunityLibrary = lazy(() => import("@/pages/CommunityLibrary"));
+const CommunityViewer = lazy(() => import("@/pages/CommunityViewer"));
+const ComicReader = lazy(() => import("@/pages/ComicReader"));
+const SeriesPage = lazy(() => import("@/pages/SeriesPage"));
+const MarketplaceListingPage = lazy(() => import("@/pages/MarketplaceListingPage"));
+const MarketplaceSellPage = lazy(() => import("@/pages/MarketplaceSellPage"));
+const MarketplacePurchasesPage = lazy(() => import("@/pages/MarketplacePurchasesPage"));
+const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
+const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
+const CreatorProfilePage = lazy(() => import("@/pages/CreatorProfilePage"));
+const CompliancePage = lazy(() => import("@/pages/CompliancePage"));
+const AccessibilityPage = lazy(() => import("@/pages/AccessibilityPage"));
+const SecurityPage = lazy(() => import("@/pages/SecurityPage"));
+const DisclaimerPage = lazy(() => import("@/pages/DisclaimerPage"));
+const DMCAPage = lazy(() => import("@/pages/DMCAPage"));
+const PrintStudio = lazy(() => import("@/pages/PrintStudio"));
+const ExportDashboard = lazy(() => import("@/pages/ExportDashboard"));
+const PrintQuoteRequest = lazy(() => import("@/pages/PrintQuoteRequest"));
+const PrintPackages = lazy(() => import("@/pages/PrintPackages"));
+const PrintReviews = lazy(() => import("@/pages/PrintReviews"));
+const AnalyticsDashboard = lazy(() => import("@/pages/AnalyticsDashboard"));
+const CertificationsPage = lazy(() => import("@/pages/CertificationsPage").then(m => ({ default: m.default })));
+const VerifyPageLazy = lazy(() => import("@/pages/CertificationsPage").then(m => ({ default: m.VerifyPage })));
+const SSOCallbackPage = lazy(() => import("@/pages/SSOCallbackPage"));
+const CoverCreator = lazy(() => import("@/pages/CoverCreator"));
+const FxStudioPage = lazy(() => import("@/pages/FxStudioPage"));
+
+function LazyFallback() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <Spinner className="size-12 text-white" />
+    </div>
+  );
+}
 
 function ProtectedRouter() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -108,11 +118,7 @@ function ProtectedRouter() {
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Spinner className="size-12 text-white" />
-      </div>
-    );
+    return <LazyFallback />;
   }
 
   if (location === "/login" || location === "/signup" || location === "/auth") {
@@ -120,15 +126,15 @@ function ProtectedRouter() {
   }
 
   if (location === "/forgot-password") {
-    return <ForgotPassword />;
+    return <Suspense fallback={<LazyFallback />}><ForgotPassword /></Suspense>;
   }
 
   if (location.startsWith("/reset-password")) {
-    return <ResetPassword />;
+    return <Suspense fallback={<LazyFallback />}><ResetPassword /></Suspense>;
   }
 
   if (location.startsWith("/sso/callback") || location === "/sso") {
-    return <SSOCallbackPage />;
+    return <Suspense fallback={<LazyFallback />}><SSOCallbackPage /></Suspense>;
   }
 
   const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/"];
@@ -136,19 +142,21 @@ function ProtectedRouter() {
 
   if (isPublicPage && !isAuthenticated) {
     return (
-      <Switch>
-        <Route path="/portfolio/:userId" component={PortfolioPage} />
-        <Route path="/creator/:username" component={CreatorProfilePage} />
-        <Route path="/verify/:code">{(params: any) => <VerifyPage code={params.code} />}</Route>
-        <Route path="/privacy" component={PrivacyPage} />
-        <Route path="/terms" component={TermsPage} />
-        <Route path="/disclaimer" component={DisclaimerPage} />
-        <Route path="/dmca" component={DMCAPage} />
-        <Route path="/compliance" component={CompliancePage} />
-        <Route path="/accessibility-statement" component={AccessibilityPage} />
-        <Route path="/security" component={SecurityPage} />
-        <Route component={NotFound} />
-      </Switch>
+      <Suspense fallback={<LazyFallback />}>
+        <Switch>
+          <Route path="/portfolio/:userId" component={PortfolioPage} />
+          <Route path="/creator/:username" component={CreatorProfilePage} />
+          <Route path="/verify/:code">{(params: any) => <VerifyPageLazy code={params.code} />}</Route>
+          <Route path="/privacy" component={PrivacyPage} />
+          <Route path="/terms" component={TermsPage} />
+          <Route path="/disclaimer" component={DisclaimerPage} />
+          <Route path="/dmca" component={DMCAPage} />
+          <Route path="/compliance" component={CompliancePage} />
+          <Route path="/accessibility-statement" component={AccessibilityPage} />
+          <Route path="/security" component={SecurityPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
     );
   }
 
@@ -159,6 +167,7 @@ function ProtectedRouter() {
   return (
     <LegalGate>
       <ErrorBoundary>
+      <Suspense fallback={<LazyFallback />}>
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/comic" component={ComicCreator} />
@@ -196,7 +205,7 @@ function ProtectedRouter() {
         <Route path="/pricing" component={PricingPage} />
         <Route path="/achievements" component={AchievementsPage} />
         <Route path="/certifications" component={CertificationsPage} />
-        <Route path="/verify/:code">{(params: any) => <VerifyPage code={params.code} />}</Route>
+        <Route path="/verify/:code">{(params: any) => <VerifyPageLazy code={params.code} />}</Route>
         <Route path="/rewards" component={RewardsPage} />
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />
@@ -239,6 +248,7 @@ function ProtectedRouter() {
         <Route path="/security" component={SecurityPage} />
         <Route component={NotFound} />
       </Switch>
+      </Suspense>
       </ErrorBoundary>
     </LegalGate>
   );

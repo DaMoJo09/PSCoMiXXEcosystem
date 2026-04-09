@@ -263,8 +263,8 @@ function NodeGraph({ nodes, selectedNodeId, onSelectNode, onEditNode }: {
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-bold text-xs uppercase truncate flex-1">{node.title || (node.isEnding ? "ENDING" : node.id)}</span>
                   <div className="flex gap-0.5 ml-1">
-                    {hasEffects && <Variable className="w-3 h-3 text-purple-400" title="Sets variables" />}
-                    {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" title="Has conditions" />}
+                    {hasEffects && <Variable className="w-3 h-3 text-purple-400" aria-label="Sets variables" />}
+                    {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" aria-label="Has conditions" />}
                   </div>
                 </div>
                 <p className="text-[11px] font-mono text-zinc-400 line-clamp-4 flex-1">{node.text}</p>
@@ -663,7 +663,7 @@ export default function CYOABuilder() {
     for (let i = 0; i < history.length; i++) {
       const node = nodes.find(n => n.id === history[i]);
       if (node?.effects) vars = applyEffects(node.effects, vars);
-      if (choiceHistory && choiceHistory[i]?.effects) vars = applyEffects(choiceHistory[i].effects, vars);
+      if (choiceHistory && choiceHistory[i]?.effects) vars = applyEffects(choiceHistory[i].effects!, vars);
     }
     return vars;
   };

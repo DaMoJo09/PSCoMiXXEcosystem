@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 const ONBOARDING_PREFIX = "pscomixx_onboarding_complete";
 
-export function useOnboarding(userId?: number) {
+export function useOnboarding(userId?: string | number) {
   const key = userId ? `${ONBOARDING_PREFIX}:${userId}` : ONBOARDING_PREFIX;
   const [completed, setCompleted] = useState(() => {
     return localStorage.getItem(key) === "true";
@@ -199,7 +199,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         type: selectedMode,
         status: "published",
         data: templateMap[selectedMode] || {},
-        forceNew: true,
+        
       });
 
       let totalXp = 0;

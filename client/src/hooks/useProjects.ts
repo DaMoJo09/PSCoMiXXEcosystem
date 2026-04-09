@@ -18,11 +18,13 @@ export function useProject(id: string) {
   });
 }
 
+type CreateProjectInput = Omit<InsertProject, "userId"> & { forceNew?: boolean };
+
 export function useCreateProject() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Omit<InsertProject, "userId">) => projectsApi.create(data),
+    mutationFn: (data: CreateProjectInput) => projectsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },

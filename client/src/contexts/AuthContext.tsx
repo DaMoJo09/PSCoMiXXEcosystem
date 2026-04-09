@@ -10,7 +10,7 @@ interface AuthUser {
   accountType: string;
   xp: number;
   level: number;
-  levelTitle: string;
+  levelTitle?: string;
   totalMinutes: number;
 }
 

@@ -369,7 +369,7 @@ export default function HopCreator() {
         if (data.canvasReferenceImages) setCanvasReferenceImages(data.canvasReferenceImages);
         if (data.canvasAnnotations) setCanvasAnnotations(data.canvasAnnotations);
         if (data.beatMarkers) setBeatMarkers(data.beatMarkers);
-        if (existingProject.description) setDescription(existingProject.description as string || "");
+        if ((existingProject as any).description) setDescription((existingProject as any).description as string || "");
       }
     }
   }, [existingProject]);
@@ -871,7 +871,7 @@ export default function HopCreator() {
   const previewLayers = previewScene ? (sceneLayers[previewScene.id] || []) : [];
   const previewTextStyle = previewScene ? (sceneTextStyles[previewScene.id] || defaultTextStyle()) : defaultTextStyle();
 
-  const renderCanvas = (scene: HopScene | undefined, layers: HopLayer[], textStyle: TextOverlayStyle, ref?: React.RefObject<HTMLDivElement>) => {
+  const renderCanvas = (scene: HopScene | undefined, layers: HopLayer[], textStyle: TextOverlayStyle, ref?: React.RefObject<HTMLDivElement | null>) => {
     if (!scene) return <div className="w-full h-full bg-zinc-900 flex items-center justify-center"><p className="text-xs text-zinc-600">No scene</p></div>;
     const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
     return (

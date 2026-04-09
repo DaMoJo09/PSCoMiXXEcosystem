@@ -312,7 +312,7 @@ export default function CardBattle() {
   };
 
   return (
-    <Layout title="Card Battle">
+    <Layout>
       <div className="min-h-screen bg-black text-white p-4">
         <div className="max-w-4xl mx-auto">
           <button
