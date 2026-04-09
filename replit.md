@@ -73,8 +73,8 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 ### Code Quality
 - TypeScript strict mode with zero errors (`npm run check`)
 - Route-level lazy loading via React.lazy for all 60+ pages (except Dashboard, AuthPage, LandingPage)
-- Vendor code splitting: react, recharts, jspdf, radix, tanstack-query each in separate chunks
-- Initial load: ~209KB gzip (entry 137KB + react 62KB + query 10KB)
+- Vendor code splitting: recharts/d3, jspdf, radix, tanstack-query in separate chunks (React stays in entry to preserve initialization order)
+- Service worker disabled (unregistered on load) after stale-cache production incident; can re-enable later with proper versioning
 - Duplicate backend methods consolidated (follow/unfollow/isFollowing)
 - Schema types reconciled between frontend, backend, and shared models
 - CI pipeline script: `scripts/ci.sh` (npm ci → typecheck → build → test)

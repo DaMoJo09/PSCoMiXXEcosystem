@@ -81,8 +81,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/assets', express.static(path.join(process.cwd(), 'client/public/assets')));
-app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
+app.use('/assets', express.static(path.join(process.cwd(), 'client/public/assets'), {
+  setHeaders: (res) => { res.setHeader('Cache-Control', 'public, max-age=3600'); },
+}));
+app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets'), {
+  setHeaders: (res) => { res.setHeader('Cache-Control', 'public, max-age=3600'); },
+}));
 const httpServer = createServer(app);
 
 declare module "http" {
