@@ -41,12 +41,13 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-dom/client", "wouter"],
-          "vendor-query": ["@tanstack/react-query"],
-          "vendor-ui": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-tabs", "@radix-ui/react-tooltip", "@radix-ui/react-select", "@radix-ui/react-popover", "@radix-ui/react-accordion"],
-          "vendor-charts": ["recharts"],
-          "vendor-pdf": ["jspdf"],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+            if (id.includes('jspdf')) return 'vendor-pdf';
+            if (id.includes('@radix-ui')) return 'vendor-ui';
+            if (id.includes('@tanstack/react-query')) return 'vendor-query';
+          }
         },
       },
     },
