@@ -6,7 +6,7 @@ import {
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
@@ -160,6 +160,7 @@ interface Spread {
   themeMusic?: SpreadAudio;
   leftNarration?: NarrationBox;
   rightNarration?: NarrationBox;
+  isLastPage?: boolean;
 }
 
 const COMIC_IMAGE_FILTERS = [
@@ -421,7 +422,16 @@ export default function ComicCreator() {
   const [isCreating, setIsCreating] = useState(!projectId);
   
   const [spreads, setSpreadsRaw] = useState<Spread[]>([
-    { id: "spread_1", leftPage: [], rightPage: [] }
+    { id: "spread_1", leftPage: [{
+      id: "default-cover-panel",
+      x: 0, y: 0, width: 100, height: 100,
+      backgroundColor: "#111111",
+      shape: "rectangle" as const,
+      contents: [],
+      zIndex: 0,
+      rotation: 0,
+      coverRole: "front-cover",
+    }], rightPage: [] }
   ]);
   const undoStackRef = useRef<Spread[][]>([]);
   const redoStackRef = useRef<Spread[][]>([]);
@@ -483,6 +493,56 @@ export default function ComicCreator() {
   const fxStudio = useFxStudio({
     projectId: projectId || undefined,
     onAssetsUpdated: () => setAssetLibraryTab("fx-studio"),
+    onAssetReturned: (payload) => {
+      const target = payload.target;
+      if (!target || !payload.previewUrl) return;
+
+      if (target.type === "cover") {
+        setCoverDesignData(prev => ({
+          ...prev,
+          frontImage: payload.previewUrl!,
+        }));
+        toast.success("FX applied to front cover");
+      } else if (target.type === "backCover") {
+        setCoverDesignData(prev => ({
+          ...prev,
+          backImage: payload.previewUrl!,
+        }));
+        toast.success("FX applied to back cover");
+      } else if (target.type === "priceTag") {
+        setCoverDesignData(prev => ({
+          ...prev,
+          priceBoxImage: payload.previewUrl!,
+        }));
+        toast.success("FX applied to price tag");
+      } else if (target.type === "panel") {
+        const { panelId, page, spreadIndex } = target;
+        setSpreads(prev => prev.map((s, si) => {
+          if (si !== spreadIndex) return s;
+          const updatePage = (panels: Panel[]) =>
+            panels.map(p => {
+              if (p.id !== panelId) return p;
+              return {
+                ...p,
+                contents: [...p.contents, {
+                  id: `fx-${Date.now()}`,
+                  type: "image" as const,
+                  data: { url: payload.previewUrl! },
+                  transform: { x: 50, y: 50, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                  zIndex: p.contents.length,
+                  locked: false,
+                }],
+              };
+            });
+          return {
+            ...s,
+            leftPage: page === "left" ? updatePage(s.leftPage) : s.leftPage,
+            rightPage: page === "right" ? updatePage(s.rightPage) : s.rightPage,
+          };
+        }));
+        toast.success("FX applied to panel");
+      }
+    },
   });
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
@@ -519,6 +579,34 @@ export default function ComicCreator() {
 
   const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
+
+  useEffect(() => {
+    if (!fxStudio.isOpen) return;
+
+    if (selectedContentId === "cover-price") {
+      fxStudio.setActiveTarget({ type: "priceTag" });
+      return;
+    }
+
+    if (!selectedPanelId || !currentSpread) {
+      fxStudio.setActiveTarget(null);
+      return;
+    }
+    const allPanels = [...currentSpread.leftPage, ...currentSpread.rightPage];
+    const panel = allPanels.find(p => p.id === selectedPanelId);
+    if (!panel) {
+      fxStudio.setActiveTarget(null);
+      return;
+    }
+    if (panel.coverRole === "front-cover") {
+      fxStudio.setActiveTarget({ type: "cover" });
+    } else if (panel.coverRole === "back-cover") {
+      fxStudio.setActiveTarget({ type: "backCover" });
+    } else {
+      const page = currentSpread.leftPage.some(p => p.id === selectedPanelId) ? "left" as const : "right" as const;
+      fxStudio.setActiveTarget({ type: "panel", panelId: selectedPanelId, spreadIndex: currentSpreadIndex, page });
+    }
+  }, [selectedPanelId, selectedContentId, currentSpreadIndex, currentSpread, fxStudio.isOpen]);
 
   const { syncAsset, isSyncing: isSyncingToCoMiXX } = useSyncToCoMiXX({
     defaultTag: "interior-page",
@@ -2210,6 +2298,67 @@ export default function ComicCreator() {
     setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);
     setCurrentSpreadIndex(spreads.length);
   };
+
+  const toggleLastPage = useCallback((spreadIndex: number) => {
+    setSpreads(prev => {
+      const wasLastPage = prev[spreadIndex]?.isLastPage;
+      const updated = prev.map((s, i) => ({
+        ...s,
+        isLastPage: i === spreadIndex ? !wasLastPage : false,
+      }));
+
+      if (!wasLastPage) {
+        const hasExplicitBackCover = updated.some(s =>
+          s.leftPage.some(p => p.coverRole === "back-cover") ||
+          s.rightPage.some(p => p.coverRole === "back-cover")
+        );
+        if (!hasExplicitBackCover) {
+          const backCoverPanel: Panel = {
+            id: `auto-back-cover-${Date.now()}`,
+            x: 0, y: 0, width: 100, height: 100,
+            backgroundColor: "#111111",
+            shape: "rectangle" as const,
+            contents: [],
+            zIndex: 0,
+            rotation: 0,
+            coverRole: "back-cover",
+          };
+          const targetSpread = updated[spreadIndex];
+          if (targetSpread.rightPage.length === 0) {
+            updated[spreadIndex] = { ...targetSpread, rightPage: [backCoverPanel] };
+          } else {
+            const newSpread = {
+              id: `spread_bc_${Date.now()}`,
+              leftPage: [backCoverPanel],
+              rightPage: [] as Panel[],
+              isLastPage: false,
+            };
+            updated.splice(spreadIndex + 1, 0, newSpread);
+          }
+          toast.success("Back cover auto-added after last page");
+        }
+      } else {
+        for (let i = 0; i < updated.length; i++) {
+          const cleaned = {
+            ...updated[i],
+            leftPage: updated[i].leftPage.filter(p => !p.id.startsWith("auto-back-cover-")),
+            rightPage: updated[i].rightPage.filter(p => !p.id.startsWith("auto-back-cover-")),
+          };
+          if (cleaned.leftPage.length === 0 && cleaned.rightPage.length === 0 && i !== spreadIndex) {
+            updated.splice(i, 1);
+            i--;
+          } else {
+            updated[i] = cleaned;
+          }
+        }
+        toast.info("Last page unmarked — auto back cover removed");
+      }
+
+      return updated;
+    });
+  }, [setSpreads]);
+
+  const lastPageIndex = useMemo(() => spreads.findIndex(s => s.isLastPage), [spreads]);
 
   const getPageRef = (page: "left" | "right") => page === "left" ? leftPageRef : rightPageRef;
 
@@ -4607,7 +4756,15 @@ export default function ComicCreator() {
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
             <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/80 px-4 py-2 rounded ${showPreview ? 'hidden' : ''}`}>
-              <span>Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.reduce((count, s) => count + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)} pages</span>
+              <span className="flex items-center gap-2">
+                {currentSpreadIndex === 0 && currentSpread?.leftPage.some(p => p.coverRole === "front-cover") && (
+                  <span className="text-[9px] font-bold bg-cyan-600 text-white px-1.5 py-0.5">COVER</span>
+                )}
+                {currentSpread?.isLastPage && (
+                  <span className="text-[9px] font-bold bg-amber-600 text-white px-1.5 py-0.5">LAST PAGE</span>
+                )}
+                Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.reduce((count, s) => count + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)} pages
+              </span>
               <button 
                 onClick={() => { 
                   if (currentSpreadIndex > 0) {
@@ -4629,6 +4786,18 @@ export default function ComicCreator() {
                 disabled={currentSpreadIndex === spreads.length - 1}
               >
                 <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => toggleLastPage(currentSpreadIndex)}
+                className={`px-2 py-1 text-[10px] font-bold border transition-colors ${
+                  currentSpread?.isLastPage
+                    ? "bg-amber-600 text-white border-amber-500"
+                    : "bg-zinc-800 text-zinc-400 border-zinc-600 hover:border-amber-500 hover:text-amber-400"
+                }`}
+                title={currentSpread?.isLastPage ? "Unmark as last page" : "Mark this spread as the last page (auto-adds back cover)"}
+                data-testid="button-toggle-last-page"
+              >
+                {currentSpread?.isLastPage ? "✓ Last Page" : "Mark Last"}
               </button>
               <div className="flex items-center gap-1 ml-4">
                 <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10">
@@ -6612,6 +6781,7 @@ export default function ComicCreator() {
       <FxStudioStatusBar
         isOpen={fxStudio.isOpen}
         connected={fxStudio.connected}
+        activeTarget={fxStudio.activeTarget}
         onFocus={() => fxStudio.openFxStudio()}
         onClose={() => fxStudio.closeFxStudio()}
       />

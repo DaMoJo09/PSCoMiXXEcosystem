@@ -1,14 +1,29 @@
-import { Zap, ExternalLink, X, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { Zap, ExternalLink, X, Wifi, WifiOff, RefreshCw, Target } from "lucide-react";
+import type { FxTarget } from "@/hooks/useFxStudio";
+
+function getTargetLabel(target: FxTarget): string | null {
+  if (!target) return null;
+  switch (target.type) {
+    case "cover": return "Cover";
+    case "backCover": return "Back Cover";
+    case "priceTag": return "Price Tag";
+    case "panel": return "Panel";
+    default: return null;
+  }
+}
 
 interface FxStudioStatusBarProps {
   isOpen: boolean;
   connected: boolean;
+  activeTarget?: FxTarget;
   onFocus: () => void;
   onClose: () => void;
 }
 
-export function FxStudioStatusBar({ isOpen, connected, onFocus, onClose }: FxStudioStatusBarProps) {
+export function FxStudioStatusBar({ isOpen, connected, activeTarget, onFocus, onClose }: FxStudioStatusBarProps) {
   if (!isOpen) return null;
+
+  const targetLabel = getTargetLabel(activeTarget || null);
 
   return (
     <div
@@ -20,8 +35,18 @@ export function FxStudioStatusBar({ isOpen, connected, onFocus, onClose }: FxStu
         <span className="text-xs font-bold text-white tracking-wide">FX STUDIO</span>
         <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-400" : "bg-yellow-400 animate-pulse"}`} />
       </div>
+      {targetLabel && (
+        <span className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 bg-cyan-950/50 border border-cyan-500/30 px-2 py-0.5" data-testid="text-fx-target">
+          <Target className="w-3 h-3" />
+          {targetLabel}
+        </span>
+      )}
       <span className="text-[11px] text-zinc-400">
-        {connected ? "Connected — edits sync back automatically" : "Tab open — waiting for handshake..."}
+        {connected
+          ? targetLabel
+            ? `Connected — FX will apply to ${targetLabel}`
+            : "Connected — edits sync back automatically"
+          : "Tab open — waiting for handshake..."}
       </span>
       <div className="flex items-center gap-1 ml-2">
         {connected ? (

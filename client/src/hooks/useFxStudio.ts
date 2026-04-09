@@ -26,6 +26,13 @@ const FX_MODES: Record<string, string> = {
   hops: "/hops",
 };
 
+export type FxTarget = 
+  | { type: "cover" }
+  | { type: "backCover" }
+  | { type: "priceTag" }
+  | { type: "panel"; panelId: string; spreadIndex: number; page: "left" | "right" }
+  | null;
+
 export interface FxReturnPayload {
   effectId: string;
   projectId: string;
@@ -35,6 +42,7 @@ export interface FxReturnPayload {
   name: string;
   type: string;
   mode_hints: Record<string, unknown> | null;
+  target?: FxTarget;
 }
 
 interface UseFxStudioOptions {
@@ -47,6 +55,9 @@ interface UseFxStudioOptions {
 export function useFxStudio(options: UseFxStudioOptions = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [activeTarget, setActiveTarget] = useState<FxTarget>(null);
+  const activeTargetRef = useRef<FxTarget>(null);
+  activeTargetRef.current = activeTarget;
   const studioWindowRef = useRef<Window | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,6 +81,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       if (!ALLOWED_ORIGINS.includes(event.origin)) return;
+      if (studioWindowRef.current && event.source !== studioWindowRef.current) return;
 
       const { type, payload } = event.data || {};
 
@@ -79,25 +91,33 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           setConnected(true);
           break;
 
-        case "panel-fx-return":
-          if (payload && optionsRef.current.onAssetReturned) {
-            optionsRef.current.onAssetReturned(payload);
+        case "panel-fx-return": {
+          const enriched = { ...payload, target: payload?.target || activeTargetRef.current };
+          if (enriched && optionsRef.current.onAssetReturned) {
+            optionsRef.current.onAssetReturned(enriched);
           }
           if (optionsRef.current.onAssetsUpdated) {
             optionsRef.current.onAssetsUpdated();
           }
-          toast.success(`Asset received: ${payload?.name || "FX Asset"}`);
+          const targetLabel = enriched?.target?.type === "cover" ? " → Cover"
+            : enriched?.target?.type === "backCover" ? " → Back Cover"
+            : enriched?.target?.type === "priceTag" ? " → Price Tag"
+            : enriched?.target?.type === "panel" ? ` → Panel` : "";
+          toast.success(`Asset received: ${payload?.name || "FX Asset"}${targetLabel}`);
           break;
+        }
 
-        case "asset-export":
-          if (payload && optionsRef.current.onAssetExported) {
-            optionsRef.current.onAssetExported(payload);
+        case "asset-export": {
+          const enrichedExport = { ...payload, target: payload?.target || activeTargetRef.current };
+          if (enrichedExport && optionsRef.current.onAssetExported) {
+            optionsRef.current.onAssetExported(enrichedExport);
           }
           if (optionsRef.current.onAssetsUpdated) {
             optionsRef.current.onAssetsUpdated();
           }
           toast.success(`Asset exported: ${payload?.name || "FX Asset"}`);
           break;
+        }
 
         case "fx-studio-closed":
           setIsOpen(false);
@@ -190,10 +210,11 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
 
   const sendToFxStudio = useCallback((data: Record<string, unknown>) => {
     if (studioWindowRef.current && !studioWindowRef.current.closed) {
+      const enrichedData = { ...data, target: activeTargetRef.current };
       for (const origin of ALLOWED_ORIGINS) {
         try {
           studioWindowRef.current.postMessage(
-            { type: "comixx-panel-data", payload: data },
+            { type: "comixx-panel-data", payload: enrichedData },
             origin
           );
         } catch {}
@@ -223,6 +244,8 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   return {
     isOpen,
     connected,
+    activeTarget,
+    setActiveTarget,
     openFxStudio,
     sendToFxStudio,
     closeFxStudio,
