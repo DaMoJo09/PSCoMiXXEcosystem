@@ -32,9 +32,18 @@ async function getCredentials() {
 
 export async function getResendClient() {
   const { apiKey, fromEmail } = await getCredentials();
+  const freeMailDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+  const domain = (fromEmail || '').split('@')[1]?.toLowerCase();
+  const isFreeMail = freeMailDomains.includes(domain || '');
+  const effectiveFrom = isFreeMail || !fromEmail
+    ? 'Press Start CoMiXX <onboarding@resend.dev>'
+    : fromEmail;
+  if (isFreeMail) {
+    console.warn(`[email] Configured from_email "${fromEmail}" is a free mail domain — using Resend default sender. Verify a custom domain in Resend to use your own address.`);
+  }
   return {
     client: new Resend(apiKey),
-    fromEmail: fromEmail || 'noreply@pscomixx.com'
+    fromEmail: effectiveFrom
   };
 }
 
@@ -78,7 +87,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
   const { client, fromEmail } = await getResendClient();
   const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
 
-  await client.emails.send({
+  const result = await client.emails.send({
     from: fromEmail,
     to: email,
     subject: 'Reset Your Press Start CoMiXX Password',
@@ -89,6 +98,12 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
       <p style="color: #71717a; font-size: 11px; word-break: break-all;">${resetLink}</p>
     `)
   });
+
+  if (result.error) {
+    console.error("[email] Resend API error:", result.error);
+    throw new Error(`Resend error: ${result.error.message}`);
+  }
+  console.log("[email] Password reset email sent, id:", result.data?.id);
 }
 
 export async function sendWelcomeEmail(email: string, name: string, baseUrl: string) {

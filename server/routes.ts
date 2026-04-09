@@ -1304,12 +1304,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         const { sendPasswordResetEmail } = await import("./email");
         const baseUrl = req.headers.origin || (process.env.REPLIT_DEPLOYMENT 
           ? "https://pscomixx.com" 
-          : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+          : process.env.REPLIT_DEV_DOMAIN 
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : `https://${req.headers.host}`);
         
         try {
           await sendPasswordResetEmail(email, token, baseUrl);
-        } catch (emailError) {
-          console.error("Failed to send password reset email:", emailError);
+          console.log("[auth] Password reset email sent to:", email);
+        } catch (emailError: any) {
+          console.error("[auth] Failed to send password reset email:", emailError?.message || emailError);
         }
       }
       
