@@ -197,14 +197,27 @@
           names.forEach(function(name) { caches.delete(name); });
         });
       }
+      window.__appErrors = [];
+      window.addEventListener('error', function(e) {
+        window.__appErrors.push(e.message + ' ' + (e.filename || '') + ':' + (e.lineno || ''));
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        window.__appErrors.push('Promise: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
+      });
       setTimeout(function() {
         var splash = document.getElementById('app-splash');
         if (splash && splash.parentNode) {
+          var errMsg = window.__appErrors.length > 0
+            ? '<p style="color:#f87171;font-family:monospace;font-size:12px;margin-top:1rem;max-width:600px;word-break:break-all;">' + window.__appErrors.join('<br>') + '</p>'
+            : '';
           splash.innerHTML = '<div style="text-align:center;padding:2rem;">' +
             '<p style="color:#fff;font-family:sans-serif;margin-bottom:1rem;">Loading is taking longer than expected.</p>' +
-            '<button onclick="location.reload(true)" style="background:#06b6d4;color:#000;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:bold;cursor:pointer;">Refresh</button></div>';
+            '<button style="background:#06b6d4;color:#000;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:bold;cursor:pointer;" id="refreshBtn">Refresh</button>' +
+            errMsg + '</div>';
+          var btn = document.getElementById('refreshBtn');
+          if (btn) btn.addEventListener('click', function() { location.reload(); });
         }
-      }, 15000);
+      }, 10000);
     </script>
   </body>
 </html>
