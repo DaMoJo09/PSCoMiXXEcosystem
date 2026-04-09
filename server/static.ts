@@ -11,18 +11,21 @@ export function serveStatic(app: Express) {
   }
 
   app.use(express.static(distPath, {
-    maxAge: '1y',
-    immutable: true,
     index: false,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
+      if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (filePath.includes('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
       }
     },
   }));
 
   app.use("*", (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Clear-Site-Data', '"cache"');
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

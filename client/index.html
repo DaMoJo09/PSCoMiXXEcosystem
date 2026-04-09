@@ -190,10 +190,21 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(reg) { reg.unregister(); });
+        });
+        caches.keys().then(function(names) {
+          names.forEach(function(name) { caches.delete(name); });
         });
       }
+      setTimeout(function() {
+        var splash = document.getElementById('app-splash');
+        if (splash && splash.parentNode) {
+          splash.innerHTML = '<div style="text-align:center;padding:2rem;">' +
+            '<p style="color:#fff;font-family:sans-serif;margin-bottom:1rem;">Loading is taking longer than expected.</p>' +
+            '<button onclick="location.reload(true)" style="background:#06b6d4;color:#000;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-weight:bold;cursor:pointer;">Refresh</button></div>';
+        }
+      }, 15000);
     </script>
   </body>
 </html>
