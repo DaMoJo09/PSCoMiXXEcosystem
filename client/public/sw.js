@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const STATIC_CACHE = `pressstart-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `pressstart-dynamic-${CACHE_VERSION}`;
 const FONT_CACHE = `pressstart-fonts-${CACHE_VERSION}`;
@@ -49,6 +49,7 @@ function isAppShellRequest(url) {
 }
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch(err => {
