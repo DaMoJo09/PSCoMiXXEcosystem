@@ -13,6 +13,7 @@ import path from "path";
 import { db } from "./db";
 import { featureFlags } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
+import { validateEnv } from "./envValidation";
 
 async function seedFeatureFlags() {
   const defaults = [
@@ -309,6 +310,11 @@ async function ensureIndexes() {
 }
 
 (async () => {
+  const envResult = validateEnv();
+  if (!envResult.valid) {
+    console.error("[startup] Missing required environment variables. Server may not function correctly.");
+  }
+
   await initStripe();
   await seedFeatureFlags();
   await ensureIndexes();

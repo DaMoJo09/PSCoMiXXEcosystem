@@ -26,6 +26,8 @@ import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreate
 import { dispatchWebhook, retryFailedWebhooks, getWebhookLogs, startWebhookRetryWorker } from "./webhookService";
 import { createExportJob, getExportJob, getProjectExports } from "./publishService";
 import { seedDemoContent } from "./seed-content";
+import { logPaymentEvent } from "./paymentAudit";
+import { validateApiKey, isAllowedWebhookUrl } from "./integrationAuth";
 import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
@@ -5794,8 +5796,19 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         `${baseUrl}/settings?checkout=cancel`
       );
 
+      await logPaymentEvent("checkout.initiated", req.user!.id, {
+        sessionId: session.id,
+        customerId,
+        priceId,
+        flow: "subscription",
+      }, req);
+
       res.json({ url: session.url });
     } catch (error: any) {
+      await logPaymentEvent("checkout.failed", req.user?.id || null, {
+        error: error.message,
+        flow: "subscription",
+      }, req);
       res.status(500).json({ message: error.message });
     }
   });
@@ -9430,8 +9443,21 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         `${req.protocol}://${req.get("host")}/teacher?session_id={CHECKOUT_SESSION_ID}`,
         `${req.protocol}://${req.get("host")}/pricing`
       );
+
+      await logPaymentEvent("checkout.initiated", user.id, {
+        sessionId: session.id,
+        customerId,
+        priceId,
+        seats,
+        flow: "school",
+      }, req);
+
       res.json({ url: session.url });
-    } catch (err) {
+    } catch (err: any) {
+      await logPaymentEvent("checkout.failed", (req.user as any)?.id || null, {
+        error: err.message,
+        flow: "school",
+      }, req);
       res.status(500).json({ message: "Error creating school checkout" });
     }
   });
@@ -9961,6 +9987,112 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       res.json({ success: true, seeded: results });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =========== Partner Integration API ===========
+
+  app.get("/api/v1/integration/health", validateApiKey, (_req, res) => {
+    res.json({ status: "operational", version: "1.0.0", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/api/v1/integration/projects/:id", validateApiKey, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.status !== "published" && project.status !== "review") {
+        return res.status(403).json({ error: "Project not available for external access. Only published/review projects are accessible via integration API." });
+      }
+      res.json({
+        id: project.id,
+        title: project.title,
+        type: project.type,
+        status: project.status,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        data: project.data,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/v1/integration/projects/:id/export", validateApiKey, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.status !== "published" && project.status !== "review") {
+        return res.status(403).json({ error: "Project not available for export. Only published/review projects are accessible." });
+      }
+      const format = (req.query.format as string) || "scene-json";
+      const exportData = await getProjectExportData(req.params.id, format);
+      res.json({
+        project: { id: project.id, title: project.title, type: project.type },
+        bundle: exportData,
+        exportedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/v1/integration/assets/import", validateApiKey, async (req, res) => {
+    try {
+      const { filename, type, url, metadata, userId } = req.body;
+      if (!filename || !type || !url) {
+        return res.status(400).json({ error: "filename, type, and url are required" });
+      }
+      const asset = await storage.createAsset({
+        userId: userId || "system",
+        filename,
+        type,
+        url,
+        metadata: metadata || {},
+      });
+      res.status(201).json(asset);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/v1/integration/webhook/test", validateApiKey, async (req, res) => {
+    try {
+      const { targetUrl, event, payload } = req.body;
+      if (!targetUrl || !event) {
+        return res.status(400).json({ error: "targetUrl and event are required" });
+      }
+      if (!isAllowedWebhookUrl(targetUrl)) {
+        return res.status(400).json({ error: "targetUrl domain is not in the allowed webhook destinations list." });
+      }
+      await dispatchWebhook(event, targetUrl, { ...payload, test: true });
+      res.json({ success: true, message: `Webhook dispatched for event: ${event}` });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/v1/integration/render-handoff", validateApiKey, async (req, res) => {
+    try {
+      const { projectId, renderEngine, outputFormat, callbackUrl } = req.body;
+      if (!projectId || !renderEngine || !callbackUrl) {
+        return res.status(400).json({ error: "projectId, renderEngine, and callbackUrl are required" });
+      }
+      if (!isAllowedWebhookUrl(callbackUrl)) {
+        return res.status(400).json({ error: "callbackUrl domain is not in the allowed destinations list." });
+      }
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const handoffId = randomUUID();
+      await dispatchWebhook("render.handoff", callbackUrl, {
+        handoffId,
+        projectId,
+        renderEngine,
+        outputFormat: outputFormat || "png",
+        projectData: project.data,
+      });
+      res.json({ handoffId, status: "queued", projectId, renderEngine });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

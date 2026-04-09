@@ -1,0 +1,168 @@
+The platform has improved significantly, but the next phase must ensure it is not only functional, but production-grade and scalable.
+
+This final stabilization sprint must result in the platform meeting or exceeding requirements for:
+
+* scaling users
+* district-wide deployments
+* partner integrations (Reallusion / Unreal)
+* marketplace credibility
+
+The following are REQUIRED deliverables, not suggestions.
+
+---
+
+## 1. Codebase Integrity (Non-Negotiable)
+
+* Zero TypeScript errors across client, server, and shared code
+* No duplicate backend logic or conflicting implementations
+* All shared models fully aligned between frontend and backend
+* Strict typing enforced on all critical flows:
+
+  * auth
+  * project data
+  * XP system
+  * marketplace items
+  * publishing pipeline
+
+---
+
+## 2. Reproducible Builds + CI Enforcement
+
+Implement a CI pipeline that MUST pass before any deploy:
+
+* clean install using `npm ci`
+* typecheck (`npm run check`)
+* production build (`npm run build`)
+* automated test execution (Playwright/Vitest)
+
+No deployment is allowed unless all steps pass.
+
+---
+
+## 3. Performance + Scalability Readiness
+
+The application must be optimized to handle real user load and lower-end devices (including school environments).
+
+Required:
+
+* Route-level lazy loading across all major pages
+* Heavy modules (creator/editor tools, admin panels) dynamically loaded
+* Initial bundle size reduced significantly (target: sub-1MB gzipped entry where possible)
+* No blocking UI during core flows (create, edit, export)
+* API endpoints must support concurrent usage without degradation
+
+Provide:
+
+* bundle size report (before vs after)
+* performance metrics (initial load, interaction readiness)
+
+---
+
+## 4. District-Ready Deployment Requirements
+
+The platform must be safe and stable for school environments.
+
+Required:
+
+* Role-based access control (student vs creator vs admin)
+* Safe session handling (secure cookies, expiration, protection)
+* Rate limiting on all sensitive endpoints
+* Content safety/moderation hooks in place
+* Clear separation of student vs monetization features
+* Reliable operation on lower-spec devices (Chromebooks)
+
+Provide:
+
+* documented deployment guide for school environments
+* confirmation of performance on low-resource devices
+
+---
+
+## 5. Partner Integration Readiness (Reallusion / Unreal)
+
+The platform must be integration-ready, not “we’ll figure it out later.”
+
+Required:
+
+* Clearly defined API contracts for:
+
+  * asset import/export
+  * project data ingestion
+  * render pipeline handoff
+* Webhook system for cross-platform sync (CoMiXX ↔ FX Studio ↔ external tools)
+* Authentication method for external integrations (API keys or OAuth)
+* Structured payload schemas (documented and versioned)
+
+Provide:
+
+* API documentation (endpoints, payloads, auth)
+* example integration flow (Reallusion/Unreal pipeline simulation)
+
+---
+
+## 6. Marketplace + Monetization Credibility
+
+The platform must be trustworthy for payments and transactions.
+
+Required:
+
+* Stripe integration fully verified:
+
+  * webhook signature validation
+  * secure checkout flow
+  * correct tier handling via metadata
+* No client-side trust for pricing or entitlement logic
+* Transaction logging and audit trail
+* Protection against duplicate or fraudulent transactions
+
+Provide:
+
+* documented payment flow
+* test results for successful and failed transactions
+
+---
+
+## 7. Testing Coverage for Critical Flows
+
+Automated tests must reliably cover:
+
+* authentication (login/signup/session)
+* project creation and editing
+* save and export flows
+* XP progression and tracking
+* publishing and sharing
+
+Tests must pass consistently in CI.
+
+---
+
+## 8. Production Hardening
+
+Required:
+
+* environment variable validation and documentation
+* centralized error handling
+* logging and monitoring strategy
+* database backup and recovery plan
+* file storage strategy defined (uploads, assets, exports)
+
+Provide:
+
+* production readiness checklist
+* deployment configuration documentation
+
+---
+
+## FINAL ACCEPTANCE CRITERIA
+
+This sprint is complete only when:
+
+* zero TypeScript errors
+* clean install + build succeeds from scratch
+* all tests pass in CI
+* performance improvements are measurable
+* API + integration docs are complete
+* payment system is verified and secure
+* deployment documentation is complete
+
+The goal is not just a working app, but a platform that can confidently support real users, real partners, and real revenue without instability.

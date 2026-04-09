@@ -72,10 +72,29 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 
 ### Code Quality
 - TypeScript strict mode with zero errors (`npm run check`)
-- Route-level lazy loading via React.lazy for all pages except Dashboard, AuthPage, and LandingPage
-- Build produces code-split chunks (main bundle ~842KB gzip ~238KB, down from 3.4MB+)
+- Route-level lazy loading via React.lazy for all 60+ pages (except Dashboard, AuthPage, LandingPage)
+- Vendor code splitting: react, recharts, jspdf, radix, tanstack-query each in separate chunks
+- Initial load: ~209KB gzip (entry 137KB + react 62KB + query 10KB)
 - Duplicate backend methods consolidated (follow/unfollow/isFollowing)
 - Schema types reconciled between frontend, backend, and shared models
+- CI pipeline script: `scripts/ci.sh` (npm ci → typecheck → build → test)
+- Environment variable validation at server startup (`server/envValidation.ts`)
+- Payment transaction audit logging (`server/paymentAudit.ts`)
+
+### Partner Integration API
+- `GET /api/v1/integration/health` — health check
+- `GET /api/v1/integration/projects/:id` — fetch project data
+- `GET /api/v1/integration/projects/:id/export` — export project bundle
+- `POST /api/v1/integration/assets/import` — import external assets
+- `POST /api/v1/integration/webhook/test` — test webhook delivery
+- `POST /api/v1/integration/render-handoff` — render pipeline handoff (Reallusion/Unreal)
+- Auth via `X-API-Key` header or Bearer token, timing-safe comparison
+
+### Documentation
+- `docs/PRODUCTION_READINESS.md` — checklist for production deployment
+- `docs/DEPLOYMENT_GUIDE.md` — step-by-step deployment + school/district guide
+- `docs/API_INTEGRATION.md` — partner API reference with examples
+- `docs/PAYMENT_FLOW.md` — payment system documentation + audit trail
 
 ### UI/Utility Libraries
 - `react`, `typescript`, `vite`, `wouter`, `tailwindcss`
