@@ -5,7 +5,7 @@ import {
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText, Map
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText, Map as MapIcon
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
@@ -467,7 +467,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   return (
     <div className="absolute inset-0">
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/80 border border-zinc-800 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-xl shadow-lg shadow-black/40">
-        <Map className="w-4 h-4 text-cyan-400" />
+        <MapIcon className="w-4 h-4 text-cyan-400" />
         <span className="text-sm font-mono text-white font-bold">Canvas Overview</span>
         <div className="w-px h-4 bg-zinc-800" />
         <span className="text-[11px] text-zinc-500 font-mono">double-click to edit</span>
@@ -4981,7 +4981,7 @@ export default function ComicCreator() {
                   title="Canvas Overview — see all spreads"
                   data-testid="button-canvas-overview"
                 >
-                  <Map className="w-4 h-4" />
+                  <MapIcon className="w-4 h-4" />
                 </button>
               </div>
               <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-2">

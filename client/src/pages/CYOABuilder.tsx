@@ -3,7 +3,7 @@ import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { 
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
-  Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map,
+  Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map as MapIcon,
   Variable, Filter, Eye, EyeOff, Code, Sparkles, Film, Flag
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
@@ -1213,7 +1213,7 @@ if(N.length>0)showN(N[0].id);
                   {nodes.length > 0 && !editingNode && (
                     <div className="absolute top-4 right-4 z-20 flex gap-2">
                       <button onClick={() => setViewMode("cards")} className={`px-3 py-1 text-xs font-bold ${viewMode === "cards" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}>Cards</button>
-                      <button onClick={() => setViewMode("graph")} className={`px-3 py-1 text-xs font-bold ${viewMode === "graph" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Map className="w-3 h-3 inline mr-1" />Graph</button>
+                      <button onClick={() => setViewMode("graph")} className={`px-3 py-1 text-xs font-bold ${viewMode === "graph" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><MapIcon className="w-3 h-3 inline mr-1" />Graph</button>
                       <button onClick={() => setViewMode("script")} className={`px-3 py-1 text-xs font-bold ${viewMode === "script" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Code className="w-3 h-3 inline mr-1" />Script</button>
                     </div>
                   )}
@@ -1492,7 +1492,7 @@ if(N.length>0)showN(N[0].id);
                 <ContextMenuItem onClick={() => startPreview()} className="hover:bg-zinc-800 cursor-pointer"><Play className="w-4 h-4 mr-2" /> Preview Story</ContextMenuItem>
                 <ContextMenuSeparator className="bg-zinc-700" />
                 <ContextMenuItem onClick={() => setViewMode(viewMode === "cards" ? "graph" : viewMode === "graph" ? "script" : "cards")} className="hover:bg-zinc-800 cursor-pointer">
-                  <Map className="w-4 h-4 mr-2" /> Cycle View ({viewMode})
+                  <MapIcon className="w-4 h-4 mr-2" /> Cycle View ({viewMode})
                 </ContextMenuItem>
                 {selectedNodeId && (<><ContextMenuSeparator className="bg-zinc-700" /><ContextMenuItem onClick={() => setEditingNode(selectedNodeId)} className="hover:bg-zinc-800 cursor-pointer"><Edit className="w-4 h-4 mr-2" /> Edit Node</ContextMenuItem><ContextMenuItem onClick={() => startPreview(selectedNodeId)} className="hover:bg-zinc-800 cursor-pointer"><Play className="w-4 h-4 mr-2" /> Play from Here</ContextMenuItem><ContextMenuItem onClick={() => duplicateNode(selectedNodeId)} className="hover:bg-zinc-800 cursor-pointer"><Copy className="w-4 h-4 mr-2" /> Duplicate Node</ContextMenuItem><ContextMenuItem onClick={() => deleteNode(selectedNodeId)} className="hover:bg-red-900 cursor-pointer text-red-400"><Trash2 className="w-4 h-4 mr-2" /> Delete Node</ContextMenuItem></>)}
               </ContextMenuContent>

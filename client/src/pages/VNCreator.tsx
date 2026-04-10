@@ -5,7 +5,7 @@ import {
   MessageSquare, GitBranch, User, Upload, Wand2, X,
   Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
   BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
-  ChevronLeft, ChevronRight, FileText, Sparkles, Film, Map
+  ChevronLeft, ChevronRight, FileText, Sparkles, Film, Map as MapIcon
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
@@ -1368,7 +1368,7 @@ if(S.length>0)showS(0);
                 <Monitor className="w-3 h-3" /> Editor
               </button>
               <button onClick={() => setVnViewMode("flowchart")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 ${vnViewMode === "flowchart" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-flowchart-view">
-                <Map className="w-3 h-3" /> Canvas
+                <MapIcon className="w-3 h-3" /> Canvas
               </button>
             </div>
             <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
