@@ -1379,23 +1379,8 @@ if(S.length>0)showS(0);
           </div>
         </header>
 
-        {vnViewMode === "flowchart" ? (
-          <div className="flex-1 bg-zinc-950 relative">
-            <InfiniteCanvas
-              nodes={vnCanvasNodes}
-              connections={vnCanvasConnections}
-              onNodeMove={handleSceneNodeMove}
-              onNodeClick={(id) => setSelectedScene(id)}
-              onNodeDoubleClick={(id) => { setSelectedScene(id); setVnViewMode("editor"); }}
-              renderNode={renderVNNode}
-              selectedNodeId={selectedScene}
-              gridSize={20}
-              showMinimap={true}
-            />
-          </div>
-        ) : (
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
+          <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col shrink-0">
             <div className="border-b border-zinc-800 p-1 flex">
               {(["scenes", "characters", "backgrounds"] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 text-xs font-bold uppercase ${activeTab === tab ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`}>{tab}</button>
@@ -1541,6 +1526,57 @@ if(S.length>0)showS(0);
             </div>
           </div>
 
+          {vnViewMode === "flowchart" ? (
+            <div className="flex-1 bg-zinc-950 relative">
+              <InfiniteCanvas
+                nodes={vnCanvasNodes}
+                connections={vnCanvasConnections}
+                onNodeMove={handleSceneNodeMove}
+                onNodeClick={(id) => setSelectedScene(id)}
+                onNodeDoubleClick={(id) => { setSelectedScene(id); setVnViewMode("editor"); }}
+                renderNode={renderVNNode}
+                selectedNodeId={selectedScene}
+                gridSize={20}
+                showMinimap={true}
+                accentColor="#a855f7"
+              />
+              {currentScene && (
+                <div className="absolute top-4 left-4 z-30 bg-black/80 border border-zinc-800 rounded-xl p-3 backdrop-blur-xl shadow-lg shadow-black/40 w-60" data-testid="canvas-scene-inspector">
+                  <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Selected Scene</div>
+                  <div className="text-sm font-bold text-white mb-2 truncate">{currentScene.name}</div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Dialogue lines</span>
+                      <span className="text-white font-mono">{currentScene.dialogue.length}</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Characters</span>
+                      <span className="text-white font-mono">{currentScene.characters?.length || 0}</span>
+                    </div>
+                    {currentScene.dialogue.some(d => d.choices && d.choices.length > 0) && (
+                      <div className="flex items-center gap-1.5 text-purple-400 text-[10px]">
+                        <GitBranch className="w-3 h-3" />
+                        <span>Has branching choices</span>
+                      </div>
+                    )}
+                    {currentScene.transition && currentScene.transition !== "none" && (
+                      <div className="flex items-center gap-1.5 text-cyan-400 text-[10px]">
+                        <Sparkles className="w-3 h-3" />
+                        <span>{currentScene.transition} transition</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setVnViewMode("editor")}
+                    className="w-full mt-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-[11px] font-bold rounded-lg border border-purple-500/30 transition-all"
+                    data-testid="button-edit-selected-scene"
+                  >
+                    Edit This Scene
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="flex-1 flex flex-col">
             {showTemplatePicker && (
               <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-sm overflow-auto flex items-center justify-center p-8">
@@ -1745,8 +1781,8 @@ if(S.length>0)showS(0);
               )}
             </div>
           </div>
+          )}
         </div>
-        )}
 
         <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBackgroundUpload} />
         <input ref={spriteInputRef} type="file" accept="image/*" className="hidden" onChange={handleSpriteUpload} />

@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, Minus } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Layers, GitBranch, MousePointer2 } from "lucide-react";
 
 export interface CanvasNode {
   id: string;
@@ -35,6 +35,7 @@ interface InfiniteCanvasProps {
   minZoom?: number;
   maxZoom?: number;
   connectionColor?: string;
+  accentColor?: string;
 }
 
 const ZOOM_STEP = 0.1;
@@ -51,7 +52,6 @@ function getAnchorPoint(node: CanvasNode, side: "left" | "right" | "top" | "bott
 
 function buildBezierPath(from: { x: number; y: number }, to: { x: number; y: number }, fromSide: string, toSide: string) {
   const dx = Math.abs(to.x - from.x);
-  const dy = Math.abs(to.y - from.y);
   const offset = Math.max(40, Math.min(dx * 0.4, 120));
 
   let c1 = { ...from };
@@ -84,7 +84,8 @@ export function InfiniteCanvas({
   showMinimap = true,
   minZoom = 0.1,
   maxZoom = 3,
-  connectionColor = "rgba(255,255,255,0.3)",
+  connectionColor = "rgba(255,255,255,0.25)",
+  accentColor = "#06b6d4",
 }: InfiniteCanvasProps) {
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 0.6 });
   const [isPanning, setIsPanning] = useState(false);
@@ -241,6 +242,8 @@ export function InfiniteCanvas({
     return { ...conn, from, to, fromSide, toSide };
   }).filter(Boolean);
 
+  const connCount = resolvedConnections.length;
+
   return (
     <div
       ref={containerRef}
@@ -257,18 +260,58 @@ export function InfiniteCanvas({
       onContextMenu={e => e.preventDefault()}
       data-testid="infinite-canvas"
     >
+      <style>{`
+        @keyframes canvas-flow {
+          from { stroke-dashoffset: 24; }
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes canvas-pulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+        @keyframes canvas-glow-ring {
+          0%, 100% { box-shadow: 0 0 8px 2px ${accentColor}40, 0 0 16px 4px ${accentColor}20; }
+          50% { box-shadow: 0 0 12px 4px ${accentColor}60, 0 0 24px 8px ${accentColor}30; }
+        }
+        .canvas-node-selected {
+          animation: canvas-glow-ring 2s ease-in-out infinite;
+        }
+        .canvas-flow-line {
+          animation: canvas-flow 1s linear infinite;
+        }
+        .canvas-dot-pulse {
+          animation: canvas-pulse 2s ease-in-out infinite;
+        }
+      `}</style>
+
       {showGrid && (
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.06]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)
-            `,
-            backgroundSize: `${gridSize * viewport.zoom}px ${gridSize * viewport.zoom}px`,
-            backgroundPosition: `${viewport.x % (gridSize * viewport.zoom)}px ${viewport.y % (gridSize * viewport.zoom)}px`,
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage: `
+                linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)
+              `,
+              backgroundSize: `${gridSize * viewport.zoom}px ${gridSize * viewport.zoom}px`,
+              backgroundPosition: `${viewport.x % (gridSize * viewport.zoom)}px ${viewport.y % (gridSize * viewport.zoom)}px`,
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-[0.08]"
+            style={{
+              backgroundImage: `
+                linear-gradient(rgba(6,182,212,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6,182,212,0.3) 1px, transparent 1px)
+              `,
+              backgroundSize: `${gridSize * 5 * viewport.zoom}px ${gridSize * 5 * viewport.zoom}px`,
+              backgroundPosition: `${viewport.x % (gridSize * 5 * viewport.zoom)}px ${viewport.y % (gridSize * 5 * viewport.zoom)}px`,
+            }}
+          />
+          <div className="absolute inset-0" style={{
+            background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)`,
+          }} />
+        </div>
       )}
 
       <svg
@@ -279,38 +322,88 @@ export function InfiniteCanvas({
           <marker id="canvas-arrow" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 3.5 L 0 7 Z" fill={connectionColor} />
           </marker>
-          <marker id="canvas-arrow-selected" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 3.5 L 0 7 Z" fill="#06b6d4" />
+          <marker id="canvas-arrow-accent" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 3.5 L 0 7 Z" fill={accentColor} />
           </marker>
+          <filter id="canvas-glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <linearGradient id="canvas-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={accentColor} stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#a855f7" stopOpacity="0.6" />
+            <stop offset="100%" stopColor={accentColor} stopOpacity="0.8" />
+          </linearGradient>
         </defs>
         <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
           {resolvedConnections.map((conn, i) => {
             if (!conn) return null;
             const isSelected = conn.fromId === selectedNodeId || conn.toId === selectedNodeId;
-            const pathColor = conn.color || (isSelected ? "#06b6d4" : connectionColor);
+            const pathColor = conn.color || (isSelected ? accentColor : connectionColor);
+            const pathD = buildBezierPath(conn.from, conn.to, conn.fromSide, conn.toSide);
             return (
               <g key={`${conn.fromId}-${conn.toId}-${i}`}>
+                {isSelected && (
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={accentColor}
+                    strokeWidth={6}
+                    opacity={0.15}
+                    filter="url(#canvas-glow)"
+                  />
+                )}
                 <path
-                  d={buildBezierPath(conn.from, conn.to, conn.fromSide, conn.toSide)}
+                  d={pathD}
                   fill="none"
                   stroke={pathColor}
                   strokeWidth={isSelected ? 2.5 : 1.5}
                   strokeDasharray={conn.dashed ? "6 4" : undefined}
-                  markerEnd={isSelected ? "url(#canvas-arrow-selected)" : "url(#canvas-arrow)"}
+                  markerEnd={isSelected ? "url(#canvas-arrow-accent)" : "url(#canvas-arrow)"}
                 />
-                {conn.label && (
-                  <text
-                    x={(conn.from.x + conn.to.x) / 2}
-                    y={(conn.from.y + conn.to.y) / 2 - 8}
-                    fill={pathColor}
-                    fontSize="11"
-                    fontFamily="'Space Grotesk', sans-serif"
-                    fontWeight="600"
-                    textAnchor="middle"
-                  >
-                    {conn.label}
-                  </text>
+                {isSelected && !conn.dashed && (
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={accentColor}
+                    strokeWidth={2}
+                    strokeDasharray="4 20"
+                    className="canvas-flow-line"
+                    opacity={0.6}
+                  />
                 )}
+                {conn.label && (
+                  <>
+                    <rect
+                      x={(conn.from.x + conn.to.x) / 2 - conn.label.length * 3.2 - 6}
+                      y={(conn.from.y + conn.to.y) / 2 - 18}
+                      width={conn.label.length * 6.4 + 12}
+                      height={16}
+                      rx={4}
+                      fill="rgba(0,0,0,0.7)"
+                      stroke={isSelected ? accentColor : "rgba(255,255,255,0.1)"}
+                      strokeWidth={0.5}
+                    />
+                    <text
+                      x={(conn.from.x + conn.to.x) / 2}
+                      y={(conn.from.y + conn.to.y) / 2 - 7}
+                      fill={isSelected ? accentColor : "rgba(255,255,255,0.6)"}
+                      fontSize="10"
+                      fontFamily="'Space Grotesk', ui-monospace, monospace"
+                      fontWeight="500"
+                      textAnchor="middle"
+                    >
+                      {conn.label}
+                    </text>
+                  </>
+                )}
+                <circle
+                  cx={conn.from.x}
+                  cy={conn.from.y}
+                  r={isSelected ? 4 : 3}
+                  fill={isSelected ? accentColor : pathColor}
+                  className={isSelected ? "canvas-dot-pulse" : ""}
+                />
               </g>
             );
           })}
@@ -324,65 +417,85 @@ export function InfiniteCanvas({
           transformOrigin: "0 0",
         }}
       >
-        {nodes.map(node => (
-          <div
-            key={node.id}
-            className={cn(
-              "absolute transition-shadow duration-150",
-              selectedNodeId === node.id && "ring-2 ring-cyan-500 ring-offset-2 ring-offset-black",
-              dragNode?.id === node.id && "z-50"
-            )}
-            style={{
-              left: node.x,
-              top: node.y,
-              width: node.width,
-              height: node.height,
-            }}
-            onPointerDown={(e) => handleNodePointerDown(e, node)}
-            onClick={(e) => { e.stopPropagation(); if (!dragNode) onNodeClick?.(node.id); }}
-            onDoubleClick={(e) => { e.stopPropagation(); onNodeDoubleClick?.(node.id); }}
-            data-testid={`canvas-node-${node.id}`}
-          >
-            {renderNode(node)}
-          </div>
-        ))}
+        {nodes.map(node => {
+          const isSelected = selectedNodeId === node.id;
+          return (
+            <div
+              key={node.id}
+              className={cn(
+                "absolute transition-shadow duration-200",
+                isSelected && "canvas-node-selected rounded-lg",
+                dragNode?.id === node.id && "z-50"
+              )}
+              style={{
+                left: node.x,
+                top: node.y,
+                width: node.width,
+                height: node.height,
+                ...(isSelected ? {
+                  outline: `2px solid ${accentColor}`,
+                  outlineOffset: "3px",
+                  borderRadius: "6px",
+                } : {}),
+              }}
+              onPointerDown={(e) => handleNodePointerDown(e, node)}
+              onClick={(e) => { e.stopPropagation(); if (!dragNode) onNodeClick?.(node.id); }}
+              onDoubleClick={(e) => { e.stopPropagation(); onNodeDoubleClick?.(node.id); }}
+              data-testid={`canvas-node-${node.id}`}
+            >
+              {renderNode(node)}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-black/80 border border-zinc-700 rounded-lg p-1 backdrop-blur-sm z-20" data-testid="canvas-zoom-controls">
-        <button onClick={zoomOut} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors" data-testid="button-zoom-out">
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-black/70 border border-zinc-800 rounded-xl p-1 backdrop-blur-xl z-20 shadow-lg shadow-black/40" data-testid="canvas-zoom-controls">
+        <button onClick={zoomOut} className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all" data-testid="button-zoom-out">
           <ZoomOut className="w-4 h-4" />
         </button>
-        <span className="text-[11px] font-mono text-zinc-400 min-w-[3rem] text-center" data-testid="text-zoom-level">
+        <span className="text-[11px] font-mono text-zinc-500 min-w-[3rem] text-center tabular-nums" data-testid="text-zoom-level">
           {Math.round(viewport.zoom * 100)}%
         </span>
-        <button onClick={zoomIn} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors" data-testid="button-zoom-in">
+        <button onClick={zoomIn} className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all" data-testid="button-zoom-in">
           <ZoomIn className="w-4 h-4" />
         </button>
-        <div className="w-px h-4 bg-zinc-700 mx-0.5" />
-        <button onClick={fitToView} className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors" data-testid="button-fit-view" title="Fit to view">
+        <div className="w-px h-5 bg-zinc-800 mx-0.5" />
+        <button onClick={fitToView} className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all" data-testid="button-fit-view" title="Fit to view">
           <Maximize2 className="w-4 h-4" />
         </button>
       </div>
 
+      <div className="absolute top-4 right-4 flex items-center gap-3 z-20" data-testid="canvas-hud">
+        <div className="flex items-center gap-2 bg-black/70 border border-zinc-800 rounded-xl px-3 py-1.5 backdrop-blur-xl shadow-lg shadow-black/40">
+          <Layers className="w-3 h-3 text-zinc-600" />
+          <span className="text-[10px] font-mono text-zinc-500 tabular-nums">{nodes.length}</span>
+          <div className="w-px h-3 bg-zinc-800" />
+          <GitBranch className="w-3 h-3 text-zinc-600" />
+          <span className="text-[10px] font-mono text-zinc-500 tabular-nums">{connCount}</span>
+        </div>
+      </div>
+
       {showMinimap && nodes.length > 1 && (
-        <Minimap nodes={nodes} viewport={viewport} containerRef={containerRef} selectedNodeId={selectedNodeId} connections={resolvedConnections} />
+        <Minimap nodes={nodes} viewport={viewport} containerRef={containerRef} selectedNodeId={selectedNodeId} connections={resolvedConnections} accentColor={accentColor} />
       )}
 
       {(spaceDown || isPanning) && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 text-zinc-400 text-xs font-mono px-3 py-1.5 rounded-full border border-zinc-700 z-20 pointer-events-none">
-          Pan Mode — drag to move
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-zinc-400 text-[11px] font-mono px-4 py-2 rounded-xl border border-zinc-800 z-20 pointer-events-none backdrop-blur-xl flex items-center gap-2 shadow-lg shadow-black/40">
+          <MousePointer2 className="w-3 h-3" style={{ color: accentColor }} />
+          Pan Mode
         </div>
       )}
     </div>
   );
 }
 
-function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections }: {
+function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections, accentColor }: {
   nodes: CanvasNode[];
   viewport: { x: number; y: number; zoom: number };
   containerRef: React.RefObject<HTMLDivElement | null>;
   selectedNodeId?: string | null;
   connections: any[];
+  accentColor: string;
 }) {
   if (nodes.length === 0) return null;
 
@@ -409,7 +522,7 @@ function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections }:
 
   return (
     <div
-      className="absolute bottom-4 right-4 bg-black/90 border border-zinc-700 rounded-lg overflow-hidden z-20 backdrop-blur-sm"
+      className="absolute bottom-4 right-4 bg-black/80 border border-zinc-800 rounded-xl overflow-hidden z-20 backdrop-blur-xl shadow-lg shadow-black/40"
       style={{ width: mmW, height: mmH }}
       data-testid="canvas-minimap"
     >
@@ -421,7 +534,7 @@ function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections }:
             y1={(conn.from.y - minY) * scale}
             x2={(conn.to.x - minX) * scale}
             y2={(conn.to.y - minY) * scale}
-            stroke="rgba(255,255,255,0.15)"
+            stroke="rgba(255,255,255,0.12)"
             strokeWidth={0.5}
           />
         ))}
@@ -432,7 +545,7 @@ function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections }:
             y={(n.y - minY) * scale}
             width={n.width * scale}
             height={n.height * scale}
-            fill={n.id === selectedNodeId ? "#06b6d4" : "rgba(255,255,255,0.3)"}
+            fill={n.id === selectedNodeId ? accentColor : "rgba(255,255,255,0.2)"}
             rx={1}
           />
         ))}
@@ -442,9 +555,10 @@ function Minimap({ nodes, viewport, containerRef, selectedNodeId, connections }:
           width={vw * scale}
           height={vh * scale}
           fill="none"
-          stroke="#06b6d4"
+          stroke={accentColor}
           strokeWidth={1}
-          rx={1}
+          rx={2}
+          opacity={0.8}
         />
       </svg>
     </div>

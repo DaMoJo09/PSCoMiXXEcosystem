@@ -376,12 +376,15 @@ const SPREAD_GAP_X = 80;
 const SPREAD_GAP_Y = 60;
 const SPREAD_COLS = 3;
 
-function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onClose }: {
+function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose }: {
   spreads: Spread[];
   currentSpreadIndex: number;
   onSelectSpread: (index: number) => void;
+  onEditSpread: (index: number) => void;
   onClose: () => void;
 }) {
+  const spreadMap = useMemo(() => new Map(spreads.map((s, i) => [s.id, i])), [spreads]);
+
   const canvasNodes: CanvasNode[] = useMemo(() =>
     spreads.map((spread, idx) => ({
       id: spread.id,
@@ -400,7 +403,8 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onCl
     })), [spreads]);
 
   const renderSpreadNode = useCallback((node: CanvasNode) => {
-    const idx = spreads.findIndex(s => s.id === node.id);
+    const idx = spreadMap.get(node.id);
+    if (idx === undefined) return null;
     const spread = spreads[idx];
     if (!spread) return null;
     const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
@@ -409,21 +413,25 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onCl
     const rightPanels = spread.rightPage.length;
     const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
     const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
+    const totalContent = spread.leftPage.reduce((c, p) => c + p.contents.length, 0) + spread.rightPage.reduce((c, p) => c + p.contents.length, 0);
 
     return (
-      <div className={`w-full h-full border-2 bg-zinc-900 cursor-pointer transition-all hover:shadow-xl overflow-hidden ${
-        idx === currentSpreadIndex ? "border-cyan-500" : isCover ? "border-amber-500/50" : "border-zinc-700"
+      <div className={`w-full h-full border-2 bg-zinc-900 cursor-pointer transition-all hover:shadow-xl overflow-hidden rounded-lg ${
+        idx === currentSpreadIndex ? "border-cyan-500 shadow-cyan-500/20 shadow-lg" : isCover ? "border-amber-500/50" : "border-zinc-700 hover:border-zinc-500"
       }`}>
-        <div className="absolute top-0 left-0 right-0 bg-black/80 px-2 py-1 flex items-center justify-between z-10">
-          <span className="text-[10px] font-bold text-white">
-            {isCover && <span className="text-cyan-400 mr-1">COVER</span>}
-            {isLast && <span className="text-amber-400 mr-1">LAST</span>}
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent px-3 py-1.5 flex items-center justify-between z-10">
+          <span className="text-[10px] font-bold text-white flex items-center gap-1.5">
+            {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded text-[8px]">COVER</span>}
+            {isLast && <span className="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded text-[8px]">LAST</span>}
             Spread {idx + 1}
           </span>
-          <span className="text-[9px] text-zinc-500">{leftPanels + rightPanels} panels</span>
+          <div className="flex items-center gap-2 text-[9px] text-zinc-500 font-mono">
+            <span>{leftPanels + rightPanels} panels</span>
+            <span>{totalContent} items</span>
+          </div>
         </div>
-        <div className="flex h-full pt-6">
-          <div className="flex-1 border-r border-zinc-800 relative bg-zinc-950 flex items-center justify-center">
+        <div className="flex h-full pt-7">
+          <div className="flex-1 border-r border-zinc-800/50 relative bg-zinc-950 flex items-center justify-center">
             {leftImage ? (
               <img src={leftImage} className="w-full h-full object-cover opacity-60" />
             ) : (
@@ -445,32 +453,68 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onCl
           </div>
         </div>
         {spread.themeMusic && (
-          <div className="absolute bottom-1 right-1 z-10"><Music className="w-3 h-3 text-emerald-400" /></div>
+          <div className="absolute bottom-1.5 right-1.5 z-10 bg-emerald-500/20 p-1 rounded"><Music className="w-3 h-3 text-emerald-400" /></div>
         )}
       </div>
     );
-  }, [spreads, currentSpreadIndex]);
+  }, [spreads, currentSpreadIndex, spreadMap]);
+
+  const selectedSpread = spreads[currentSpreadIndex];
+  const selectedLeftPanels = selectedSpread?.leftPage.length || 0;
+  const selectedRightPanels = selectedSpread?.rightPage.length || 0;
 
   return (
     <div className="absolute inset-0">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/90 border border-zinc-700 rounded-lg px-4 py-2 flex items-center gap-3 backdrop-blur-sm">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/80 border border-zinc-800 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-xl shadow-lg shadow-black/40">
         <Map className="w-4 h-4 text-cyan-400" />
-        <span className="text-sm font-mono text-white">Canvas Overview</span>
-        <span className="text-xs text-zinc-500">— double-click a spread to edit</span>
-        <button onClick={onClose} className="ml-4 p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white" data-testid="button-close-canvas-overview">
+        <span className="text-sm font-mono text-white font-bold">Canvas Overview</span>
+        <div className="w-px h-4 bg-zinc-800" />
+        <span className="text-[11px] text-zinc-500 font-mono">double-click to edit</span>
+        <button onClick={onClose} className="ml-2 p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all" data-testid="button-close-canvas-overview">
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {selectedSpread && (
+        <div className="absolute top-4 left-4 z-30 bg-black/80 border border-zinc-800 rounded-xl p-3 backdrop-blur-xl shadow-lg shadow-black/40 w-56" data-testid="canvas-spread-inspector">
+          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Selected Spread</div>
+          <div className="text-sm font-bold text-white mb-2">Spread {currentSpreadIndex + 1}</div>
+          <div className="space-y-1.5 text-[11px]">
+            <div className="flex justify-between text-zinc-400">
+              <span>Left panels</span>
+              <span className="text-white font-mono">{selectedLeftPanels}</span>
+            </div>
+            <div className="flex justify-between text-zinc-400">
+              <span>Right panels</span>
+              <span className="text-white font-mono">{selectedRightPanels}</span>
+            </div>
+            {selectedSpread.themeMusic && (
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <Music className="w-3 h-3" />
+                <span className="truncate">{selectedSpread.themeMusic.name}</span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => onEditSpread(currentSpreadIndex)}
+            className="w-full mt-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-[11px] font-bold rounded-lg border border-cyan-500/30 transition-all"
+            data-testid="button-edit-selected-spread"
+          >
+            Edit This Spread
+          </button>
+        </div>
+      )}
+
       <InfiniteCanvas
         nodes={canvasNodes}
         connections={canvasConnections}
         onNodeDoubleClick={(id) => {
-          const idx = spreads.findIndex(s => s.id === id);
-          if (idx >= 0) onSelectSpread(idx);
+          const idx = spreadMap.get(id);
+          if (idx !== undefined) onEditSpread(idx);
         }}
         onNodeClick={(id) => {
-          const idx = spreads.findIndex(s => s.id === id);
-          if (idx >= 0) onSelectSpread(idx);
+          const idx = spreadMap.get(id);
+          if (idx !== undefined) onSelectSpread(idx);
         }}
         renderNode={renderSpreadNode}
         selectedNodeId={spreads[currentSpreadIndex]?.id}
@@ -4869,7 +4913,8 @@ export default function ComicCreator() {
               <ComicCanvasOverview
                 spreads={spreads}
                 currentSpreadIndex={currentSpreadIndex}
-                onSelectSpread={(idx) => { setCurrentSpreadIndex(idx); setCanvasOverview(false); }}
+                onSelectSpread={(idx) => { setCurrentSpreadIndex(idx); }}
+                onEditSpread={(idx) => { setCurrentSpreadIndex(idx); setCanvasOverview(false); }}
                 onClose={() => setCanvasOverview(false)}
               />
             ) : (

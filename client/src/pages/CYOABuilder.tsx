@@ -3,7 +3,7 @@ import {
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
   Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map,
-  Variable, Filter, Eye, EyeOff, Code, Sparkles, Film
+  Variable, Filter, Eye, EyeOff, Code, Sparkles, Film, Flag
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
@@ -1390,7 +1390,48 @@ if(N.length>0)showN(N[0].id);
                     </div>
                   ) : nodes.length > 0 ? (
                     viewMode === "graph" ? (
-                      <NodeGraph nodes={nodes} selectedNodeId={selectedNodeId} onSelectNode={(id) => setSelectedNodeId(id)} onEditNode={(id) => setEditingNode(id)} nodePositions={nodePositions} onNodeMove={handleNodeMove} />
+                      <div className="relative w-full h-full">
+                        <NodeGraph nodes={nodes} selectedNodeId={selectedNodeId} onSelectNode={(id) => setSelectedNodeId(id)} onEditNode={(id) => setEditingNode(id)} nodePositions={nodePositions} onNodeMove={handleNodeMove} />
+                        {selectedNodeId && (() => {
+                          const selNode = nodes.find(n => n.id === selectedNodeId);
+                          if (!selNode) return null;
+                          const colorScheme = NODE_COLORS[selNode.color || (selNode.isEnding ? "green" : "default")];
+                          return (
+                            <div className="absolute top-4 left-4 z-30 bg-black/80 border border-zinc-800 rounded-xl p-3 backdrop-blur-xl shadow-lg shadow-black/40 w-60" data-testid="canvas-node-inspector">
+                              <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Selected Node</div>
+                              <div className="text-sm font-bold mb-2 truncate text-white">{selNode.title || selNode.id}</div>
+                              <div className="space-y-1.5 text-[11px]">
+                                <div className="flex justify-between text-zinc-400">
+                                  <span>Choices</span>
+                                  <span className="text-white font-mono">{selNode.choices.length}</span>
+                                </div>
+                                {selNode.effects && selNode.effects.length > 0 && (
+                                  <div className="flex justify-between text-zinc-400">
+                                    <span>Effects</span>
+                                    <span className="text-purple-400 font-mono">{selNode.effects.length}</span>
+                                  </div>
+                                )}
+                                {selNode.isEnding && (
+                                  <div className={`flex items-center gap-1.5 text-[10px] ${selNode.endingType === "good" ? "text-green-400" : selNode.endingType === "bad" ? "text-red-400" : "text-yellow-400"}`}>
+                                    <Flag className="w-3 h-3" />
+                                    <span>{selNode.endingType || "neutral"} ending</span>
+                                  </div>
+                                )}
+                                {selNode.text && (
+                                  <p className="text-zinc-500 text-[10px] line-clamp-3 mt-1 font-mono">{selNode.text}</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setEditingNode(selectedNodeId)}
+                                className="w-full mt-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-[11px] font-bold rounded-lg border border-cyan-500/30 transition-all"
+                                data-testid="button-edit-selected-node"
+                              >
+                                Edit This Node
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     ) : viewMode === "script" ? (
                       <ScriptView nodes={nodes} variables={storyVariables} />
                     ) : (
