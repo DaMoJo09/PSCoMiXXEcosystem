@@ -524,14 +524,101 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
   );
 }
 
-function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose }: {
+function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnections, nodeId }: {
+  spread: Spread; idx: number; currentSpreadIndex: number; mode: OverviewMode;
+  flowConnections: FlowConnection[]; nodeId: string;
+}) {
+  const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
+  const isLast = spread.isLastPage;
+  const connCount = flowConnections.filter(c => c.fromId === nodeId || c.toId === nodeId).length;
+  const halfW = SPREAD_PREVIEW_W / 2;
+  const fullH = SPREAD_PREVIEW_H - 28;
+
+  const renderPanelsMini = (panels: Panel[], offsetX: number) => {
+    return panels.filter(p => !p.hidden).map(panel => {
+      const px = (panel.x / 100) * halfW + offsetX;
+      const py = (panel.y / 100) * fullH + 28;
+      const pw = (panel.width / 100) * halfW;
+      const ph = (panel.height / 100) * fullH;
+      const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+      const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+      return (
+        <div key={panel.id} className="absolute overflow-hidden" style={{
+          left: px, top: py, width: pw, height: ph,
+          backgroundColor: panel.backgroundColor || "#1a1a1a",
+          border: `${Math.max(1, (panel.borderWidth || 2) * 0.5)}px solid ${panel.borderColor || "#333"}`,
+          borderRadius: panel.shape === "circle" ? "50%" : 2,
+          zIndex: panel.zIndex,
+        }}>
+          {img && <img src={img} className="w-full h-full object-cover" draggable={false} />}
+          {!img && txt && (
+            <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
+              <span className="text-[6px] text-zinc-500 leading-tight text-center line-clamp-3">{txt}</span>
+            </div>
+          )}
+          {!img && !txt && panel.contents.length === 0 && (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-[7px] text-zinc-700">empty</span>
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className={`w-full h-full border-2 bg-zinc-900 transition-all hover:shadow-xl overflow-hidden rounded-lg relative ${
+      idx === currentSpreadIndex ? "border-cyan-500 shadow-cyan-500/20 shadow-lg" : isCover ? "border-amber-500/50" : "border-zinc-700 hover:border-zinc-500"
+    }`} style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.5))" }}>
+      <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
+        <span className="text-[10px] font-bold text-zinc-500 font-mono">
+          {isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
+        </span>
+        {mode === "prototype" && connCount > 0 && (
+          <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
+        )}
+      </div>
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent px-3 py-1.5 flex items-center justify-between z-20">
+        <span className="text-[10px] font-bold text-white flex items-center gap-1.5">
+          {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded text-[8px]">COVER</span>}
+          {isLast && <span className="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded text-[8px]">LAST</span>}
+          Spread {idx + 1}
+        </span>
+        <span className="text-[9px] text-zinc-500 font-mono">
+          {spread.leftPage.length + spread.rightPage.length}p
+        </span>
+      </div>
+      <div className="absolute inset-0 pt-7">
+        <div className="absolute left-0 top-7 bottom-0 bg-zinc-950" style={{ width: halfW }} />
+        <div className="absolute top-7 bottom-0 bg-zinc-950" style={{ left: halfW, width: halfW }} />
+        <div className="absolute top-7 bottom-0 bg-zinc-800/30" style={{ left: halfW - 0.5, width: 1 }} />
+        {renderPanelsMini(spread.leftPage, 0)}
+        {renderPanelsMini(spread.rightPage, halfW)}
+      </div>
+      {spread.leftPage.length === 0 && spread.rightPage.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pt-7 z-10 pointer-events-none">
+          <span className="text-[10px] text-zinc-600 font-mono">Empty Spread</span>
+        </div>
+      )}
+      {spread.themeMusic && (
+        <div className="absolute bottom-1.5 right-1.5 z-20 bg-emerald-500/20 p-1 rounded"><Music className="w-3 h-3 text-emerald-400" /></div>
+      )}
+    </div>
+  );
+}
+
+function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads }: {
   spreads: Spread[];
   currentSpreadIndex: number;
   onSelectSpread: (index: number) => void;
   onEditSpread: (index: number) => void;
   onClose: () => void;
+  setSpreads: React.Dispatch<React.SetStateAction<Spread[]>>;
 }) {
   const [mode, setMode] = useState<OverviewMode>("design");
+  const [showLayersPanel, setShowLayersPanel] = useState(true);
+  const [contextSpreadIdx, setContextSpreadIdx] = useState<number | null>(null);
+  const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(() => {
     const m = new Map<string, { x: number; y: number }>();
     spreads.forEach((s, idx) => {
@@ -551,6 +638,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     }))
   );
   const [showFlowPreview, setShowFlowPreview] = useState(false);
+  const [layerPage, setLayerPage] = useState<"left" | "right">("left");
 
   useEffect(() => {
     const existingIds = new Set(nodePositions.keys());
@@ -622,75 +710,124 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     setFlowConnections(prev => prev.filter(c => !(c.fromId === fromId && c.toId === toId)));
   }, []);
 
+  const addSpreadAtEnd = useCallback(() => {
+    const newId = `spread_${Date.now()}`;
+    setSpreads(prev => [...prev, { id: newId, leftPage: [], rightPage: [] }]);
+  }, [setSpreads]);
+
+  const duplicateSpread = useCallback((idx: number) => {
+    const src = spreads[idx];
+    if (!src) return;
+    const newId = `spread_${Date.now()}`;
+    const clonePanel = (p: Panel): Panel => ({
+      ...p, id: `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      contents: p.contents.map(c => ({ ...c, id: `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })),
+    });
+    const newSpread: Spread = {
+      id: newId,
+      leftPage: src.leftPage.map(clonePanel),
+      rightPage: src.rightPage.map(clonePanel),
+      themeMusic: src.themeMusic ? { ...src.themeMusic } : undefined,
+      leftNarration: src.leftNarration ? { ...src.leftNarration } : undefined,
+      rightNarration: src.rightNarration ? { ...src.rightNarration } : undefined,
+    };
+    setSpreads(prev => {
+      const next = [...prev];
+      next.splice(idx + 1, 0, newSpread);
+      return next;
+    });
+    toast.success(`Duplicated spread ${idx + 1}`);
+  }, [spreads, setSpreads]);
+
+  const deleteSpread = useCallback((idx: number) => {
+    if (spreads.length <= 1) { toast.error("Cannot delete the only spread"); return; }
+    setSpreads(prev => prev.filter((_, i) => i !== idx));
+    if (currentSpreadIndex === idx) {
+      onSelectSpread(Math.max(0, idx - 1));
+    } else if (currentSpreadIndex > idx) {
+      onSelectSpread(currentSpreadIndex - 1);
+    }
+    toast.success(`Deleted spread ${idx + 1}`);
+  }, [spreads, currentSpreadIndex, setSpreads, onSelectSpread]);
+
+  const addPanelToSpread = useCallback((idx: number, page: "left" | "right") => {
+    const newPanel: Panel = {
+      id: `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      x: 5, y: 5, width: 45, height: 45, rotation: 0,
+      contents: [], zIndex: 0, shape: "rectangle",
+      borderWidth: 3, borderColor: "#000000",
+    };
+    setSpreads(prev => prev.map((s, i) => {
+      if (i !== idx) return s;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      const panels = [...s[key], { ...newPanel, zIndex: s[key].length }];
+      return { ...s, [key]: panels };
+    }));
+    toast.success(`Added panel to ${page} page of spread ${idx + 1}`);
+  }, [setSpreads]);
+
+  const deletePanelFromSpread = useCallback((spreadIdx: number, page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((s, i) => {
+      if (i !== spreadIdx) return s;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      const filtered = s[key].filter(p => p.id !== panelId);
+      const reindexed = filtered.map((p, pi) => ({ ...p, zIndex: pi }));
+      return { ...s, [key]: reindexed };
+    }));
+  }, [setSpreads]);
+
+  const togglePanelVisibility = useCallback((spreadIdx: number, page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((s, i) => {
+      if (i !== spreadIdx) return s;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return { ...s, [key]: s[key].map(p => p.id === panelId ? { ...p, hidden: !p.hidden } : p) };
+    }));
+  }, [setSpreads]);
+
+  const togglePanelLock = useCallback((spreadIdx: number, page: "left" | "right", panelId: string) => {
+    setSpreads(prev => prev.map((s, i) => {
+      if (i !== spreadIdx) return s;
+      const key = page === "left" ? "leftPage" : "rightPage";
+      return { ...s, [key]: s[key].map(p => p.id === panelId ? { ...p, locked: !p.locked } : p) };
+    }));
+  }, [setSpreads]);
+
+  const handleNodeContextMenu = useCallback((e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const idx = spreadMap.get(nodeId);
+    if (idx !== undefined) {
+      setContextSpreadIdx(idx);
+      setContextPos({ x: e.clientX, y: e.clientY });
+      onSelectSpread(idx);
+    }
+  }, [spreadMap, onSelectSpread]);
+
+  useEffect(() => {
+    if (contextPos) {
+      const close = () => { setContextPos(null); setContextSpreadIdx(null); };
+      window.addEventListener("click", close);
+      window.addEventListener("contextmenu", close);
+      return () => { window.removeEventListener("click", close); window.removeEventListener("contextmenu", close); };
+    }
+  }, [contextPos]);
+
   const renderSpreadNode = useCallback((node: CanvasNode) => {
     const idx = spreadMap.get(node.id);
     if (idx === undefined) return null;
     const spread = spreads[idx];
     if (!spread) return null;
-    const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
-    const isLast = spread.isLastPage;
-    const leftPanels = spread.leftPage.length;
-    const rightPanels = spread.rightPage.length;
-    const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
-    const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
-    const totalContent = spread.leftPage.reduce((c, p) => c + p.contents.length, 0) + spread.rightPage.reduce((c, p) => c + p.contents.length, 0);
-    const connCount = flowConnections.filter(c => c.fromId === node.id || c.toId === node.id).length;
-
     return (
-      <div className={`w-full h-full border-2 bg-zinc-900 transition-all hover:shadow-xl overflow-hidden rounded-lg ${
-        idx === currentSpreadIndex ? "border-cyan-500 shadow-cyan-500/20 shadow-lg" : isCover ? "border-amber-500/50" : "border-zinc-700 hover:border-zinc-500"
-      }`} style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.5))" }}>
-        <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
-          <span className="text-[10px] font-bold text-zinc-500 font-mono">
-            {isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
-          </span>
-          {mode === "prototype" && connCount > 0 && (
-            <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
-          )}
-        </div>
-        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent px-3 py-1.5 flex items-center justify-between z-10">
-          <span className="text-[10px] font-bold text-white flex items-center gap-1.5">
-            {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded text-[8px]">COVER</span>}
-            {isLast && <span className="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded text-[8px]">LAST</span>}
-            Spread {idx + 1}
-          </span>
-          <div className="flex items-center gap-2 text-[9px] text-zinc-500 font-mono">
-            <span>{leftPanels + rightPanels} panels</span>
-            <span>{totalContent} items</span>
-          </div>
-        </div>
-        <div className="flex h-full pt-7">
-          <div className="flex-1 border-r border-zinc-800/50 relative bg-zinc-950 flex items-center justify-center">
-            {leftImage ? (
-              <img src={leftImage} className="w-full h-full object-cover opacity-60" />
-            ) : (
-              <div className="text-[10px] text-zinc-600 text-center">
-                <div className="text-lg mb-0.5">{leftPanels}</div>
-                panels
-              </div>
-            )}
-          </div>
-          <div className="flex-1 relative bg-zinc-950 flex items-center justify-center">
-            {rightImage ? (
-              <img src={rightImage} className="w-full h-full object-cover opacity-60" />
-            ) : (
-              <div className="text-[10px] text-zinc-600 text-center">
-                <div className="text-lg mb-0.5">{rightPanels}</div>
-                panels
-              </div>
-            )}
-          </div>
-        </div>
-        {spread.themeMusic && (
-          <div className="absolute bottom-1.5 right-1.5 z-10 bg-emerald-500/20 p-1 rounded"><Music className="w-3 h-3 text-emerald-400" /></div>
-        )}
+      <div onContextMenu={(e) => handleNodeContextMenu(e, node.id)}>
+        <SpreadNodeRenderer
+          spread={spread} idx={idx} currentSpreadIndex={currentSpreadIndex}
+          mode={mode} flowConnections={flowConnections} nodeId={node.id}
+        />
       </div>
     );
-  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections]);
+  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections, handleNodeContextMenu]);
 
   const selectedSpread = spreads[currentSpreadIndex];
-  const selectedLeftPanels = selectedSpread?.leftPage.length || 0;
-  const selectedRightPanels = selectedSpread?.rightPage.length || 0;
 
   if (showFlowPreview && flowConnections.length > 0) {
     return (
@@ -703,117 +840,265 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     );
   }
 
+  const layerPanels = selectedSpread ? (layerPage === "left" ? selectedSpread.leftPage : selectedSpread.rightPage) : [];
+  const sortedLayerPanels = [...layerPanels].sort((a, b) => b.zIndex - a.zIndex);
+
   return (
-    <div className="absolute inset-0">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0 bg-black/80 border border-zinc-800 rounded-xl backdrop-blur-xl shadow-lg shadow-black/40 overflow-hidden">
-        <button
-          onClick={() => setMode("design")}
-          className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
-            mode === "design"
-              ? "bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-400"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          data-testid="button-mode-design"
-        >
-          <Layers className="w-3.5 h-3.5" />
-          Design
-        </button>
-        <div className="w-px h-6 bg-zinc-800" />
-        <button
-          onClick={() => setMode("prototype")}
-          className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
-            mode === "prototype"
-              ? "bg-blue-500/20 text-blue-400 border-b-2 border-blue-400"
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-          }`}
-          data-testid="button-mode-prototype"
-        >
-          <Share2 className="w-3.5 h-3.5" />
-          Prototype
-        </button>
-        <div className="w-px h-6 bg-zinc-800" />
-        <button onClick={onClose} className="px-3 py-2.5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all" data-testid="button-close-canvas-overview">
-          <X className="w-4 h-4" />
-        </button>
+    <div className="absolute inset-0 flex">
+      <div className="flex-1 relative">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0 bg-black/80 border border-zinc-800 rounded-xl backdrop-blur-xl shadow-lg shadow-black/40 overflow-hidden">
+          <button
+            onClick={() => setMode("design")}
+            className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
+              mode === "design"
+                ? "bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-400"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+            }`}
+            data-testid="button-mode-design"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Design
+          </button>
+          <div className="w-px h-6 bg-zinc-800" />
+          <button
+            onClick={() => setMode("prototype")}
+            className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
+              mode === "prototype"
+                ? "bg-blue-500/20 text-blue-400 border-b-2 border-blue-400"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+            }`}
+            data-testid="button-mode-prototype"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Prototype
+          </button>
+          <div className="w-px h-6 bg-zinc-800" />
+          <button
+            onClick={() => setShowLayersPanel(!showLayersPanel)}
+            className={`px-3 py-2.5 transition-all ${showLayersPanel ? "text-cyan-400 bg-cyan-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"}`}
+            data-testid="button-toggle-layers"
+            title="Toggle Layers Panel"
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+          <div className="w-px h-6 bg-zinc-800" />
+          <button onClick={onClose} className="px-3 py-2.5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all" data-testid="button-close-canvas-overview">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {mode === "design" && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-black/80 border border-zinc-800 rounded-xl p-1 backdrop-blur-xl shadow-lg shadow-black/40">
+            <button
+              onClick={addSpreadAtEnd}
+              className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 text-xs font-mono"
+              data-testid="button-add-spread"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Spread
+            </button>
+            <div className="w-px h-4 bg-zinc-700" />
+            <button
+              onClick={() => addPanelToSpread(currentSpreadIndex, "left")}
+              className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 text-xs font-mono"
+              data-testid="button-add-panel-left"
+              disabled={!selectedSpread}
+            >
+              <Square className="w-3 h-3" /> + Left Panel
+            </button>
+            <button
+              onClick={() => addPanelToSpread(currentSpreadIndex, "right")}
+              className="px-3 py-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 text-xs font-mono"
+              data-testid="button-add-panel-right"
+              disabled={!selectedSpread}
+            >
+              <Square className="w-3 h-3" /> + Right Panel
+            </button>
+          </div>
+        )}
+
+        {mode === "prototype" && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+            <button
+              onClick={() => setShowFlowPreview(true)}
+              disabled={flowConnections.length === 0}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-900/40 disabled:shadow-none"
+              data-testid="button-play-flow"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Preview Flow
+            </button>
+            {flowConnections.length > 0 && (
+              <span className="text-[10px] text-blue-400/60 font-mono">{flowConnections.length} connections</span>
+            )}
+          </div>
+        )}
+
+        <InfiniteCanvas
+          nodes={canvasNodes}
+          connections={canvasConnections}
+          onNodeMove={handleNodeMove}
+          onNodeDoubleClick={(id) => {
+            const idx = spreadMap.get(id);
+            if (idx !== undefined) onEditSpread(idx);
+          }}
+          onNodeClick={(id) => {
+            const idx = spreadMap.get(id);
+            if (idx !== undefined) onSelectSpread(idx);
+          }}
+          renderNode={renderSpreadNode}
+          selectedNodeId={spreads[currentSpreadIndex]?.id}
+          gridSize={20}
+          showMinimap={true}
+          prototypeMode={mode === "prototype"}
+          onCreateConnection={handleCreateConnection}
+          onDeleteConnection={handleDeleteConnection}
+        />
       </div>
 
-      {mode === "prototype" && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
-          <button
-            onClick={() => setShowFlowPreview(true)}
-            disabled={flowConnections.length === 0}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-900/40 disabled:shadow-none"
-            data-testid="button-play-flow"
-          >
-            <Play className="w-3.5 h-3.5" />
-            Preview Flow
-          </button>
-          {flowConnections.length > 0 && (
-            <span className="text-[10px] text-blue-400/60 font-mono">{flowConnections.length} connections</span>
-          )}
-        </div>
-      )}
-
-      {selectedSpread && (
-        <div className="absolute top-4 left-4 z-30 bg-black/80 border border-zinc-800 rounded-xl p-3 backdrop-blur-xl shadow-lg shadow-black/40 w-56" data-testid="canvas-spread-inspector">
-          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">
-            {mode === "prototype" ? "Selected Screen" : "Selected Spread"}
+      {showLayersPanel && selectedSpread && (
+        <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col z-30" data-testid="overview-layers-panel">
+          <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center justify-between">
+            <span className="flex items-center gap-2 text-white"><Layers className="w-4 h-4 text-cyan-400" /> Layers</span>
+            <span className="text-[10px] text-zinc-500 font-mono">Spread {currentSpreadIndex + 1}</span>
           </div>
-          <div className="text-sm font-bold text-white mb-2">Spread {currentSpreadIndex + 1}</div>
-          <div className="space-y-1.5 text-[11px]">
-            <div className="flex justify-between text-zinc-400">
-              <span>Left panels</span>
-              <span className="text-white font-mono">{selectedLeftPanels}</span>
-            </div>
-            <div className="flex justify-between text-zinc-400">
-              <span>Right panels</span>
-              <span className="text-white font-mono">{selectedRightPanels}</span>
-            </div>
-            {mode === "prototype" && (
-              <div className="flex justify-between text-zinc-400">
-                <span>Flow links</span>
-                <span className="text-blue-400 font-mono">
-                  {flowConnections.filter(c => c.fromId === selectedSpread.id || c.toId === selectedSpread.id).length}
-                </span>
+          <div className="flex border-b border-zinc-800">
+            <button
+              onClick={() => setLayerPage("left")}
+              className={`flex-1 py-2 text-xs font-mono font-bold transition-all ${layerPage === "left" ? "bg-cyan-500/10 text-cyan-400 border-b-2 border-cyan-400" : "text-zinc-500 hover:text-zinc-300"}`}
+              data-testid="button-layer-page-left"
+            >
+              Left ({selectedSpread.leftPage.length})
+            </button>
+            <button
+              onClick={() => setLayerPage("right")}
+              className={`flex-1 py-2 text-xs font-mono font-bold transition-all ${layerPage === "right" ? "bg-cyan-500/10 text-cyan-400 border-b-2 border-cyan-400" : "text-zinc-500 hover:text-zinc-300"}`}
+              data-testid="button-layer-page-right"
+            >
+              Right ({selectedSpread.rightPage.length})
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-1.5 space-y-0.5">
+            {sortedLayerPanels.length === 0 && (
+              <div className="text-center py-6 text-zinc-600 text-xs font-mono">
+                No panels on {layerPage} page
               </div>
             )}
-            {selectedSpread.themeMusic && (
-              <div className="flex items-center gap-1.5 text-emerald-400">
-                <Music className="w-3 h-3" />
-                <span className="truncate">{selectedSpread.themeMusic.name}</span>
-              </div>
-            )}
+            {sortedLayerPanels.map((panel, vi) => {
+              const isCover = !!panel.coverRole;
+              const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+              const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+              return (
+                <div key={panel.id}
+                  className={`px-2 py-1.5 text-xs flex items-center gap-1.5 group rounded-md transition-colors ${
+                    panel.hidden ? "opacity-40" : ""
+                  } bg-zinc-800 hover:bg-zinc-700`}
+                  data-testid={`overview-layer-${panel.id}`}
+                >
+                  <GripVertical className="w-3 h-3 flex-shrink-0 opacity-30 group-hover:opacity-70 cursor-grab" />
+                  <button
+                    onClick={() => togglePanelVisibility(currentSpreadIndex, layerPage, panel.id)}
+                    className="p-0.5 flex-shrink-0 hover:bg-zinc-600 rounded"
+                    data-testid={`overview-eye-${panel.id}`}
+                  >
+                    {panel.hidden ? <EyeOff className="w-3 h-3 text-zinc-500" /> : <Eye className="w-3 h-3 text-zinc-400" />}
+                  </button>
+                  {img ? (
+                    <div className="w-6 h-6 rounded overflow-hidden flex-shrink-0 border border-zinc-700">
+                      <img src={img} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded flex-shrink-0 border border-zinc-700 bg-zinc-900 flex items-center justify-center">
+                      {txt ? <Type className="w-3 h-3 text-zinc-600" /> : <Square className="w-3 h-3 text-zinc-600" />}
+                    </div>
+                  )}
+                  <span className="flex-1 truncate font-medium text-white">
+                    {panel.name || (isCover ? (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover") : `Panel ${vi + 1}`)}
+                  </span>
+                  {isCover && (
+                    <span className={`text-[7px] px-1 py-0.5 font-bold rounded ${panel.coverRole === "front-cover" ? "bg-cyan-600 text-white" : "bg-purple-600 text-white"}`}>
+                      {panel.coverRole === "front-cover" ? "FC" : "BC"}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => togglePanelLock(currentSpreadIndex, layerPage, panel.id)}
+                    className="p-0.5 flex-shrink-0 hover:bg-zinc-600 rounded"
+                  >
+                    {panel.locked ? <Lock className="w-3 h-3 text-zinc-400" /> : <Unlock className="w-3 h-3 opacity-30 group-hover:opacity-70 text-zinc-500" />}
+                  </button>
+                  <button
+                    onClick={() => deletePanelFromSpread(currentSpreadIndex, layerPage, panel.id)}
+                    className="p-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-900/50 rounded text-red-400"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
-          <button
-            onClick={() => onEditSpread(currentSpreadIndex)}
-            className="w-full mt-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-[11px] font-bold rounded-lg border border-cyan-500/30 transition-all"
-            data-testid="button-edit-selected-spread"
-          >
-            Edit This Spread
+          <div className="p-2 border-t border-zinc-800 flex gap-1">
+            <button
+              onClick={() => addPanelToSpread(currentSpreadIndex, layerPage)}
+              className="flex-1 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1"
+              data-testid="button-layers-add-panel"
+            >
+              <Plus className="w-3 h-3" /> Add Panel
+            </button>
+            <button
+              onClick={() => onEditSpread(currentSpreadIndex)}
+              className="flex-1 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-[10px] font-bold rounded-lg border border-cyan-500/30 transition-all flex items-center justify-center gap-1"
+              data-testid="button-layers-edit-spread"
+            >
+              <Pen className="w-3 h-3" /> Edit
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {contextPos && contextSpreadIdx !== null && (
+        <div
+          className="fixed z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl shadow-black/60 py-1 min-w-[200px] backdrop-blur-xl"
+          style={{ left: contextPos.x, top: contextPos.y }}
+          data-testid="overview-context-menu"
+        >
+          <button onClick={() => { onEditSpread(contextSpreadIdx); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <Pen className="w-3.5 h-3.5 text-cyan-400" /> Edit Spread {contextSpreadIdx + 1}
+          </button>
+          <div className="h-px bg-zinc-800 mx-2" />
+          <button onClick={() => { addPanelToSpread(contextSpreadIdx, "left"); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <Plus className="w-3.5 h-3.5" /> Add Panel (Left Page)
+          </button>
+          <button onClick={() => { addPanelToSpread(contextSpreadIdx, "right"); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <Plus className="w-3.5 h-3.5" /> Add Panel (Right Page)
+          </button>
+          <div className="h-px bg-zinc-800 mx-2" />
+          <button onClick={() => { duplicateSpread(contextSpreadIdx); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <Copy className="w-3.5 h-3.5" /> Duplicate Spread
+          </button>
+          <button onClick={() => { addSpreadAtEnd(); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <Plus className="w-3.5 h-3.5" /> Add New Spread
+          </button>
+          <div className="h-px bg-zinc-800 mx-2" />
+          <button onClick={() => {
+            setSpreads(prev => {
+              const wasLast = prev[contextSpreadIdx]?.isLastPage;
+              return prev.map((s, i) => ({ ...s, isLastPage: i === contextSpreadIdx ? !wasLast : false }));
+            });
+            setContextPos(null);
+          }} className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+            <BookOpen className="w-3.5 h-3.5" /> Toggle Last Page
+          </button>
+          <div className="h-px bg-zinc-800 mx-2" />
+          <button onClick={() => { deleteSpread(contextSpreadIdx); setContextPos(null); }}
+            className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-red-900/30 flex items-center gap-2">
+            <Trash2 className="w-3.5 h-3.5" /> Delete Spread
           </button>
         </div>
       )}
-
-      <InfiniteCanvas
-        nodes={canvasNodes}
-        connections={canvasConnections}
-        onNodeMove={handleNodeMove}
-        onNodeDoubleClick={(id) => {
-          const idx = spreadMap.get(id);
-          if (idx !== undefined) onEditSpread(idx);
-        }}
-        onNodeClick={(id) => {
-          const idx = spreadMap.get(id);
-          if (idx !== undefined) onSelectSpread(idx);
-        }}
-        renderNode={renderSpreadNode}
-        selectedNodeId={spreads[currentSpreadIndex]?.id}
-        gridSize={20}
-        showMinimap={true}
-        prototypeMode={mode === "prototype"}
-        onCreateConnection={handleCreateConnection}
-        onDeleteConnection={handleDeleteConnection}
-      />
     </div>
   );
 }
@@ -5209,6 +5494,7 @@ export default function ComicCreator() {
                 onSelectSpread={(idx) => { setCurrentSpreadIndex(idx); }}
                 onEditSpread={(idx) => { setCurrentSpreadIndex(idx); setCanvasOverview(false); }}
                 onClose={() => setCanvasOverview(false)}
+                setSpreads={setSpreads}
               />
             ) : (
             <>
