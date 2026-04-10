@@ -136,7 +136,7 @@ export function UpgradeModal({ isOpen, onClose, feature, requiredTier = "creator
               data-testid="button-view-pricing"
             >
               <Zap className="w-4 h-4" />
-              Upgrade Now
+              View Plans
             </button>
           </Link>
         </div>

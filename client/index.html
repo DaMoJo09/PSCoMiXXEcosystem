@@ -177,15 +177,26 @@
   <body>
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:font-bold focus:border-2 focus:border-black" data-testid="link-skip-to-content">Skip to main content</a>
     <div id="root">
-      <div id="app-splash" style="min-height: 100vh; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem;">
-        <img src="/logo.png" alt="Press Start CoMixx" style="width: 80px; height: 80px; border-radius: 16px;" />
-        <div style="text-align: center;">
-          <h1 style="color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.5rem;">PRESS START</h1>
-          <p style="color: #666; font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 0;">CoMiXX Creator Studio</p>
+      <div id="app-splash" style="min-height:100vh;min-height:100dvh;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);">
+        <img src="/logo.png" alt="Press Start CoMixx" style="width:96px;height:96px;border-radius:20px;box-shadow:0 0 40px rgba(6,182,212,0.15);" />
+        <div style="text-align:center;">
+          <h1 style="color:#fff;font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;margin:0 0 0.25rem;text-transform:uppercase;">PRESS START</h1>
+          <p style="color:#888;font-family:'Space Grotesk',sans-serif;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.2em;margin:0;">CoMiXX Creator Studio</p>
         </div>
-        <div style="width: 48px; height: 48px; border: 3px solid #333; border-top-color: #06b6d4; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:0.5rem;">
+          <div style="width:8px;height:8px;background:#06b6d4;border-radius:50%;animation:pulse-dot 1.2s ease-in-out infinite;"></div>
+          <div style="width:8px;height:8px;background:#06b6d4;border-radius:50%;animation:pulse-dot 1.2s ease-in-out 0.2s infinite;"></div>
+          <div style="width:8px;height:8px;background:#06b6d4;border-radius:50%;animation:pulse-dot 1.2s ease-in-out 0.4s infinite;"></div>
+        </div>
+        <p style="color:#444;font-family:'Space Grotesk',sans-serif;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.15em;margin-top:0.5rem;">Loading your studio</p>
       </div>
-      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse-dot {
+          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1.2); }
+        }
+      </style>
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>

@@ -645,7 +645,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
                 <UsageBar label="AI" used={usageStatus.ai.used} limit={usageStatus.ai.limit} unit="/day" />
                 <UsageBar label="Exports" used={usageStatus.export.used} limit={usageStatus.export.limit} unit="/mo" />
                 <Link href="/pricing" className="block text-[9px] text-cyan-400 hover:text-cyan-300 font-bold uppercase mt-1" data-testid="link-sidebar-upgrade">
-                  Upgrade for more
+                  View plans
                 </Link>
               </div>
             )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { AppSidebar } from "./AppSidebar";
-import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor, Layers } from "lucide-react";
+import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor, Layers, Settings, Shield, FileText, Mail, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
@@ -86,7 +86,7 @@ export function Layout({ children }: LayoutProps) {
 
       {isMobile && (
         <>
-          <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border h-14 flex items-center justify-between px-4 md:hidden">
+          <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border h-14 flex items-center justify-between px-4 md:hidden safe-area-top">
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="p-2 -ml-2 text-foreground hover:bg-muted rounded-md"
@@ -109,8 +109,8 @@ export function Layout({ children }: LayoutProps) {
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={() => setMobileMenuOpen(false)}
               />
-              <div className="absolute left-0 top-0 bottom-0 w-72 bg-background shadow-xl animate-in slide-in-from-left duration-200">
-                <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="absolute left-0 top-0 bottom-0 w-72 bg-background shadow-xl animate-in slide-in-from-left duration-200 flex flex-col safe-area-top">
+                <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
                   <img src="/logo.png" alt="Press Start CoMixx" className="h-10 w-auto" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
@@ -121,13 +121,51 @@ export function Layout({ children }: LayoutProps) {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="overflow-y-auto h-[calc(100%-4rem)]">
+                <div className="overflow-y-auto flex-1 min-h-0">
                   <AppSidebar
                     isExpanded={true}
                     isPinned={false}
                     onTogglePin={() => {}}
                     onMobileClose={() => setMobileMenuOpen(false)}
                   />
+                </div>
+                <div className="border-t border-border px-4 py-3 space-y-1 bg-background shrink-0 safe-area-bottom">
+                  <Link
+                    href="/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    data-testid="mobile-drawer-settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings & Account
+                  </Link>
+                  <Link
+                    href="/contact"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    data-testid="mobile-drawer-contact"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Support & Contact
+                  </Link>
+                  <div className="flex items-center gap-4 pt-1">
+                    <Link
+                      href="/privacy"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      data-testid="mobile-drawer-privacy"
+                    >
+                      Privacy Policy
+                    </Link>
+                    <Link
+                      href="/terms"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      data-testid="mobile-drawer-terms"
+                    >
+                      Terms of Service
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -170,7 +208,7 @@ export function Layout({ children }: LayoutProps) {
         id="main-content"
         className={cn(
           "min-h-screen transition-[padding-left] duration-300 ease-in-out",
-          isMobile && "pt-14 pb-16"
+          isMobile && "pt-14 pb-20"
         )}
         role="main"
         tabIndex={-1}

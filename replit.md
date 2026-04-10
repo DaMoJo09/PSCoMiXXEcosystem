@@ -102,6 +102,20 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 ### Font Resources
 - Google Fonts (Space Grotesk, Inter, JetBrains Mono)
 
+### Mobile App (Capacitor)
+- **Capacitor v8** configured for iOS and Android native wrapper
+- Bundle ID: `com.pscomixx.creator`
+- App Name: `Press Start CoMiXX`
+- Web dir: `dist/public`
+- Plugins: SplashScreen, StatusBar, Keyboard, Haptics, Share, Filesystem
+- **Platform detection** (`client/src/lib/platform.ts`): `isNativeApp()`, `shouldBlockDirectPayments()`, `getPlatform()`
+- **Payment compliance**: Pricing page shows read-only plan info in native apps (no direct Stripe checkout). Users manage subscriptions via website. UpgradeModal says "View Plans" instead of "Upgrade Now"
+- **Safe area handling**: CSS utilities for all four insets (`safe-area-top`, `safe-area-bottom`, `safe-area-x`, `native-top-offset`, `native-bottom-offset`). Mobile header and bottom nav use safe area classes
+- **Legal links in mobile drawer**: Privacy Policy, Terms of Service, Settings & Account, Support & Contact accessible from mobile hamburger menu
+- **Splash screen**: Native-feel loading with animated dots and branding, safe-area-aware padding
+- Build commands: `npm run build && npx cap sync ios/android`, `npx cap open ios/android`
+- iOS/Android project dirs not generated yet (need Xcode/Android Studio)
+
 ### Other Integrations
 - **Resend:** Transactional emails.
 - **Stripe:** Payment processing (Stripe Checkout). Uses Replit Connector with env var fallback (`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`). Admin endpoint `POST /api/admin/seed-stripe-products` creates subscription products/prices. Product-to-tier mapping uses metadata `tier` key or product name matching.

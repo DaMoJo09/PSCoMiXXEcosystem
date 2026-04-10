@@ -1,12 +1,13 @@
 import { Layout } from "@/components/layout/Layout";
 import { useState, useEffect } from "react";
 import { 
-  Crown, Check, ArrowLeft, Zap, Star, Rocket, Sparkles, ExternalLink, Shield, Trophy
+  Crown, Check, ArrowLeft, Zap, Star, Rocket, Sparkles, ExternalLink, Shield, Trophy, Globe
 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
+import { isNativeApp } from "@/lib/platform";
 
 interface Price {
   id: string;
@@ -190,6 +191,89 @@ export default function PricingPage() {
   };
 
   const foundersProduct = findProductPrice('lifetime');
+  const nativeApp = isNativeApp();
+
+  if (nativeApp) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-black text-white">
+          <header className="h-14 border-b-4 border-white flex items-center justify-between px-6 bg-black sticky top-0 z-20">
+            <div className="flex items-center gap-4">
+              <Link href="/">
+                <button className="p-2 hover:bg-white hover:text-black border-2 border-white transition-colors" data-testid="button-back">
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              </Link>
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5" />
+                <h1 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Your Plan</h1>
+              </div>
+            </div>
+          </header>
+          <div className="max-w-2xl mx-auto p-6 md:p-8 space-y-6">
+            {subscription && subscription.tier !== "free" ? (
+              <div className="p-6 border-4 border-white bg-zinc-900">
+                <div className="flex items-center gap-3 mb-3">
+                  <Crown className="w-6 h-6 text-yellow-400" />
+                  <h2 className="font-black text-xl uppercase" data-testid="text-current-plan">{subscription.tier.toUpperCase()} Plan</h2>
+                </div>
+                <p className="text-zinc-400 mb-2">
+                  Status: <span className="text-green-400">{subscription.status}</span>
+                </p>
+                {subscription.currentPeriodEnd && (
+                  <p className="text-zinc-400 text-sm">
+                    {subscription.cancelAtPeriodEnd ? "Access until" : "Renews"} {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-6 border-4 border-zinc-700 bg-zinc-900">
+                <div className="flex items-center gap-3 mb-3">
+                  <Zap className="w-6 h-6" />
+                  <h2 className="font-black text-xl uppercase">Free Plan</h2>
+                </div>
+                <p className="text-zinc-400">You're on the Free tier with basic features.</p>
+              </div>
+            )}
+            <div className="p-6 border-4 border-zinc-600 bg-zinc-900 space-y-4">
+              <div className="flex items-center gap-3">
+                <Globe className="w-5 h-5 text-cyan-400" />
+                <h3 className="font-black uppercase text-sm">Manage Subscription</h3>
+              </div>
+              <p className="text-zinc-400 text-sm">
+                Your account and subscription are managed at <span className="text-white font-bold">pscomixx.com</span>. Any changes made there will sync to all your devices automatically.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <h3 className="font-black uppercase text-sm text-zinc-400">Available Plans</h3>
+              {TIERS.map((tier) => {
+                const isCurrentPlan = getCurrentTier() === tier.key;
+                const TierIcon = tier.icon;
+                return (
+                  <div
+                    key={tier.key}
+                    className={`border-2 p-4 flex items-center justify-between ${isCurrentPlan ? "border-white bg-zinc-800" : "border-zinc-700 bg-zinc-900"}`}
+                    data-testid={`card-tier-${tier.key}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <TierIcon className="w-5 h-5" />
+                      <div>
+                        <span className="font-black uppercase text-sm">{tier.name}</span>
+                        <span className="text-zinc-400 text-sm ml-2">{tier.price}/{tier.interval}</span>
+                      </div>
+                    </div>
+                    {isCurrentPlan && (
+                      <span className="text-xs font-bold uppercase text-green-400 border border-green-500/30 px-2 py-1">Active</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

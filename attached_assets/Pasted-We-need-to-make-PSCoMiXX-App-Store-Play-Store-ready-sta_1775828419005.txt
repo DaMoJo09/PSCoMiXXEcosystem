@@ -1,0 +1,158 @@
+We need to make PSCoMiXX App Store / Play Store ready starting now.
+
+This is no longer just a web app optimization task. Treat this as a mobile product readiness + store submission preparation project for the existing CoMiXX platform.
+
+## Main goal
+Prepare PSCoMiXX to be packaged and submitted as a real mobile app, with the fastest path being a Capacitor-based native wrapper around the current web app, while improving enough of the experience that Apple and Google do not view it as a lazy website shell.
+
+## Priority outcome for today
+I want an App Store ready build plan and the first implementation pass started immediately.
+
+That means:
+
+1. Audit the current app and confirm whether it is already suitable for Capacitor wrapping.
+2. Identify all blockers for App Store / Play Store submission.
+3. Implement the highest-priority changes needed to make the app feel native enough and compliant enough for store review.
+4. Give me a concrete list of what is done, what is missing, and what I need to provide.
+
+## Product context
+PSCoMiXX is the flagship creation app in the Press Start | MADMIXEDMEDIA ecosystem.
+It needs to feel like a legitimate creative platform, not just a browser bookmark.
+
+The app must support:
+- authenticated login
+- creator dashboard / project access
+- comic creation workflows
+- visual novel / CYOA / card-related creation access where applicable
+- XP/profile/account continuity
+- polished branding and loading states
+- stable mobile usability
+
+## Build direction
+Use the fastest practical production path:
+- Wrap the existing web app with Capacitor
+- Generate native iOS and Android project support
+- Keep the current web architecture where possible
+- Do not rebuild from scratch unless absolutely necessary
+
+## Required audit
+Please evaluate and report on all of the following:
+
+### 1. Mobile readiness audit
+Check:
+- responsive layout quality across iPhone and Android sizes
+- safe area handling
+- menu/sidebar behavior on mobile
+- touch target sizes
+- scrolling issues
+- editor usability on smaller screens
+- keyboard overlap issues
+- loading states / blank screens
+- auth flow on mobile
+- deep-link or routing issues
+- PWA/service worker conflicts with native wrapping
+
+### 2. Store rejection risk audit
+Flag any issues that could get rejected, especially:
+- app feels like just a website
+- missing privacy policy links
+- missing terms
+- missing account deletion flow or request path
+- references to unsupported payment flows inside app
+- broken or incomplete mobile UI
+- placeholder content
+- missing support/contact info
+- weak onboarding or unclear purpose
+
+### 3. Native-wrapper readiness
+Confirm:
+- whether Capacitor can be added cleanly to the existing app
+- whether routing works correctly in a native shell
+- whether auth/session handling will work inside native webview
+- whether uploads, downloads, exports, and share flows need native plugins
+- whether any editor/export flows break in-app
+- what extra plugins are needed for:
+  - file handling
+  - share sheet
+  - camera/gallery upload if relevant
+  - splash screen
+  - status bar
+  - haptics if helpful
+
+## Implementation priorities
+Please start implementing these in order:
+
+### Phase 1: legitimacy layer
+Add or improve:
+- polished splash/loading screen
+- native-feeling startup experience
+- proper app icon handling
+- better empty/loading/error states
+- mobile-safe navigation
+- account/settings/help surface
+- support/contact entry
+- privacy policy link
+- terms link
+
+### Phase 2: compliance + trust
+Implement or expose:
+- account deletion request flow or direct deletion flow
+- clear “manage account” area
+- proper legal links
+- no broken placeholder actions
+- no test/demo junk visible to users
+
+### Phase 3: payments handling
+Important:
+Do not create a direct in-app Stripe checkout flow that risks App Store issues.
+
+For now:
+- paid users can log in and use their account
+- subscriptions are managed on the website
+- inside the mobile app, any billing language should be compliant and low-risk
+- avoid aggressive “buy now” flows inside the app unless store-safe implementation is fully understood
+
+I want you to explicitly review current payment/subscription UI and tell me what must be changed for store safety.
+
+### Phase 4: packaging readiness
+Set up:
+- Capacitor config
+- iOS project generation
+- Android project generation
+- app name
+- bundle identifiers placeholder if needed
+- splash/icon asset checklist
+- environment config notes
+- build/run instructions
+
+## Deliverables I want back
+Give me all of this clearly:
+
+1. Current readiness score for App Store and Play Store
+2. What you changed
+3. What still blocks submission
+4. What assets/info you need from me
+5. Recommended next 24-hour path
+6. If possible, create the initial Capacitor integration branch/work
+
+## Important framing
+This app needs to be credible for:
+- everyday users
+- schools/districts
+- creative partners
+- marketplace/business growth
+
+So optimize not just for “it runs on mobile,” but for:
+- trust
+- polish
+- compliance
+- store acceptance
+- future scalability
+
+## Output format
+Respond with:
+- a mobile/store readiness audit
+- a blocker list
+- an implementation list
+- a submission-prep checklist
+- and start making the highest-priority fixes immediately
