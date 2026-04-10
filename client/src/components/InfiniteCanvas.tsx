@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, Layers, GitBranch, MousePointer2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Layers, GitBranch, MousePointer2, Link as LinkIcon } from "lucide-react";
 
 export interface CanvasNode {
   id: string;
@@ -20,6 +20,8 @@ export interface CanvasConnection {
   color?: string;
 }
 
+type Side = "left" | "right" | "top" | "bottom";
+
 interface InfiniteCanvasProps {
   nodes: CanvasNode[];
   connections?: CanvasConnection[];
@@ -36,12 +38,16 @@ interface InfiniteCanvasProps {
   maxZoom?: number;
   connectionColor?: string;
   accentColor?: string;
+  prototypeMode?: boolean;
+  onCreateConnection?: (fromId: string, toId: string, fromSide: Side, toSide: Side) => void;
+  onDeleteConnection?: (fromId: string, toId: string) => void;
 }
 
 const ZOOM_STEP = 0.1;
 const PAN_BUTTON = 1;
+const HANDLE_RADIUS = 7;
 
-function getAnchorPoint(node: CanvasNode, side: "left" | "right" | "top" | "bottom") {
+function getAnchorPoint(node: CanvasNode, side: Side) {
   switch (side) {
     case "left": return { x: node.x, y: node.y + node.height / 2 };
     case "right": return { x: node.x + node.width, y: node.y + node.height / 2 };
@@ -50,9 +56,20 @@ function getAnchorPoint(node: CanvasNode, side: "left" | "right" | "top" | "bott
   }
 }
 
+function getHandlePositions(node: CanvasNode): { side: Side; x: number; y: number }[] {
+  return [
+    { side: "right", x: node.x + node.width, y: node.y + node.height / 2 },
+    { side: "bottom", x: node.x + node.width / 2, y: node.y + node.height },
+    { side: "left", x: node.x, y: node.y + node.height / 2 },
+    { side: "top", x: node.x + node.width / 2, y: node.y },
+  ];
+}
+
 function buildBezierPath(from: { x: number; y: number }, to: { x: number; y: number }, fromSide: string, toSide: string) {
   const dx = Math.abs(to.x - from.x);
-  const offset = Math.max(40, Math.min(dx * 0.4, 120));
+  const dy = Math.abs(to.y - from.y);
+  const dist = Math.max(dx, dy);
+  const offset = Math.max(40, Math.min(dist * 0.4, 120));
 
   let c1 = { ...from };
   let c2 = { ...to };
@@ -68,6 +85,17 @@ function buildBezierPath(from: { x: number; y: number }, to: { x: number; y: num
   else if (toSide === "bottom") { c2.y += offset; }
 
   return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`;
+}
+
+function closestSide(node: CanvasNode, px: number, py: number): Side {
+  const cx = node.x + node.width / 2;
+  const cy = node.y + node.height / 2;
+  const dx = px - cx;
+  const dy = py - cy;
+  const ax = Math.abs(dx) / (node.width / 2);
+  const ay = Math.abs(dy) / (node.height / 2);
+  if (ax > ay) return dx > 0 ? "right" : "left";
+  return dy > 0 ? "bottom" : "top";
 }
 
 export function InfiniteCanvas({
@@ -86,15 +114,30 @@ export function InfiniteCanvas({
   maxZoom = 3,
   connectionColor = "rgba(255,255,255,0.25)",
   accentColor = "#06b6d4",
+  prototypeMode = false,
+  onCreateConnection,
+  onDeleteConnection,
 }: InfiniteCanvasProps) {
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 0.6 });
   const [isPanning, setIsPanning] = useState(false);
   const [dragNode, setDragNode] = useState<{ id: string; startX: number; startY: number; nodeStartX: number; nodeStartY: number } | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
+  const [wireStart, setWireStart] = useState<{ nodeId: string; side: Side; x: number; y: number } | null>(null);
+  const [wireEnd, setWireEnd] = useState<{ x: number; y: number } | null>(null);
+  const [hoverNodeId, setHoverNodeId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
 
   const clampZoom = useCallback((z: number) => Math.max(minZoom, Math.min(maxZoom, z)), [minZoom, maxZoom]);
+
+  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: (clientX - rect.left - viewport.x) / viewport.zoom,
+      y: (clientY - rect.top - viewport.y) / viewport.zoom,
+    };
+  }, [viewport]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -123,19 +166,39 @@ export function InfiniteCanvas({
   }, [clampZoom]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (wireStart) {
+      setWireStart(null);
+      setWireEnd(null);
+      return;
+    }
     if (e.button === PAN_BUTTON || spaceDown) {
       setIsPanning(true);
       panStart.current = { x: e.clientX, y: e.clientY, vx: viewport.x, vy: viewport.y };
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
       e.preventDefault();
     }
-  }, [spaceDown, viewport.x, viewport.y]);
+  }, [spaceDown, viewport.x, viewport.y, wireStart]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (isPanning) {
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
       setViewport(prev => ({ ...prev, x: panStart.current.vx + dx, y: panStart.current.vy + dy }));
+      return;
+    }
+    if (wireStart) {
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      setWireEnd(canvasPos);
+      let foundHover: string | null = null;
+      for (const n of nodes) {
+        if (n.id === wireStart.nodeId) continue;
+        if (canvasPos.x >= n.x && canvasPos.x <= n.x + n.width &&
+            canvasPos.y >= n.y && canvasPos.y <= n.y + n.height) {
+          foundHover = n.id;
+          break;
+        }
+      }
+      setHoverNodeId(foundHover);
       return;
     }
     if (dragNode) {
@@ -145,29 +208,55 @@ export function InfiniteCanvas({
       const newY = Math.round((dragNode.nodeStartY + dy) / gridSize) * gridSize;
       onNodeMove?.(dragNode.id, newX, newY);
     }
-  }, [isPanning, dragNode, viewport.zoom, gridSize, onNodeMove]);
+  }, [isPanning, dragNode, viewport.zoom, gridSize, onNodeMove, wireStart, screenToCanvas, nodes]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (wireStart && wireEnd) {
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      for (const n of nodes) {
+        if (n.id === wireStart.nodeId) continue;
+        if (canvasPos.x >= n.x && canvasPos.x <= n.x + n.width &&
+            canvasPos.y >= n.y && canvasPos.y <= n.y + n.height) {
+          const toSide = closestSide(n, canvasPos.x, canvasPos.y);
+          onCreateConnection?.(wireStart.nodeId, n.id, wireStart.side, toSide);
+          break;
+        }
+      }
+      setWireStart(null);
+      setWireEnd(null);
+      setHoverNodeId(null);
+      return;
+    }
     setIsPanning(false);
     setDragNode(null);
-  }, []);
+  }, [wireStart, wireEnd, nodes, screenToCanvas, onCreateConnection]);
 
   const handleNodePointerDown = useCallback((e: React.PointerEvent, node: CanvasNode) => {
-    if (spaceDown || e.button === PAN_BUTTON) return;
+    if (spaceDown || e.button === PAN_BUTTON || wireStart) return;
     e.stopPropagation();
-    setDragNode({
-      id: node.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      nodeStartX: node.x,
-      nodeStartY: node.y,
-    });
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-  }, [spaceDown]);
+    if (!prototypeMode) {
+      setDragNode({
+        id: node.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        nodeStartX: node.x,
+        nodeStartY: node.y,
+      });
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    }
+  }, [spaceDown, prototypeMode, wireStart]);
+
+  const handleHandlePointerDown = useCallback((e: React.PointerEvent, nodeId: string, side: Side, hx: number, hy: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setWireStart({ nodeId, side, x: hx, y: hy });
+    setWireEnd({ x: hx, y: hy });
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !e.repeat) { setSpaceDown(true); e.preventDefault(); }
+      if (e.code === "Escape" && wireStart) { setWireStart(null); setWireEnd(null); setHoverNodeId(null); }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") setSpaceDown(false);
@@ -175,7 +264,7 @@ export function InfiniteCanvas({
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, []);
+  }, [wireStart]);
 
   const fitToView = useCallback(() => {
     if (!containerRef.current || nodes.length === 0) return;
@@ -249,7 +338,7 @@ export function InfiniteCanvas({
       ref={containerRef}
       className={cn(
         "relative w-full h-full overflow-hidden select-none",
-        spaceDown || isPanning ? "cursor-grab" : "cursor-default",
+        spaceDown || isPanning ? "cursor-grab" : wireStart ? "cursor-crosshair" : "cursor-default",
         isPanning && "cursor-grabbing",
         className
       )}
@@ -282,6 +371,18 @@ export function InfiniteCanvas({
         }
         .canvas-dot-pulse {
           animation: canvas-pulse 2s ease-in-out infinite;
+        }
+        .proto-handle {
+          transition: r 0.15s ease, fill 0.15s ease;
+        }
+        .proto-handle:hover {
+          r: ${HANDLE_RADIUS + 2};
+          fill: ${accentColor};
+          cursor: crosshair;
+        }
+        .canvas-node-hover-target {
+          outline: 2px dashed ${accentColor} !important;
+          outline-offset: 6px !important;
         }
       `}</style>
 
@@ -317,8 +418,15 @@ export function InfiniteCanvas({
           <marker id="canvas-arrow-accent" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 3.5 L 0 7 Z" fill={accentColor} />
           </marker>
+          <marker id="canvas-arrow-blue" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 3.5 L 0 7 Z" fill="#3b82f6" />
+          </marker>
           <filter id="canvas-glow">
             <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <filter id="proto-wire-glow">
+            <feGaussianBlur stdDeviation="4" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
           <linearGradient id="canvas-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -331,33 +439,39 @@ export function InfiniteCanvas({
           {resolvedConnections.map((conn, i) => {
             if (!conn) return null;
             const isSelected = conn.fromId === selectedNodeId || conn.toId === selectedNodeId;
-            const pathColor = conn.color || (isSelected ? accentColor : connectionColor);
+            const isProtoConn = prototypeMode;
+            const pathColor = isProtoConn ? "#3b82f6" : conn.color || (isSelected ? accentColor : connectionColor);
             const pathD = buildBezierPath(conn.from, conn.to, conn.fromSide, conn.toSide);
             return (
               <g key={`${conn.fromId}-${conn.toId}-${i}`}>
-                {isSelected && (
+                {(isSelected || isProtoConn) && (
                   <path
                     d={pathD}
                     fill="none"
-                    stroke={accentColor}
-                    strokeWidth={6}
-                    opacity={0.15}
-                    filter="url(#canvas-glow)"
+                    stroke={isProtoConn ? "#3b82f6" : accentColor}
+                    strokeWidth={8}
+                    opacity={0.1}
+                    filter={isProtoConn ? "url(#proto-wire-glow)" : "url(#canvas-glow)"}
                   />
                 )}
                 <path
                   d={pathD}
                   fill="none"
                   stroke={pathColor}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  strokeWidth={isSelected || isProtoConn ? 2.5 : 1.5}
                   strokeDasharray={conn.dashed ? "6 4" : undefined}
-                  markerEnd={isSelected ? "url(#canvas-arrow-accent)" : "url(#canvas-arrow)"}
+                  markerEnd={isProtoConn ? "url(#canvas-arrow-blue)" : isSelected ? "url(#canvas-arrow-accent)" : "url(#canvas-arrow)"}
+                  style={prototypeMode && onDeleteConnection ? { cursor: "pointer", pointerEvents: "stroke" } : undefined}
+                  onClick={prototypeMode && onDeleteConnection ? (e) => {
+                    e.stopPropagation();
+                    onDeleteConnection(conn.fromId, conn.toId);
+                  } : undefined}
                 />
-                {isSelected && !conn.dashed && (
+                {(isSelected || isProtoConn) && !conn.dashed && (
                   <path
                     d={pathD}
                     fill="none"
-                    stroke={accentColor}
+                    stroke={isProtoConn ? "#3b82f6" : accentColor}
                     strokeWidth={2}
                     strokeDasharray="4 20"
                     className="canvas-flow-line"
@@ -392,12 +506,49 @@ export function InfiniteCanvas({
                 <circle
                   cx={conn.from.x}
                   cy={conn.from.y}
-                  r={isSelected ? 4 : 3}
-                  fill={isSelected ? accentColor : pathColor}
+                  r={isSelected || isProtoConn ? 4 : 3}
+                  fill={isProtoConn ? "#3b82f6" : isSelected ? accentColor : pathColor}
                   className={isSelected ? "canvas-dot-pulse" : ""}
+                />
+                <circle
+                  cx={conn.to.x}
+                  cy={conn.to.y}
+                  r={isSelected || isProtoConn ? 4 : 3}
+                  fill={isProtoConn ? "#3b82f6" : isSelected ? accentColor : pathColor}
                 />
               </g>
             );
+          })}
+
+          {wireStart && wireEnd && (
+            <path
+              d={buildBezierPath(wireStart, wireEnd, wireStart.side, hoverNodeId ? closestSide(nodeMap.get(hoverNodeId)!, wireEnd.x, wireEnd.y) : "left")}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={2.5}
+              strokeDasharray="8 4"
+              markerEnd="url(#canvas-arrow-blue)"
+              opacity={0.8}
+            />
+          )}
+
+          {prototypeMode && nodes.map(node => {
+            const handles = getHandlePositions(node);
+            return handles.map(h => (
+              <circle
+                key={`${node.id}-${h.side}`}
+                cx={h.x}
+                cy={h.y}
+                r={HANDLE_RADIUS}
+                fill="rgba(59,130,246,0.3)"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                className="proto-handle"
+                style={{ cursor: "crosshair", pointerEvents: "all" }}
+                onPointerDown={(e) => handleHandlePointerDown(e, node.id, h.side, h.x, h.y)}
+                data-testid={`handle-${node.id}-${h.side}`}
+              />
+            ));
           })}
         </g>
       </svg>
@@ -411,12 +562,14 @@ export function InfiniteCanvas({
       >
         {nodes.map(node => {
           const isSelected = selectedNodeId === node.id;
+          const isHoverTarget = hoverNodeId === node.id;
           return (
             <div
               key={node.id}
               className={cn(
                 "absolute transition-shadow duration-200",
                 isSelected && "canvas-node-selected rounded-lg",
+                isHoverTarget && "canvas-node-hover-target rounded-lg",
                 dragNode?.id === node.id && "z-50"
               )}
               style={{
@@ -424,6 +577,7 @@ export function InfiniteCanvas({
                 top: node.y,
                 width: node.width,
                 height: node.height,
+                cursor: prototypeMode ? "default" : "grab",
                 ...(isSelected ? {
                   outline: `2px solid ${accentColor}`,
                   outlineOffset: "3px",
@@ -431,7 +585,7 @@ export function InfiniteCanvas({
                 } : {}),
               }}
               onPointerDown={(e) => handleNodePointerDown(e, node)}
-              onClick={(e) => { e.stopPropagation(); if (!dragNode) onNodeClick?.(node.id); }}
+              onClick={(e) => { e.stopPropagation(); if (!dragNode && !wireStart) onNodeClick?.(node.id); }}
               onDoubleClick={(e) => { e.stopPropagation(); onNodeDoubleClick?.(node.id); }}
               data-testid={`canvas-node-${node.id}`}
             >
@@ -468,7 +622,21 @@ export function InfiniteCanvas({
       </div>
 
       {showMinimap && nodes.length > 1 && (
-        <Minimap nodes={nodes} viewport={viewport} containerRef={containerRef} selectedNodeId={selectedNodeId} connections={resolvedConnections} accentColor={accentColor} />
+        <Minimap nodes={nodes} viewport={viewport} containerRef={containerRef} selectedNodeId={selectedNodeId} connections={resolvedConnections} accentColor={prototypeMode ? "#3b82f6" : accentColor} />
+      )}
+
+      {prototypeMode && !wireStart && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-900/70 text-blue-300 text-[11px] font-mono px-4 py-2 rounded-xl border border-blue-700/50 z-20 pointer-events-none backdrop-blur-xl flex items-center gap-2 shadow-lg shadow-black/40">
+          <LinkIcon className="w-3 h-3" />
+          Prototype Mode — Drag handles to connect screens
+        </div>
+      )}
+
+      {wireStart && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-900/70 text-blue-200 text-[11px] font-mono px-4 py-2 rounded-xl border border-blue-500/50 z-20 pointer-events-none backdrop-blur-xl flex items-center gap-2 shadow-lg shadow-black/40">
+          <LinkIcon className="w-3 h-3 text-blue-400" />
+          Release on a target screen to connect — ESC to cancel
+        </div>
       )}
 
       {(spaceDown || isPanning) && (

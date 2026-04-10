@@ -373,9 +373,156 @@ const tools = [
 
 const SPREAD_PREVIEW_W = 480;
 const SPREAD_PREVIEW_H = 320;
-const SPREAD_GAP_X = 80;
-const SPREAD_GAP_Y = 60;
-const SPREAD_COLS = 3;
+const SPREAD_GAP_X = 100;
+const SPREAD_GAP_Y = 80;
+const SPREAD_COLS = 4;
+
+type OverviewMode = "design" | "prototype";
+type Side = "left" | "right" | "top" | "bottom";
+interface FlowConnection { fromId: string; toId: string; fromSide: Side; toSide: Side; }
+
+function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
+  spreads: Spread[];
+  flowConnections: FlowConnection[];
+  startId: string;
+  onClose: () => void;
+}) {
+  const [history, setHistory] = useState<string[]>([startId]);
+  const [histCursor, setHistCursor] = useState(0);
+  const currentId = history[histCursor];
+  const spreadMap = useMemo(() => new Map(spreads.map((s, i) => [s.id, { spread: s, index: i }])), [spreads]);
+  const outgoing = useMemo(() => {
+    const m = new Map<string, FlowConnection[]>();
+    for (const c of flowConnections) {
+      if (!m.has(c.fromId)) m.set(c.fromId, []);
+      m.get(c.fromId)!.push(c);
+    }
+    return m;
+  }, [flowConnections]);
+
+  const currentData = spreadMap.get(currentId);
+  const currentConns = outgoing.get(currentId) || [];
+
+  const goTo = (id: string) => {
+    const truncated = history.slice(0, histCursor + 1);
+    setHistory([...truncated, id]);
+    setHistCursor(truncated.length);
+  };
+  const goBack = () => {
+    if (histCursor > 0) setHistCursor(histCursor - 1);
+  };
+
+  if (!currentData) return null;
+  const { spread, index } = currentData;
+  const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
+  const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col" data-testid="flow-preview-player">
+      <div className="flex items-center justify-between px-6 py-3 bg-zinc-900/90 border-b border-zinc-800 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <Play className="w-4 h-4 text-blue-400" />
+          <span className="text-sm font-mono text-white font-bold">Flow Preview</span>
+          <div className="w-px h-4 bg-zinc-700" />
+          <span className="text-xs text-zinc-500 font-mono">Spread {index + 1} of {spreads.length}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-zinc-600 font-mono">
+            {currentConns.length} outgoing {currentConns.length === 1 ? "connection" : "connections"}
+          </span>
+          <button onClick={goBack} disabled={histCursor <= 0}
+            className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            data-testid="button-flow-back">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all"
+            data-testid="button-flow-close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-8 relative">
+        <div className="flex gap-1 max-w-[1200px] w-full max-h-[80vh] aspect-[3/2]"
+             style={{ filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
+          <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-l-xl overflow-hidden flex items-center justify-center relative">
+            {leftImage ? (
+              <img src={leftImage} className="w-full h-full object-cover" />
+            ) : (
+              <div className="text-zinc-700 text-center">
+                <div className="text-3xl mb-1">{spread.leftPage.length}</div>
+                <div className="text-xs font-mono">panels</div>
+              </div>
+            )}
+            {spread.leftNarration && (
+              <div className={`absolute left-0 right-0 ${spread.leftNarration.position === "top" ? "top-0" : "bottom-0"} bg-black/80 px-4 py-2 text-sm text-white`}>
+                {spread.leftNarration.text}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-r-xl overflow-hidden flex items-center justify-center relative">
+            {rightImage ? (
+              <img src={rightImage} className="w-full h-full object-cover" />
+            ) : (
+              <div className="text-zinc-700 text-center">
+                <div className="text-3xl mb-1">{spread.rightPage.length}</div>
+                <div className="text-xs font-mono">panels</div>
+              </div>
+            )}
+            {spread.rightNarration && (
+              <div className={`absolute left-0 right-0 ${spread.rightNarration.position === "top" ? "top-0" : "bottom-0"} bg-black/80 px-4 py-2 text-sm text-white`}>
+                {spread.rightNarration.text}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 rounded-xl px-4 py-1.5 backdrop-blur-xl border border-zinc-800">
+          <span className="text-[10px] font-mono text-zinc-400">Spread {index + 1}</span>
+          {spread.leftPage.some(p => p.coverRole === "front-cover") && (
+            <span className="ml-2 text-[8px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">COVER</span>
+          )}
+        </div>
+      </div>
+
+      {currentConns.length > 0 && (
+        <div className="px-6 py-4 bg-zinc-900/90 border-t border-zinc-800 backdrop-blur-xl">
+          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Navigate to:</div>
+          <div className="flex gap-2 flex-wrap">
+            {currentConns.map((conn, ci) => {
+              const targetData = spreadMap.get(conn.toId);
+              if (!targetData) return null;
+              return (
+                <button
+                  key={ci}
+                  onClick={() => goTo(conn.toId)}
+                  className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-mono rounded-lg border border-blue-500/30 hover:border-blue-400/50 transition-all flex items-center gap-2"
+                  data-testid={`button-flow-nav-${ci}`}
+                >
+                  <ChevronRight className="w-3 h-3" />
+                  Spread {targetData.index + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {currentConns.length === 0 && (
+        <div className="px-6 py-4 bg-zinc-900/90 border-t border-zinc-800 backdrop-blur-xl text-center">
+          <span className="text-xs text-zinc-600 font-mono">End of flow — no outgoing connections</span>
+        </div>
+      )}
+
+      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1">
+        {history.map((_hId, hi) => (
+          <div key={hi} className={`w-2 h-2 rounded-full transition-all ${hi === histCursor ? "bg-blue-400 scale-125" : "bg-zinc-700"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose }: {
   spreads: Spread[];
@@ -384,24 +531,96 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   onEditSpread: (index: number) => void;
   onClose: () => void;
 }) {
+  const [mode, setMode] = useState<OverviewMode>("design");
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(() => {
+    const m = new Map<string, { x: number; y: number }>();
+    spreads.forEach((s, idx) => {
+      m.set(s.id, {
+        x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
+        y: Math.floor(idx / SPREAD_COLS) * (SPREAD_PREVIEW_H + SPREAD_GAP_Y) + 40,
+      });
+    });
+    return m;
+  });
+  const [flowConnections, setFlowConnections] = useState<FlowConnection[]>(() =>
+    spreads.slice(0, -1).map((s, idx) => ({
+      fromId: s.id,
+      toId: spreads[idx + 1].id,
+      fromSide: "right" as Side,
+      toSide: "left" as Side,
+    }))
+  );
+  const [showFlowPreview, setShowFlowPreview] = useState(false);
+
+  useEffect(() => {
+    const existingIds = new Set(nodePositions.keys());
+    const currentIds = new Set(spreads.map(s => s.id));
+    let changed = false;
+    const newPositions = new Map(nodePositions);
+    spreads.forEach((s, idx) => {
+      if (!existingIds.has(s.id)) {
+        newPositions.set(s.id, {
+          x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
+          y: Math.floor(idx / SPREAD_COLS) * (SPREAD_PREVIEW_H + SPREAD_GAP_Y) + 40,
+        });
+        changed = true;
+      }
+    });
+    for (const id of existingIds) {
+      if (!currentIds.has(id)) {
+        newPositions.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) setNodePositions(newPositions);
+
+    setFlowConnections(prev => {
+      const cleaned = prev.filter(c => currentIds.has(c.fromId) && currentIds.has(c.toId));
+      return cleaned.length !== prev.length ? cleaned : prev;
+    });
+  }, [spreads]);
+
   const spreadMap = useMemo(() => new Map(spreads.map((s, i) => [s.id, i])), [spreads]);
 
   const canvasNodes: CanvasNode[] = useMemo(() =>
-    spreads.map((spread, idx) => ({
-      id: spread.id,
-      x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
-      y: Math.floor(idx / SPREAD_COLS) * (SPREAD_PREVIEW_H + SPREAD_GAP_Y) + 40,
-      width: SPREAD_PREVIEW_W,
-      height: SPREAD_PREVIEW_H,
-    })), [spreads]);
+    spreads.map((spread) => {
+      const pos = nodePositions.get(spread.id) || { x: 0, y: 0 };
+      return {
+        id: spread.id,
+        x: pos.x,
+        y: pos.y,
+        width: SPREAD_PREVIEW_W,
+        height: SPREAD_PREVIEW_H,
+      };
+    }), [spreads, nodePositions]);
 
   const canvasConnections: CanvasConnection[] = useMemo(() =>
-    spreads.slice(0, -1).map((spread, idx) => ({
-      fromId: spread.id,
-      toId: spreads[idx + 1].id,
-      fromSide: "right" as const,
-      toSide: "left" as const,
-    })), [spreads]);
+    flowConnections.map(fc => ({
+      fromId: fc.fromId,
+      toId: fc.toId,
+      fromSide: fc.fromSide,
+      toSide: fc.toSide,
+    })), [flowConnections]);
+
+  const handleNodeMove = useCallback((id: string, x: number, y: number) => {
+    setNodePositions(prev => {
+      const next = new Map(prev);
+      next.set(id, { x, y });
+      return next;
+    });
+  }, []);
+
+  const handleCreateConnection = useCallback((fromId: string, toId: string, fromSide: Side, toSide: Side) => {
+    setFlowConnections(prev => {
+      const exists = prev.some(c => c.fromId === fromId && c.toId === toId);
+      if (exists) return prev;
+      return [...prev, { fromId, toId, fromSide, toSide }];
+    });
+  }, []);
+
+  const handleDeleteConnection = useCallback((fromId: string, toId: string) => {
+    setFlowConnections(prev => prev.filter(c => !(c.fromId === fromId && c.toId === toId)));
+  }, []);
 
   const renderSpreadNode = useCallback((node: CanvasNode) => {
     const idx = spreadMap.get(node.id);
@@ -412,14 +631,23 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     const isLast = spread.isLastPage;
     const leftPanels = spread.leftPage.length;
     const rightPanels = spread.rightPage.length;
-    const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
-    const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
+    const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
+    const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
     const totalContent = spread.leftPage.reduce((c, p) => c + p.contents.length, 0) + spread.rightPage.reduce((c, p) => c + p.contents.length, 0);
+    const connCount = flowConnections.filter(c => c.fromId === node.id || c.toId === node.id).length;
 
     return (
-      <div className={`w-full h-full border-2 bg-zinc-900 cursor-pointer transition-all hover:shadow-xl overflow-hidden rounded-lg ${
+      <div className={`w-full h-full border-2 bg-zinc-900 transition-all hover:shadow-xl overflow-hidden rounded-lg ${
         idx === currentSpreadIndex ? "border-cyan-500 shadow-cyan-500/20 shadow-lg" : isCover ? "border-amber-500/50" : "border-zinc-700 hover:border-zinc-500"
-      }`}>
+      }`} style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.5))" }}>
+        <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
+          <span className="text-[10px] font-bold text-zinc-500 font-mono">
+            {isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
+          </span>
+          {mode === "prototype" && connCount > 0 && (
+            <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
+          )}
+        </div>
         <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent px-3 py-1.5 flex items-center justify-between z-10">
           <span className="text-[10px] font-bold text-white flex items-center gap-1.5">
             {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded text-[8px]">COVER</span>}
@@ -458,27 +686,79 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         )}
       </div>
     );
-  }, [spreads, currentSpreadIndex, spreadMap]);
+  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections]);
 
   const selectedSpread = spreads[currentSpreadIndex];
   const selectedLeftPanels = selectedSpread?.leftPage.length || 0;
   const selectedRightPanels = selectedSpread?.rightPage.length || 0;
 
+  if (showFlowPreview && flowConnections.length > 0) {
+    return (
+      <FlowPreviewPlayer
+        spreads={spreads}
+        flowConnections={flowConnections}
+        startId={spreads[currentSpreadIndex]?.id || spreads[0].id}
+        onClose={() => setShowFlowPreview(false)}
+      />
+    );
+  }
+
   return (
     <div className="absolute inset-0">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/80 border border-zinc-800 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-xl shadow-lg shadow-black/40">
-        <MapIcon className="w-4 h-4 text-cyan-400" />
-        <span className="text-sm font-mono text-white font-bold">Canvas Overview</span>
-        <div className="w-px h-4 bg-zinc-800" />
-        <span className="text-[11px] text-zinc-500 font-mono">double-click to edit</span>
-        <button onClick={onClose} className="ml-2 p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all" data-testid="button-close-canvas-overview">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0 bg-black/80 border border-zinc-800 rounded-xl backdrop-blur-xl shadow-lg shadow-black/40 overflow-hidden">
+        <button
+          onClick={() => setMode("design")}
+          className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
+            mode === "design"
+              ? "bg-cyan-500/20 text-cyan-400 border-b-2 border-cyan-400"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+          }`}
+          data-testid="button-mode-design"
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Design
+        </button>
+        <div className="w-px h-6 bg-zinc-800" />
+        <button
+          onClick={() => setMode("prototype")}
+          className={`px-5 py-2.5 text-sm font-mono font-bold transition-all flex items-center gap-2 ${
+            mode === "prototype"
+              ? "bg-blue-500/20 text-blue-400 border-b-2 border-blue-400"
+              : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+          }`}
+          data-testid="button-mode-prototype"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          Prototype
+        </button>
+        <div className="w-px h-6 bg-zinc-800" />
+        <button onClick={onClose} className="px-3 py-2.5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all" data-testid="button-close-canvas-overview">
           <X className="w-4 h-4" />
         </button>
       </div>
 
+      {mode === "prototype" && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+          <button
+            onClick={() => setShowFlowPreview(true)}
+            disabled={flowConnections.length === 0}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-900/40 disabled:shadow-none"
+            data-testid="button-play-flow"
+          >
+            <Play className="w-3.5 h-3.5" />
+            Preview Flow
+          </button>
+          {flowConnections.length > 0 && (
+            <span className="text-[10px] text-blue-400/60 font-mono">{flowConnections.length} connections</span>
+          )}
+        </div>
+      )}
+
       {selectedSpread && (
         <div className="absolute top-4 left-4 z-30 bg-black/80 border border-zinc-800 rounded-xl p-3 backdrop-blur-xl shadow-lg shadow-black/40 w-56" data-testid="canvas-spread-inspector">
-          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Selected Spread</div>
+          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">
+            {mode === "prototype" ? "Selected Screen" : "Selected Spread"}
+          </div>
           <div className="text-sm font-bold text-white mb-2">Spread {currentSpreadIndex + 1}</div>
           <div className="space-y-1.5 text-[11px]">
             <div className="flex justify-between text-zinc-400">
@@ -489,6 +769,14 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
               <span>Right panels</span>
               <span className="text-white font-mono">{selectedRightPanels}</span>
             </div>
+            {mode === "prototype" && (
+              <div className="flex justify-between text-zinc-400">
+                <span>Flow links</span>
+                <span className="text-blue-400 font-mono">
+                  {flowConnections.filter(c => c.fromId === selectedSpread.id || c.toId === selectedSpread.id).length}
+                </span>
+              </div>
+            )}
             {selectedSpread.themeMusic && (
               <div className="flex items-center gap-1.5 text-emerald-400">
                 <Music className="w-3 h-3" />
@@ -509,6 +797,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       <InfiniteCanvas
         nodes={canvasNodes}
         connections={canvasConnections}
+        onNodeMove={handleNodeMove}
         onNodeDoubleClick={(id) => {
           const idx = spreadMap.get(id);
           if (idx !== undefined) onEditSpread(idx);
@@ -521,6 +810,9 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         selectedNodeId={spreads[currentSpreadIndex]?.id}
         gridSize={20}
         showMinimap={true}
+        prototypeMode={mode === "prototype"}
+        onCreateConnection={handleCreateConnection}
+        onDeleteConnection={handleDeleteConnection}
       />
     </div>
   );
