@@ -5425,6 +5425,7 @@ export default function ComicCreator() {
         )}
 
         <div className="flex-1 flex overflow-hidden">
+          {!canvasOverview && (
           <aside className="w-14 border-r border-zinc-800/50 flex flex-col items-center py-3 gap-0.5" style={{ background: '#252525' }}>
             {tools.map((tool) => (
               <Tooltip key={tool.id} delayDuration={100}>
@@ -5485,8 +5486,9 @@ export default function ComicCreator() {
               </TooltipContent>
             </Tooltip>
           </aside>
+          )}
 
-          <main className="flex-1 overflow-auto flex flex-col items-center justify-center p-4 relative" style={{ background: '#1e1e1e' }}>
+          <main className={`flex-1 overflow-auto flex flex-col items-center justify-center relative ${canvasOverview ? 'p-0' : 'p-4'}`} style={{ background: '#1e1e1e' }}>
             {canvasOverview ? (
               <ComicCanvasOverview
                 spreads={spreads}
@@ -6292,7 +6294,7 @@ export default function ComicCreator() {
             )}
           </main>
 
-          {showLayers && (
+          {showLayers && !canvasOverview && (
             <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col">
               <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2"><Layers className="w-4 h-4" /> Layers</span>
