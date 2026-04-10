@@ -132,7 +132,7 @@ function FeaturedOnStage() {
           <div
             key={item.id}
             onClick={() => navigate(`/community/read/${item.id}`)}
-            className="group border-2 border-zinc-800 hover:border-white bg-card cursor-pointer transition-all hover:shadow-hard"
+            className="group border-2 border-zinc-800 hover:border-white bg-card cursor-pointer transition-all hover:shadow-hard rounded-xl overflow-hidden"
             data-testid={`card-featured-${item.id}`}
           >
             <div className="aspect-[3/4] overflow-hidden border-b border-zinc-800 relative">
@@ -141,7 +141,7 @@ function FeaturedOnStage() {
                 alt={item.title}
                 className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
               />
-              <div className="absolute top-1 right-1 bg-black/80 border border-zinc-700 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase">
+              <div className="absolute top-1 right-1 bg-black/80 border border-zinc-700 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase rounded-md">
                 {item.type}
               </div>
             </div>
@@ -404,7 +404,7 @@ export default function Dashboard() {
         <XPWidget />
 
         {usageData && usageData.ai.limit > 0 && usageData.ai.remaining <= 0 && (
-          <div className="p-4 border-2 border-red-500 bg-red-500/10 flex items-center justify-between" data-testid="banner-ai-limit">
+          <div className="p-4 border-2 border-red-500 bg-red-500/10 flex items-center justify-between rounded-xl" data-testid="banner-ai-limit">
             <div className="flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-red-400" />
               <div>
@@ -416,7 +416,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => navigate("/pricing")}
-              className="px-4 py-2 bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-colors shrink-0"
+              className="px-4 py-2 bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-colors shrink-0 rounded-lg"
               data-testid="button-ai-limit-upgrade"
             >
               Upgrade Now
@@ -425,13 +425,13 @@ export default function Dashboard() {
         )}
 
         {usageData && usageData.ai.limit > 0 && usageData.ai.remaining > 0 && usageData.ai.used > 0 && (
-          <div className="p-3 border border-zinc-700 bg-zinc-900 flex items-center justify-between" data-testid="banner-ai-usage">
+          <div className="p-3 border border-zinc-700 bg-zinc-900 flex items-center justify-between rounded-xl" data-testid="banner-ai-usage">
             <div className="flex items-center gap-3">
               <Sparkles className="w-4 h-4 text-zinc-400" />
               <span className="text-xs font-mono text-zinc-400">
                 AI: {usageData.ai.used}/{usageData.ai.limit} today
               </span>
-              <div className="w-24 h-1.5 bg-zinc-800 overflow-hidden">
+              <div className="w-24 h-1.5 bg-zinc-800 overflow-hidden rounded-full">
                 <div
                   className={`h-full transition-all ${
                     (usageData.ai.used / usageData.ai.limit) >= 0.9 ? "bg-red-500" :
@@ -478,14 +478,14 @@ export default function Dashboard() {
                 return (
                   <div
                     key={cert.id}
-                    className={`border-2 ${cert.earned ? "border-green-500" : "border-zinc-700"} bg-card p-5 relative overflow-hidden`}
+                    className={`border-2 ${cert.earned ? "border-green-500" : "border-zinc-700"} bg-card p-5 relative overflow-hidden rounded-xl`}
                     style={{ borderTopWidth: "4px", borderTopColor: cert.earned ? undefined : undefined }}
                     data-testid={`hub-cert-${cert.slug}`}
                   >
                     <div className={`absolute top-0 left-0 right-0 h-1 ${cert.earned ? "bg-green-500" : accent.bar}`} />
 
                     <div className="flex items-start gap-3 mb-4">
-                      <div className={`p-2 border ${cert.earned ? "border-green-500 bg-green-500/10" : `${accent.border} ${accent.bg}`}`}>
+                      <div className={`p-2 border rounded-lg ${cert.earned ? "border-green-500 bg-green-500/10" : `${accent.border} ${accent.bg}`}`}>
                         <IconComp className={`w-6 h-6 ${cert.earned ? "text-green-400" : accent.text}`} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -591,7 +591,7 @@ export default function Dashboard() {
                 <button
                   key={mode.type}
                   onClick={() => handleQuickCreate(mode.type, mode.href)}
-                  className={`group p-6 border-2 border-zinc-800 border-l-4 ${mode.color} hover:border-white hover:shadow-hard transition-all bg-card text-left`}
+                  className={`group p-6 border-2 border-zinc-800 border-l-4 ${mode.color} hover:border-white hover:shadow-hard transition-all bg-card text-left rounded-xl`}
                   data-testid={`button-quick-${mode.type}`}
                 >
                   <AppIcon icon={Icon} size="lg" className="mb-3 group-hover:shadow-[0_2px_12px_rgba(255,255,255,0.1)]" />
@@ -629,7 +629,7 @@ export default function Dashboard() {
                     <button
                       key={mode.type}
                       onClick={() => handleQuickCreate(mode.type, mode.href)}
-                      className="group p-4 border border-zinc-800 hover:border-zinc-600 hover:shadow-hard transition-all bg-card text-left"
+                      className="group p-4 border border-zinc-800 hover:border-zinc-600 hover:shadow-hard transition-all bg-card text-left rounded-xl"
                       data-testid={`button-more-${mode.type}`}
                     >
                       <AppIcon icon={Icon} size="md" className="mb-2" />
@@ -654,7 +654,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <button
               onClick={() => navigate("/tools/prompt")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-tool-prompt"
             >
               <Wand2 className="w-6 h-6 mb-2" />
@@ -667,7 +667,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/tools/story")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-tool-story"
             >
               <BookOpen className="w-6 h-6 mb-2" />
@@ -680,7 +680,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/tools/import")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-tool-import"
             >
               <Upload className="w-6 h-6 mb-2" />
@@ -693,7 +693,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/creator/cover")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-tool-cover"
             >
               <ImagePlus className="w-6 h-6 mb-2" />
@@ -706,7 +706,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/settings")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-tool-settings"
             >
               <Wrench className="w-6 h-6 mb-2" />
@@ -727,7 +727,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <button
               onClick={() => navigate("/print-studio")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-print"
             >
               <Printer className="w-6 h-6 mb-2" />
@@ -740,7 +740,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate(`/portfolio${user?.id ? `/${user.id}` : ""}`)}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-portfolio"
             >
               <User className="w-6 h-6 mb-2" />
@@ -753,7 +753,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/community")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-gallery"
             >
               <Users className="w-6 h-6 mb-2" />
@@ -766,7 +766,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/marketplace")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-marketplace"
             >
               <ShoppingBag className="w-6 h-6 mb-2" />
@@ -779,7 +779,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/print-studio/export")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-export"
             >
               <Camera className="w-6 h-6 mb-2" />
@@ -792,7 +792,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/certifications")}
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="button-publish-certs"
             >
               <Award className="w-6 h-6 mb-2" />
@@ -817,7 +817,7 @@ export default function Dashboard() {
               href="https://pressstart.tech"
               target="_blank"
               rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="link-ecosystem-lms"
             >
               <GraduationCap className="w-6 h-6 mb-2" />
@@ -832,7 +832,7 @@ export default function Dashboard() {
               href="https://psstreaming.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="link-ecosystem-streaming"
             >
               <Tv className="w-6 h-6 mb-2" />
@@ -847,7 +847,7 @@ export default function Dashboard() {
               href="https://madmixedmedia.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left"
+              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
               data-testid="link-ecosystem-madmixed"
             >
               <Building2 className="w-6 h-6 mb-2" />
@@ -877,7 +877,7 @@ export default function Dashboard() {
                     <div
                       key={project.id}
                       onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
-                      className="w-24 h-24 border-2 border-zinc-700 bg-card flex flex-col items-center justify-center cursor-pointer hover:border-white transition-colors"
+                      className="w-24 h-24 border-2 border-zinc-700 bg-card flex flex-col items-center justify-center cursor-pointer hover:border-white transition-colors rounded-xl"
                       title={project.title}
                       data-testid={`slot-filled-${i}`}
                     >
@@ -891,7 +891,7 @@ export default function Dashboard() {
                   <div
                     key={`empty-${i}`}
                     onClick={() => setNewProjectOpen(true)}
-                    className="w-24 h-24 border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors"
+                    className="w-24 h-24 border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-500 transition-colors rounded-xl"
                     data-testid={`slot-empty-${i}`}
                   >
                     <Plus className="w-5 h-5 text-zinc-600 mb-1" />
@@ -901,7 +901,7 @@ export default function Dashboard() {
               })}
               <div
                 onClick={() => navigate("/pricing")}
-                className="w-24 h-24 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors group"
+                className="w-24 h-24 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors group rounded-xl"
                 data-testid="slot-upgrade"
               >
                 <Lock className="w-4 h-4 text-amber-500 mb-1" />
@@ -940,7 +940,7 @@ export default function Dashboard() {
                 <div
                   key={project.id}
                   onClick={() => navigate(`/creator/${project.type}?id=${project.id}`)}
-                  className="group border border-border bg-card hover:shadow-hard transition-all cursor-pointer"
+                  className="group border border-border bg-card hover:shadow-hard transition-all cursor-pointer rounded-xl overflow-hidden"
                   data-testid={`card-project-${project.id}`}
                 >
                   <div className="aspect-[4/3] overflow-hidden border-b border-border relative">
@@ -955,10 +955,10 @@ export default function Dashboard() {
                         currentThumbnail={project.thumbnail}
                       />
                     </div>
-                    <div className="absolute top-2 right-2 bg-background border border-border px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider">
+                    <div className="absolute top-2 right-2 bg-background border border-border px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wider rounded-md">
                       {typeLabels[project.type] || project.type}
                     </div>
-                    <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] font-mono font-bold uppercase ${
+                    <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] font-mono font-bold uppercase rounded-md ${
                       project.status === "published" ? "bg-green-500 text-white" :
                       project.status === "review" ? "bg-cyan-500 text-black" :
                       project.status === "approved" ? "bg-blue-500 text-white" :
@@ -1005,8 +1005,8 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="border-2 border-cyan-500/40 bg-zinc-900 p-8 text-center" data-testid="empty-state-quickstart">
-              <div className="w-16 h-16 border-2 border-cyan-500 flex items-center justify-center mx-auto mb-4">
+            <div className="border-2 border-cyan-500/40 bg-zinc-900 p-8 text-center rounded-xl" data-testid="empty-state-quickstart">
+              <div className="w-16 h-16 border-2 border-cyan-500 flex items-center justify-center mx-auto mb-4 rounded-xl">
                 <Rocket className="w-8 h-8 text-cyan-400" />
               </div>
               <h3
@@ -1030,7 +1030,7 @@ export default function Dashboard() {
                     <button
                       key={tpl.type}
                       onClick={() => handleQuickCreate(tpl.type, tpl.href)}
-                      className={`p-4 border-2 ${tpl.accent} bg-zinc-950 text-left transition-all group`}
+                      className={`p-4 border-2 ${tpl.accent} bg-zinc-950 text-left transition-all group rounded-xl`}
                       data-testid={`button-template-${tpl.type}`}
                     >
                       <AppIcon icon={TplIcon} size="md" className="mb-2 group-hover:shadow-[0_2px_12px_rgba(255,255,255,0.1)]" />
