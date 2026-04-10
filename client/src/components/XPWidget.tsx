@@ -73,10 +73,10 @@ export function XPWidget() {
   const xpNeeded = data.xpForNextLevel - data.xpInCurrentLevel;
 
   return (
-    <div className="border-4 border-white bg-black p-5 space-y-4" data-testid="widget-xp-progress">
+    <div className="border-4 border-white bg-black p-5 space-y-4 rounded-2xl" data-testid="widget-xp-progress">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 border-2 border-white flex items-center justify-center bg-zinc-900 ${nearLevelUp ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.5)]" : ""}`}>
+          <div className={`w-10 h-10 border-2 border-white flex items-center justify-center bg-zinc-900 rounded-xl ${nearLevelUp ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.5)]" : ""}`}>
             <span className="font-black text-lg" data-testid="text-level">{data.level}</span>
           </div>
           <div>
@@ -92,9 +92,9 @@ export function XPWidget() {
           <span>Level {data.level}</span>
           <span>{data.level < 30 ? `Level ${data.level + 1}` : "MAX"}</span>
         </div>
-        <div className={`h-3 bg-zinc-900 border w-full ${nearLevelUp ? "border-white/50 shadow-[0_0_10px_rgba(255,255,255,0.2)]" : "border-zinc-700"}`} data-testid="bar-xp-progress">
+        <div className={`h-3 bg-zinc-900 border w-full rounded-full ${nearLevelUp ? "border-white/50 shadow-[0_0_10px_rgba(255,255,255,0.2)]" : "border-zinc-700"}`} data-testid="bar-xp-progress">
           <div
-            className={`h-full transition-all duration-500 ${nearLevelUp ? "bg-yellow-400" : "bg-white"}`}
+            className={`h-full transition-all duration-500 rounded-full ${nearLevelUp ? "bg-yellow-400" : "bg-white"}`}
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -115,7 +115,7 @@ export function XPWidget() {
       </div>
 
       {data.nextUnlock && (
-        <div className="border-2 border-zinc-800 p-3 bg-zinc-950" data-testid="next-unlock-preview">
+        <div className="border-2 border-zinc-800 p-3 bg-zinc-950 rounded-xl" data-testid="next-unlock-preview">
           <div className="flex items-center gap-2 mb-1">
             <ArrowRight className="w-3 h-3 text-cyan-400" />
             <span className="text-[10px] text-cyan-400 uppercase font-black tracking-wider">Next Unlock</span>
@@ -131,32 +131,32 @@ export function XPWidget() {
 
       <div className="grid grid-cols-3 gap-2">
         {data.currentStreak > 0 ? (
-          <div className="border-2 border-orange-500/30 p-2.5 text-center bg-orange-500/5" data-testid="stat-streak">
+          <div className="border-2 border-orange-500/30 p-2.5 text-center bg-orange-500/5 rounded-xl" data-testid="stat-streak">
             <Flame className={`w-4 h-4 mx-auto mb-1 text-orange-400 ${data.currentStreak >= 3 ? "animate-pulse" : ""}`} />
             <p className="text-sm font-black text-orange-400">{data.currentStreak}</p>
             <p className="text-[9px] text-zinc-500 uppercase font-bold">Day Streak</p>
           </div>
         ) : (
-          <div className="border-2 border-zinc-800 p-2.5 text-center" data-testid="stat-streak">
+          <div className="border-2 border-zinc-800 p-2.5 text-center rounded-xl" data-testid="stat-streak">
             <Flame className="w-4 h-4 mx-auto mb-1 text-zinc-600" />
             <p className="text-sm font-black text-zinc-600">0</p>
             <p className="text-[9px] text-zinc-500 uppercase font-bold">Day Streak</p>
           </div>
         )}
         <Link href="/achievements">
-          <div className="border-2 border-zinc-800 p-2.5 hover:border-white transition-colors cursor-pointer text-center" data-testid="link-achievements-stat">
+          <div className="border-2 border-zinc-800 p-2.5 hover:border-white transition-colors cursor-pointer text-center rounded-xl" data-testid="link-achievements-stat">
             <Target className="w-4 h-4 mx-auto mb-1" />
             <p className="text-sm font-black">{data.achievementsEarned}/{data.achievementsTotal}</p>
             <p className="text-[9px] text-zinc-500 uppercase font-bold">Achievements</p>
           </div>
         </Link>
         <Link href="/rewards">
-          <div className="border-2 border-zinc-800 p-2.5 hover:border-white transition-colors cursor-pointer text-center" data-testid="link-rewards-stat">
+          <div className="border-2 border-zinc-800 p-2.5 hover:border-white transition-colors cursor-pointer text-center rounded-xl" data-testid="link-rewards-stat">
             <Gift className="w-4 h-4 mx-auto mb-1" />
             <p className="text-sm font-black">{data.rewardsUnlocked}</p>
             <p className="text-[9px] text-zinc-500 uppercase font-bold">Rewards</p>
             {data.rewardsClaimable > 0 && (
-              <span className="inline-block mt-1 px-1.5 py-0.5 bg-green-500 text-black text-[9px] font-black">{data.rewardsClaimable} new</span>
+              <span className="inline-block mt-1 px-1.5 py-0.5 bg-green-500 text-black text-[9px] font-black rounded-md">{data.rewardsClaimable} new</span>
             )}
           </div>
         </Link>
@@ -164,7 +164,7 @@ export function XPWidget() {
 
       <button
         onClick={() => setShowGuide(!showGuide)}
-        className="w-full flex items-center justify-between px-3 py-2 border-2 border-yellow-500/30 hover:border-yellow-500/60 transition-colors text-left bg-yellow-500/5"
+        className="w-full flex items-center justify-between px-3 py-2 border-2 border-yellow-500/30 hover:border-yellow-500/60 transition-colors text-left bg-yellow-500/5 rounded-xl"
         data-testid="button-toggle-xp-guide"
       >
         <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export function XPWidget() {
       </button>
 
       {showGuide && (
-        <div className="border border-yellow-500/20 bg-yellow-500/5 p-3 space-y-2" data-testid="xp-guide-panel">
+        <div className="border border-yellow-500/20 bg-yellow-500/5 p-3 space-y-2 rounded-xl" data-testid="xp-guide-panel">
           <p className="text-[10px] text-zinc-400 font-mono mb-2">
             Every action earns XP. Level up to unlock tools, effects, and certifications.
           </p>
@@ -195,7 +195,7 @@ export function XPWidget() {
 
       <button
         onClick={() => setShowHistory(!showHistory)}
-        className="w-full flex items-center justify-between px-3 py-2 border-2 border-zinc-800 hover:border-zinc-600 transition-colors text-left"
+        className="w-full flex items-center justify-between px-3 py-2 border-2 border-zinc-800 hover:border-zinc-600 transition-colors text-left rounded-xl"
         data-testid="button-toggle-xp-history"
       >
         <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export function XPWidget() {
             <p className="text-[10px] text-zinc-600 font-mono text-center py-4">No XP history yet. Create something to start earning!</p>
           ) : (
             history.map(entry => (
-              <div key={entry.id} className="flex items-center justify-between px-2 py-1.5 border border-zinc-900 hover:border-zinc-700 transition-colors">
+              <div key={entry.id} className="flex items-center justify-between px-2 py-1.5 border border-zinc-900 hover:border-zinc-700 transition-colors rounded-lg">
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] text-zinc-300 font-bold truncate">{entry.description}</p>
                   <p className="text-[9px] text-zinc-600 font-mono">
