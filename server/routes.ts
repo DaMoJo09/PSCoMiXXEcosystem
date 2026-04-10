@@ -4733,6 +4733,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  app.post("/api/client-error", rateLimit({ windowMs: 60000, max: 10 }), (req, res) => {
+    const { message, stack, componentStack, url, userAgent } = req.body || {};
+    console.error(`[CLIENT ERROR] ${message}\n  URL: ${url}\n  Stack: ${stack}\n  Component: ${componentStack}\n  UA: ${userAgent}`);
+    res.json({ ok: true });
+  });
+
   const ALLOWED_EVENT_CATEGORIES = ["navigation", "engagement", "creator_tools", "ai", "social", "marketplace"];
   const eventTrackLimiter = rateLimit({ windowMs: 60000, max: 60, standardHeaders: false, legacyHeaders: false });
   app.post("/api/events/track", eventTrackLimiter, async (req, res) => {
