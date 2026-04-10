@@ -4,13 +4,14 @@ import {
   MessageSquare, GitBranch, User, Upload, Wand2, X,
   Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
   BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
-  ChevronLeft, ChevronRight, FileText, Sparkles, Film
+  ChevronLeft, ChevronRight, FileText, Sparkles, Film, Map
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
+import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/components/InfiniteCanvas";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
@@ -522,6 +523,8 @@ export default function VNCreator() {
   const [textMode, setTextMode] = useState<TextMode>("adv");
   const [hideTextbox, setHideTextbox] = useState(false);
   const [nvlLines, setNvlLines] = useState<{ speaker: string; text: string; color: string }[]>([]);
+  const [vnViewMode, setVnViewMode] = useState<"editor" | "flowchart">("editor");
+  const [scenePositions, setScenePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spriteInputRef = useRef<HTMLInputElement>(null);
@@ -581,10 +584,109 @@ export default function VNCreator() {
       if (data?.scenes) setScenes(data.scenes);
       if (data?.characters) setCharacters(data.characters);
       if (data?.backgrounds) setBackgrounds(data.backgrounds);
+      if (data?.scenePositions) setScenePositions(data.scenePositions);
     }
   }, [project]);
 
   useEffect(() => { if (scenes.length > 0 && !selectedScene) setSelectedScene(scenes[0].id); }, [scenes, selectedScene]);
+
+  const VN_NODE_W = 240;
+  const VN_NODE_H = 140;
+  const VN_GAP_X = 80;
+  const VN_GAP_Y = 60;
+  const VN_COLS = 4;
+
+  useEffect(() => {
+    if (scenes.length === 0) return;
+    setScenePositions(prev => {
+      const next = { ...prev };
+      let needsUpdate = false;
+      scenes.forEach((scene, idx) => {
+        if (!next[scene.id]) {
+          next[scene.id] = { x: (idx % VN_COLS) * (VN_NODE_W + VN_GAP_X) + 40, y: Math.floor(idx / VN_COLS) * (VN_NODE_H + VN_GAP_Y) + 40 };
+          needsUpdate = true;
+        }
+      });
+      return needsUpdate ? next : prev;
+    });
+  }, [scenes]);
+
+  const handleSceneNodeMove = useCallback((id: string, x: number, y: number) => {
+    setScenePositions(prev => ({ ...prev, [id]: { x, y } }));
+    pendingSaveRef.current = true;
+  }, []);
+
+  const vnCanvasNodes: CanvasNode[] = useMemo(() =>
+    scenes.map(scene => ({
+      id: scene.id,
+      x: scenePositions[scene.id]?.x ?? 0,
+      y: scenePositions[scene.id]?.y ?? 0,
+      width: VN_NODE_W,
+      height: VN_NODE_H,
+    })), [scenes, scenePositions]);
+
+  const vnCanvasConnections: CanvasConnection[] = useMemo(() => {
+    const conns: CanvasConnection[] = [];
+    scenes.forEach((scene, idx) => {
+      const choiceTargets = new Set<string>();
+      scene.dialogue.forEach(line => {
+        line.choices?.forEach(choice => {
+          const targetScene = scenes.find(s => s.id === choice.target || s.label === choice.target);
+          if (targetScene && !choiceTargets.has(targetScene.id)) {
+            choiceTargets.add(targetScene.id);
+            conns.push({
+              fromId: scene.id,
+              toId: targetScene.id,
+              fromSide: "right",
+              toSide: "left",
+              label: choice.label.length > 16 ? choice.label.slice(0, 14) + "…" : choice.label,
+              color: "#a855f7",
+            });
+          }
+        });
+      });
+      if (choiceTargets.size === 0 && idx < scenes.length - 1) {
+        conns.push({
+          fromId: scene.id,
+          toId: scenes[idx + 1].id,
+          fromSide: "bottom",
+          toSide: "top",
+        });
+      }
+    });
+    return conns;
+  }, [scenes]);
+
+  const sceneMap = useMemo(() => new Map(scenes.map(s => [s.id, s])), [scenes]);
+  const bgMap = useMemo(() => new Map(backgrounds.map(b => [b.id, b])), [backgrounds]);
+
+  const renderVNNode = useCallback((canvasNode: CanvasNode) => {
+    const scene = sceneMap.get(canvasNode.id);
+    if (!scene) return null;
+    const bg = bgMap.get(scene.background);
+    const bgUrl = scene.backgroundUrl || bg?.url;
+    const hasChoices = scene.dialogue.some(d => d.choices && d.choices.length > 0);
+    return (
+      <div className={`w-full h-full border-2 bg-zinc-900 cursor-pointer transition-all hover:shadow-xl overflow-hidden ${hasChoices ? "border-purple-500/50" : "border-zinc-700"}`}>
+        {bgUrl && <div className="absolute inset-0 opacity-30"><img src={bgUrl} className="w-full h-full object-cover" /></div>}
+        <div className="relative z-10 h-full flex flex-col p-3">
+          <div className="flex items-start justify-between mb-1">
+            <span className="font-bold text-xs uppercase truncate flex-1">{scene.name}</span>
+            {scene.label && <span className="text-[9px] font-mono bg-zinc-800 px-1 text-cyan-400">{scene.label}</span>}
+          </div>
+          <div className="text-[10px] text-zinc-500 mb-1">{scene.dialogue.length} lines • {scene.characters.length} chars</div>
+          {scene.dialogue.length > 0 && (
+            <p className="text-[10px] font-mono text-zinc-400 line-clamp-2 flex-1">{scene.dialogue[0].speaker}: {scene.dialogue[0].text}</p>
+          )}
+          {hasChoices && (
+            <div className="mt-auto pt-1 border-t border-zinc-700/50">
+              <div className="text-[9px] text-purple-400 flex items-center gap-1"><GitBranch className="w-2.5 h-2.5" /> Branches</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [sceneMap, bgMap]);
 
   useEffect(() => {
     const fromScript = searchParams.get('fromScript');
@@ -617,8 +719,8 @@ export default function VNCreator() {
 
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const latestDataRef = useRef({ title, scenes, characters, backgrounds, projectId: effectiveProjectId });
-  latestDataRef.current = { title, scenes, characters, backgrounds, projectId: effectiveProjectId };
+  const latestDataRef = useRef({ title, scenes, characters, backgrounds, scenePositions, projectId: effectiveProjectId });
+  latestDataRef.current = { title, scenes, characters, backgrounds, scenePositions, projectId: effectiveProjectId };
 
   useEffect(() => { if (project && !initialLoadDoneRef.current) initialLoadDoneRef.current = true; }, [project]);
   useEffect(() => { if (!effectiveProjectId || !initialLoadDoneRef.current) return; pendingSaveRef.current = true; }, [scenes, characters, backgrounds, title, effectiveProjectId]);
@@ -627,7 +729,7 @@ export default function VNCreator() {
     if (!effectiveProjectId || scenes.length === 0) return;
     const interval = setInterval(async () => {
       if (!pendingSaveRef.current) return;
-      try { await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds } } }); pendingSaveRef.current = false; } catch {}
+      try { await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds, scenePositions } } }); pendingSaveRef.current = false; } catch {}
     }, 30000);
     return () => clearInterval(interval);
   }, [effectiveProjectId, scenes, characters, backgrounds, title]);
@@ -635,8 +737,8 @@ export default function VNCreator() {
   useEffect(() => {
     return () => {
       if (pendingSaveRef.current) {
-        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
-        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" }));
+        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b, scenePositions: sp } = latestDataRef.current;
+        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b, scenePositions: sp } })], { type: "application/json" }));
       }
     };
   }, []);
@@ -644,8 +746,8 @@ export default function VNCreator() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current) {
-        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b } = latestDataRef.current;
-        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b } })], { type: "application/json" }));
+        const { projectId: pid, title: t, scenes: s, characters: c, backgrounds: b, scenePositions: sp } = latestDataRef.current;
+        if (pid) navigator.sendBeacon(`/api/projects/${pid}/autosave`, new Blob([JSON.stringify({ title: t, data: { scenes: s, characters: c, backgrounds: b, scenePositions: sp } })], { type: "application/json" }));
         e.preventDefault();
       }
     };
@@ -909,7 +1011,7 @@ if(S.length>0)showS(0);
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (effectiveProjectId) await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds } } });
+      if (effectiveProjectId) await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds, scenePositions } } });
       pendingSaveRef.current = false; fireXpAction("save"); toast.success("Project saved");
     } catch (error: any) { toast.error(error.message || "Save failed"); } finally { setIsSaving(false); }
   };
@@ -1260,6 +1362,14 @@ if(S.length>0)showS(0);
             >
               <Film className="w-4 h-4" /> Use as HOP
             </button>
+            <div className="flex bg-zinc-800 border border-zinc-700 p-0.5">
+              <button onClick={() => setVnViewMode("editor")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 ${vnViewMode === "editor" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-editor-view">
+                <Monitor className="w-3 h-3" /> Editor
+              </button>
+              <button onClick={() => setVnViewMode("flowchart")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 ${vnViewMode === "flowchart" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-flowchart-view">
+                <Map className="w-3 h-3" /> Canvas
+              </button>
+            </div>
             <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
@@ -1269,6 +1379,21 @@ if(S.length>0)showS(0);
           </div>
         </header>
 
+        {vnViewMode === "flowchart" ? (
+          <div className="flex-1 bg-zinc-950 relative">
+            <InfiniteCanvas
+              nodes={vnCanvasNodes}
+              connections={vnCanvasConnections}
+              onNodeMove={handleSceneNodeMove}
+              onNodeClick={(id) => setSelectedScene(id)}
+              onNodeDoubleClick={(id) => { setSelectedScene(id); setVnViewMode("editor"); }}
+              renderNode={renderVNNode}
+              selectedNodeId={selectedScene}
+              gridSize={20}
+              showMinimap={true}
+            />
+          </div>
+        ) : (
         <div className="flex-1 flex overflow-hidden">
           <div className="w-72 border-r border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="border-b border-zinc-800 p-1 flex">
@@ -1621,6 +1746,7 @@ if(S.length>0)showS(0);
             </div>
           </div>
         </div>
+        )}
 
         <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBackgroundUpload} />
         <input ref={spriteInputRef} type="file" accept="image/*" className="hidden" onChange={handleSpriteUpload} />

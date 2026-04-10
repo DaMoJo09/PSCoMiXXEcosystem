@@ -4,10 +4,11 @@ import {
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
   ChevronLeft, ChevronRight, Circle, LayoutGrid, Maximize2, Minimize2,
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
-  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText
+  Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText, Map
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
+import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/components/InfiniteCanvas";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
@@ -369,6 +370,117 @@ const tools = [
   { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
 
+const SPREAD_PREVIEW_W = 480;
+const SPREAD_PREVIEW_H = 320;
+const SPREAD_GAP_X = 80;
+const SPREAD_GAP_Y = 60;
+const SPREAD_COLS = 3;
+
+function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onClose }: {
+  spreads: Spread[];
+  currentSpreadIndex: number;
+  onSelectSpread: (index: number) => void;
+  onClose: () => void;
+}) {
+  const canvasNodes: CanvasNode[] = useMemo(() =>
+    spreads.map((spread, idx) => ({
+      id: spread.id,
+      x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
+      y: Math.floor(idx / SPREAD_COLS) * (SPREAD_PREVIEW_H + SPREAD_GAP_Y) + 40,
+      width: SPREAD_PREVIEW_W,
+      height: SPREAD_PREVIEW_H,
+    })), [spreads]);
+
+  const canvasConnections: CanvasConnection[] = useMemo(() =>
+    spreads.slice(0, -1).map((spread, idx) => ({
+      fromId: spread.id,
+      toId: spreads[idx + 1].id,
+      fromSide: "right" as const,
+      toSide: "left" as const,
+    })), [spreads]);
+
+  const renderSpreadNode = useCallback((node: CanvasNode) => {
+    const idx = spreads.findIndex(s => s.id === node.id);
+    const spread = spreads[idx];
+    if (!spread) return null;
+    const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
+    const isLast = spread.isLastPage;
+    const leftPanels = spread.leftPage.length;
+    const rightPanels = spread.rightPage.length;
+    const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
+    const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.src;
+
+    return (
+      <div className={`w-full h-full border-2 bg-zinc-900 cursor-pointer transition-all hover:shadow-xl overflow-hidden ${
+        idx === currentSpreadIndex ? "border-cyan-500" : isCover ? "border-amber-500/50" : "border-zinc-700"
+      }`}>
+        <div className="absolute top-0 left-0 right-0 bg-black/80 px-2 py-1 flex items-center justify-between z-10">
+          <span className="text-[10px] font-bold text-white">
+            {isCover && <span className="text-cyan-400 mr-1">COVER</span>}
+            {isLast && <span className="text-amber-400 mr-1">LAST</span>}
+            Spread {idx + 1}
+          </span>
+          <span className="text-[9px] text-zinc-500">{leftPanels + rightPanels} panels</span>
+        </div>
+        <div className="flex h-full pt-6">
+          <div className="flex-1 border-r border-zinc-800 relative bg-zinc-950 flex items-center justify-center">
+            {leftImage ? (
+              <img src={leftImage} className="w-full h-full object-cover opacity-60" />
+            ) : (
+              <div className="text-[10px] text-zinc-600 text-center">
+                <div className="text-lg mb-0.5">{leftPanels}</div>
+                panels
+              </div>
+            )}
+          </div>
+          <div className="flex-1 relative bg-zinc-950 flex items-center justify-center">
+            {rightImage ? (
+              <img src={rightImage} className="w-full h-full object-cover opacity-60" />
+            ) : (
+              <div className="text-[10px] text-zinc-600 text-center">
+                <div className="text-lg mb-0.5">{rightPanels}</div>
+                panels
+              </div>
+            )}
+          </div>
+        </div>
+        {spread.themeMusic && (
+          <div className="absolute bottom-1 right-1 z-10"><Music className="w-3 h-3 text-emerald-400" /></div>
+        )}
+      </div>
+    );
+  }, [spreads, currentSpreadIndex]);
+
+  return (
+    <div className="absolute inset-0">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-black/90 border border-zinc-700 rounded-lg px-4 py-2 flex items-center gap-3 backdrop-blur-sm">
+        <Map className="w-4 h-4 text-cyan-400" />
+        <span className="text-sm font-mono text-white">Canvas Overview</span>
+        <span className="text-xs text-zinc-500">— double-click a spread to edit</span>
+        <button onClick={onClose} className="ml-4 p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white" data-testid="button-close-canvas-overview">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <InfiniteCanvas
+        nodes={canvasNodes}
+        connections={canvasConnections}
+        onNodeDoubleClick={(id) => {
+          const idx = spreads.findIndex(s => s.id === id);
+          if (idx >= 0) onSelectSpread(idx);
+        }}
+        onNodeClick={(id) => {
+          const idx = spreads.findIndex(s => s.id === id);
+          if (idx >= 0) onSelectSpread(idx);
+        }}
+        renderNode={renderSpreadNode}
+        selectedNodeId={spreads[currentSpreadIndex]?.id}
+        gridSize={20}
+        showMinimap={true}
+      />
+    </div>
+  );
+}
+
 export default function ComicCreator() {
   const [location, navigate] = useLocation();
   const search = useSearch();
@@ -485,6 +597,7 @@ export default function ComicCreator() {
   const [showLayers, setShowLayers] = useState(true);
   const [showPanelContents, setShowPanelContents] = useState(true);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+  const [canvasOverview, setCanvasOverview] = useState(false);
   const [selectedLibraryFolder, setSelectedLibraryFolder] = useState<string | null>(null);
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [assetLibraryTab, setAssetLibraryTab] = useState<"library" | "fx-studio">("library");
@@ -4752,6 +4865,15 @@ export default function ComicCreator() {
           </aside>
 
           <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
+            {canvasOverview ? (
+              <ComicCanvasOverview
+                spreads={spreads}
+                currentSpreadIndex={currentSpreadIndex}
+                onSelectSpread={(idx) => { setCurrentSpreadIndex(idx); setCanvasOverview(false); }}
+                onClose={() => setCanvasOverview(false)}
+              />
+            ) : (
+            <>
             <div className="absolute inset-0 pointer-events-none opacity-5"
                  style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
@@ -4806,6 +4928,14 @@ export default function ComicCreator() {
                 <span className="w-12 text-center text-xs">{zoom}%</span>
                 <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="p-1 hover:bg-white/10">
                   <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setCanvasOverview(true)}
+                  className="p-1 hover:bg-white/10 ml-1 text-zinc-400 hover:text-cyan-400"
+                  title="Canvas Overview — see all spreads"
+                  data-testid="button-canvas-overview"
+                >
+                  <Map className="w-4 h-4" />
                 </button>
               </div>
               <div className="flex items-center gap-1 ml-2 border-l border-white/10 pl-2">
@@ -5522,6 +5652,8 @@ export default function ComicCreator() {
                 {isFullscreen ? "Exit Full" : "Full Screen"}
               </button>
             </div>
+            </>
+            )}
           </main>
 
           {showLayers && (

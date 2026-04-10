@@ -8,8 +8,9 @@ import {
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import type { FxEffect } from "@/lib/api";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
+import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/components/InfiniteCanvas";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { toast } from "sonner";
@@ -209,83 +210,89 @@ function applyEffects(effects: VarEffect[], vars: Record<string, any>): Record<s
   return newVars;
 }
 
-function NodeGraph({ nodes, selectedNodeId, onSelectNode, onEditNode }: {
+function NodeGraph({ nodes, selectedNodeId, onSelectNode, onEditNode, nodePositions, onNodeMove }: {
   nodes: CYOANode[]; selectedNodeId: string | null; onSelectNode: (id: string) => void; onEditNode: (id: string) => void;
+  nodePositions: Record<string, { x: number; y: number }>;
+  onNodeMove: (id: string, x: number, y: number) => void;
 }) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mainNodes = nodes.filter(n => !n.id.startsWith("ending"));
-  
-  const nodePositions = useMemo(() => {
-    const positions: Record<string, { x: number; y: number }> = {};
-    mainNodes.forEach((node, idx) => { positions[node.id] = { x: (idx % COLS) * (NODE_CARD_W + NODE_GAP_X) + 20, y: Math.floor(idx / COLS) * (NODE_CARD_H + NODE_GAP_Y) + 20 }; });
-    let endingIdx = 0;
-    nodes.filter(n => n.id.startsWith("ending")).forEach(node => { positions[node.id] = { x: (endingIdx % COLS) * (NODE_CARD_W + NODE_GAP_X) + 20, y: (Math.ceil(mainNodes.length / COLS) + Math.floor(endingIdx / COLS)) * (NODE_CARD_H + NODE_GAP_Y) + 20 }; endingIdx++; });
-    return positions;
-  }, [nodes]);
+  const canvasNodes: CanvasNode[] = useMemo(() =>
+    nodes.map(node => ({
+      id: node.id,
+      x: nodePositions[node.id]?.x ?? 0,
+      y: nodePositions[node.id]?.y ?? 0,
+      width: NODE_CARD_W,
+      height: NODE_CARD_H,
+    })), [nodes, nodePositions]);
 
-  const connections = useMemo(() => {
-    const lines: { from: string; to: string; label: string; hasCondition: boolean }[] = [];
-    nodes.forEach(node => { node.choices.forEach(choice => { if (nodePositions[node.id] && nodePositions[choice.target]) lines.push({ from: node.id, to: choice.target, label: choice.label, hasCondition: !!choice.condition }); }); });
-    return lines;
+  const canvasConnections: CanvasConnection[] = useMemo(() => {
+    const conns: CanvasConnection[] = [];
+    nodes.forEach(node => {
+      node.choices.forEach(choice => {
+        if (nodePositions[node.id] && nodePositions[choice.target]) {
+          conns.push({
+            fromId: node.id,
+            toId: choice.target,
+            fromSide: "bottom",
+            toSide: "top",
+            label: choice.label.length > 20 ? choice.label.slice(0, 18) + "…" : choice.label,
+            dashed: !!choice.condition,
+            color: choice.condition ? "rgba(168,85,247,0.5)" : undefined,
+          });
+        }
+      });
+    });
+    return conns;
   }, [nodes, nodePositions]);
 
-  const maxX = Math.max(...Object.values(nodePositions).map(p => p.x + NODE_CARD_W + 40), 800);
-  const maxY = Math.max(...Object.values(nodePositions).map(p => p.y + NODE_CARD_H + 40), 600);
+  const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
+
+  const renderNode = useCallback((canvasNode: CanvasNode) => {
+    const node = nodeMap.get(canvasNode.id);
+    if (!node) return null;
+    const colorScheme = NODE_COLORS[node.color || (node.isEnding ? "green" : "default")];
+    const hasEffects = node.effects && node.effects.length > 0;
+    const hasCondChoices = node.choices.some(c => c.condition);
+    return (
+      <div className={`w-full h-full p-3 border-2 shadow-lg cursor-pointer transition-all hover:shadow-xl ${colorScheme.bg} ${node.isEnding ? "border-green-500" : colorScheme.border}`}>
+        {node.image && <div className="absolute inset-0 opacity-20 overflow-hidden rounded"><img src={node.image} className="w-full h-full object-cover" /></div>}
+        <div className="relative z-10 h-full flex flex-col">
+          <div className="flex justify-between items-start mb-1">
+            <span className="font-bold text-xs uppercase truncate flex-1">{node.title || (node.isEnding ? "ENDING" : node.id)}</span>
+            <div className="flex gap-0.5 ml-1">
+              {hasEffects && <Variable className="w-3 h-3 text-purple-400" />}
+              {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" />}
+            </div>
+          </div>
+          <p className="text-[11px] font-mono text-zinc-400 line-clamp-4 flex-1">{node.text}</p>
+          {node.choices.length > 0 && (
+            <div className="mt-auto pt-2 border-t border-zinc-700/50 space-y-0.5">
+              {node.choices.slice(0, 3).map((choice, i) => (
+                <div key={i} className="text-[9px] text-zinc-500 flex items-center gap-1 truncate">
+                  {choice.condition ? <Filter className="w-2 h-2 flex-shrink-0 text-amber-400" /> : <LinkIcon className="w-2 h-2 flex-shrink-0" />}
+                  <span className="truncate">{choice.label}</span>
+                </div>
+              ))}
+              {node.choices.length > 3 && <div className="text-[9px] text-zinc-600">+{node.choices.length - 3} more</div>}
+            </div>
+          )}
+          {node.isEnding && <div className={`text-[9px] font-bold uppercase mt-1 ${node.endingType === "good" ? "text-green-400" : node.endingType === "bad" ? "text-red-400" : "text-yellow-400"}`}>{node.endingType || "neutral"} ending</div>}
+        </div>
+      </div>
+    );
+  }, [nodeMap]);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-auto">
-      <div className="relative" style={{ width: maxX, height: maxY, minWidth: "100%", minHeight: "100%" }}>
-        <svg ref={svgRef} className="absolute inset-0 pointer-events-none" style={{ width: maxX, height: maxY }}>
-          <defs>
-            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.3)" /></marker>
-            <marker id="arrowhead-cond" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="rgba(168,85,247,0.5)" /></marker>
-          </defs>
-          {connections.map((conn, i) => {
-            const fromPos = nodePositions[conn.from]; const toPos = nodePositions[conn.to];
-            if (!fromPos || !toPos) return null;
-            const fromX = fromPos.x + NODE_CARD_W / 2; const fromY = fromPos.y + NODE_CARD_H;
-            const toX = toPos.x + NODE_CARD_W / 2; const toY = toPos.y; const midY = (fromY + toY) / 2;
-            return (<g key={i}><path d={`M ${fromX} ${fromY} C ${fromX} ${midY}, ${toX} ${midY}, ${toX} ${toY}`} fill="none" stroke={conn.hasCondition ? "rgba(168,85,247,0.3)" : "rgba(255,255,255,0.15)"} strokeWidth="2" strokeDasharray={conn.hasCondition ? "5,3" : undefined} markerEnd={conn.hasCondition ? "url(#arrowhead-cond)" : "url(#arrowhead)"} /></g>);
-          })}
-        </svg>
-
-        {nodes.map((node) => {
-          const pos = nodePositions[node.id]; if (!pos) return null;
-          const colorScheme = NODE_COLORS[node.color || (node.isEnding ? "green" : "default")];
-          const hasEffects = node.effects && node.effects.length > 0;
-          const hasCondChoices = node.choices.some(c => c.condition);
-          return (
-            <div key={node.id} className={`absolute p-3 border-2 shadow-lg cursor-pointer transition-all hover:shadow-xl ${colorScheme.bg} ${node.isEnding ? "border-green-500" : colorScheme.border} ${selectedNodeId === node.id ? "ring-2 ring-white ring-offset-1 ring-offset-zinc-950" : ""}`}
-              style={{ left: pos.x, top: pos.y, width: NODE_CARD_W, height: NODE_CARD_H }} onClick={() => onSelectNode(node.id)} onDoubleClick={() => onEditNode(node.id)}>
-              {node.image && <div className="absolute inset-0 opacity-20 overflow-hidden"><img src={node.image} className="w-full h-full object-cover" /></div>}
-              <div className="relative z-10 h-full flex flex-col">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="font-bold text-xs uppercase truncate flex-1">{node.title || (node.isEnding ? "ENDING" : node.id)}</span>
-                  <div className="flex gap-0.5 ml-1">
-                    {hasEffects && <Variable className="w-3 h-3 text-purple-400" aria-label="Sets variables" />}
-                    {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" aria-label="Has conditions" />}
-                  </div>
-                </div>
-                <p className="text-[11px] font-mono text-zinc-400 line-clamp-4 flex-1">{node.text}</p>
-                {node.choices.length > 0 && (
-                  <div className="mt-auto pt-2 border-t border-zinc-700/50 space-y-0.5">
-                    {node.choices.slice(0, 3).map((choice, i) => (
-                      <div key={i} className="text-[9px] text-zinc-500 flex items-center gap-1 truncate">
-                        {choice.condition ? <Filter className="w-2 h-2 flex-shrink-0 text-amber-400" /> : <LinkIcon className="w-2 h-2 flex-shrink-0" />}
-                        <span className="truncate">{choice.label}</span>
-                      </div>
-                    ))}
-                    {node.choices.length > 3 && <div className="text-[9px] text-zinc-600">+{node.choices.length - 3} more</div>}
-                  </div>
-                )}
-                {node.isEnding && <div className={`text-[9px] font-bold uppercase mt-1 ${node.endingType === "good" ? "text-green-400" : node.endingType === "bad" ? "text-red-400" : "text-yellow-400"}`}>{node.endingType || "neutral"} ending</div>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <InfiniteCanvas
+      nodes={canvasNodes}
+      connections={canvasConnections}
+      onNodeMove={onNodeMove}
+      onNodeClick={onSelectNode}
+      onNodeDoubleClick={onEditNode}
+      renderNode={renderNode}
+      selectedNodeId={selectedNodeId}
+      gridSize={20}
+      showMinimap={true}
+    />
   );
 }
 
@@ -407,6 +414,7 @@ export default function CYOABuilder() {
   const [optionsPerBranch, setOptionsPerBranch] = useState(3);
   const [isGenerating, setIsGenerating] = useState(false);
   const [nodes, setNodes] = useState<CYOANode[]>([]);
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
   const [previewMode, setPreviewMode] = useState(false);
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
   const [currentNode, setCurrentNode] = useState<string | null>(null);
@@ -432,8 +440,8 @@ export default function CYOABuilder() {
   const autoSaveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingSaveRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const latestDataRef = useRef({ title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, projectId: effectiveProjectId });
-  latestDataRef.current = { title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, projectId: effectiveProjectId };
+  const latestDataRef = useRef({ title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, nodePositions, projectId: effectiveProjectId });
+  latestDataRef.current = { title, nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, nodePositions, projectId: effectiveProjectId };
 
   const fireXpAction = (action: string) => { fetch("/api/xp/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }), credentials: "include" }); };
 
@@ -452,10 +460,39 @@ export default function CYOABuilder() {
   }, [nodes, searchQuery]);
 
   useEffect(() => {
+    if (nodes.length === 0) return;
+    setNodePositions(prev => {
+      const next = { ...prev };
+      let needsUpdate = false;
+      const mainNodes = nodes.filter(n => !n.id.startsWith("ending"));
+      mainNodes.forEach((node, idx) => {
+        if (!next[node.id]) {
+          next[node.id] = { x: (idx % COLS) * (NODE_CARD_W + NODE_GAP_X) + 40, y: Math.floor(idx / COLS) * (NODE_CARD_H + NODE_GAP_Y) + 40 };
+          needsUpdate = true;
+        }
+      });
+      let endingIdx = 0;
+      nodes.filter(n => n.id.startsWith("ending") || n.isEnding).forEach(node => {
+        if (!next[node.id]) {
+          next[node.id] = { x: (endingIdx % COLS) * (NODE_CARD_W + NODE_GAP_X) + 40, y: (Math.ceil(mainNodes.length / COLS) + 1 + Math.floor(endingIdx / COLS)) * (NODE_CARD_H + NODE_GAP_Y) + 40 };
+          needsUpdate = true;
+          endingIdx++;
+        }
+      });
+      return needsUpdate ? next : prev;
+    });
+  }, [nodes]);
+
+  const handleNodeMove = useCallback((id: string, x: number, y: number) => {
+    setNodePositions(prev => ({ ...prev, [id]: { x, y } }));
+    pendingSaveRef.current = true;
+  }, []);
+
+  useEffect(() => {
     if (effectiveProjectId && nodes.length > 0) {
       autoSaveInterval.current = setInterval(() => {
         if (!pendingSaveRef.current) return;
-        updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables } } }).then(() => { pendingSaveRef.current = false; }).catch(() => {});
+        updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, nodePositions } } }).then(() => { pendingSaveRef.current = false; }).catch(() => {});
       }, 30000);
     }
     return () => { if (autoSaveInterval.current) clearInterval(autoSaveInterval.current); };
@@ -488,6 +525,7 @@ export default function CYOABuilder() {
       setTitle(project.title);
       const data = project.data as any;
       if (data?.nodes) setNodes(data.nodes);
+      if (data?.nodePositions) setNodePositions(data.nodePositions);
       if (data?.storyText) setStoryText(data.storyText);
       if (data?.branchPoints) setBranchPoints(data.branchPoints);
       if (data?.optionsPerBranch) setOptionsPerBranch(data.optionsPerBranch);
@@ -520,7 +558,7 @@ export default function CYOABuilder() {
     return () => {
       if (pendingSaveRef.current) {
         const d = latestDataRef.current;
-        if (d.projectId) navigator.sendBeacon(`/api/projects/${d.projectId}/autosave`, new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds, storyVariables: d.storyVariables } })], { type: "application/json" }));
+        if (d.projectId) navigator.sendBeacon(`/api/projects/${d.projectId}/autosave`, new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds, storyVariables: d.storyVariables, nodePositions: d.nodePositions } })], { type: "application/json" }));
       }
     };
   }, []);
@@ -529,7 +567,7 @@ export default function CYOABuilder() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current) {
         const d = latestDataRef.current;
-        if (d.projectId) navigator.sendBeacon(`/api/projects/${d.projectId}/autosave`, new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds, storyVariables: d.storyVariables } })], { type: "application/json" }));
+        if (d.projectId) navigator.sendBeacon(`/api/projects/${d.projectId}/autosave`, new Blob([JSON.stringify({ title: d.title, data: { nodes: d.nodes, storyText: d.storyText, branchPoints: d.branchPoints, optionsPerBranch: d.optionsPerBranch, backgrounds: d.backgrounds, storyVariables: d.storyVariables, nodePositions: d.nodePositions } })], { type: "application/json" }));
         e.preventDefault();
       }
     };
@@ -580,7 +618,7 @@ export default function CYOABuilder() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (effectiveProjectId) await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables } } });
+      if (effectiveProjectId) await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { nodes, storyText, branchPoints, optionsPerBranch, backgrounds, storyVariables, nodePositions } } });
       pendingSaveRef.current = false; fireXpAction("save"); toast.success("Project saved");
     } catch (error: any) { toast.error(error?.message || "Save failed"); } finally { setIsSaving(false); }
   };
@@ -1352,7 +1390,7 @@ if(N.length>0)showN(N[0].id);
                     </div>
                   ) : nodes.length > 0 ? (
                     viewMode === "graph" ? (
-                      <NodeGraph nodes={nodes} selectedNodeId={selectedNodeId} onSelectNode={(id) => setSelectedNodeId(id)} onEditNode={(id) => setEditingNode(id)} />
+                      <NodeGraph nodes={nodes} selectedNodeId={selectedNodeId} onSelectNode={(id) => setSelectedNodeId(id)} onEditNode={(id) => setEditingNode(id)} nodePositions={nodePositions} onNodeMove={handleNodeMove} />
                     ) : viewMode === "script" ? (
                       <ScriptView nodes={nodes} variables={storyVariables} />
                     ) : (
