@@ -531,34 +531,31 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
   const isLast = spread.isLastPage;
   const connCount = flowConnections.filter(c => c.fromId === nodeId || c.toId === nodeId).length;
-  const halfW = SPREAD_PREVIEW_W / 2;
-  const fullH = SPREAD_PREVIEW_H - 28;
+  const headerH = 24;
+  const pageW = SPREAD_PREVIEW_W / 2;
+  const pageH = SPREAD_PREVIEW_H - headerH;
 
-  const renderPanelsMini = (panels: Panel[], offsetX: number) => {
+  const renderPagePanels = (panels: Panel[]) => {
     return panels.filter(p => !p.hidden).map(panel => {
-      const px = (panel.x / 100) * halfW + offsetX;
-      const py = (panel.y / 100) * fullH + 28;
-      const pw = (panel.width / 100) * halfW;
-      const ph = (panel.height / 100) * fullH;
       const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
       const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
       return (
         <div key={panel.id} className="absolute overflow-hidden" style={{
-          left: px, top: py, width: pw, height: ph,
-          backgroundColor: panel.backgroundColor || "#1a1a1a",
-          border: `${Math.max(1, (panel.borderWidth || 2) * 0.5)}px solid ${panel.borderColor || "#333"}`,
-          borderRadius: panel.shape === "circle" ? "50%" : 2,
+          left: `${panel.x}%`, top: `${panel.y}%`,
+          width: `${panel.width}%`, height: `${panel.height}%`,
+          backgroundColor: panel.backgroundColor || "transparent",
+          border: `${Math.max(1, Math.round((panel.borderWidth || 2) * (pageW / 650)))}px solid ${panel.borderColor || "#000"}`,
+          borderRadius: panel.shape === "circle" ? "50%" : Math.round(2 * (pageW / 650)),
           zIndex: panel.zIndex,
+          transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
         }}>
-          {img && <img src={img} className="w-full h-full object-cover" draggable={false} />}
+          {img && <img src={img} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
           {!img && txt && (
             <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
-              <span className="text-[6px] text-zinc-500 leading-tight text-center line-clamp-3">{txt}</span>
-            </div>
-          )}
-          {!img && !txt && panel.contents.length === 0 && (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-[7px] text-zinc-700">empty</span>
+              <span className="leading-tight text-center line-clamp-3" style={{
+                fontSize: Math.max(5, Math.round(10 * (pageW / 650))),
+                color: "#666",
+              }}>{txt}</span>
             </div>
           )}
         </div>
@@ -567,9 +564,7 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   };
 
   return (
-    <div className={`w-full h-full border-2 bg-zinc-900 transition-all hover:shadow-xl overflow-hidden rounded-lg relative ${
-      idx === currentSpreadIndex ? "border-cyan-500 shadow-cyan-500/20 shadow-lg" : isCover ? "border-amber-500/50" : "border-zinc-700 hover:border-zinc-500"
-    }`} style={{ filter: "drop-shadow(0 8px 30px rgba(0,0,0,0.5))" }}>
+    <div className="w-full h-full relative" style={{ filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.5))" }}>
       <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
         <span className="text-[10px] font-bold text-zinc-500 font-mono">
           {isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
@@ -578,30 +573,47 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
           <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
         )}
       </div>
-      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent px-3 py-1.5 flex items-center justify-between z-20">
-        <span className="text-[10px] font-bold text-white flex items-center gap-1.5">
-          {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded text-[8px]">COVER</span>}
-          {isLast && <span className="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded text-[8px]">LAST</span>}
-          Spread {idx + 1}
-        </span>
-        <span className="text-[9px] text-zinc-500 font-mono">
-          {spread.leftPage.length + spread.rightPage.length}p
-        </span>
-      </div>
-      <div className="absolute inset-0 pt-7">
-        <div className="absolute left-0 top-7 bottom-0 bg-zinc-950" style={{ width: halfW }} />
-        <div className="absolute top-7 bottom-0 bg-zinc-950" style={{ left: halfW, width: halfW }} />
-        <div className="absolute top-7 bottom-0 bg-zinc-800/30" style={{ left: halfW - 0.5, width: 1 }} />
-        {renderPanelsMini(spread.leftPage, 0)}
-        {renderPanelsMini(spread.rightPage, halfW)}
-      </div>
-      {spread.leftPage.length === 0 && spread.rightPage.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pt-7 z-10 pointer-events-none">
-          <span className="text-[10px] text-zinc-600 font-mono">Empty Spread</span>
+
+      <div className="absolute left-0 right-0 flex" style={{ top: 0, height: headerH }}>
+        <div className="flex-1 flex items-center px-2 bg-zinc-800/90 rounded-t-md" style={{ height: headerH }}>
+          <span className="text-[10px] font-bold text-white flex items-center gap-1.5 truncate">
+            {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1 py-0.5 rounded text-[7px]">COVER</span>}
+            {isLast && <span className="bg-amber-500/20 text-amber-400 px-1 py-0.5 rounded text-[7px]">LAST</span>}
+            Spread {idx + 1}
+          </span>
         </div>
-      )}
+        <div className="flex items-center px-2 bg-zinc-800/90 rounded-t-md" style={{ height: headerH }}>
+          <span className="text-[9px] text-zinc-500 font-mono">{spread.leftPage.length + spread.rightPage.length}p</span>
+        </div>
+      </div>
+
+      <div className="absolute left-0 flex overflow-hidden" style={{
+        top: headerH, width: SPREAD_PREVIEW_W, height: pageH,
+        borderRadius: "0 0 6px 6px",
+        border: idx === currentSpreadIndex ? "2px solid #06b6d4" : isCover ? "2px solid rgba(245,158,11,0.5)" : "2px solid #52525b",
+        boxShadow: idx === currentSpreadIndex ? "0 0 20px rgba(6,182,212,0.2)" : "none",
+      }}>
+        <div className="relative" style={{ width: pageW, height: pageH, backgroundColor: "#fff" }}>
+          {renderPagePanels(spread.leftPage)}
+          {spread.leftPage.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[9px] text-zinc-300 font-mono">Left Page</span>
+            </div>
+          )}
+        </div>
+        <div style={{ width: 1, height: pageH, backgroundColor: "#e5e5e5", flexShrink: 0 }} />
+        <div className="relative" style={{ width: pageW - 1, height: pageH, backgroundColor: "#fff" }}>
+          {renderPagePanels(spread.rightPage)}
+          {spread.rightPage.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[9px] text-zinc-300 font-mono">Right Page</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {spread.themeMusic && (
-        <div className="absolute bottom-1.5 right-1.5 z-20 bg-emerald-500/20 p-1 rounded"><Music className="w-3 h-3 text-emerald-400" /></div>
+        <div className="absolute bottom-2 right-2 z-20 bg-emerald-500/20 p-1 rounded"><Music className="w-3 h-3 text-emerald-400" /></div>
       )}
     </div>
   );
