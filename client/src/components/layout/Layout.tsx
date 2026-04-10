@@ -4,6 +4,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor, Layers, Settings, Shield, FileText, Mail, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { AppIcon, AppIconInline } from "@/components/ui/app-icon";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -136,7 +137,7 @@ export function Layout({ children }: LayoutProps) {
                     className="flex items-center gap-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
                     data-testid="mobile-drawer-settings"
                   >
-                    <Settings className="w-4 h-4" />
+                    <AppIconInline icon={Settings} />
                     Settings & Account
                   </Link>
                   <Link
@@ -145,7 +146,7 @@ export function Layout({ children }: LayoutProps) {
                     className="flex items-center gap-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
                     data-testid="mobile-drawer-contact"
                   >
-                    <Mail className="w-4 h-4" />
+                    <AppIconInline icon={Mail} />
                     Support & Contact
                   </Link>
                   <div className="flex items-center gap-4 pt-1">
@@ -225,13 +226,20 @@ function MobileNavItem({ href, icon: Icon, label, current }: { href: string; ico
     <a
       href={href}
       className={cn(
-        "flex flex-col items-center gap-1 py-1 px-3 min-w-[3.5rem] rounded-md transition-colors",
-        current ? "text-primary" : "text-muted-foreground"
+        "flex flex-col items-center gap-1 py-1 px-2 min-w-[3rem] transition-colors",
+        current ? "text-foreground" : "text-muted-foreground"
       )}
       data-testid={`mobile-nav-${label.toLowerCase().replace(/\s/g, '-')}`}
     >
-      <Icon className="w-5 h-5" />
-      <span className="text-[10px] font-bold">{label}</span>
+      <div className={cn(
+        "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200",
+        current
+          ? "bg-foreground text-background shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+          : "bg-muted/50 text-muted-foreground border border-border/40"
+      )}>
+        <Icon className="w-4.5 h-4.5" strokeWidth={2} />
+      </div>
+      <span className={cn("text-[9px] font-bold", current && "text-foreground")}>{label}</span>
     </a>
   );
 }

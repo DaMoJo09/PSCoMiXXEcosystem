@@ -55,6 +55,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppIconInline } from "@/components/ui/app-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
@@ -332,13 +333,16 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
       ? location === item.href || location.startsWith(item.href + "/")
       : location === item.href);
     const className = cn(
-      "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent",
-      isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
+      "flex items-center gap-3 py-1.5 text-sm font-medium transition-all",
+      isExpanded ? "px-3 hover:translate-x-0.5" : "px-0 justify-center",
       isActive 
-        ? "bg-primary text-primary-foreground shadow-hard-sm border-primary" 
-        : "hover:bg-muted hover:border-border"
+        ? "text-foreground" 
+        : "text-muted-foreground hover:text-foreground"
     );
     const testId = `nav-${item.label.toLowerCase().replace(/\s/g, '-')}`;
+    const iconEl = isExpanded
+      ? <AppIconInline icon={item.icon} active={isActive} />
+      : <AppIconInline icon={item.icon} active={isActive} />;
 
     if (isExternal && ssoTarget) {
       return (
@@ -350,7 +354,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           title={!isExpanded ? item.label : undefined}
           aria-label={!isExpanded ? item.label : undefined}
         >
-          <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+          {iconEl}
           {isExpanded && <span className="truncate">{item.label}</span>}
         </button>
       );
@@ -368,7 +372,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           title={!isExpanded ? item.label : undefined}
           aria-label={!isExpanded ? item.label : undefined}
         >
-          <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+          {iconEl}
           {isExpanded && <span className="truncate">{item.label}</span>}
         </a>
       );
@@ -384,7 +388,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
         aria-label={!isExpanded ? item.label : undefined}
         onClick={() => onMobileClose?.()}
       >
-        <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+        {iconEl}
         {isExpanded && <span className="truncate">{item.label}</span>}
       </Link>
     );
@@ -536,41 +540,41 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           <button
             onClick={toggleTheme}
             className={cn(
-              "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border w-full text-left",
-              isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center"
+              "flex items-center gap-3 py-1.5 text-sm font-medium transition-all text-muted-foreground hover:text-foreground w-full text-left",
+              isExpanded ? "px-3 hover:translate-x-0.5" : "px-0 justify-center"
             )}
             data-testid="button-theme-toggle"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={!isExpanded ? (theme === "dark" ? "Light Mode" : "Dark Mode") : undefined}
           >
-            {theme === "dark" ? <Sun className="w-4 h-4 shrink-0" aria-hidden="true" /> : <Moon className="w-4 h-4 shrink-0" aria-hidden="true" />}
+            <AppIconInline icon={theme === "dark" ? Sun : Moon} />
             {isExpanded && (theme === "dark" ? "Light Mode" : "Dark Mode")}
           </button>
           <Link 
             href="/settings"
             className={cn(
-              "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground",
-              isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
-              location === "/settings" && "text-foreground bg-muted border-border"
+              "flex items-center gap-3 py-1.5 text-sm font-medium transition-all text-muted-foreground hover:text-foreground",
+              isExpanded ? "px-3 hover:translate-x-0.5" : "px-0 justify-center",
+              location === "/settings" && "text-foreground"
             )}
             data-testid="nav-settings"
             title={!isExpanded ? "Settings" : undefined}
           >
-            <Settings className="w-4 h-4 shrink-0" />
+            <AppIconInline icon={Settings} active={location === "/settings"} />
             {isExpanded && "Settings"}
           </Link>
           {user?.role === "admin" && (
             <Link 
               href="/admin"
               className={cn(
-                "flex items-center gap-3 py-2.5 text-sm font-medium transition-all border border-transparent text-muted-foreground hover:text-foreground",
-                isExpanded ? "px-4 hover:translate-x-1" : "px-0 justify-center",
-                location === "/admin" && "text-foreground bg-muted border-border"
+                "flex items-center gap-3 py-1.5 text-sm font-medium transition-all text-muted-foreground hover:text-foreground",
+                isExpanded ? "px-3 hover:translate-x-0.5" : "px-0 justify-center",
+                location === "/admin" && "text-foreground"
               )}
               data-testid="nav-admin"
               title={!isExpanded ? "Admin Console" : undefined}
             >
-              <ShieldAlert className="w-4 h-4 shrink-0" />
+              <AppIconInline icon={ShieldAlert} active={location === "/admin"} />
               {isExpanded && "Admin Console"}
             </Link>
           )}

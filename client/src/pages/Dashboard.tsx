@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { Plus, ArrowRight, Clock, Star, Trash2, LogOut, Folder, Wrench, Wand2, BookOpen, Sparkles, Zap, Megaphone, Camera, Globe, GraduationCap, Tv, Building2, Award, Lock, CheckCircle2, Trophy, Shield, Gamepad2, Film, CreditCard, Printer, User, Users, ShoppingBag, Upload, ImagePlus, Share2, Palette, ChevronDown, ChevronUp, GitBranch, Crown, Eye, Heart, Monitor, Rocket } from "lucide-react";
+import { AppIcon } from "@/components/ui/app-icon";
 import { ThumbnailPicker } from "@/components/ThumbnailPicker";
 import { useLocation } from "wouter";
 import { useProjects, useDeleteProject, useCreateProject, useUpdateProject } from "@/hooks/useProjects";
@@ -521,7 +522,7 @@ export default function Dashboard() {
                   className={`group p-6 border-2 border-zinc-800 border-l-4 ${mode.color} hover:border-white hover:shadow-hard transition-all bg-card text-left`}
                   data-testid={`button-quick-${mode.type}`}
                 >
-                  <Icon className="w-8 h-8 mb-3 text-zinc-400 group-hover:text-white transition-colors" />
+                  <AppIcon icon={Icon} size="lg" className="mb-3 group-hover:shadow-[0_2px_12px_rgba(255,255,255,0.1)]" />
                   <h3
                     className="text-lg font-black uppercase tracking-tight group-hover:underline decoration-2 underline-offset-4"
                     style={{ fontFamily: "'Space Grotesk', sans-serif" }}
@@ -559,7 +560,7 @@ export default function Dashboard() {
                       className="group p-4 border border-zinc-800 hover:border-zinc-600 hover:shadow-hard transition-all bg-card text-left"
                       data-testid={`button-more-${mode.type}`}
                     >
-                      <Icon className="w-5 h-5 mb-2 text-zinc-500" />
+                      <AppIcon icon={Icon} size="md" className="mb-2" />
                       <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
                         {mode.title}
                       </h3>
@@ -960,7 +961,7 @@ export default function Dashboard() {
                       className={`p-4 border-2 ${tpl.accent} bg-zinc-950 text-left transition-all group`}
                       data-testid={`button-template-${tpl.type}`}
                     >
-                      <TplIcon className="w-6 h-6 text-zinc-400 group-hover:text-white mb-2" />
+                      <AppIcon icon={TplIcon} size="md" className="mb-2 group-hover:shadow-[0_2px_12px_rgba(255,255,255,0.1)]" />
                       <span className="text-sm font-black uppercase tracking-tight text-white block" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                         {tpl.label}
                       </span>
