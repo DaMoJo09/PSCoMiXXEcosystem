@@ -155,6 +155,17 @@ interface NarrationBox {
   fontFamily?: string;
 }
 
+type SpreadTag = "cover" | "back-cover" | "spread" | "panel" | "splash" | "pinup";
+
+const SPREAD_TAG_CONFIG: Record<SpreadTag, { label: string; color: string; bg: string; border: string }> = {
+  "cover":      { label: "Front Cover", color: "#a855f7", bg: "rgba(168,85,247,0.15)", border: "rgba(168,85,247,0.6)" },
+  "back-cover": { label: "Back Cover",  color: "#22c55e", bg: "rgba(34,197,94,0.15)",  border: "rgba(34,197,94,0.6)" },
+  "spread":     { label: "Spread",      color: "#3b82f6", bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.6)" },
+  "panel":      { label: "Panel Page",  color: "#f59e0b", bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.6)" },
+  "splash":     { label: "Splash Page", color: "#ef4444", bg: "rgba(239,68,68,0.15)",  border: "rgba(239,68,68,0.6)" },
+  "pinup":      { label: "Pin-Up",      color: "#ec4899", bg: "rgba(236,72,153,0.15)", border: "rgba(236,72,153,0.6)" },
+};
+
 interface Spread {
   id: string;
   leftPage: Panel[];
@@ -163,6 +174,7 @@ interface Spread {
   leftNarration?: NarrationBox;
   rightNarration?: NarrationBox;
   isLastPage?: boolean;
+  tag?: SpreadTag;
 }
 
 const COMIC_IMAGE_FILTERS = [
@@ -554,6 +566,7 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   const headerH = 24;
   const pageW = SPREAD_PREVIEW_W / 2;
   const pageH = SPREAD_PREVIEW_H - headerH;
+  const tagConf = spread.tag ? SPREAD_TAG_CONFIG[spread.tag] : null;
 
   const renderPagePanels = (panels: Panel[]) => {
     return panels.filter(p => !p.hidden).map(panel => {
@@ -583,35 +596,48 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
     });
   };
 
+  const activeBorder = idx === currentSpreadIndex
+    ? (tagConf ? tagConf.color : "#06b6d4")
+    : tagConf ? tagConf.border : isCover ? "rgba(245,158,11,0.5)" : "#52525b";
+  const activeShadow = idx === currentSpreadIndex
+    ? `0 0 20px ${tagConf ? tagConf.bg : "rgba(6,182,212,0.2)"}`
+    : "none";
+  const headerBg = tagConf ? tagConf.bg : "rgba(63,63,70,0.9)";
+
   return (
     <div className="w-full h-full relative" style={{ filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.5))" }}>
       <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
-        <span className="text-[10px] font-bold text-zinc-500 font-mono">
-          {isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
+        <span className="text-[10px] font-bold font-mono" style={{ color: tagConf?.color || "#71717a" }}>
+          {tagConf ? tagConf.label.toUpperCase() : isCover ? "COVER" : isLast ? "LAST PAGE" : `SPREAD ${idx + 1}`}
         </span>
         {mode === "prototype" && connCount > 0 && (
           <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
         )}
       </div>
 
-      <div className="absolute left-0 right-0 flex" style={{ top: 0, height: headerH }}>
-        <div className="flex-1 flex items-center px-2 bg-zinc-800/90 rounded-t-md" style={{ height: headerH }}>
+      <div className="absolute left-0 right-0 flex rounded-t-md overflow-hidden" style={{ top: 0, height: headerH, backgroundColor: headerBg, borderBottom: tagConf ? `2px solid ${tagConf.border}` : "none" }}>
+        <div className="flex-1 flex items-center px-2" style={{ height: headerH }}>
           <span className="text-[10px] font-bold text-white flex items-center gap-1.5 truncate">
-            {isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1 py-0.5 rounded text-[7px]">COVER</span>}
+            {tagConf && (
+              <span className="px-1.5 py-0.5 rounded text-[7px] font-bold" style={{ backgroundColor: tagConf.color, color: "#fff" }}>
+                {tagConf.label}
+              </span>
+            )}
+            {!tagConf && isCover && <span className="bg-cyan-500/20 text-cyan-400 px-1 py-0.5 rounded text-[7px]">COVER</span>}
             {isLast && <span className="bg-amber-500/20 text-amber-400 px-1 py-0.5 rounded text-[7px]">LAST</span>}
             Spread {idx + 1}
           </span>
         </div>
-        <div className="flex items-center px-2 bg-zinc-800/90 rounded-t-md" style={{ height: headerH }}>
-          <span className="text-[9px] text-zinc-500 font-mono">{spread.leftPage.length + spread.rightPage.length}p</span>
+        <div className="flex items-center px-2" style={{ height: headerH }}>
+          <span className="text-[9px] text-zinc-400 font-mono">{spread.leftPage.length + spread.rightPage.length}p</span>
         </div>
       </div>
 
       <div className="absolute left-0 flex overflow-hidden" style={{
         top: headerH, width: SPREAD_PREVIEW_W, height: pageH,
         borderRadius: "0 0 6px 6px",
-        border: idx === currentSpreadIndex ? "2px solid #06b6d4" : isCover ? "2px solid rgba(245,158,11,0.5)" : "2px solid #52525b",
-        boxShadow: idx === currentSpreadIndex ? "0 0 20px rgba(6,182,212,0.2)" : "none",
+        border: `2px solid ${activeBorder}`,
+        boxShadow: activeShadow,
       }}>
         <div className="relative" style={{ width: pageW, height: pageH, backgroundColor: "#fff" }}>
           {renderPagePanels(spread.leftPage)}
@@ -878,6 +904,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       themeMusic: src.themeMusic ? { ...src.themeMusic } : undefined,
       leftNarration: src.leftNarration ? { ...src.leftNarration } : undefined,
       rightNarration: src.rightNarration ? { ...src.rightNarration } : undefined,
+      tag: src.tag,
     };
     setSpreads(prev => {
       const next = [...prev];
@@ -1248,6 +1275,30 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
           <button onClick={() => { addSpreadAtEnd(); setContextPos(null); }}
             className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
             <Plus className="w-3.5 h-3.5" /> Add New Spread
+          </button>
+          <div className="h-px bg-zinc-800 mx-2" />
+          <div className="px-4 py-1.5 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Tag As</div>
+          {(Object.entries(SPREAD_TAG_CONFIG) as [SpreadTag, typeof SPREAD_TAG_CONFIG[SpreadTag]][]).map(([tagKey, conf]) => {
+            const isActive = spreads[contextSpreadIdx]?.tag === tagKey;
+            return (
+              <button key={tagKey} onClick={() => {
+                setSpreads(prev => prev.map((s, i) => i === contextSpreadIdx ? { ...s, tag: isActive ? undefined : tagKey } : s));
+                setContextPos(null);
+              }}
+                className="w-full px-4 py-2 text-left text-xs text-white hover:bg-zinc-800 flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: conf.color, boxShadow: isActive ? `0 0 8px ${conf.color}` : "none" }} />
+                <span style={{ color: isActive ? conf.color : "#fff" }}>{conf.label}</span>
+                {isActive && <span className="ml-auto text-[9px] opacity-60">✓</span>}
+              </button>
+            );
+          })}
+          <button onClick={() => {
+            setSpreads(prev => prev.map((s, i) => i === contextSpreadIdx ? { ...s, tag: undefined } : s));
+            setContextPos(null);
+          }}
+            className="w-full px-4 py-2 text-left text-xs text-zinc-500 hover:bg-zinc-800 flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full flex-shrink-0 border border-zinc-600" />
+            Clear Tag
           </button>
           <div className="h-px bg-zinc-800 mx-2" />
           <button onClick={() => {
