@@ -993,7 +993,7 @@ if(N.length>0)showN(N[0].id);
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-6" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/"><button className="p-2 hover:bg-zinc-800" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></button></Link>
             <div className="flex items-center gap-2">
@@ -1209,12 +1209,12 @@ if(N.length>0)showN(N[0].id);
 
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div className="flex-1 relative bg-zinc-950 overflow-hidden">
+                <div className="flex-1 relative overflow-hidden" style={{ background: '#1e1e1e' }}>
                   {nodes.length > 0 && !editingNode && (
                     <div className="absolute top-4 right-4 z-20 flex gap-2">
-                      <button onClick={() => setViewMode("cards")} className={`px-3 py-1 text-xs font-bold ${viewMode === "cards" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}>Cards</button>
-                      <button onClick={() => setViewMode("graph")} className={`px-3 py-1 text-xs font-bold ${viewMode === "graph" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><MapIcon className="w-3 h-3 inline mr-1" />Graph</button>
-                      <button onClick={() => setViewMode("script")} className={`px-3 py-1 text-xs font-bold ${viewMode === "script" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Code className="w-3 h-3 inline mr-1" />Script</button>
+                      <button onClick={() => setViewMode("cards")} className={`px-3 py-1 text-xs font-bold rounded-lg ${viewMode === "cards" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}>Cards</button>
+                      <button onClick={() => setViewMode("graph")} className={`px-3 py-1 text-xs font-bold rounded-lg ${viewMode === "graph" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><MapIcon className="w-3 h-3 inline mr-1" />Graph</button>
+                      <button onClick={() => setViewMode("script")} className={`px-3 py-1 text-xs font-bold rounded-lg ${viewMode === "script" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}><Code className="w-3 h-3 inline mr-1" />Script</button>
                     </div>
                   )}
 

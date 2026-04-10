@@ -253,6 +253,7 @@ export function InfiniteCanvas({
         isPanning && "cursor-grabbing",
         className
       )}
+      style={{ background: '#1e1e1e' }}
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -287,30 +288,21 @@ export function InfiniteCanvas({
       {showGrid && (
         <div className="absolute inset-0 pointer-events-none">
           <div
-            className="absolute inset-0 opacity-[0.04]"
+            className="absolute inset-0"
             style={{
-              backgroundImage: `
-                linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)
-              `,
+              backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)`,
               backgroundSize: `${gridSize * viewport.zoom}px ${gridSize * viewport.zoom}px`,
               backgroundPosition: `${viewport.x % (gridSize * viewport.zoom)}px ${viewport.y % (gridSize * viewport.zoom)}px`,
             }}
           />
           <div
-            className="absolute inset-0 opacity-[0.08]"
+            className="absolute inset-0"
             style={{
-              backgroundImage: `
-                linear-gradient(rgba(6,182,212,0.3) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(6,182,212,0.3) 1px, transparent 1px)
-              `,
+              backgroundImage: `radial-gradient(circle, rgba(6,182,212,0.15) 1.5px, transparent 1.5px)`,
               backgroundSize: `${gridSize * 5 * viewport.zoom}px ${gridSize * 5 * viewport.zoom}px`,
               backgroundPosition: `${viewport.x % (gridSize * 5 * viewport.zoom)}px ${viewport.y % (gridSize * 5 * viewport.zoom)}px`,
             }}
           />
-          <div className="absolute inset-0" style={{
-            background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%)`,
-          }} />
         </div>
       )}
 

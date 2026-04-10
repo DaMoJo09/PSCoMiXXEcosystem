@@ -4579,7 +4579,7 @@ export default function ComicCreator() {
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-4 bg-zinc-900">
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/">
               <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
@@ -4848,7 +4848,7 @@ export default function ComicCreator() {
         )}
 
         <div className="flex-1 flex overflow-hidden">
-          <aside className="w-16 border-r border-zinc-800 flex flex-col items-center py-4 gap-1 bg-zinc-900">
+          <aside className="w-14 border-r border-zinc-800/50 flex flex-col items-center py-3 gap-0.5" style={{ background: '#252525' }}>
             {tools.map((tool) => (
               <Tooltip key={tool.id} delayDuration={100}>
                 <TooltipTrigger asChild>
@@ -4860,8 +4860,8 @@ export default function ComicCreator() {
                         setActiveTool(tool.id);
                       }
                     }}
-                    className={`p-3 w-12 h-12 flex items-center justify-center transition-all ${
-                      activeTool === tool.id ? 'bg-white text-black' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    className={`p-2.5 w-10 h-10 flex items-center justify-center transition-all rounded-lg ${
+                      activeTool === tool.id ? 'bg-white text-black shadow-md' : 'hover:bg-white/10 text-zinc-400 hover:text-white'
                     }`}
                     data-testid={`tool-${tool.id}`}
                   >
@@ -4897,7 +4897,7 @@ export default function ComicCreator() {
                   onClick={() => {
                     fxStudio.openFxStudio({ mode: "fx" });
                   }}
-                  className="p-3 w-12 h-12 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300"
+                  className="p-2.5 w-10 h-10 flex items-center justify-center transition-all hover:bg-purple-900/50 text-purple-400 hover:text-purple-300 rounded-lg"
                   data-testid="tool-fx-studio"
                 >
                   <Sparkles className="w-5 h-5" />
@@ -4909,7 +4909,7 @@ export default function ComicCreator() {
             </Tooltip>
           </aside>
 
-          <main className="flex-1 bg-zinc-950 overflow-auto flex flex-col items-center justify-center p-4 relative">
+          <main className="flex-1 overflow-auto flex flex-col items-center justify-center p-4 relative" style={{ background: '#1e1e1e' }}>
             {canvasOverview ? (
               <ComicCanvasOverview
                 spreads={spreads}
@@ -4920,16 +4920,19 @@ export default function ComicCreator() {
               />
             ) : (
             <>
-            <div className="absolute inset-0 pointer-events-none opacity-5"
-                 style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+            <div className="absolute inset-0 pointer-events-none"
+                 style={{
+                   backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)",
+                   backgroundSize: "24px 24px",
+                 }} />
 
-            <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/80 px-4 py-2 rounded ${showPreview ? 'hidden' : ''}`}>
+            <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/90 backdrop-blur-sm px-4 py-2 rounded-xl border border-zinc-700/50 shadow-lg ${showPreview ? 'hidden' : ''}`}>
               <span className="flex items-center gap-2">
                 {currentSpreadIndex === 0 && currentSpread?.leftPage.some(p => p.coverRole === "front-cover") && (
-                  <span className="text-[9px] font-bold bg-cyan-600 text-white px-1.5 py-0.5">COVER</span>
+                  <span className="text-[9px] font-bold bg-cyan-600 text-white px-1.5 py-0.5 rounded">COVER</span>
                 )}
                 {currentSpread?.isLastPage && (
-                  <span className="text-[9px] font-bold bg-amber-600 text-white px-1.5 py-0.5">LAST PAGE</span>
+                  <span className="text-[9px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded">LAST PAGE</span>
                 )}
                 Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.reduce((count, s) => count + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)} pages
               </span>
@@ -4939,7 +4942,7 @@ export default function ComicCreator() {
                     setCurrentSpreadIndex(currentSpreadIndex - 1);
                   }
                 }}
-                className="px-2 py-1 hover:bg-white/10"
+                className="px-2 py-1 hover:bg-white/10 rounded"
                 disabled={currentSpreadIndex === 0}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -4950,7 +4953,7 @@ export default function ComicCreator() {
                     setCurrentSpreadIndex(currentSpreadIndex + 1);
                   }
                 }}
-                className="px-2 py-1 hover:bg-white/10"
+                className="px-2 py-1 hover:bg-white/10 rounded"
                 disabled={currentSpreadIndex === spreads.length - 1}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -4967,17 +4970,18 @@ export default function ComicCreator() {
               >
                 {currentSpread?.isLastPage ? "✓ Last Page" : "Mark Last"}
               </button>
-              <div className="flex items-center gap-1 ml-4">
-                <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10">
+              <div className="flex items-center gap-1 ml-4 bg-zinc-800/50 rounded-lg px-1 py-0.5">
+                <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10 rounded">
                   <ZoomOut className="w-4 h-4" />
                 </button>
-                <span className="w-12 text-center text-xs">{zoom}%</span>
-                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="p-1 hover:bg-white/10">
+                <span className="w-12 text-center text-[11px] text-zinc-400">{zoom}%</span>
+                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="p-1 hover:bg-white/10 rounded">
                   <ZoomIn className="w-4 h-4" />
                 </button>
+                <div className="w-px h-4 bg-zinc-700 mx-0.5" />
                 <button
                   onClick={() => setCanvasOverview(true)}
-                  className="p-1 hover:bg-white/10 ml-1 text-zinc-400 hover:text-cyan-400"
+                  className="p-1 hover:bg-white/10 text-zinc-400 hover:text-cyan-400 rounded"
                   title="Canvas Overview — see all spreads"
                   data-testid="button-canvas-overview"
                 >
@@ -5136,9 +5140,17 @@ export default function ComicCreator() {
               </div>
             )}
 
+            <div className={`relative ${showPreview ? 'hidden' : ''}`}>
+              <div className="text-[11px] font-mono text-zinc-500 mb-3 flex items-center gap-2">
+                <span className="text-cyan-400/70">◆</span>
+                <span>Spread {currentSpreadIndex + 1}{currentSpreadIndex === 0 && currentSpread?.leftPage.some(p => p.coverRole === "front-cover") ? " — Front Cover" : currentSpread?.isLastPage ? " — Last Page" : ""}</span>
+                <span className="text-zinc-600">·</span>
+                <span className="text-zinc-600">{currentSpread?.leftPage.length || 0}L / {currentSpread?.rightPage.length || 0}R panels</span>
+              </div>
+            </div>
             <div 
-              className={`flex ${isFullscreen ? "gap-1" : "gap-6"}`}
-              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
+              className={`flex ${isFullscreen ? "gap-1" : "gap-6"} ${showPreview ? 'hidden' : ''}`}
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.5))' }}
             >
               <ContextMenu>
                 <ContextMenuTrigger asChild>
@@ -6586,20 +6598,20 @@ export default function ComicCreator() {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-zinc-400">
-                  Page {previewPage + 1} of {2 + spreads.reduce((c, s) => c + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0) + comicMeta.bonusCards.length}
+                  Page {previewPage + 1} of {2 + spreads.length * 2 + comicMeta.bonusCards.length}
                 </span>
                 <div className="flex gap-1">
                   <button 
                     onClick={() => setPreviewPage(p => Math.max(0, p - 1))}
                     disabled={previewPage === 0}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button 
                     onClick={() => setPreviewPage(p => Math.min(1 + spreads.length * 2 + comicMeta.bonusCards.length, p + 1))}
                     disabled={previewPage >= 1 + spreads.length * 2 + comicMeta.bonusCards.length}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>

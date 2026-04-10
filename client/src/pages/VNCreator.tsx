@@ -1291,7 +1291,7 @@ if(S.length>0)showS(0);
           .vn-speaker-pop{animation:vnSpeakerPop 0.3s ease-out}
         `}</style>
 
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-6" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/"><button className="p-2 hover:bg-zinc-800" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></button></Link>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1" data-testid="input-vn-title" />
@@ -1363,18 +1363,18 @@ if(S.length>0)showS(0);
             >
               <Film className="w-4 h-4" /> Use as HOP
             </button>
-            <div className="flex bg-zinc-800 border border-zinc-700 p-0.5">
-              <button onClick={() => setVnViewMode("editor")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 ${vnViewMode === "editor" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-editor-view">
+            <div className="flex bg-zinc-800 border border-zinc-700 p-0.5 rounded-lg">
+              <button onClick={() => setVnViewMode("editor")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-md ${vnViewMode === "editor" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-editor-view">
                 <Monitor className="w-3 h-3" /> Editor
               </button>
-              <button onClick={() => setVnViewMode("flowchart")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 ${vnViewMode === "flowchart" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-flowchart-view">
+              <button onClick={() => setVnViewMode("flowchart")} className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 rounded-md ${vnViewMode === "flowchart" ? "bg-white text-black" : "text-zinc-400 hover:text-white"}`} data-testid="button-vn-flowchart-view">
                 <MapIcon className="w-3 h-3" /> Canvas
               </button>
             </div>
-            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50" data-testid="button-save">
+            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 rounded-lg" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
             </button>
-            <button onClick={startPlaytest} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2" data-testid="button-playtest">
+            <button onClick={startPlaytest} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 rounded-lg" data-testid="button-playtest">
               <Play className="w-4 h-4" /> Playtest
             </button>
           </div>
