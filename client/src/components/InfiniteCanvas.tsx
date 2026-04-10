@@ -234,17 +234,15 @@ export function InfiniteCanvas({
   const handleNodePointerDown = useCallback((e: React.PointerEvent, node: CanvasNode) => {
     if (spaceDown || e.button === PAN_BUTTON || wireStart) return;
     e.stopPropagation();
-    if (!prototypeMode) {
-      setDragNode({
-        id: node.id,
-        startX: e.clientX,
-        startY: e.clientY,
-        nodeStartX: node.x,
-        nodeStartY: node.y,
-      });
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    }
-  }, [spaceDown, prototypeMode, wireStart]);
+    setDragNode({
+      id: node.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      nodeStartX: node.x,
+      nodeStartY: node.y,
+    });
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, [spaceDown, wireStart]);
 
   const handleHandlePointerDown = useCallback((e: React.PointerEvent, nodeId: string, side: Side, hx: number, hy: number) => {
     e.stopPropagation();
@@ -577,7 +575,7 @@ export function InfiniteCanvas({
                 top: node.y,
                 width: node.width,
                 height: node.height,
-                cursor: prototypeMode ? "default" : "grab",
+                cursor: "grab",
                 ...(isSelected ? {
                   outline: `2px solid ${accentColor}`,
                   outlineOffset: "3px",

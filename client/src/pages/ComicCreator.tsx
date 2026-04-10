@@ -373,13 +373,63 @@ const tools = [
 
 const SPREAD_PREVIEW_W = 480;
 const SPREAD_PREVIEW_H = 320;
+const SINGLE_PAGE_W = 240;
+const SINGLE_PAGE_H = 340;
 const SPREAD_GAP_X = 100;
 const SPREAD_GAP_Y = 80;
 const SPREAD_COLS = 4;
 
+type OverviewNodeType = "spread" | "cover" | "back-cover" | "panel";
+interface OverviewNodeMeta {
+  type: OverviewNodeType;
+  spreadIdx: number;
+  page?: "left" | "right";
+  panelId?: string;
+  label: string;
+}
+
 type OverviewMode = "design" | "prototype";
 type Side = "left" | "right" | "top" | "bottom";
 interface FlowConnection { fromId: string; toId: string; fromSide: Side; toSide: Side; }
+
+function FlowPreviewPageRenderer({ panels, narration }: { panels: Panel[]; narration?: NarrationBox }) {
+  return (
+    <div className="relative w-full h-full bg-white overflow-hidden">
+      {panels.filter(p => !p.hidden).map(panel => {
+        const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+        const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+        return (
+          <div key={panel.id} className="absolute overflow-hidden" style={{
+            left: `${panel.x}%`, top: `${panel.y}%`,
+            width: `${panel.width}%`, height: `${panel.height}%`,
+            backgroundColor: panel.backgroundColor || "transparent",
+            border: `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000"}`,
+            borderRadius: panel.shape === "circle" ? "50%" : 3,
+            zIndex: panel.zIndex,
+            transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+          }}>
+            {img && <img src={img} className="w-full h-full object-cover" draggable={false} />}
+            {!img && txt && (
+              <div className="w-full h-full flex items-center justify-center p-2 overflow-hidden">
+                <span className="text-xs text-zinc-600 leading-snug text-center line-clamp-6">{txt}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {panels.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-sm text-zinc-300 font-mono">Empty</span>
+        </div>
+      )}
+      {narration && (
+        <div className={`absolute left-0 right-0 ${narration.position === "top" ? "top-0" : "bottom-0"} bg-black/80 px-4 py-2 text-sm text-white z-50`}>
+          {narration.text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
   spreads: Spread[];
@@ -414,8 +464,6 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
 
   if (!currentData) return null;
   const { spread, index } = currentData;
-  const leftImage = spread.leftPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
-  const rightImage = spread.rightPage.find(p => p.contents.some(c => c.type === "image"))?.contents.find(c => c.type === "image")?.data?.url;
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col" data-testid="flow-preview-player">
@@ -425,6 +473,9 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
           <span className="text-sm font-mono text-white font-bold">Flow Preview</span>
           <div className="w-px h-4 bg-zinc-700" />
           <span className="text-xs text-zinc-500 font-mono">Spread {index + 1} of {spreads.length}</span>
+          {spread.leftPage.some(p => p.coverRole === "front-cover") && (
+            <span className="text-[8px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">COVER</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-zinc-600 font-mono">
@@ -444,45 +495,14 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 relative">
-        <div className="flex gap-1 max-w-[1200px] w-full max-h-[80vh] aspect-[3/2]"
-             style={{ filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
-          <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-l-xl overflow-hidden flex items-center justify-center relative">
-            {leftImage ? (
-              <img src={leftImage} className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-zinc-700 text-center">
-                <div className="text-3xl mb-1">{spread.leftPage.length}</div>
-                <div className="text-xs font-mono">panels</div>
-              </div>
-            )}
-            {spread.leftNarration && (
-              <div className={`absolute left-0 right-0 ${spread.leftNarration.position === "top" ? "top-0" : "bottom-0"} bg-black/80 px-4 py-2 text-sm text-white`}>
-                {spread.leftNarration.text}
-              </div>
-            )}
+        <div className="flex max-w-[1200px] w-full overflow-hidden rounded-xl"
+             style={{ aspectRatio: "2 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
+          <div className="flex-1 relative border-r border-zinc-200">
+            <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration} />
           </div>
-          <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-r-xl overflow-hidden flex items-center justify-center relative">
-            {rightImage ? (
-              <img src={rightImage} className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-zinc-700 text-center">
-                <div className="text-3xl mb-1">{spread.rightPage.length}</div>
-                <div className="text-xs font-mono">panels</div>
-              </div>
-            )}
-            {spread.rightNarration && (
-              <div className={`absolute left-0 right-0 ${spread.rightNarration.position === "top" ? "top-0" : "bottom-0"} bg-black/80 px-4 py-2 text-sm text-white`}>
-                {spread.rightNarration.text}
-              </div>
-            )}
+          <div className="flex-1 relative">
+            <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration} />
           </div>
-        </div>
-
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 rounded-xl px-4 py-1.5 backdrop-blur-xl border border-zinc-800">
-          <span className="text-[10px] font-mono text-zinc-400">Spread {index + 1}</span>
-          {spread.leftPage.some(p => p.coverRole === "front-cover") && (
-            <span className="ml-2 text-[8px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">COVER</span>
-          )}
         </div>
       </div>
 
@@ -619,6 +639,54 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   );
 }
 
+function SinglePageNodeRenderer({ panel, label, nodeType, isSelected }: {
+  panel: Panel; label: string; nodeType: OverviewNodeType; isSelected: boolean;
+}) {
+  const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+  const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+  const borderColor = nodeType === "cover" ? "#06b6d4" : nodeType === "back-cover" ? "#a855f7" : "#52525b";
+  const badgeColor = nodeType === "cover" ? "bg-cyan-500 text-white" : nodeType === "back-cover" ? "bg-purple-500 text-white" : "bg-zinc-600 text-white";
+
+  return (
+    <div className="w-full h-full relative" style={{ filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.5))" }}>
+      <div className="absolute -top-6 left-0 right-0 px-1">
+        <span className="text-[10px] font-bold text-zinc-500 font-mono uppercase">{label}</span>
+      </div>
+      <div className="absolute left-0 right-0 flex items-center px-2 rounded-t-md" style={{ top: 0, height: 24, backgroundColor: "#333" }}>
+        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${badgeColor}`}>
+          {nodeType === "cover" ? "FRONT COVER" : nodeType === "back-cover" ? "BACK COVER" : "PANEL"}
+        </span>
+      </div>
+      <div className="absolute left-0 right-0 overflow-hidden" style={{
+        top: 24, bottom: 0, backgroundColor: "#fff",
+        borderRadius: "0 0 6px 6px",
+        border: `2px solid ${isSelected ? borderColor : "#52525b"}`,
+        boxShadow: isSelected ? `0 0 16px ${borderColor}40` : "none",
+      }}>
+        <div className="absolute overflow-hidden" style={{
+          left: `${panel.x}%`, top: `${panel.y}%`,
+          width: `${panel.width}%`, height: `${panel.height}%`,
+          backgroundColor: panel.backgroundColor || "transparent",
+          border: `${Math.max(1, panel.borderWidth || 2)}px solid ${panel.borderColor || "#000"}`,
+          borderRadius: panel.shape === "circle" ? "50%" : 2,
+        }}>
+          {img && <img src={img} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
+          {!img && txt && (
+            <div className="w-full h-full flex items-center justify-center p-1 overflow-hidden">
+              <span className="text-[8px] text-zinc-500 leading-tight text-center line-clamp-4">{txt}</span>
+            </div>
+          )}
+          {!img && !txt && (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-[9px] text-zinc-400 font-mono">Empty</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads }: {
   spreads: Spread[];
   currentSpreadIndex: number;
@@ -633,11 +701,27 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(() => {
     const m = new Map<string, { x: number; y: number }>();
+    let col = 0;
     spreads.forEach((s, idx) => {
+      for (const panel of s.leftPage) {
+        if (panel.coverRole === "front-cover") {
+          const nid = `cover_${panel.id}`;
+          m.set(nid, { x: col * (SINGLE_PAGE_W + SPREAD_GAP_X) + 40, y: 40 });
+          col++;
+        }
+      }
       m.set(s.id, {
-        x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
-        y: Math.floor(idx / SPREAD_COLS) * (SPREAD_PREVIEW_H + SPREAD_GAP_Y) + 40,
+        x: col * (SPREAD_PREVIEW_W / 2 + SPREAD_GAP_X / 2) + 40,
+        y: 40,
       });
+      col += 2;
+      for (const panel of [...s.leftPage, ...s.rightPage]) {
+        if (panel.coverRole === "back-cover") {
+          const nid = `backcover_${panel.id}`;
+          m.set(nid, { x: col * (SINGLE_PAGE_W + SPREAD_GAP_X) + 40, y: 40 });
+          col++;
+        }
+      }
     });
     return m;
   });
@@ -654,10 +738,12 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
 
   useEffect(() => {
     const existingIds = new Set(nodePositions.keys());
-    const currentIds = new Set(spreads.map(s => s.id));
+    const validIds = new Set<string>();
     let changed = false;
     const newPositions = new Map(nodePositions);
+
     spreads.forEach((s, idx) => {
+      validIds.add(s.id);
       if (!existingIds.has(s.id)) {
         newPositions.set(s.id, {
           x: (idx % SPREAD_COLS) * (SPREAD_PREVIEW_W + SPREAD_GAP_X) + 40,
@@ -665,34 +751,82 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         });
         changed = true;
       }
+      for (const page of ["leftPage", "rightPage"] as const) {
+        for (const panel of s[page]) {
+          if (panel.coverRole === "front-cover") {
+            const nid = `cover_${panel.id}`;
+            validIds.add(nid);
+            if (!existingIds.has(nid)) {
+              const spreadPos = newPositions.get(s.id) || { x: 40, y: 40 };
+              newPositions.set(nid, { x: spreadPos.x - SINGLE_PAGE_W - SPREAD_GAP_X, y: spreadPos.y });
+              changed = true;
+            }
+          } else if (panel.coverRole === "back-cover") {
+            const nid = `backcover_${panel.id}`;
+            validIds.add(nid);
+            if (!existingIds.has(nid)) {
+              const spreadPos = newPositions.get(s.id) || { x: 40, y: 40 };
+              newPositions.set(nid, { x: spreadPos.x + SPREAD_PREVIEW_W + SPREAD_GAP_X, y: spreadPos.y });
+              changed = true;
+            }
+          }
+        }
+      }
     });
+
     for (const id of existingIds) {
-      if (!currentIds.has(id)) {
+      if (!validIds.has(id)) {
         newPositions.delete(id);
         changed = true;
       }
     }
     if (changed) setNodePositions(newPositions);
 
+    const spreadIds = new Set(spreads.map(s => s.id));
     setFlowConnections(prev => {
-      const cleaned = prev.filter(c => currentIds.has(c.fromId) && currentIds.has(c.toId));
+      const cleaned = prev.filter(c => spreadIds.has(c.fromId) && spreadIds.has(c.toId));
       return cleaned.length !== prev.length ? cleaned : prev;
     });
   }, [spreads]);
 
   const spreadMap = useMemo(() => new Map(spreads.map((s, i) => [s.id, i])), [spreads]);
 
-  const canvasNodes: CanvasNode[] = useMemo(() =>
-    spreads.map((spread) => {
+  const nodeMeta = useMemo(() => {
+    const meta = new Map<string, OverviewNodeMeta>();
+    spreads.forEach((spread, idx) => {
+      meta.set(spread.id, { type: "spread", spreadIdx: idx, label: `Spread ${idx + 1}` });
+      for (const page of ["leftPage", "rightPage"] as const) {
+        const pageSide = page === "leftPage" ? "left" : "right";
+        for (const panel of spread[page]) {
+          if (panel.coverRole === "front-cover") {
+            const nodeId = `cover_${panel.id}`;
+            meta.set(nodeId, { type: "cover", spreadIdx: idx, page: pageSide, panelId: panel.id, label: "Front Cover" });
+          } else if (panel.coverRole === "back-cover") {
+            const nodeId = `backcover_${panel.id}`;
+            meta.set(nodeId, { type: "back-cover", spreadIdx: idx, page: pageSide, panelId: panel.id, label: "Back Cover" });
+          }
+        }
+      }
+    });
+    return meta;
+  }, [spreads]);
+
+  const canvasNodes: CanvasNode[] = useMemo(() => {
+    const nodes: CanvasNode[] = [];
+    spreads.forEach((spread) => {
       const pos = nodePositions.get(spread.id) || { x: 0, y: 0 };
-      return {
-        id: spread.id,
-        x: pos.x,
-        y: pos.y,
-        width: SPREAD_PREVIEW_W,
-        height: SPREAD_PREVIEW_H,
-      };
-    }), [spreads, nodePositions]);
+      nodes.push({ id: spread.id, x: pos.x, y: pos.y, width: SPREAD_PREVIEW_W, height: SPREAD_PREVIEW_H });
+    });
+    for (const [nodeId, m] of nodeMeta) {
+      if (m.type === "cover" || m.type === "back-cover") {
+        const pos = nodePositions.get(nodeId);
+        if (pos) {
+          nodes.push({ id: nodeId, x: pos.x, y: pos.y, width: SINGLE_PAGE_W, height: SINGLE_PAGE_H });
+        }
+      }
+    }
+    return nodes;
+  }, [spreads, nodePositions, nodeMeta]);
 
   const canvasConnections: CanvasConnection[] = useMemo(() =>
     flowConnections.map(fc => ({
@@ -711,12 +845,14 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   }, []);
 
   const handleCreateConnection = useCallback((fromId: string, toId: string, fromSide: Side, toSide: Side) => {
+    const spreadIds = new Set(spreads.map(s => s.id));
+    if (!spreadIds.has(fromId) || !spreadIds.has(toId)) return;
     setFlowConnections(prev => {
       const exists = prev.some(c => c.fromId === fromId && c.toId === toId);
       if (exists) return prev;
       return [...prev, { fromId, toId, fromSide, toSide }];
     });
-  }, []);
+  }, [spreads]);
 
   const handleDeleteConnection = useCallback((fromId: string, toId: string) => {
     setFlowConnections(prev => prev.filter(c => !(c.fromId === fromId && c.toId === toId)));
@@ -825,6 +961,25 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   }, [contextPos]);
 
   const renderSpreadNode = useCallback((node: CanvasNode) => {
+    const meta = nodeMeta.get(node.id);
+    if (!meta) return null;
+
+    if (meta.type === "cover" || meta.type === "back-cover") {
+      const spread = spreads[meta.spreadIdx];
+      if (!spread || !meta.panelId) return null;
+      const pageKey = meta.page === "left" ? "leftPage" : "rightPage";
+      const panel = spread[pageKey].find(p => p.id === meta.panelId);
+      if (!panel) return null;
+      return (
+        <SinglePageNodeRenderer
+          panel={panel}
+          label={meta.label}
+          nodeType={meta.type}
+          isSelected={meta.spreadIdx === currentSpreadIndex}
+        />
+      );
+    }
+
     const idx = spreadMap.get(node.id);
     if (idx === undefined) return null;
     const spread = spreads[idx];
@@ -837,7 +992,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         />
       </div>
     );
-  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections, handleNodeContextMenu]);
+  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections, handleNodeContextMenu, nodeMeta]);
 
   const selectedSpread = spreads[currentSpreadIndex];
 
@@ -950,12 +1105,12 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
           connections={canvasConnections}
           onNodeMove={handleNodeMove}
           onNodeDoubleClick={(id) => {
-            const idx = spreadMap.get(id);
-            if (idx !== undefined) onEditSpread(idx);
+            const meta = nodeMeta.get(id);
+            if (meta) onEditSpread(meta.spreadIdx);
           }}
           onNodeClick={(id) => {
-            const idx = spreadMap.get(id);
-            if (idx !== undefined) onSelectSpread(idx);
+            const meta = nodeMeta.get(id);
+            if (meta) onSelectSpread(meta.spreadIdx);
           }}
           renderNode={renderSpreadNode}
           selectedNodeId={spreads[currentSpreadIndex]?.id}
