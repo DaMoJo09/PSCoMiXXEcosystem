@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
@@ -7222,6 +7223,7 @@ export default function ComicCreator() {
         />
       )}
 
+      <FirstProjectGuide editorType="comic" userId={user?.id} />
     </Layout>
   );
 }

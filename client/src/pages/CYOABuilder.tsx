@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { 
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
@@ -1545,6 +1546,7 @@ if(N.length>0)showN(N[0].id);
           );
         })()}
       </div>
+      <FirstProjectGuide editorType="cyoa" userId={project?.userId} />
     </Layout>
   );
 }

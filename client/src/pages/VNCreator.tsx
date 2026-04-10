@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { 
   Play, Plus, ArrowLeft, Save, Trash2, Image as ImageIcon, 
   MessageSquare, GitBranch, User, Upload, Wand2, X,
@@ -1823,6 +1824,7 @@ if(S.length>0)showS(0);
           </div>
         )}
       </div>
+      <FirstProjectGuide editorType="vn" userId={project?.userId} />
     </Layout>
   );
 }

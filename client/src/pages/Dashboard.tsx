@@ -255,6 +255,23 @@ export default function Dashboard() {
     }
   };
 
+  const handleRemix = async (type: string, href: string, title: string, templateData: Record<string, any>) => {
+    if (checkProjectLimit()) return;
+    try {
+      const project = await createProject.mutateAsync({
+        title,
+        type,
+        status: "draft",
+        data: templateData,
+        forceNew: true,
+      });
+      toast.success("Remixed! Start customizing it.");
+      navigate(`${href}?id=${project.id}`);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const handleQuickCreate = async (type: string, href: string) => {
     if (type === "fx") {
       navigate(href);
@@ -280,6 +297,32 @@ export default function Dashboard() {
       {!onboardingComplete && <OnboardingWizard onComplete={markOnboardingComplete} />}
       <div className="p-8 max-w-7xl mx-auto space-y-12">
         <EventCarousel className="mb-4" variant="dark" />
+
+        <div className="border border-zinc-800 rounded-xl bg-zinc-900/30 p-4 backdrop-blur-sm" data-testid="creator-flow-bar">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
+            {[
+              { step: "Create", desc: "Pick a tool and make something", icon: Palette, active: true, color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/30" },
+              { step: "Enhance", desc: "Add effects, AI art, and polish", icon: Sparkles, active: projectCount > 0, color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/30" },
+              { step: "Publish", desc: "Share with the world and earn XP", icon: Rocket, active: projects?.some((p: any) => p.status === "published"), color: "text-green-400", bg: "bg-green-500/10 border-green-500/30" },
+            ].map((s, i) => {
+              const SIcon = s.icon;
+              return (
+                <div key={s.step} className="flex items-center gap-2 sm:gap-4">
+                  {i > 0 && <div className={`hidden sm:block w-8 h-px ${s.active ? "bg-zinc-600" : "bg-zinc-800"}`} />}
+                  {i > 0 && <span className="sm:hidden text-zinc-700 text-xs">&rarr;</span>}
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${s.active ? s.bg : "bg-zinc-900/50 border-zinc-800 opacity-50"}`}>
+                    <SIcon className={`w-4 h-4 ${s.active ? s.color : "text-zinc-600"}`} />
+                    <div className="hidden sm:block">
+                      <div className={`text-xs font-bold uppercase tracking-wider ${s.active ? "text-white" : "text-zinc-600"}`}>{s.step}</div>
+                      <div className="text-[9px] text-zinc-500 font-mono">{s.desc}</div>
+                    </div>
+                    <span className={`sm:hidden text-xs font-bold uppercase ${s.active ? "text-white" : "text-zinc-600"}`}>{s.step}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex items-end justify-between border-b border-border pb-6">
           <div>
@@ -507,6 +550,35 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+
+        <section data-testid="section-examples">
+          <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
+            <Eye className="w-5 h-5" /> See What's Possible
+          </h2>
+          <p className="text-sm text-zinc-500 mb-4">Get inspired — click "Remix" to start with any of these as a template.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { title: "Space Opera Comic", type: "comic", emoji: "\uD83D\uDE80", desc: "3-page sci-fi comic with AI panels and cover art", href: "/creator/comic", accent: "border-cyan-500/40 hover:border-cyan-500", template: { spreads: [{ title: "Cover", panels: [{ x: 0, y: 0, width: 800, height: 1200, content: "Deep space — a lone ship approaches a nebula" }] }, { title: "Page 1", panels: [{ x: 0, y: 0, width: 400, height: 600, content: "Captain on the bridge, stars through viewport" }, { x: 400, y: 0, width: 400, height: 600, content: "Alert klaxons — enemy fleet detected" }] }, { title: "Page 2", panels: [{ x: 0, y: 0, width: 800, height: 600, content: "Space battle — lasers and explosions" }] }] } },
+              { title: "Mystery Detective CYOA", type: "cyoa", emoji: "\uD83D\uDD0D", desc: "Branching detective story with 8 endings", href: "/creator/cyoa", accent: "border-red-500/40 hover:border-red-500", template: { nodes: [{ id: "start", title: "The Case Begins", text: "A mysterious letter arrives at your detective agency...", choices: [{ label: "Open it carefully", target: "letter" }, { label: "Check for traps first", target: "traps" }], color: "blue" }, { id: "letter", title: "The Letter", text: "Inside is a plea for help from a wealthy collector.", choices: [{ label: "Visit the collector", target: "mansion" }, { label: "Research their background", target: "research" }], color: "green" }, { id: "traps", title: "Checking for Traps", text: "Smart move — you notice a faint powder on the seal.", choices: [{ label: "Analyze the powder", target: "lab" }], color: "red" }] } },
+              { title: "Magic Academy VN", type: "vn", emoji: "\u2728", desc: "Visual novel with 3 characters and branching dialogue", href: "/creator/vn", accent: "border-purple-500/40 hover:border-purple-500", template: { scenes: [{ id: "intro", title: "Arrival", dialogue: [{ speaker: "Narrator", text: "You step through the shimmering gates of Arcanum Academy..." }, { speaker: "Professor Elm", text: "Ah, a new student! Welcome to our humble school of magic." }], characters: ["Professor Elm", "Student"] }, { id: "first_class", title: "First Class", dialogue: [{ speaker: "Professor Elm", text: "Today we learn the fundamentals — focus your will..." }], characters: ["Professor Elm"] }] } },
+              { title: "Hero Trading Card", type: "card", emoji: "\u2694\uFE0F", desc: "Legendary card with custom stats and abilities", href: "/creator/card", accent: "border-green-500/40 hover:border-green-500", template: { cardName: "Starblade Champion", rarity: "legendary", stats: { hp: 3200, attack: 280, defense: 190, speed: 95 }, abilities: [{ name: "Cosmic Slash", description: "Deal 450 damage to all enemies", cost: 3 }, { name: "Star Shield", description: "Block 300 damage for 2 turns", cost: 2 }], type: "Warrior", element: "Light" } },
+            ].map((example) => (
+              <button
+                key={example.type}
+                onClick={() => handleRemix(example.type, example.href, example.title, example.template)}
+                className={`group p-4 border-2 ${example.accent} bg-zinc-900/50 text-left transition-all rounded-xl hover:shadow-lg`}
+                data-testid={`button-remix-${example.type}`}
+              >
+                <span className="text-2xl block mb-2">{example.emoji}</span>
+                <h3 className="text-sm font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{example.title}</h3>
+                <p className="text-[10px] text-zinc-500 leading-relaxed mb-3">{example.desc}</p>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-white bg-white/10 px-2 py-1 rounded-lg group-hover:bg-white/20 transition-colors">
+                  <Sparkles className="w-3 h-3" /> Remix This
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section>
           <h2 className="text-xl font-display font-bold mb-6 flex items-center gap-2" data-testid="text-start-creating">
