@@ -449,9 +449,47 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
   startId: string;
   onClose: () => void;
 }) {
-  const [history, setHistory] = useState<string[]>([startId]);
-  const [histCursor, setHistCursor] = useState(0);
-  const currentId = history[histCursor];
+  const orderedIds = useMemo(() => {
+    if (flowConnections.length === 0) return spreads.map(s => s.id);
+    const outMap = new Map<string, string[]>();
+    const incomingIds = new Set<string>();
+    for (const c of flowConnections) {
+      if (!outMap.has(c.fromId)) outMap.set(c.fromId, []);
+      outMap.get(c.fromId)!.push(c.toId);
+      incomingIds.add(c.toId);
+    }
+    const coverS = spreads.find(s => s.tag === "cover");
+    let rootId = coverS ? coverS.id : startId;
+    if (!coverS) {
+      const rootNode = spreads.find(s => !incomingIds.has(s.id) && outMap.has(s.id));
+      if (rootNode) rootId = rootNode.id;
+    }
+    const ordered: string[] = [];
+    const visited = new Set<string>();
+    const walk = (id: string) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      ordered.push(id);
+      const nexts = outMap.get(id) || [];
+      for (const nid of nexts) walk(nid);
+    };
+    walk(rootId);
+    for (const s of spreads) {
+      if (!visited.has(s.id)) ordered.push(s.id);
+    }
+    const backCoverIdx = ordered.findIndex(id => spreads.find(s => s.id === id)?.tag === "back-cover");
+    if (backCoverIdx >= 0 && backCoverIdx !== ordered.length - 1) {
+      const [bc] = ordered.splice(backCoverIdx, 1);
+      ordered.push(bc);
+    }
+    return ordered;
+  }, [spreads, flowConnections, startId]);
+
+  const [currentStep, setCurrentStep] = useState(0);
+  useEffect(() => {
+    if (currentStep >= orderedIds.length) setCurrentStep(Math.max(0, orderedIds.length - 1));
+  }, [orderedIds.length]);
+  const currentId = orderedIds[currentStep];
   const spreadMap = useMemo(() => new Map(spreads.map((s, i) => [s.id, { spread: s, index: i }])), [spreads]);
   const outgoing = useMemo(() => {
     const m = new Map<string, FlowConnection[]>();
@@ -465,17 +503,16 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
   const currentData = spreadMap.get(currentId);
   const currentConns = outgoing.get(currentId) || [];
 
+  const goNext = () => { if (currentStep < orderedIds.length - 1) setCurrentStep(currentStep + 1); };
+  const goPrev = () => { if (currentStep > 0) setCurrentStep(currentStep - 1); };
   const goTo = (id: string) => {
-    const truncated = history.slice(0, histCursor + 1);
-    setHistory([...truncated, id]);
-    setHistCursor(truncated.length);
-  };
-  const goBack = () => {
-    if (histCursor > 0) setHistCursor(histCursor - 1);
+    const idx = orderedIds.indexOf(id);
+    if (idx >= 0) setCurrentStep(idx);
   };
 
   if (!currentData) return null;
   const { spread, index } = currentData;
+  const tagInfo = spread.tag ? SPREAD_TAG_CONFIG[spread.tag] : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col" data-testid="flow-preview-player">
@@ -484,19 +521,28 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
           <Play className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-mono text-white font-bold">Flow Preview</span>
           <div className="w-px h-4 bg-zinc-700" />
-          <span className="text-xs text-zinc-500 font-mono">Spread {index + 1} of {spreads.length}</span>
-          {spread.leftPage.some(p => p.coverRole === "front-cover") && (
-            <span className="text-[8px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">COVER</span>
+          <span className="text-xs text-zinc-500 font-mono">Page {currentStep + 1} of {orderedIds.length}</span>
+          {tagInfo && (
+            <span className="text-[8px] px-1.5 py-0.5 rounded font-bold" style={{
+              backgroundColor: tagInfo.color + "33", color: tagInfo.color
+            }}>{tagInfo.label}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-zinc-600 font-mono">
-            {currentConns.length} outgoing {currentConns.length === 1 ? "connection" : "connections"}
-          </span>
-          <button onClick={goBack} disabled={histCursor <= 0}
+          {currentConns.length > 0 && (
+            <span className="text-[10px] text-zinc-600 font-mono">
+              {currentConns.length} {currentConns.length === 1 ? "connection" : "connections"}
+            </span>
+          )}
+          <button onClick={goPrev} disabled={currentStep <= 0}
             className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             data-testid="button-flow-back">
             <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={goNext} disabled={currentStep >= orderedIds.length - 1}
+            className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            data-testid="button-flow-forward">
+            <ChevronRight className="w-4 h-4" />
           </button>
           <button onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all"
@@ -520,36 +566,58 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
 
       {currentConns.length > 0 && (
         <div className="px-6 py-4 bg-zinc-900/90 border-t border-zinc-800 backdrop-blur-xl">
-          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">Navigate to:</div>
-          <div className="flex gap-2 flex-wrap">
-            {currentConns.map((conn, ci) => {
-              const targetData = spreadMap.get(conn.toId);
-              if (!targetData) return null;
-              return (
-                <button
-                  key={ci}
-                  onClick={() => goTo(conn.toId)}
-                  className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-mono rounded-lg border border-blue-500/30 hover:border-blue-400/50 transition-all flex items-center gap-2"
-                  data-testid={`button-flow-nav-${ci}`}
-                >
-                  <ChevronRight className="w-3 h-3" />
-                  Spread {targetData.index + 1}
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-4">
+            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Connections:</div>
+            <div className="flex gap-2 flex-wrap flex-1">
+              {currentConns.map((conn, ci) => {
+                const targetData = spreadMap.get(conn.toId);
+                if (!targetData) return null;
+                const targetTag = targetData.spread.tag ? SPREAD_TAG_CONFIG[targetData.spread.tag] : null;
+                return (
+                  <button
+                    key={ci}
+                    onClick={() => goTo(conn.toId)}
+                    className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-mono rounded-lg border border-blue-500/30 hover:border-blue-400/50 transition-all flex items-center gap-2"
+                    data-testid={`button-flow-nav-${ci}`}
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                    {targetTag ? targetTag.label : `Spread ${targetData.index + 1}`}
+                  </button>
+                );
+              })}
+            </div>
+            {currentStep < orderedIds.length - 1 && (
+              <button onClick={goNext}
+                className="px-5 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 text-sm font-mono rounded-lg border border-cyan-500/30 hover:border-cyan-400/50 transition-all flex items-center gap-2"
+                data-testid="button-flow-next">
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {currentConns.length === 0 && (
-        <div className="px-6 py-4 bg-zinc-900/90 border-t border-zinc-800 backdrop-blur-xl text-center">
-          <span className="text-xs text-zinc-600 font-mono">End of flow — no outgoing connections</span>
+        <div className="px-6 py-4 bg-zinc-900/90 border-t border-zinc-800 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-600 font-mono">
+              {currentStep >= orderedIds.length - 1 ? "End of flow" : "No outgoing connections from this spread"}
+            </span>
+            {currentStep < orderedIds.length - 1 && (
+              <button onClick={goNext}
+                className="px-5 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 text-sm font-mono rounded-lg border border-cyan-500/30 hover:border-cyan-400/50 transition-all flex items-center gap-2"
+                data-testid="button-flow-next-fallback">
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1">
-        {history.map((_hId, hi) => (
-          <div key={hi} className={`w-2 h-2 rounded-full transition-all ${hi === histCursor ? "bg-blue-400 scale-125" : "bg-zinc-700"}`} />
+        {orderedIds.map((_id, i) => (
+          <button key={i} onClick={() => setCurrentStep(i)}
+            className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentStep ? "bg-blue-400 scale-125" : i < currentStep ? "bg-blue-800" : "bg-zinc-700"}`} />
         ))}
       </div>
     </div>
@@ -1023,12 +1091,21 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
 
   const selectedSpread = spreads[currentSpreadIndex];
 
+  const flowStartId = useMemo(() => {
+    const coverSpread = spreads.find(s => s.tag === "cover");
+    if (coverSpread) return coverSpread.id;
+    const incomingIds = new Set(flowConnections.map(c => c.toId));
+    const root = spreads.find(s => !incomingIds.has(s.id) && flowConnections.some(c => c.fromId === s.id));
+    if (root) return root.id;
+    return spreads[currentSpreadIndex]?.id || spreads[0].id;
+  }, [spreads, flowConnections, currentSpreadIndex]);
+
   if (showFlowPreview && flowConnections.length > 0) {
     return (
       <FlowPreviewPlayer
         spreads={spreads}
         flowConnections={flowConnections}
-        startId={spreads[currentSpreadIndex]?.id || spreads[0].id}
+        startId={flowStartId}
         onClose={() => setShowFlowPreview(false)}
       />
     );
@@ -3251,6 +3328,15 @@ export default function ComicCreator() {
     setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);
     setCurrentSpreadIndex(spreads.length);
   };
+
+  const handleDeleteCurrentSpread = useCallback(() => {
+    if (spreads.length <= 1) { toast.error("Cannot delete the only spread"); return; }
+    const idx = currentSpreadIndex;
+    const newLen = spreads.length - 1;
+    setSpreads(prev => prev.filter((_, i) => i !== idx));
+    setCurrentSpreadIndex(Math.min(idx, newLen - 1));
+    toast.success(`Deleted spread ${idx + 1}`);
+  }, [spreads, currentSpreadIndex, setSpreads]);
 
   const toggleLastPage = useCallback((spreadIndex: number) => {
     setSpreads(prev => {
@@ -5726,7 +5812,13 @@ export default function ComicCreator() {
 
             <div className={`text-white text-sm mb-4 font-mono flex items-center gap-4 relative z-10 bg-zinc-900/90 backdrop-blur-sm px-4 py-2 rounded-xl border border-zinc-700/50 shadow-lg ${showPreview ? 'hidden' : ''}`}>
               <span className="flex items-center gap-2">
-                {currentSpreadIndex === 0 && currentSpread?.leftPage.some(p => p.coverRole === "front-cover") && (
+                {currentSpread?.tag && SPREAD_TAG_CONFIG[currentSpread.tag as SpreadTag] && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{
+                    backgroundColor: SPREAD_TAG_CONFIG[currentSpread.tag as SpreadTag].color,
+                    color: "#fff"
+                  }}>{SPREAD_TAG_CONFIG[currentSpread.tag as SpreadTag].label}</span>
+                )}
+                {!currentSpread?.tag && currentSpreadIndex === 0 && currentSpread?.leftPage.some(p => p.coverRole === "front-cover") && (
                   <span className="text-[9px] font-bold bg-cyan-600 text-white px-1.5 py-0.5 rounded">COVER</span>
                 )}
                 {currentSpread?.isLastPage && (
@@ -5767,6 +5859,15 @@ export default function ComicCreator() {
                 data-testid="button-toggle-last-page"
               >
                 {currentSpread?.isLastPage ? "✓ Last Page" : "Mark Last"}
+              </button>
+              <button
+                onClick={handleDeleteCurrentSpread}
+                disabled={spreads.length <= 1}
+                className="px-2 py-1 text-[10px] font-bold border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-red-500 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Delete this spread"
+                data-testid="button-delete-current-spread"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-center gap-1 ml-4 bg-zinc-800/50 rounded-lg px-1 py-0.5">
                 <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10 rounded">
@@ -6499,6 +6600,14 @@ export default function ComicCreator() {
                 data-testid="button-add-spread"
               >
                 <Plus className="w-4 h-4" /> Add Spread
+              </button>
+              <button
+                onClick={handleDeleteCurrentSpread}
+                disabled={spreads.length <= 1}
+                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-red-900/50 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                data-testid="button-delete-spread-bottom"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Spread
               </button>
               <button 
                 onClick={() => setIsFullscreen(!isFullscreen)}
