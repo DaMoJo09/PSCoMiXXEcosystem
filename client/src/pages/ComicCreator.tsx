@@ -521,7 +521,7 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
           <Play className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-mono text-white font-bold">Flow Preview</span>
           <div className="w-px h-4 bg-zinc-700" />
-          <span className="text-xs text-zinc-500 font-mono">Page {currentStep + 1} of {orderedIds.length}</span>
+          <span className="text-xs text-zinc-500 font-mono">Spread {currentStep + 1} of {orderedIds.length}</span>
           {tagInfo && (
             <span className="text-[8px] px-1.5 py-0.5 rounded font-bold" style={{
               backgroundColor: tagInfo.color + "33", color: tagInfo.color
@@ -5824,7 +5824,7 @@ export default function ComicCreator() {
                 {currentSpread?.isLastPage && (
                   <span className="text-[9px] font-bold bg-amber-600 text-white px-1.5 py-0.5 rounded">LAST PAGE</span>
                 )}
-                Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.reduce((count, s) => count + (s.leftPage.length > 0 ? 1 : 0) + (s.rightPage.length > 0 ? 1 : 0), 0)} pages
+                Spread {currentSpreadIndex + 1} of {spreads.length} · {2 + spreads.length * 2 + comicMeta.bonusCards.length} pages total
               </span>
               <button 
                 onClick={() => { 
