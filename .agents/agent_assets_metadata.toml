@@ -72,3 +72,9 @@ id = "fuqFpR_-5fPGJSZ4W8HEe"
 uri = "file://ECOSYSTEM_INTEGRATION_SPEC.md"
 type = "text"
 title = "PSCoMiXX Ecosystem Integration Spec"
+
+[[outputs]]
+id = "QpGVvmgryBZy5eAIcbIhu"
+uri = "file://.local/STREAMING-AND-LMS-BUILD-BLUEPRINT.md"
+type = "text"
+title = "Streaming Platform + LMS Implementation Blueprint"
