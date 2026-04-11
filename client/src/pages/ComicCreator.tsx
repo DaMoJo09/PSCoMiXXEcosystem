@@ -404,24 +404,48 @@ type OverviewMode = "design" | "prototype";
 type Side = "left" | "right" | "top" | "bottom";
 interface FlowConnection { fromId: string; toId: string; fromSide: Side; toSide: Side; }
 
-function FlowPreviewPageRenderer({ panels, narration }: { panels: Panel[]; narration?: NarrationBox }) {
+function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
+  panels: Panel[]; narration?: NarrationBox;
+  coverDesignData?: Partial<CoverData>; effectiveFrontCover?: string; effectiveBackCover?: string;
+}) {
   return (
     <div className="relative w-full h-full bg-white overflow-hidden">
       {panels.filter(p => !p.hidden).map(panel => {
-        const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+        let coverImg = "";
+        if (panel.coverRole === "front-cover") {
+          const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+          coverImg = cd?.frontImage || effectiveFrontCover || "";
+        } else if (panel.coverRole === "back-cover") {
+          const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+          coverImg = cd?.backImage || effectiveBackCover || "";
+        }
+        const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
         const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+        const isCoverPanel = !!panel.coverRole;
+        const cd = isCoverPanel && coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+        const coverBg = isCoverPanel && cd
+          ? (panel.coverRole === "front-cover" ? cd.frontBgColor : cd.backBgColor)
+          : undefined;
         return (
           <div key={panel.id} className="absolute overflow-hidden" style={{
             left: `${panel.x}%`, top: `${panel.y}%`,
             width: `${panel.width}%`, height: `${panel.height}%`,
-            backgroundColor: panel.backgroundColor || "transparent",
-            border: `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000"}`,
+            backgroundColor: coverBg || panel.backgroundColor || "transparent",
+            border: isCoverPanel ? "none" : `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000"}`,
             borderRadius: panel.shape === "circle" ? "50%" : 3,
             zIndex: panel.zIndex,
             transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
           }}>
             {img && <img src={img} className="w-full h-full object-cover" draggable={false} />}
-            {!img && txt && (
+            {!img && isCoverPanel && cd && (
+              <div className="w-full h-full flex flex-col items-center justify-center p-4" style={{ backgroundColor: coverBg }}>
+                <span className="text-lg font-bold text-center" style={{ color: cd.titleColor || "#fff" }}>
+                  {cd.title || (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover")}
+                </span>
+                {cd.author && <span className="text-xs mt-2" style={{ color: cd.authorColor || "#ccc" }}>{cd.author}</span>}
+              </div>
+            )}
+            {!img && !isCoverPanel && txt && (
               <div className="w-full h-full flex items-center justify-center p-2 overflow-hidden">
                 <span className="text-xs text-zinc-600 leading-snug text-center line-clamp-6">{txt}</span>
               </div>
@@ -443,11 +467,14 @@ function FlowPreviewPageRenderer({ panels, narration }: { panels: Panel[]; narra
   );
 }
 
-function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
+function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
   spreads: Spread[];
   flowConnections: FlowConnection[];
   startId: string;
   onClose: () => void;
+  coverDesignData?: Partial<CoverData>;
+  effectiveFrontCover?: string;
+  effectiveBackCover?: string;
 }) {
   const orderedIds = useMemo(() => {
     if (flowConnections.length === 0) return spreads.map(s => s.id);
@@ -556,10 +583,12 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
         <div className="flex max-w-[1200px] w-full overflow-hidden rounded-xl"
              style={{ aspectRatio: "2 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
           <div className="flex-1 relative border-r border-zinc-200">
-            <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration} />
+            <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration}
+              coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
           </div>
           <div className="flex-1 relative">
-            <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration} />
+            <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration}
+              coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
           </div>
         </div>
       </div>
@@ -624,9 +653,10 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose }: {
   );
 }
 
-function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnections, nodeId }: {
+function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnections, nodeId, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
   spread: Spread; idx: number; currentSpreadIndex: number; mode: OverviewMode;
   flowConnections: FlowConnection[]; nodeId: string;
+  coverDesignData?: Partial<CoverData>; effectiveFrontCover?: string; effectiveBackCover?: string;
 }) {
   const isCover = idx === 0 && spread.leftPage.some(p => p.coverRole === "front-cover");
   const isLast = spread.isLastPage;
@@ -638,20 +668,41 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
 
   const renderPagePanels = (panels: Panel[]) => {
     return panels.filter(p => !p.hidden).map(panel => {
-      const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+      let coverImg = "";
+      if (panel.coverRole === "front-cover") {
+        const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+        coverImg = cd?.frontImage || effectiveFrontCover || "";
+      } else if (panel.coverRole === "back-cover") {
+        const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+        coverImg = cd?.backImage || effectiveBackCover || "";
+      }
+      const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
       const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+      const isCoverPanel = !!panel.coverRole;
+      const cd = isCoverPanel && coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+      const coverBg = isCoverPanel && cd
+        ? (panel.coverRole === "front-cover" ? cd.frontBgColor : cd.backBgColor)
+        : undefined;
       return (
         <div key={panel.id} className="absolute overflow-hidden" style={{
           left: `${panel.x}%`, top: `${panel.y}%`,
           width: `${panel.width}%`, height: `${panel.height}%`,
-          backgroundColor: panel.backgroundColor || "transparent",
-          border: `${Math.max(1, Math.round((panel.borderWidth || 2) * (pageW / 650)))}px solid ${panel.borderColor || "#000"}`,
+          backgroundColor: coverBg || panel.backgroundColor || "transparent",
+          border: isCoverPanel ? "none" : `${Math.max(1, Math.round((panel.borderWidth || 2) * (pageW / 650)))}px solid ${panel.borderColor || "#000"}`,
           borderRadius: panel.shape === "circle" ? "50%" : Math.round(2 * (pageW / 650)),
           zIndex: panel.zIndex,
           transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
         }}>
           {img && <img src={img} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
-          {!img && txt && (
+          {!img && isCoverPanel && cd && (
+            <div className="w-full h-full flex items-center justify-center p-1" style={{ backgroundColor: coverBg }}>
+              <span className="text-center font-bold leading-tight truncate" style={{
+                fontSize: Math.max(6, Math.round(10 * (pageW / 650))),
+                color: cd.titleColor || "#fff",
+              }}>{cd.title || "Cover"}</span>
+            </div>
+          )}
+          {!img && !isCoverPanel && txt && (
             <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
               <span className="leading-tight text-center line-clamp-3" style={{
                 fontSize: Math.max(5, Math.round(10 * (pageW / 650))),
@@ -733,10 +784,17 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   );
 }
 
-function SinglePageNodeRenderer({ panel, label, nodeType, isSelected }: {
+function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
   panel: Panel; label: string; nodeType: OverviewNodeType; isSelected: boolean;
+  coverDesignData?: Partial<CoverData>; effectiveFrontCover?: string; effectiveBackCover?: string;
 }) {
-  const img = panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+  const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+  const isFront = nodeType === "cover";
+  const coverImg = isFront
+    ? (cd?.frontImage || effectiveFrontCover || "")
+    : (cd?.backImage || effectiveBackCover || "");
+  const coverBg = cd ? (isFront ? cd.frontBgColor : cd.backBgColor) : undefined;
+  const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
   const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
   const borderColor = nodeType === "cover" ? "#06b6d4" : nodeType === "back-cover" ? "#a855f7" : "#52525b";
   const badgeColor = nodeType === "cover" ? "bg-cyan-500 text-white" : nodeType === "back-cover" ? "bg-purple-500 text-white" : "bg-zinc-600 text-white";
@@ -752,42 +810,58 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected }: {
         </span>
       </div>
       <div className="absolute left-0 right-0 overflow-hidden" style={{
-        top: 24, bottom: 0, backgroundColor: "#fff",
+        top: 24, bottom: 0,
+        backgroundColor: coverBg || "#fff",
         borderRadius: "0 0 6px 6px",
         border: `2px solid ${isSelected ? borderColor : "#52525b"}`,
         boxShadow: isSelected ? `0 0 16px ${borderColor}40` : "none",
       }}>
-        <div className="absolute overflow-hidden" style={{
-          left: `${panel.x}%`, top: `${panel.y}%`,
-          width: `${panel.width}%`, height: `${panel.height}%`,
-          backgroundColor: panel.backgroundColor || "transparent",
-          border: `${Math.max(1, panel.borderWidth || 2)}px solid ${panel.borderColor || "#000"}`,
-          borderRadius: panel.shape === "circle" ? "50%" : 2,
-        }}>
-          {img && <img src={img} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
-          {!img && txt && (
-            <div className="w-full h-full flex items-center justify-center p-1 overflow-hidden">
-              <span className="text-[8px] text-zinc-500 leading-tight text-center line-clamp-4">{txt}</span>
-            </div>
-          )}
-          {!img && !txt && (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-[9px] text-zinc-400 font-mono">Empty</span>
-            </div>
-          )}
-        </div>
+        {img ? (
+          <img src={img} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />
+        ) : cd ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-2" style={{ backgroundColor: coverBg }}>
+            <span className="text-center font-bold leading-tight" style={{
+              fontSize: 11, color: cd.titleColor || "#fff",
+            }}>{cd.title || (isFront ? "Front Cover" : "Back Cover")}</span>
+            {cd.author && (
+              <span className="text-[8px] mt-1" style={{ color: cd.authorColor || "#ccc" }}>{cd.author}</span>
+            )}
+          </div>
+        ) : (
+          <div className="absolute overflow-hidden" style={{
+            left: `${panel.x}%`, top: `${panel.y}%`,
+            width: `${panel.width}%`, height: `${panel.height}%`,
+            backgroundColor: panel.backgroundColor || "transparent",
+            border: `${Math.max(1, panel.borderWidth || 2)}px solid ${panel.borderColor || "#000"}`,
+            borderRadius: panel.shape === "circle" ? "50%" : 2,
+          }}>
+            {txt && (
+              <div className="w-full h-full flex items-center justify-center p-1 overflow-hidden">
+                <span className="text-[8px] text-zinc-500 leading-tight text-center line-clamp-4">{txt}</span>
+              </div>
+            )}
+            {!txt && (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-[9px] text-zinc-400 font-mono">Empty</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads }: {
+function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
   spreads: Spread[];
   currentSpreadIndex: number;
   onSelectSpread: (index: number) => void;
   onEditSpread: (index: number) => void;
   onClose: () => void;
   setSpreads: React.Dispatch<React.SetStateAction<Spread[]>>;
+  coverDesignData?: Partial<CoverData>;
+  effectiveFrontCover: string;
+  effectiveBackCover: string;
 }) {
   const [mode, setMode] = useState<OverviewMode>("design");
   const [showLayersPanel, setShowLayersPanel] = useState(true);
@@ -1071,6 +1145,9 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
           label={meta.label}
           nodeType={meta.type}
           isSelected={meta.spreadIdx === currentSpreadIndex}
+          coverDesignData={coverDesignData}
+          effectiveFrontCover={effectiveFrontCover}
+          effectiveBackCover={effectiveBackCover}
         />
       );
     }
@@ -1084,10 +1161,13 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         <SpreadNodeRenderer
           spread={spread} idx={idx} currentSpreadIndex={currentSpreadIndex}
           mode={mode} flowConnections={flowConnections} nodeId={node.id}
+          coverDesignData={coverDesignData}
+          effectiveFrontCover={effectiveFrontCover}
+          effectiveBackCover={effectiveBackCover}
         />
       </div>
     );
-  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections, handleNodeContextMenu, nodeMeta]);
+  }, [spreads, currentSpreadIndex, spreadMap, mode, flowConnections, handleNodeContextMenu, nodeMeta, coverDesignData, effectiveFrontCover, effectiveBackCover]);
 
   const selectedSpread = spreads[currentSpreadIndex];
 
@@ -1107,6 +1187,9 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
         flowConnections={flowConnections}
         startId={flowStartId}
         onClose={() => setShowFlowPreview(false)}
+        coverDesignData={coverDesignData}
+        effectiveFrontCover={effectiveFrontCover}
+        effectiveBackCover={effectiveBackCover}
       />
     );
   }
@@ -5801,6 +5884,9 @@ export default function ComicCreator() {
                 onEditSpread={(idx) => { setCurrentSpreadIndex(idx); setCanvasOverview(false); }}
                 onClose={() => setCanvasOverview(false)}
                 setSpreads={setSpreads}
+                coverDesignData={coverDesignData}
+                effectiveFrontCover={effectiveFrontCover}
+                effectiveBackCover={effectiveBackCover}
               />
             ) : (
             <>
