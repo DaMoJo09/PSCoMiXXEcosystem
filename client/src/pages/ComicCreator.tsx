@@ -476,8 +476,22 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
   effectiveFrontCover?: string;
   effectiveBackCover?: string;
 }) {
+  const allNodeIds = useMemo(() => {
+    const ids = new Set(spreads.map(s => s.id));
+    for (const s of spreads) {
+      for (const page of ["leftPage", "rightPage"] as const) {
+        for (const p of s[page]) {
+          if (p.coverRole === "front-cover") ids.add(`cover_${p.id}`);
+          if (p.coverRole === "back-cover") ids.add(`backcover_${p.id}`);
+        }
+      }
+    }
+    return ids;
+  }, [spreads]);
+
   const orderedIds = useMemo(() => {
-    if (flowConnections.length === 0) return spreads.map(s => s.id);
+    const allIds = [...allNodeIds];
+    if (flowConnections.length === 0) return allIds;
     const outMap = new Map<string, string[]>();
     const incomingIds = new Set<string>();
     for (const c of flowConnections) {
@@ -486,10 +500,11 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
       incomingIds.add(c.toId);
     }
     const coverS = spreads.find(s => s.tag === "cover");
-    let rootId = coverS ? coverS.id : startId;
-    if (!coverS) {
-      const rootNode = spreads.find(s => !incomingIds.has(s.id) && outMap.has(s.id));
-      if (rootNode) rootId = rootNode.id;
+    const coverNodeId = allIds.find(id => id.startsWith("cover_"));
+    let rootId = coverS ? coverS.id : (coverNodeId && !incomingIds.has(coverNodeId)) ? coverNodeId : startId;
+    if (!coverS && !coverNodeId) {
+      const rootNode = allIds.find(id => !incomingIds.has(id) && outMap.has(id));
+      if (rootNode) rootId = rootNode;
     }
     const ordered: string[] = [];
     const visited = new Set<string>();
@@ -501,16 +516,32 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
       for (const nid of nexts) walk(nid);
     };
     walk(rootId);
-    for (const s of spreads) {
-      if (!visited.has(s.id)) ordered.push(s.id);
+    for (const id of allIds) {
+      if (!visited.has(id)) ordered.push(id);
     }
-    const backCoverIdx = ordered.findIndex(id => spreads.find(s => s.id === id)?.tag === "back-cover");
+    const backCoverIdx = ordered.findIndex(id =>
+      id.startsWith("backcover_") || spreads.find(s => s.id === id)?.tag === "back-cover"
+    );
     if (backCoverIdx >= 0 && backCoverIdx !== ordered.length - 1) {
       const [bc] = ordered.splice(backCoverIdx, 1);
       ordered.push(bc);
     }
     return ordered;
-  }, [spreads, flowConnections, startId]);
+  }, [spreads, flowConnections, startId, allNodeIds]);
+
+  const nodeToSpread = useMemo(() => {
+    const map = new Map<string, { spread: Spread; index: number; panel?: Panel; isCoverNode: boolean }>();
+    spreads.forEach((s, i) => {
+      map.set(s.id, { spread: s, index: i, isCoverNode: false });
+      for (const page of ["leftPage", "rightPage"] as const) {
+        for (const p of s[page]) {
+          if (p.coverRole === "front-cover") map.set(`cover_${p.id}`, { spread: s, index: i, panel: p, isCoverNode: true });
+          if (p.coverRole === "back-cover") map.set(`backcover_${p.id}`, { spread: s, index: i, panel: p, isCoverNode: true });
+        }
+      }
+    });
+    return map;
+  }, [spreads]);
 
   const [currentStep, setCurrentStep] = useState(0);
   useEffect(() => {
@@ -527,7 +558,7 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
     return m;
   }, [flowConnections]);
 
-  const currentData = spreadMap.get(currentId);
+  const currentNodeData = nodeToSpread.get(currentId);
   const currentConns = outgoing.get(currentId) || [];
 
   const goNext = () => { if (currentStep < orderedIds.length - 1) setCurrentStep(currentStep + 1); };
@@ -537,9 +568,11 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
     if (idx >= 0) setCurrentStep(idx);
   };
 
-  if (!currentData) return null;
-  const { spread, index } = currentData;
+  if (!currentNodeData) return null;
+  const { spread, index, panel: coverPanel, isCoverNode } = currentNodeData;
   const tagInfo = spread.tag ? SPREAD_TAG_CONFIG[spread.tag] : null;
+  const isCoverDisplay = isCoverNode && coverPanel;
+  const coverLabel = currentId.startsWith("cover_") ? "Front Cover" : currentId.startsWith("backcover_") ? "Back Cover" : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col" data-testid="flow-preview-player">
@@ -548,8 +581,16 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
           <Play className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-mono text-white font-bold">Flow Preview</span>
           <div className="w-px h-4 bg-zinc-700" />
-          <span className="text-xs text-zinc-500 font-mono">Spread {currentStep + 1} of {orderedIds.length}</span>
-          {tagInfo && (
+          <span className="text-xs text-zinc-500 font-mono">
+            {coverLabel || `Spread ${index + 1}`} — {currentStep + 1} of {orderedIds.length}
+          </span>
+          {coverLabel && (
+            <span className="text-[8px] px-1.5 py-0.5 rounded font-bold" style={{
+              backgroundColor: currentId.startsWith("cover_") ? "#06b6d433" : "#a855f733",
+              color: currentId.startsWith("cover_") ? "#06b6d4" : "#a855f7"
+            }}>{coverLabel}</span>
+          )}
+          {!coverLabel && tagInfo && (
             <span className="text-[8px] px-1.5 py-0.5 rounded font-bold" style={{
               backgroundColor: tagInfo.color + "33", color: tagInfo.color
             }}>{tagInfo.label}</span>
@@ -580,17 +621,25 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8 relative">
-        <div className="flex max-w-[1200px] w-full overflow-hidden rounded-xl"
-             style={{ aspectRatio: "2 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
-          <div className="flex-1 relative border-r border-zinc-200">
-            <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration}
+        {isCoverDisplay ? (
+          <div className="overflow-hidden rounded-xl"
+               style={{ width: "50%", maxWidth: 600, aspectRatio: "1 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
+            <FlowPreviewPageRenderer panels={[coverPanel!]} narration={undefined}
               coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
           </div>
-          <div className="flex-1 relative">
-            <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration}
-              coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
+        ) : (
+          <div className="flex max-w-[1200px] w-full overflow-hidden rounded-xl"
+               style={{ aspectRatio: "2 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
+            <div className="flex-1 relative border-r border-zinc-200">
+              <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration}
+                coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
+            </div>
+            <div className="flex-1 relative">
+              <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration}
+                coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {currentConns.length > 0 && (
@@ -599,9 +648,12 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
             <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Connections:</div>
             <div className="flex gap-2 flex-wrap flex-1">
               {currentConns.map((conn, ci) => {
-                const targetData = spreadMap.get(conn.toId);
-                if (!targetData) return null;
-                const targetTag = targetData.spread.tag ? SPREAD_TAG_CONFIG[targetData.spread.tag] : null;
+                const targetInfo = nodeToSpread.get(conn.toId);
+                if (!targetInfo) return null;
+                const isCoverTarget = conn.toId.startsWith("cover_") || conn.toId.startsWith("backcover_");
+                const targetLabel = isCoverTarget
+                  ? (conn.toId.startsWith("cover_") ? "Front Cover" : "Back Cover")
+                  : (targetInfo.spread.tag ? SPREAD_TAG_CONFIG[targetInfo.spread.tag]?.label : null) || `Spread ${targetInfo.index + 1}`;
                 return (
                   <button
                     key={ci}
@@ -610,7 +662,7 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
                     data-testid={`button-flow-nav-${ci}`}
                   >
                     <ChevronRight className="w-3 h-3" />
-                    {targetTag ? targetTag.label : `Spread ${targetData.index + 1}`}
+                    {targetLabel}
                   </button>
                 );
               })}
@@ -784,9 +836,10 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
   );
 }
 
-function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
+function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesignData, effectiveFrontCover, effectiveBackCover, connCount, mode }: {
   panel: Panel; label: string; nodeType: OverviewNodeType; isSelected: boolean;
   coverDesignData?: Partial<CoverData>; effectiveFrontCover?: string; effectiveBackCover?: string;
+  connCount?: number; mode?: OverviewMode;
 }) {
   const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
   const isFront = nodeType === "cover";
@@ -801,8 +854,11 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
 
   return (
     <div className="w-full h-full relative" style={{ filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.5))" }}>
-      <div className="absolute -top-6 left-0 right-0 px-1">
+      <div className="absolute -top-6 left-0 right-0 flex items-center justify-between px-1">
         <span className="text-[10px] font-bold text-zinc-500 font-mono uppercase">{label}</span>
+        {mode === "prototype" && (connCount || 0) > 0 && (
+          <span className="text-[9px] text-blue-400 font-mono">{connCount} links</span>
+        )}
       </div>
       <div className="absolute left-0 right-0 flex items-center px-2 rounded-t-md" style={{ top: 0, height: 24, backgroundColor: "#333" }}>
         <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${badgeColor}`}>
@@ -950,9 +1006,10 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     }
     if (changed) setNodePositions(newPositions);
 
-    const spreadIds = new Set(spreads.map(s => s.id));
+    const allValidIds = new Set(spreads.map(s => s.id));
+    for (const id of newPositions.keys()) allValidIds.add(id);
     setFlowConnections(prev => {
-      const cleaned = prev.filter(c => spreadIds.has(c.fromId) && spreadIds.has(c.toId));
+      const cleaned = prev.filter(c => allValidIds.has(c.fromId) && allValidIds.has(c.toId));
       return cleaned.length !== prev.length ? cleaned : prev;
     });
   }, [spreads]);
@@ -979,9 +1036,23 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     return meta;
   }, [spreads]);
 
+  const coverOnlySpreads = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of spreads) {
+      const allLeft = s.leftPage.every(p => !!p.coverRole);
+      const allRight = s.rightPage.every(p => !!p.coverRole);
+      const hasAnyContent = s.leftPage.length > 0 || s.rightPage.length > 0;
+      if (hasAnyContent && allLeft && allRight) {
+        set.add(s.id);
+      }
+    }
+    return set;
+  }, [spreads]);
+
   const canvasNodes: CanvasNode[] = useMemo(() => {
     const nodes: CanvasNode[] = [];
     spreads.forEach((spread) => {
+      if (coverOnlySpreads.has(spread.id)) return;
       const pos = nodePositions.get(spread.id) || { x: 0, y: 0 };
       nodes.push({ id: spread.id, x: pos.x, y: pos.y, width: SPREAD_PREVIEW_W, height: SPREAD_PREVIEW_H });
     });
@@ -994,7 +1065,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       }
     }
     return nodes;
-  }, [spreads, nodePositions, nodeMeta]);
+  }, [spreads, nodePositions, nodeMeta, coverOnlySpreads]);
 
   const canvasConnections: CanvasConnection[] = useMemo(() =>
     flowConnections.map(fc => ({
@@ -1013,14 +1084,16 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   }, []);
 
   const handleCreateConnection = useCallback((fromId: string, toId: string, fromSide: Side, toSide: Side) => {
-    const spreadIds = new Set(spreads.map(s => s.id));
-    if (!spreadIds.has(fromId) || !spreadIds.has(toId)) return;
+    const validIds = new Set<string>();
+    spreads.forEach(s => validIds.add(s.id));
+    for (const [nid] of nodeMeta) validIds.add(nid);
+    if (!validIds.has(fromId) || !validIds.has(toId)) return;
     setFlowConnections(prev => {
       const exists = prev.some(c => c.fromId === fromId && c.toId === toId);
       if (exists) return prev;
       return [...prev, { fromId, toId, fromSide, toSide }];
     });
-  }, [spreads]);
+  }, [spreads, nodeMeta]);
 
   const handleDeleteConnection = useCallback((fromId: string, toId: string) => {
     setFlowConnections(prev => prev.filter(c => !(c.fromId === fromId && c.toId === toId)));
@@ -1139,6 +1212,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       const pageKey = meta.page === "left" ? "leftPage" : "rightPage";
       const panel = spread[pageKey].find(p => p.id === meta.panelId);
       if (!panel) return null;
+      const nodeConnCount = flowConnections.filter(c => c.fromId === node.id || c.toId === node.id).length;
       return (
         <SinglePageNodeRenderer
           panel={panel}
@@ -1148,6 +1222,8 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
           coverDesignData={coverDesignData}
           effectiveFrontCover={effectiveFrontCover}
           effectiveBackCover={effectiveBackCover}
+          connCount={nodeConnCount}
+          mode={mode}
         />
       );
     }
