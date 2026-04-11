@@ -411,21 +411,17 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
   return (
     <div className="relative w-full h-full bg-white overflow-hidden">
       {panels.filter(p => !p.hidden).map(panel => {
-        let coverImg = "";
-        if (panel.coverRole === "front-cover") {
-          const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-          coverImg = cd?.frontImage || effectiveFrontCover || "";
-        } else if (panel.coverRole === "back-cover") {
-          const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-          coverImg = cd?.backImage || effectiveBackCover || "";
-        }
-        const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
-        const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
         const isCoverPanel = !!panel.coverRole;
-        const cd = isCoverPanel && coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-        const coverBg = isCoverPanel && cd
-          ? (panel.coverRole === "front-cover" ? cd.frontBgColor : cd.backBgColor)
-          : undefined;
+        const cd = isCoverPanel ? { ...defaultCover, ...(coverDesignData || {}) } as CoverData : null;
+        const isFr = panel.coverRole === "front-cover";
+        const coverBgImg = isCoverPanel && cd
+          ? (isFr ? (cd.frontImage || effectiveFrontCover || "") : (cd.backImage || effectiveBackCover || ""))
+          : "";
+        const coverBg = isCoverPanel && cd ? (isFr ? cd.frontBgColor : cd.backBgColor) : undefined;
+        const regularImg = !isCoverPanel ? panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url : undefined;
+        const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+        const edPanelW = (panel.width / 100) * 650;
+        const edPanelH = (panel.height / 100) * 920;
         return (
           <div key={panel.id} className="absolute overflow-hidden" style={{
             left: `${panel.x}%`, top: `${panel.y}%`,
@@ -435,20 +431,56 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
             borderRadius: panel.shape === "circle" ? "50%" : 3,
             zIndex: panel.zIndex,
             transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+            containerType: isCoverPanel ? 'size' as any : undefined,
           }}>
-            {img && <img src={img} className="w-full h-full object-cover" draggable={false} />}
-            {!img && isCoverPanel && cd && (
-              <div className="w-full h-full flex flex-col items-center justify-center p-4" style={{ backgroundColor: coverBg }}>
-                <span className="text-lg font-bold text-center" style={{ color: cd.titleColor || "#fff" }}>
-                  {cd.title || (panel.coverRole === "front-cover" ? "Front Cover" : "Back Cover")}
-                </span>
-                {cd.author && <span className="text-xs mt-2" style={{ color: cd.authorColor || "#ccc" }}>{cd.author}</span>}
-              </div>
-            )}
-            {!img && !isCoverPanel && txt && (
-              <div className="w-full h-full flex items-center justify-center p-2 overflow-hidden">
-                <span className="text-xs text-zinc-600 leading-snug text-center line-clamp-6">{txt}</span>
-              </div>
+            {isCoverPanel && cd ? (
+              <>
+                {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
+                <div className="relative z-10 w-full h-full flex flex-col items-center justify-between p-[5%]">
+                  {isFr ? (
+                    <>
+                      {cd.bannerText && <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(6px, 2.5cqi)' }}>{cd.bannerText}</div>}
+                      {cd.subtitle && <div className="text-center" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: 'max(5px, 3cqi)', fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
+                      <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(12px, 8cqi)', textShadow: '2px 2px 4px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(6px, 3.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(8px, 5cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                      {cd.backBlurb && <div className="leading-relaxed break-words text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(4px, 2.2cqi)', fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal' }}>{cd.backBlurb}</div>}
+                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(5px, 2.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal' }}>by {cd.author || "Author"}</div>
+                    </>
+                  )}
+                </div>
+                {isFr && cd.showPriceBox && cd.priceText && (
+                  <div className="absolute z-20" style={{ top: '3%', left: '5%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '2% 4%', borderRadius: 4, fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: '2px solid #000' }}>
+                    {cd.priceText}
+                  </div>
+                )}
+                {panel.contents.filter(c => !c.hidden).map(content => (
+                  <div key={content.id} className="absolute z-[15]" style={{
+                    left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
+                    top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
+                    width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
+                    height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
+                    transform: `rotate(${content.transform.rotation}deg)`,
+                    zIndex: content.zIndex,
+                  }}>
+                    {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                    {content.type === "gif" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                    {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {regularImg && <img src={regularImg} className="w-full h-full object-cover" draggable={false} />}
+                {!regularImg && txt && (
+                  <div className="w-full h-full flex items-center justify-center p-2 overflow-hidden">
+                    <span className="text-xs text-zinc-600 leading-snug text-center line-clamp-6">{txt}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -476,9 +508,19 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
   effectiveFrontCover?: string;
   effectiveBackCover?: string;
 }) {
-  const allNodeIds = useMemo(() => {
-    const ids = new Set(spreads.map(s => s.id));
+  const coverOnlySpreads = useMemo(() => {
+    const cSet = new Set<string>();
     for (const s of spreads) {
+      const allPanels = [...s.leftPage, ...s.rightPage];
+      if (allPanels.length > 0 && allPanels.every(p => p.coverRole)) cSet.add(s.id);
+    }
+    return cSet;
+  }, [spreads]);
+
+  const allNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of spreads) {
+      if (!coverOnlySpreads.has(s.id)) ids.add(s.id);
       for (const page of ["leftPage", "rightPage"] as const) {
         for (const p of s[page]) {
           if (p.coverRole === "front-cover") ids.add(`cover_${p.id}`);
@@ -487,7 +529,7 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
       }
     }
     return ids;
-  }, [spreads]);
+  }, [spreads, coverOnlySpreads]);
 
   const orderedIds = useMemo(() => {
     const allIds = [...allNodeIds];
@@ -499,17 +541,22 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
       outMap.get(c.fromId)!.push(c.toId);
       incomingIds.add(c.toId);
     }
-    const coverS = spreads.find(s => s.tag === "cover");
+    const validIds = new Set(allIds);
     const coverNodeId = allIds.find(id => id.startsWith("cover_"));
-    let rootId = coverS ? coverS.id : (coverNodeId && !incomingIds.has(coverNodeId)) ? coverNodeId : startId;
-    if (!coverS && !coverNodeId) {
+    const coverS = spreads.find(s => s.tag === "cover");
+    let rootId: string;
+    if (coverNodeId && !incomingIds.has(coverNodeId)) {
+      rootId = coverNodeId;
+    } else if (coverS && validIds.has(coverS.id)) {
+      rootId = coverS.id;
+    } else {
       const rootNode = allIds.find(id => !incomingIds.has(id) && outMap.has(id));
-      if (rootNode) rootId = rootNode;
+      rootId = rootNode || (validIds.has(startId) ? startId : allIds[0]);
     }
     const ordered: string[] = [];
     const visited = new Set<string>();
     const walk = (id: string) => {
-      if (visited.has(id)) return;
+      if (visited.has(id) || !validIds.has(id)) return;
       visited.add(id);
       ordered.push(id);
       const nexts = outMap.get(id) || [];
@@ -720,21 +767,17 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
 
   const renderPagePanels = (panels: Panel[]) => {
     return panels.filter(p => !p.hidden).map(panel => {
-      let coverImg = "";
-      if (panel.coverRole === "front-cover") {
-        const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-        coverImg = cd?.frontImage || effectiveFrontCover || "";
-      } else if (panel.coverRole === "back-cover") {
-        const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-        coverImg = cd?.backImage || effectiveBackCover || "";
-      }
-      const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
-      const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
       const isCoverPanel = !!panel.coverRole;
-      const cd = isCoverPanel && coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
-      const coverBg = isCoverPanel && cd
-        ? (panel.coverRole === "front-cover" ? cd.frontBgColor : cd.backBgColor)
-        : undefined;
+      const cd = isCoverPanel ? { ...defaultCover, ...(coverDesignData || {}) } as CoverData : null;
+      const isFr = panel.coverRole === "front-cover";
+      const coverBgImg = isCoverPanel && cd
+        ? (isFr ? (cd.frontImage || effectiveFrontCover || "") : (cd.backImage || effectiveBackCover || ""))
+        : "";
+      const coverBg = isCoverPanel && cd ? (isFr ? cd.frontBgColor : cd.backBgColor) : undefined;
+      const regularImg = !isCoverPanel ? panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url : undefined;
+      const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+      const edPanelW = (panel.width / 100) * 650;
+      const edPanelH = (panel.height / 100) * 920;
       return (
         <div key={panel.id} className="absolute overflow-hidden" style={{
           left: `${panel.x}%`, top: `${panel.y}%`,
@@ -744,23 +787,57 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
           borderRadius: panel.shape === "circle" ? "50%" : Math.round(2 * (pageW / 650)),
           zIndex: panel.zIndex,
           transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+          containerType: isCoverPanel ? 'size' as any : undefined,
         }}>
-          {img && <img src={img} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
-          {!img && isCoverPanel && cd && (
-            <div className="w-full h-full flex items-center justify-center p-1" style={{ backgroundColor: coverBg }}>
-              <span className="text-center font-bold leading-tight truncate" style={{
-                fontSize: Math.max(6, Math.round(10 * (pageW / 650))),
-                color: cd.titleColor || "#fff",
-              }}>{cd.title || "Cover"}</span>
-            </div>
-          )}
-          {!img && !isCoverPanel && txt && (
-            <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
-              <span className="leading-tight text-center line-clamp-3" style={{
-                fontSize: Math.max(5, Math.round(10 * (pageW / 650))),
-                color: "#666",
-              }}>{txt}</span>
-            </div>
+          {isCoverPanel && cd ? (
+            <>
+              {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />}
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-between p-[4%]">
+                {isFr ? (
+                  <>
+                    {cd.bannerText && <div className="w-full py-[1%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(3px, 2cqi)' }}>{cd.bannerText}</div>}
+                    <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(5px, 5cqi)', textShadow: '1px 1px 2px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                    <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal' }}>{cd.author || "Author"}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(4px, 3.5cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                    {cd.backBlurb && <div className="text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(2px, 1.5cqi)' }}>{cd.backBlurb}</div>}
+                    <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(2px, 1.5cqi)' }}>by {cd.author || "Author"}</div>
+                  </>
+                )}
+              </div>
+              {isFr && cd.showPriceBox && cd.priceText && (
+                <div className="absolute z-20" style={{ top: '2%', left: '4%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '1% 2%', borderRadius: 1, fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: '1px solid #000' }}>
+                  {cd.priceText}
+                </div>
+              )}
+              {panel.contents.filter(c => !c.hidden).map(content => (
+                <div key={content.id} className="absolute z-[15]" style={{
+                  left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
+                  top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
+                  width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
+                  height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
+                  transform: `rotate(${content.transform.rotation}deg)`,
+                  zIndex: content.zIndex,
+                }}>
+                  {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                  {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {regularImg && <img src={regularImg} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
+              {!regularImg && txt && (
+                <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
+                  <span className="leading-tight text-center line-clamp-3" style={{
+                    fontSize: Math.max(5, Math.round(10 * (pageW / 650))),
+                    color: "#666",
+                  }}>{txt}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       );
@@ -841,14 +918,17 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
   coverDesignData?: Partial<CoverData>; effectiveFrontCover?: string; effectiveBackCover?: string;
   connCount?: number; mode?: OverviewMode;
 }) {
-  const cd = coverDesignData ? { ...defaultCover, ...coverDesignData } as CoverData : null;
+  const isCoverType = nodeType === "cover" || nodeType === "back-cover";
+  const cd = isCoverType ? { ...defaultCover, ...(coverDesignData || {}) } as CoverData : null;
   const isFront = nodeType === "cover";
-  const coverImg = isFront
-    ? (cd?.frontImage || effectiveFrontCover || "")
-    : (cd?.backImage || effectiveBackCover || "");
+  const coverBgImg = cd
+    ? (isFront ? (cd.frontImage || effectiveFrontCover || "") : (cd.backImage || effectiveBackCover || ""))
+    : "";
   const coverBg = cd ? (isFront ? cd.frontBgColor : cd.backBgColor) : undefined;
-  const img = coverImg || panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url;
+  const regularImg = !cd ? panel.contents.find(c => c.type === "image" && !c.hidden)?.data?.url : undefined;
   const txt = panel.contents.find(c => c.type === "text" && !c.hidden)?.data?.text;
+  const edPanelW = (panel.width / 100) * 650;
+  const edPanelH = (panel.height / 100) * 920;
   const borderColor = nodeType === "cover" ? "#06b6d4" : nodeType === "back-cover" ? "#a855f7" : "#52525b";
   const badgeColor = nodeType === "cover" ? "bg-cyan-500 text-white" : nodeType === "back-cover" ? "bg-purple-500 text-white" : "bg-zinc-600 text-white";
 
@@ -871,18 +951,48 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
         borderRadius: "0 0 6px 6px",
         border: `2px solid ${isSelected ? borderColor : "#52525b"}`,
         boxShadow: isSelected ? `0 0 16px ${borderColor}40` : "none",
+        containerType: cd ? 'size' as any : undefined,
       }}>
-        {img ? (
-          <img src={img} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />
-        ) : cd ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-2" style={{ backgroundColor: coverBg }}>
-            <span className="text-center font-bold leading-tight" style={{
-              fontSize: 11, color: cd.titleColor || "#fff",
-            }}>{cd.title || (isFront ? "Front Cover" : "Back Cover")}</span>
-            {cd.author && (
-              <span className="text-[8px] mt-1" style={{ color: cd.authorColor || "#ccc" }}>{cd.author}</span>
+        {cd ? (
+          <>
+            {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />}
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-between p-[5%]">
+              {isFront ? (
+                <>
+                  {cd.bannerText && <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(4px, 2.5cqi)' }}>{cd.bannerText}</div>}
+                  {cd.subtitle && <div className="text-center" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
+                  <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(8px, 6cqi)', textShadow: '1px 1px 2px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                  <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(4px, 2.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(5px, 4cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
+                  {cd.backBlurb && <div className="leading-relaxed break-words text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(3px, 1.8cqi)', fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal' }}>{cd.backBlurb}</div>}
+                  <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal' }}>by {cd.author || "Author"}</div>
+                </>
+              )}
+            </div>
+            {isFront && cd.showPriceBox && cd.priceText && (
+              <div className="absolute z-20" style={{ top: '3%', left: '5%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '1% 3%', borderRadius: 2, fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: '1px solid #000' }}>
+                {cd.priceText}
+              </div>
             )}
-          </div>
+            {panel.contents.filter(c => !c.hidden).map(content => (
+              <div key={content.id} className="absolute z-[15]" style={{
+                left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
+                top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
+                width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
+                height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
+                transform: `rotate(${content.transform.rotation}deg)`,
+                zIndex: content.zIndex,
+              }}>
+                {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+              </div>
+            ))}
+          </>
+        ) : regularImg ? (
+          <img src={regularImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />
         ) : (
           <div className="absolute overflow-hidden" style={{
             left: `${panel.x}%`, top: `${panel.y}%`,
