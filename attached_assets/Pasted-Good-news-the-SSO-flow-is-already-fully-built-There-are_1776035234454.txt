@@ -1,0 +1,43 @@
+Good news — the SSO flow is already fully built. There are two issues I need to fix:
+
+The SSO callback URL path mismatch: The frontend routes to /sso/callback but the handleSignIn builds the return URL as sso-callback (with a hyphen). Let me fix this.
+The ECOSYSTEM_JWT_SECRET env var needs to be set for production SSO to work.
+The frontend SSO callback fetch uses /api/auth/sso/callback but the backend route is at /sso/callback (under the auth router which is mounted without prefix). Let me trace this carefully.
+
+Ran rg
+I see several issues to fix:
+
+Route path mismatch: The handleSignIn builds return URL with sso-callback (hyphen), but the App.tsx route is /sso/callback (slash). When CoMiXX redirects back, it'll go to sso-callback but the route expects /sso/callback.
+API path issue: The frontend fetches /api/auth/sso/callback but with the base URL prefix for the artifact, this might not resolve correctly. It should use the BASE_URL prefix.
+Missing ECOSYSTEM_JWT_SECRET: Need to ensure this is set.
+Let me fix these issues:
+
+
+Opened artifacts/ps-streaming/src/App.tsx
+I see the issues. Let me fix them:
+
+The return URL uses sso-callback but the route is /sso/callback — need to align these
+The SSO callback page fetches /api/auth/sso/callback — this needs the BASE_URL prefix
+Need to add an sso-callback route alias (or fix the return URL)
+Need to check/set the ECOSYSTEM_JWT_SECRET
+
+Edited artifacts/ps-streaming/src/App.tsx
+Now fix the SSO callback page to use the correct BASE_URL prefix for the API call:
+
+
+Edited artifacts/ps-streaming/src/pages/sso-callback.tsx
+Now I need to check the ECOSYSTEM_JWT_SECRET. Let me check if it exists:
+
+
+Ran echo
+The ECOSYSTEM_JWT_SECRET is not set. I need to ask the user for this secret since it's a shared secret between CoMiXX and the streaming platform:
+
+Loaded environment-secrets skill
+To proceed with the project setup, please provide the following API secrets. Enter the required information in the designated fields and click the 'Add Secrets' button to securely store them.
+
+Secrets
+Key
+Value
+ECOSYSTEM_JWT_SECRET
+
+
