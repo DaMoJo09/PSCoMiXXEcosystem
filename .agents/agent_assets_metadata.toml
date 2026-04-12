@@ -78,3 +78,15 @@ id = "QpGVvmgryBZy5eAIcbIhu"
 uri = "file://.local/STREAMING-AND-LMS-BUILD-BLUEPRINT.md"
 type = "text"
 title = "Streaming Platform + LMS Implementation Blueprint"
+
+[[outputs]]
+id = "zSEXuEqru4K-M77CS3qSW"
+uri = "file://.local/NOTE-FOR-STREAMING-CHAT.md"
+type = "text"
+title = "Note for Streaming Platform Chat (psstreaming.com)"
+
+[[outputs]]
+id = "scBkZhRrjQq4KcbubpyQ8"
+uri = "file://.local/NOTE-FOR-LMS-CHAT.md"
+type = "text"
+title = "Note for LMS Chat (pressstart.tech)"
