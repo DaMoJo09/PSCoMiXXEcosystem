@@ -1064,8 +1064,10 @@ export default function HopCreator() {
           }
           if (layer.type === "effect" && layer.dataUrl) {
             return (
-              <div key={layer.id} style={{ ...style, ...beatAnim, inset: 0, position: "absolute" }}>
-                <img src={layer.dataUrl} alt={layer.name} className="w-full h-full object-cover" draggable={false} />
+              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+                <div style={beatAnim}>
+                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "cover", width: isBg ? "100%" : undefined, height: isBg ? "100%" : undefined }} draggable={false} />
+                </div>
               </div>
             );
           }
@@ -1100,9 +1102,11 @@ export default function HopCreator() {
           }
           if (layer.type === "caption" && layer.text) {
             return (
-              <div key={layer.id} style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: layer.zIndex, opacity: layer.opacity }}>
-                <div className="bg-black/70 px-4 py-3 text-center" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff" }}>
-                  {layer.text}
+              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+                <div style={beatAnim}>
+                  <div className="bg-black/70 px-4 py-3 text-center" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff", whiteSpace: "nowrap" }}>
+                    {layer.text}
+                  </div>
                 </div>
               </div>
             );
@@ -1447,93 +1451,113 @@ export default function HopCreator() {
               {displayMode === "moving" ? "MOVING" : "STANDARD"} HOP · {scenes.length} scenes · {totalDuration}s · {displayMode === "moving" ? "30px/s" : "static"} · {displayMode === "moving" ? ">> SCROLLING" : ""}
             </span>
           </div>
-          <div className="flex-1 flex items-center justify-center overflow-hidden relative" style={{ minHeight: 0 }}>
-            <div className="relative w-full h-full flex items-center justify-center" style={{ maxWidth: "100%", maxHeight: "100%" }}>
-              <div className={`border border-zinc-800 overflow-hidden relative ${transitionClass}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}`, width: "auto", height: "85%", maxWidth: "95%" }}>
-                {renderCanvas(currentScene, currentLayers, currentTextStyle, canvasRef)}
-                {selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (selectedLayer.type === "media" || selectedLayer.type === "text") && (() => {
-                  const frameSize = Math.max(60, selectedLayer.scale);
-                  return (
-                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
-                      <div
-                        className="absolute pointer-events-auto"
-                        style={{
-                          left: "50%",
-                          top: "50%",
-                          width: `${frameSize}px`,
-                          height: `${frameSize}px`,
-                          transform: `translate(-50%,-50%) translate(${selectedLayer.positionX}px,${selectedLayer.positionY}px) rotate(${selectedLayer.rotation}deg)`,
-                        }}
-                      >
-                        <div
-                          className="absolute inset-0 border-2 border-orange-500/80"
-                          style={{ cursor: transformMode === 'move' ? 'grabbing' : 'move', touchAction: 'none' }}
-                          onMouseDown={(e) => handleTransformStart(e, 'move')}
-                          onTouchStart={(e) => handleTransformStart(e, 'move')}
-                          data-testid="transform-move"
-                        />
-                        {[
-                          { x: 0, y: 0 },
-                          { x: 1, y: 0 },
-                          { x: 0, y: 1 },
-                          { x: 1, y: 1 },
-                        ].map((corner, i) => (
-                          <div
-                            key={i}
-                            className="absolute w-5 h-5 bg-orange-500 border border-white"
-                            style={{
-                              left: corner.x ? '100%' : '0%',
-                              top: corner.y ? '100%' : '0%',
-                              transform: 'translate(-50%,-50%)',
-                              cursor: (corner.x === corner.y) ? 'nwse-resize' : 'nesw-resize',
-                              touchAction: 'none',
-                              minWidth: '20px',
-                              minHeight: '20px',
-                            }}
-                            onMouseDown={(e) => handleTransformStart(e, 'resize')}
-                            onTouchStart={(e) => handleTransformStart(e, 'resize')}
-                            data-testid={`transform-resize-${i}`}
-                          />
-                        ))}
-                        <div
-                          className="absolute left-1/2 flex flex-col items-center"
-                          style={{ bottom: '100%', transform: 'translateX(-50%)', cursor: 'grab', marginBottom: '4px', touchAction: 'none' }}
-                          onMouseDown={(e) => handleTransformStart(e, 'rotate')}
-                          onTouchStart={(e) => handleTransformStart(e, 'rotate')}
-                          data-testid="transform-rotate"
-                        >
-                          <div className="w-5 h-5 rounded-full bg-cyan-500 border border-white" />
-                          <div className="w-px h-3 bg-cyan-500" />
+          <div className="flex-1 overflow-x-auto overflow-y-hidden relative" style={{ minHeight: 0 }}>
+            <div className="flex items-center gap-2 px-3 h-full py-3" style={{ minWidth: "fit-content" }}>
+              {scenes.map((scene, idx) => {
+                const sLayers = sceneLayers[scene.id] || [];
+                const sTextStyle = sceneTextStyles[scene.id] || defaultTextStyle();
+                const isSelected = selectedSceneIdx === idx;
+                const isPlayed = previewSceneIndex === idx && isPlaying;
+                return (
+                  <div
+                    key={scene.id}
+                    className={`relative shrink-0 transition-all cursor-pointer group ${
+                      isSelected ? "ring-2 ring-orange-500" : isPlayed ? "ring-1 ring-cyan-500" : "ring-1 ring-white/10 hover:ring-white/20"
+                    }`}
+                    style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}` }}
+                    onClick={() => { setSelectedSceneIdx(idx); setSelectedLayerId(null); setRightContext("scene"); }}
+                    data-testid={`canvas-scene-${idx}`}
+                  >
+                    <div className="absolute top-1 left-1 z-[60] px-1.5 py-0.5 bg-black/70 border border-white/10">
+                      <span className="text-[8px] text-zinc-300 font-mono font-bold">{idx + 1}</span>
+                      <span className="text-[8px] text-zinc-500 ml-1 font-mono">{scene.duration}s</span>
+                    </div>
+                    <div className="w-full h-full overflow-hidden relative">
+                      {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined)}
+                      {isSelected && selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (() => {
+                        const frameSize = Math.max(60, selectedLayer.scale);
+                        return (
+                          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
+                            <div
+                              className="absolute pointer-events-auto"
+                              style={{
+                                left: "50%",
+                                top: "50%",
+                                width: `${frameSize}px`,
+                                height: `${frameSize}px`,
+                                transform: `translate(-50%,-50%) translate(${selectedLayer.positionX}px,${selectedLayer.positionY}px) rotate(${selectedLayer.rotation}deg)`,
+                              }}
+                            >
+                              <div
+                                className="absolute inset-0 border-2 border-orange-500/80"
+                                style={{ cursor: transformMode === 'move' ? 'grabbing' : 'move', touchAction: 'none' }}
+                                onMouseDown={(e) => handleTransformStart(e, 'move')}
+                                onTouchStart={(e) => handleTransformStart(e, 'move')}
+                                data-testid="transform-move"
+                              />
+                              {[
+                                { x: 0, y: 0 },
+                                { x: 1, y: 0 },
+                                { x: 0, y: 1 },
+                                { x: 1, y: 1 },
+                              ].map((corner, i) => (
+                                <div
+                                  key={i}
+                                  className="absolute w-5 h-5 bg-orange-500 border border-white"
+                                  style={{
+                                    left: corner.x ? '100%' : '0%',
+                                    top: corner.y ? '100%' : '0%',
+                                    transform: 'translate(-50%,-50%)',
+                                    cursor: (corner.x === corner.y) ? 'nwse-resize' : 'nesw-resize',
+                                    touchAction: 'none',
+                                    minWidth: '20px',
+                                    minHeight: '20px',
+                                  }}
+                                  onMouseDown={(e) => handleTransformStart(e, 'resize')}
+                                  onTouchStart={(e) => handleTransformStart(e, 'resize')}
+                                  data-testid={`transform-resize-${i}`}
+                                />
+                              ))}
+                              <div
+                                className="absolute left-1/2 flex flex-col items-center"
+                                style={{ bottom: '100%', transform: 'translateX(-50%)', cursor: 'grab', marginBottom: '4px', touchAction: 'none' }}
+                                onMouseDown={(e) => handleTransformStart(e, 'rotate')}
+                                onTouchStart={(e) => handleTransformStart(e, 'rotate')}
+                                data-testid="transform-rotate"
+                              >
+                                <div className="w-5 h-5 rounded-full bg-cyan-500 border border-white" />
+                                <div className="w-px h-3 bg-cyan-500" />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    {!scene.assetUrl && sLayers.length === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <div className="absolute inset-2 border-2 border-dashed border-white/10 rounded" />
+                        <div className="text-center pointer-events-auto relative z-20">
+                          <p className="text-[10px] font-bold tracking-widest text-white/60 mb-1" style={{ fontFamily: "'Press Start 2P', monospace" }}>DROP VIBE</p>
+                          <p className="text-[9px] text-zinc-600">Scene {idx + 1}</p>
+                          <input ref={isSelected ? fileInputRef : undefined} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAssetUpload(scene.id, e)} />
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedSceneIdx(idx); setTimeout(() => fileInputRef.current?.click(), 50); }} className="text-[9px] text-white/40 hover:text-white/70 underline underline-offset-2 transition mt-1 block mx-auto" data-testid={`button-upload-asset-${idx}`}>browse</button>
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
-              </div>
-              {!currentScene?.assetUrl && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                  <div className="absolute inset-3 border-2 border-dashed border-white/15 rounded-lg" />
-                  <div className="text-center pointer-events-auto relative z-20">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-white/20 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full border-2 border-white/30 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-white/40" />
-                      </div>
-                    </div>
-                    <p className="text-lg font-bold tracking-widest text-white/80 mb-1" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "13px" }}>DROP YOUR FIRST VIBE</p>
-                    <p className="text-[11px] text-zinc-500 mb-1">Drag image, video, or audio here</p>
-                    <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAssetUpload(currentSceneId, e)} />
-                    <button onClick={() => fileInputRef.current?.click()} className="text-[11px] text-white/50 hover:text-white/80 underline underline-offset-2 transition mb-3 block mx-auto" data-testid="button-upload-asset">or click to browse</button>
-                    <div className="flex gap-2 justify-center">
-                      <button onClick={() => setShowProjectPicker(true)} className="px-3 py-1.5 text-[10px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-400 hover:text-white transition flex items-center gap-1.5" data-testid="button-import-from-projects">
-                        <FolderOpen className="w-3 h-3" /> From Library
-                      </button>
-                      <button onClick={() => addLayer("text")} className="px-3 py-1.5 text-[10px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-400 hover:text-white transition flex items-center gap-1.5" data-testid="button-add-text-canvas">
-                        <Type className="w-3 h-3" /> + Text
-                      </button>
-                    </div>
+                    )}
                   </div>
+                );
+              })}
+              <div
+                className="shrink-0 flex items-center justify-center border-2 border-dashed border-white/10 hover:border-green-500/40 transition cursor-pointer"
+                style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}`, minWidth: "120px" }}
+                onClick={handleAddScene}
+                data-testid="canvas-add-scene"
+              >
+                <div className="text-center">
+                  <Plus className="w-8 h-8 text-zinc-600 mx-auto mb-1" />
+                  <span className="text-[9px] text-zinc-600 font-bold tracking-wider">+ SCENE</span>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
