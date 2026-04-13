@@ -96,29 +96,47 @@ const VIEWPORT_SIZES: Record<ViewportMode, { w: number; h: number; label: string
 const TRANSITIONS = [
   { id: "cut", label: "✕", color: "bg-zinc-700" },
   { id: "fade", label: "■", color: "bg-zinc-600" },
-  { id: "slide-right", label: "→", color: "bg-cyan-700" },
-  { id: "slide-up", label: "↑", color: "bg-teal-700" },
-  { id: "dissolve", label: "◌", color: "bg-red-700" },
-  { id: "wipe-left", label: "◄", color: "bg-red-600" },
-  { id: "wipe-right", label: "►", color: "bg-orange-600" },
-  { id: "wipe-down", label: "▼", color: "bg-orange-700" },
-  { id: "zoom", label: "⊕", color: "bg-amber-700" },
-  { id: "spin", label: "↻", color: "bg-pink-700" },
-  { id: "glitch", label: "⚡", color: "bg-purple-700" },
-  { id: "flash", label: "✦", color: "bg-rose-600" },
+  { id: "slide-left", label: "←", color: "bg-zinc-700" },
+  { id: "slide-right", label: "→", color: "bg-zinc-700" },
+  { id: "slide-up", label: "↑", color: "bg-zinc-700" },
+  { id: "dissolve", label: "◌", color: "bg-zinc-700" },
+  { id: "wipe-left", label: "◄", color: "bg-zinc-700" },
+  { id: "wipe-right", label: "►", color: "bg-zinc-700" },
+  { id: "wipe-up", label: "▲", color: "bg-zinc-700" },
+  { id: "wipe-down", label: "▼", color: "bg-zinc-700" },
+  { id: "iris", label: "◉", color: "bg-zinc-700" },
+  { id: "zoom", label: "⊕", color: "bg-zinc-700" },
+  { id: "blur-through", label: "◈", color: "bg-zinc-700" },
+  { id: "spin", label: "↻", color: "bg-zinc-700" },
+  { id: "glitch", label: "⚡", color: "bg-zinc-700" },
+  { id: "flash", label: "✦", color: "bg-zinc-700" },
 ] as const;
 
-const CAMERA_MOTIONS = [
-  { id: "none", label: "NONE" },
-  { id: "zoom-in", label: "ZOOM IN" },
-  { id: "zoom-out", label: "ZOOM OUT" },
-  { id: "pan-left", label: "PAN LEFT" },
-  { id: "pan-right", label: "PAN RIGHT" },
-  { id: "pan-up", label: "PAN UP" },
-  { id: "pan-down", label: "PAN DOWN" },
-  { id: "shake", label: "SHAKE" },
-  { id: "dolly", label: "DOLLY" },
+const CAMERA_PRESETS = [
+  { id: "none", label: "NONE", start: { x: 0, y: 0, zoom: 1 }, end: { x: 0, y: 0, zoom: 1 } },
+  { id: "zoom-in", label: "ZOOM IN", start: { x: 0, y: 0, zoom: 1 }, end: { x: 0, y: 0, zoom: 1.4 } },
+  { id: "zoom-out", label: "ZOOM OUT", start: { x: 0, y: 0, zoom: 1.4 }, end: { x: 0, y: 0, zoom: 1 } },
+  { id: "pan-left", label: "PAN LEFT", start: { x: 10, y: 0, zoom: 1.2 }, end: { x: -10, y: 0, zoom: 1.2 } },
+  { id: "pan-right", label: "PAN RIGHT", start: { x: -10, y: 0, zoom: 1.2 }, end: { x: 10, y: 0, zoom: 1.2 } },
+  { id: "pan-up", label: "PAN UP", start: { x: 0, y: 5, zoom: 1.2 }, end: { x: 0, y: -5, zoom: 1.2 } },
+  { id: "pan-down", label: "PAN DOWN", start: { x: 0, y: -5, zoom: 1.2 }, end: { x: 0, y: 5, zoom: 1.2 } },
+  { id: "drift-nw", label: "DRIFT NW", start: { x: 5, y: 5, zoom: 1.15 }, end: { x: -5, y: -5, zoom: 1.3 } },
+  { id: "drift-se", label: "DRIFT SE", start: { x: -5, y: -5, zoom: 1.3 }, end: { x: 5, y: 5, zoom: 1.15 } },
 ] as const;
+
+function getCameraStyle(scene: HopScene, progress: number): React.CSSProperties {
+  if (!scene?.cameraStart && !scene?.cameraEnd) return {};
+  const start = scene.cameraStart || { x: 0, y: 0, zoom: 1 };
+  const end = scene.cameraEnd || { x: 0, y: 0, zoom: 1 };
+  const x = start.x + (end.x - start.x) * progress;
+  const y = start.y + (end.y - start.y) * progress;
+  const zoom = start.zoom + (end.zoom - start.zoom) * progress;
+  return {
+    transform: `translate(${x}%, ${y}%) scale(${zoom})`,
+    transformOrigin: "center center",
+    transition: "none",
+  };
+}
 
 const TEXT_PRESETS = [
   { id: "subtitle", label: "SUBTITLE", font: "'Press Start 2P', monospace", size: 12, color: "#FFFFFF", stroke: "#000000", strokeW: 0, bgColor: "#000000", bgOpacity: 60, anim: "none" },
@@ -325,6 +343,8 @@ export default function HopCreator() {
   const [beatMarkers, setBeatMarkers] = useState<{ id: string; timePosition: number; label?: string; autoDetected: boolean }[]>([]);
   const [showSceneTemplates, setShowSceneTemplates] = useState(false);
   const [transitionClass, setTransitionClass] = useState("");
+  const [cameraProgress, setCameraProgress] = useState(0);
+  const cameraRafRef = useRef<number | null>(null);
   const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
   const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
   const [dragReorderLayerId, setDragReorderLayerId] = useState<string | null>(null);
@@ -336,6 +356,10 @@ export default function HopCreator() {
   const { data: allProjects } = useProjects(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const audioGainRef = useRef<GainNode | null>(null);
   const clipAudioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -353,36 +377,65 @@ export default function HopCreator() {
   const totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
   const targetDuration = clipLengthMode === "30s" ? 30 : clipLengthMode === "60s" ? 60 : clipLengthMode === "90s" ? 90 : clipLengthMode === "120s" ? 120 : null;
 
-  const startAudioFromBeginning = useCallback(() => {
-    const el = audioRef.current;
-    if (!el || !audioTrack) return;
-    const playId = ++audioPlayIdRef.current;
-    el.volume = audioTrack.volume;
-    el.loop = audioTrack.loop;
-    el.currentTime = 0;
-    const attempt = () => {
-      if (audioPlayIdRef.current !== playId) return;
-      el.play().catch(() => {});
-    };
-    if (el.readyState >= 2) attempt();
-    else {
-      el.load();
-      el.addEventListener("canplay", () => { if (audioPlayIdRef.current === playId) attempt(); }, { once: true });
+  const startGaplessAudio = useCallback(async () => {
+    if (!audioTrack) return;
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") await ctx.resume();
+      if (!audioBufferRef.current) {
+        const resp = await fetch(audioTrack.src);
+        const arr = await resp.arrayBuffer();
+        audioBufferRef.current = await ctx.decodeAudioData(arr);
+      }
+      try { audioSourceRef.current?.stop(); } catch {}
+      const source = ctx.createBufferSource();
+      source.buffer = audioBufferRef.current;
+      source.loop = audioTrack.loop;
+      if (!audioGainRef.current) {
+        audioGainRef.current = ctx.createGain();
+        audioGainRef.current.connect(ctx.destination);
+      }
+      audioGainRef.current.gain.value = audioTrack.volume;
+      source.connect(audioGainRef.current);
+      source.start(0);
+      audioSourceRef.current = source;
+    } catch {
+      const el = audioRef.current;
+      if (el) { el.currentTime = 0; el.play().catch(() => {}); }
     }
   }, [audioTrack]);
 
+  const stopGaplessAudio = useCallback(() => {
+    try { audioSourceRef.current?.stop(); } catch {}
+    audioSourceRef.current = null;
+    audioRef.current?.pause();
+  }, []);
+
+  useEffect(() => { audioBufferRef.current = null; }, [audioTrack]);
+
+  useEffect(() => {
+    if (audioGainRef.current && audioTrack) {
+      audioGainRef.current.gain.value = audioMuted ? 0 : audioTrack.volume;
+    }
+  }, [audioMuted, audioTrack]);
+
+  const startAudioFromBeginning = useCallback(() => {
+    startGaplessAudio();
+  }, [startGaplessAudio]);
+
   const resumeAudio = useCallback(() => {
-    const el = audioRef.current;
-    if (!el || !audioTrack) return;
-    el.volume = audioTrack.volume;
-    el.loop = audioTrack.loop;
-    if (el.readyState >= 2) el.play().catch(() => {});
-  }, [audioTrack]);
+    if (audioSourceRef.current) {
+      if (audioGainRef.current && audioTrack) audioGainRef.current.gain.value = audioTrack.volume;
+      return;
+    }
+    startGaplessAudio();
+  }, [startGaplessAudio, audioTrack]);
 
   const pauseAudioNow = useCallback(() => {
     audioPlayIdRef.current++;
-    audioRef.current?.pause();
-  }, []);
+    stopGaplessAudio();
+  }, [stopGaplessAudio]);
 
   useEffect(() => {
     if (existingProject) {
@@ -789,12 +842,30 @@ export default function HopCreator() {
   }, [showPreview, zoneOutMode, isPlaying, previewSceneIndex, scenes, loopMode]);
 
   useEffect(() => {
-    const el = audioRef.current;
-    if (!el || !audioTrack) return;
-    el.volume = audioTrack.volume;
-    el.loop = audioTrack.loop;
-    if (!(isPlaying && !audioMuted)) el.pause();
-  }, [isPlaying, audioMuted, audioTrack, showPreview, zoneOutMode]);
+    if (!isPlaying) {
+      setCameraProgress(0);
+      if (cameraRafRef.current) cancelAnimationFrame(cameraRafRef.current);
+      return;
+    }
+    const cs = scenes[previewSceneIndex];
+    if (!cs || (!cs.cameraStart && !cs.cameraEnd)) { setCameraProgress(0); return; }
+    const dur = cs.duration * 1000;
+    const startTime = performance.now();
+    const tick = () => {
+      const elapsed = performance.now() - startTime;
+      const p = Math.min(elapsed / dur, 1);
+      setCameraProgress(p);
+      if (p < 1) cameraRafRef.current = requestAnimationFrame(tick);
+    };
+    cameraRafRef.current = requestAnimationFrame(tick);
+    return () => { if (cameraRafRef.current) cancelAnimationFrame(cameraRafRef.current); };
+  }, [isPlaying, previewSceneIndex, scenes]);
+
+  useEffect(() => {
+    if (!(isPlaying && !audioMuted)) {
+      stopGaplessAudio();
+    }
+  }, [isPlaying, audioMuted, stopGaplessAudio]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -1018,8 +1089,10 @@ export default function HopCreator() {
   const renderCanvas = (scene: HopScene | undefined, layers: HopLayer[], textStyle: TextOverlayStyle, ref?: React.RefObject<HTMLDivElement | null>, allowBleed?: boolean) => {
     if (!scene) return <div className="w-full h-full bg-zinc-900 flex items-center justify-center"><p className="text-xs text-zinc-600">No scene</p></div>;
     const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+    const camStyle = getCameraStyle(scene, isPlaying ? cameraProgress : 0);
     return (
       <div ref={ref as any} className={`relative w-full h-full bg-black ${allowBleed ? 'overflow-visible' : 'overflow-hidden'}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
+        <div className={`absolute inset-0 ${displayMode === "moving" ? "overflow-visible" : ""}`} style={camStyle}>
         {scene.assetUrl && !layers.find(l => l.name === "Background" && l.type === "media") && (
           <div className="absolute inset-0">
             {scene.assetType === "video" ? (
@@ -1049,6 +1122,7 @@ export default function HopCreator() {
             } as React.CSSProperties
             : {};
           const onLayerClick = (e: React.MouseEvent) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } };
+          const layerDataAttr = { "data-layer-id": layer.id };
           const shellStyle: React.CSSProperties = isBgLayer ? {
             position: "absolute",
             inset: 0,
@@ -1078,7 +1152,7 @@ export default function HopCreator() {
             if (isStitched && !isBgLayer) {
               const scrollPct = 100 / stitchCount;
               return (
-                <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                   <div style={{ transform: contentTransform, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
                     {Array.from({ length: stitchCount }).map((_, si) => (
                       isVideo ? (
@@ -1095,7 +1169,7 @@ export default function HopCreator() {
               const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
               const movingClass = isMovingLayer ? "hop-moving-mode" : "";
               return (
-                <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                   <div style={{ width: viewport.w, height: viewport.h, transform: `translate(${layer.positionX}px, ${layer.positionY}px) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center", ...movingStyle }} className={movingClass}>
                     {isVideo ? (
                       <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
@@ -1109,7 +1183,7 @@ export default function HopCreator() {
             const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
             const movingClass = isMovingLayer ? "hop-moving-mode" : "";
             return (
-              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                 <div style={{ transform: contentTransform, ...movingStyle }} className={movingClass}>
                   {isVideo ? (
                     <video src={layer.dataUrl} style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
@@ -1122,7 +1196,7 @@ export default function HopCreator() {
           }
           if (layer.type === "effect" && layer.dataUrl) {
             return (
-              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                 <div style={{ transform: contentTransform }}>
                   <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                 </div>
@@ -1135,7 +1209,7 @@ export default function HopCreator() {
               ? `hop-text-typewriter 2s steps(${Math.max(1, (layer.text || "").length)}, end) forwards, hop-typewriter-cursor 0.75s step-end infinite`
               : layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
             return (
-              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                 <div style={{ transform: contentTransform }}>
                   <div className="px-4 py-2 whitespace-nowrap" style={{
                     fontFamily: layer.fontFamily,
@@ -1158,7 +1232,7 @@ export default function HopCreator() {
           }
           if (layer.type === "caption" && layer.text) {
             return (
-              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
                 <div style={{ transform: contentTransform }}>
                   <div className="bg-black/70 px-4 py-3 text-center whitespace-nowrap" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff" }}>
                     {layer.text}
@@ -1199,6 +1273,7 @@ export default function HopCreator() {
             <p className="text-xs text-white text-center font-mono">{scene.caption}</p>
           </div>
         )}
+        </div>
       </div>
     );
   };
@@ -1206,37 +1281,11 @@ export default function HopCreator() {
   return (
     <div className="h-screen flex flex-col bg-black text-white select-none" data-testid="hop-creator">
       <style>{`
-        @keyframes hop-text-typewriter { from { max-width: 0 } to { max-width: 100% } }
-        @keyframes hop-typewriter-cursor { 0%,100% { border-color: transparent } 50% { border-color: currentColor } }
-        @keyframes hop-text-fade-in { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes hop-text-slide-up { from { opacity: 0; transform: translateY(30px) } to { opacity: 1; transform: translateY(0) } }
-        @keyframes hop-text-glitch { 0% { clip-path: inset(0 0 80% 0); transform: translate(-4px, 2px) } 20% { clip-path: inset(20% 0 60% 0); transform: translate(4px, -2px) } 40% { clip-path: inset(40% 0 40% 0); transform: translate(-2px, 4px) } 60% { clip-path: inset(60% 0 20% 0); transform: translate(2px, -4px) } 80% { clip-path: inset(80% 0 0 0); transform: translate(4px, 2px) } 100% { clip-path: inset(0); transform: translate(0) } }
-        @keyframes hop-text-bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-18px) } }
-        @keyframes hop-text-wave { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
-        @keyframes hop-text-neon-flicker { 0%,19%,21%,23%,25%,54%,56%,100% { opacity: 1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor } 20%,24%,55% { opacity: 0.6; text-shadow: none } }
-        @keyframes hop-text-zoom-in { from { opacity: 0; transform: scale(0.2) } to { opacity: 1; transform: scale(1) } }
-        @keyframes hop-text-spin-in { from { opacity: 0; transform: rotate(360deg) scale(0.3) } to { opacity: 1; transform: rotate(0) scale(1) } }
-        @keyframes hop-text-shake { 0%,100% { transform: translateX(0) } 10%,30%,50%,70%,90% { transform: translateX(-6px) } 20%,40%,60%,80% { transform: translateX(6px) } }
-        @keyframes hop-text-rainbow { 0% { filter: hue-rotate(0deg) } 100% { filter: hue-rotate(360deg) } }
-        @keyframes hop-beat-pulse { 0%,100% { transform: scale(1) } 50% { transform: scale(var(--hop-beat-intensity, 1.1)) } }
-        @keyframes hop-beat-bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
-        @keyframes hop-beat-shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-5px) } 75% { transform: translateX(5px) } }
-        @keyframes hop-beat-glow { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.5) } }
-        @keyframes hop-beat-zoom { 0%,100% { transform: scale(1) } 50% { transform: scale(var(--hop-beat-intensity, 1.15)) } }
-        @keyframes hop-beat-rotate { 0%,100% { transform: rotate(0) } 50% { transform: rotate(5deg) } }
-        @keyframes hop-beat-flash { 0%,100% { opacity: var(--hop-base-opacity, 1) } 50% { opacity: 0.3 } }
-        @keyframes hop-beat-tilt { 0%,100% { transform: skewX(0) } 50% { transform: skewX(5deg) } }
         @keyframes hop-moving-pan { 0% { transform: translateX(0) } 100% { transform: translateX(-20%) } }
         .hop-moving-mode { animation: hop-moving-pan var(--hop-scene-dur, 5s) linear forwards; width: 140%; }
         @keyframes hop-stitch-scroll { 0% { transform: translateX(0) } 100% { transform: translateX(var(--hop-stitch-shift, -50%)) } }
-        .hop-transition-fade { animation: hop-tfade 0.5s ease-out forwards }
-        @keyframes hop-tfade { to { opacity: 0 } }
-        .hop-transition-zoom { animation: hop-tzoom 0.5s ease-in forwards }
-        @keyframes hop-tzoom { to { transform: scale(1.5); opacity: 0 } }
-        .hop-transition-glitch { animation: hop-tglitch 0.5s steps(4) forwards }
-        @keyframes hop-tglitch { 0% { clip-path: inset(0) } 25% { clip-path: inset(20% 0 40% 0); transform: translate(8px,-4px) } 50% { clip-path: inset(50% 0 10% 0); transform: translate(-8px,4px) } 75% { clip-path: inset(10% 0 60% 0); transform: translate(4px,8px) } 100% { opacity: 0 } }
         .hop-screensaver-ken-burns { animation: hop-kenburns 25s ease-in-out infinite alternate; transform-origin: center center }
-        @keyframes hop-kenburns { 0% { transform: scale(1) translate(0,0) } 25% { transform: scale(1.15) translate(-2%,1%) } 50% { transform: scale(1.1) translate(1%,-1.5%) } 75% { transform: scale(1.2) translate(-1%,-0.5%) } 100% { transform: scale(1.05) translate(1.5%,1%) }  }
+        @keyframes hop-kenburns { 0% { transform: scale(1) translate(0,0) } 25% { transform: scale(1.15) translate(-2%,1%) } 50% { transform: scale(1.1) translate(1%,-1.5%) } 75% { transform: scale(1.2) translate(-1%,-0.5%) } 100% { transform: scale(1.05) translate(1.5%,1%) } }
       `}</style>
 
       <div className="bg-zinc-950 border-b border-white/10 shrink-0">
@@ -1310,7 +1359,7 @@ export default function HopCreator() {
           <button onClick={handleAddScene} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-new-hop">+ New HOP</button>
           <button onClick={() => setShowProjectPicker(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Projects</button>
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
-          <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${displayMode === "moving" ? "text-cyan-400" : "text-zinc-600"}`}>
+          <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${displayMode === "moving" ? "text-white" : "text-zinc-600"}`}>
             {displayMode === "moving" ? ">> MOVING" : ">> STANDARD"}
           </span>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-publish-toolbar">Publish</button>
@@ -1375,7 +1424,7 @@ export default function HopCreator() {
               <button
                 key={tab.id}
                 onClick={() => setLeftTab(tab.id)}
-                className={`flex-1 py-2 text-[10px] font-bold tracking-widest transition ${leftTab === tab.id ? "text-white border-b border-white bg-zinc-900/50" : "text-zinc-600 hover:text-zinc-400"}`}
+                className={`flex-1 py-2 text-[10px] font-bold tracking-widest transition ${leftTab === tab.id ? "text-white border-b border-white bg-black" : "text-zinc-600 hover:text-zinc-400"}`}
                 data-testid={`tab-${tab.id}`}
               >
                 <span className="mr-0.5">{tab.icon}</span> {tab.label}
@@ -1389,7 +1438,7 @@ export default function HopCreator() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[9px] text-zinc-500 font-bold tracking-wider">{scenes.length} SCENES · {totalDuration}s</span>
                   <div className="flex gap-0.5">
-                    <button onClick={() => setShowSceneTemplates(true)} className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition" title="From Template" data-testid="button-scene-templates">
+                    <button onClick={() => setShowSceneTemplates(true)} className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white transition" title="From Template" data-testid="button-scene-templates">
                       <FileText className="w-3 h-3" />
                     </button>
                     <button onClick={handleAddScene} className="p-1 hover:bg-zinc-800 text-zinc-400 transition" data-testid="button-add-scene">
@@ -1398,8 +1447,8 @@ export default function HopCreator() {
                   </div>
                 </div>
                 <div className="flex gap-1 mb-2">
-                  {["#ef4444","#22c55e","#3b82f6","#f59e0b","#a855f7","#ec4899","#06b6d4","#f97316"].map((c, i) => (
-                    <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: i < scenes.length ? c : "transparent", border: i < scenes.length ? "none" : "1px solid rgba(255,255,255,0.1)" }} />
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: i < scenes.length ? "#fff" : "transparent", border: i < scenes.length ? "none" : "1px solid rgba(255,255,255,0.1)" }} />
                   ))}
                 </div>
                 {scenes.map((scene, idx) => (
@@ -1427,7 +1476,7 @@ export default function HopCreator() {
                       <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "up"); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><ChevronUp className="w-2.5 h-2.5" /></button>
                       <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "down"); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><ChevronDown className="w-2.5 h-2.5" /></button>
                       <button onClick={(e) => { e.stopPropagation(); handleDuplicateScene(idx); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><Copy className="w-2.5 h-2.5" /></button>
-                      {scenes.length > 1 && <button onClick={(e) => { e.stopPropagation(); handleRemoveScene(scene.id); }} className="p-0.5 bg-red-900/50 hover:bg-red-800"><Trash2 className="w-2.5 h-2.5 text-red-400" /></button>}
+                      {scenes.length > 1 && <button onClick={(e) => { e.stopPropagation(); handleRemoveScene(scene.id); }} className="p-0.5 bg-zinc-800 hover:bg-zinc-700"><Trash2 className="w-2.5 h-2.5 text-zinc-400" /></button>}
                     </div>
                   </div>
                 ))}
@@ -1451,26 +1500,26 @@ export default function HopCreator() {
                 {audioTrack && (
                   <>
                     <div className="flex items-center gap-2 bg-zinc-900 border border-white/10 px-2 py-1.5">
-                      <Music className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                      <Music className="w-3.5 h-3.5 text-white shrink-0" />
                       <span className="text-[11px] text-zinc-300 truncate flex-1">{audioTrack.name}</span>
                       <button onClick={() => setAudioMuted(!audioMuted)} className="p-0.5" data-testid="button-audio-mute">
-                        {audioMuted ? <VolumeX className="w-3 h-3 text-red-400" /> : <Volume2 className="w-3 h-3 text-green-400" />}
+                        {audioMuted ? <VolumeX className="w-3 h-3 text-zinc-500" /> : <Volume2 className="w-3 h-3 text-white" />}
                       </button>
-                      <button onClick={() => setAudioTrack(null)} className="p-0.5 hover:text-red-400"><X className="w-3 h-3" /></button>
+                      <button onClick={() => setAudioTrack(null)} className="p-0.5 hover:text-white"><X className="w-3 h-3" /></button>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-zinc-500 w-8">{Math.round(audioTrack.volume * 100)}%</span>
-                        <input type="range" min="0" max="100" value={audioTrack.volume * 100} onChange={(e) => { const vol = Number(e.target.value) / 100; setAudioTrack(prev => prev ? { ...prev, volume: vol } : null); if (audioRef.current) audioRef.current.volume = vol; }} className="flex-1 h-1 accent-orange-500" data-testid="slider-audio-volume" />
+                        <input type="range" min="0" max="100" value={audioTrack.volume * 100} onChange={(e) => { const vol = Number(e.target.value) / 100; setAudioTrack(prev => prev ? { ...prev, volume: vol } : null); if (audioRef.current) audioRef.current.volume = vol; }} className="flex-1 h-1 accent-white" data-testid="slider-audio-volume" />
                       </div>
                       <div className="flex items-center gap-2">
                         <label className="text-[9px] text-zinc-500">BPM</label>
                         <input type="number" min="1" max="300" value={audioBpm || ""} onChange={(e) => setAudioBpm(Number(e.target.value) || null)} placeholder="120" className="w-16 bg-zinc-800 border border-white/10 text-xs text-white p-1 outline-none" data-testid="input-bpm" />
-                        <button onClick={handleSnapToBpm} disabled={!audioBpm} className="px-2 py-1 text-[9px] bg-orange-900/40 hover:bg-orange-800/50 text-orange-400 border border-orange-500/30 disabled:opacity-30 transition" data-testid="button-snap-bpm">
+                        <button onClick={handleSnapToBpm} disabled={!audioBpm} className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 text-white border border-white/20 disabled:opacity-30 transition" data-testid="button-snap-bpm">
                           SNAP
                         </button>
                       </div>
-                      <button onClick={() => setAudioTrack(prev => prev ? { ...prev, loop: !prev.loop } : null)} className={`flex items-center gap-1 px-2 py-1 text-[9px] transition w-full ${audioTrack.loop ? "bg-orange-900/30 text-orange-400 border border-orange-500/50" : "bg-zinc-800 text-zinc-500 border border-white/10"}`} data-testid="button-audio-loop-toggle">
+                      <button onClick={() => setAudioTrack(prev => prev ? { ...prev, loop: !prev.loop } : null)} className={`flex items-center gap-1 px-2 py-1 text-[9px] transition w-full ${audioTrack.loop ? "bg-white text-black border border-white" : "bg-zinc-800 text-zinc-500 border border-white/10"}`} data-testid="button-audio-loop-toggle">
                         <Repeat className="w-3 h-3" /> {audioTrack.loop ? "Looping" : "Once"}
                       </button>
                     </div>
@@ -1488,7 +1537,7 @@ export default function HopCreator() {
                       key={vibe.id}
                       onClick={() => applyVibe(vibe.id)}
                       onContextMenu={(e) => { e.preventDefault(); applyVibe(vibe.id, true); }}
-                      className="py-2 px-1.5 text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-orange-500/50 transition text-center"
+                      className="py-2 px-1.5 text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 border border-white/10 hover:border-white/30 transition text-center"
                       title={`${vibe.label} (right-click: all scenes)`}
                       data-testid={`vibe-${vibe.id}`}
                     >
@@ -1519,7 +1568,7 @@ export default function HopCreator() {
                   <div
                     key={scene.id}
                     className={`relative shrink-0 transition-all cursor-pointer group overflow-visible ${
-                      isSelected ? "ring-2 ring-orange-500" : isPlayed ? "ring-1 ring-cyan-500" : "ring-1 ring-white/10 hover:ring-white/20"
+                      isSelected ? "ring-2 ring-white" : isPlayed ? "ring-1 ring-white/50" : "ring-1 ring-white/10 hover:ring-white/20"
                     }`}
                     style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}`, zIndex: isSelected ? 10 : 1 }}
                     onClick={(e) => {
@@ -1540,11 +1589,22 @@ export default function HopCreator() {
                       </div>
                       {isSelected && selectedLayer && !selectedLayer.locked && (() => {
                         const isBgGizmo = selectedLayer.type === "media" && selectedLayer.dataUrl && selectedLayer.dataUrl === scene.assetUrl;
-                        const frameSize = Math.max(60, selectedLayer.scale);
                         return (
                           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
                             <div
                               className="absolute pointer-events-auto"
+                              ref={(el) => {
+                                if (!el || !canvasRef.current) return;
+                                const layerEl = canvasRef.current.querySelector(`[data-layer-id="${selectedLayer.id}"]`) as HTMLElement | null;
+                                if (layerEl) {
+                                  const canvasRect = canvasRef.current.getBoundingClientRect();
+                                  const layerRect = layerEl.getBoundingClientRect();
+                                  el.style.left = `${layerRect.left - canvasRect.left}px`;
+                                  el.style.top = `${layerRect.top - canvasRect.top}px`;
+                                  el.style.width = `${layerRect.width}px`;
+                                  el.style.height = `${layerRect.height}px`;
+                                }
+                              }}
                               style={isBgGizmo ? {
                                 left: `calc(50% + ${selectedLayer.positionX}px)`,
                                 top: `calc(50% + ${selectedLayer.positionY}px)`,
@@ -1552,16 +1612,10 @@ export default function HopCreator() {
                                 height: `${viewport.h}px`,
                                 transform: `translate(-50%,-50%) rotate(${selectedLayer.rotation}deg) scale(${selectedLayer.scale / 100})`,
                                 transformOrigin: "center center",
-                              } : {
-                                left: `calc(50% + ${selectedLayer.positionX}px)`,
-                                top: `calc(50% + ${selectedLayer.positionY}px)`,
-                                width: `${frameSize}px`,
-                                height: `${frameSize}px`,
-                                transform: `translate(-50%,-50%) rotate(${selectedLayer.rotation}deg)`,
-                              }}
+                              } : undefined}
                             >
                               <div
-                                className="absolute inset-0 border-2 border-orange-500/80"
+                                className="absolute inset-0 border-2 border-white/80"
                                 style={{ cursor: transformMode === 'move' ? 'grabbing' : 'move', touchAction: 'none' }}
                                 onMouseDown={(e) => handleTransformStart(e, 'move')}
                                 onTouchStart={(e) => handleTransformStart(e, 'move')}
@@ -1575,7 +1629,7 @@ export default function HopCreator() {
                               ].map((corner, i) => (
                                 <div
                                   key={i}
-                                  className="absolute w-5 h-5 bg-orange-500 border border-white"
+                                  className="absolute w-5 h-5 bg-white border border-zinc-900"
                                   style={{
                                     left: corner.x ? '100%' : '0%',
                                     top: corner.y ? '100%' : '0%',
@@ -1597,8 +1651,8 @@ export default function HopCreator() {
                                 onTouchStart={(e) => handleTransformStart(e, 'rotate')}
                                 data-testid="transform-rotate"
                               >
-                                <div className="w-5 h-5 rounded-full bg-cyan-500 border border-white" />
-                                <div className="w-px h-3 bg-cyan-500" />
+                                <div className="w-5 h-5 rounded-full bg-white border border-zinc-900" />
+                                <div className="w-px h-3 bg-white" />
                               </div>
                             </div>
                           </div>
@@ -1620,7 +1674,7 @@ export default function HopCreator() {
                 );
               })}
               <div
-                className="shrink-0 flex items-center justify-center border-2 border-dashed border-white/10 hover:border-green-500/40 transition cursor-pointer"
+                className="shrink-0 flex items-center justify-center border-2 border-dashed border-white/10 hover:border-white/30 transition cursor-pointer"
                 style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}`, minWidth: "120px" }}
                 onClick={handleAddScene}
                 data-testid="canvas-add-scene"
@@ -1651,7 +1705,7 @@ export default function HopCreator() {
               <button onClick={() => setPreviewSceneIndex(Math.min(scenes.length - 1, previewSceneIndex + 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-next"><SkipForward className="w-3 h-3" /></button>
               <span className="text-[9px] text-zinc-500 font-mono">0.0s</span>
               <span className="text-[9px] text-zinc-400 font-mono">{totalDuration}.0s</span>
-              {isPlaying && <span className="text-[9px] text-orange-400 font-mono flex items-center gap-0.5"><Repeat className="w-2.5 h-2.5" />{loopCount}</span>}
+              {isPlaying && <span className="text-[9px] text-white font-mono flex items-center gap-0.5"><Repeat className="w-2.5 h-2.5" />{loopCount}</span>}
               <Settings2 className="w-3.5 h-3.5 text-zinc-600 hover:text-white cursor-pointer" onClick={() => setShowSettings(!showSettings)} />
             </div>
             <div className="px-2 py-1.5">
@@ -1670,8 +1724,8 @@ export default function HopCreator() {
                       onClick={() => { setSelectedSceneIdx(idx); setPreviewSceneIndex(idx); setRightContext("scene"); }}
                       className={`relative flex-shrink-0 cursor-grab active:cursor-grabbing transition-all ${
                         timelineDragSceneId === scene.id ? "opacity-40" : ""
-                      } ${timelineDragOverIdx === idx && timelineDragSceneId !== scene.id ? "ring-2 ring-cyan-400" : ""} ${
-                        selectedSceneIdx === idx ? "ring-2 ring-orange-500" : previewSceneIndex === idx && isPlaying ? "ring-1 ring-cyan-500" : ""
+                      } ${timelineDragOverIdx === idx && timelineDragSceneId !== scene.id ? "ring-2 ring-white" : ""} ${
+                        selectedSceneIdx === idx ? "ring-2 ring-white" : previewSceneIndex === idx && isPlaying ? "ring-1 ring-white/50" : ""
                       }`}
                       style={{ width: `${Math.max(80, (scene.duration / Math.max(totalDuration, 1)) * 300)}px`, height: "32px" }}
                       data-testid={`timeline-scene-${idx}`}
@@ -1695,7 +1749,7 @@ export default function HopCreator() {
                       </div>
                     </div>
                   ))}
-                  <button onClick={handleAddScene} className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-green-400 border border-dashed border-white/10 hover:border-green-500/50 transition shrink-0" data-testid="timeline-add-scene">
+                  <button onClick={handleAddScene} className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-white border border-dashed border-white/10 hover:border-white/30 transition shrink-0" data-testid="timeline-add-scene">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1704,7 +1758,7 @@ export default function HopCreator() {
                 <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-16 shrink-0">+ ADD AUDIO</span>
                 <div className="flex-1 h-6 bg-zinc-900/50 border border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-white/20 transition" onClick={() => audioInputRef.current?.click()}>
                   {audioTrack ? (
-                    <span className="text-[8px] text-zinc-400 truncate px-1 flex items-center gap-1"><Music className="w-2.5 h-2.5 text-orange-400" /> {audioTrack.name}</span>
+                    <span className="text-[8px] text-zinc-400 truncate px-1 flex items-center gap-1"><Music className="w-2.5 h-2.5 text-white" /> {audioTrack.name}</span>
                   ) : (
                     <span className="text-[8px] text-zinc-600">+ ADD AUDIO CLIP</span>
                   )}
@@ -1747,7 +1801,7 @@ export default function HopCreator() {
               {[...currentLayers].sort((a, b) => b.zIndex - a.zIndex).map((layer, displayIdx) => (
                 <div key={layer.id}>
                   {dragReorderLayerId && dragOverLayerId === layer.id && dragOverPosition === "above" && dragReorderLayerId !== layer.id && (
-                    <div className="h-0.5 bg-cyan-400 mx-1 rounded-full" />
+                    <div className="h-0.5 bg-white mx-1 rounded-full" />
                   )}
                   <div
                     draggable
@@ -1772,7 +1826,7 @@ export default function HopCreator() {
                     onDragEnd={() => { setDragReorderLayerId(null); setDragOverLayerId(null); }}
                     onClick={() => { setSelectedLayerId(layer.id); setRightContext("layer"); }}
                     className={`group flex items-center gap-0.5 px-1 py-0.5 cursor-pointer transition-all text-[10px] ${
-                      selectedLayerId === layer.id ? "bg-zinc-800 border-l-2 border-l-cyan-400 border-y border-r border-white/10" :
+                      selectedLayerId === layer.id ? "bg-zinc-800 border-l-2 border-l-white border-y border-r border-white/10" :
                       dragReorderLayerId === layer.id ? "opacity-40 bg-zinc-900/20 border border-dashed border-white/15" :
                       "border-l-2 border-l-transparent border-y border-r border-transparent hover:bg-zinc-900/50 hover:border-white/5"
                     }`}
@@ -1786,19 +1840,19 @@ export default function HopCreator() {
                     <span className="flex-1 truncate text-zinc-300 min-w-0">{layer.name}</span>
                     <span className="text-[7px] text-zinc-600 w-5 text-center font-mono shrink-0">{Math.round(layer.opacity * 100)}</span>
                     <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "up"); }} className="p-0.5 hover:text-cyan-400 text-zinc-600" title="Move Up (Ctrl+])"><ChevronUp className="w-2.5 h-2.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "down"); }} className="p-0.5 hover:text-cyan-400 text-zinc-600" title="Move Down (Ctrl+[)"><ChevronDown className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "up"); }} className="p-0.5 hover:text-white text-zinc-600" title="Move Up (Ctrl+])"><ChevronUp className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "down"); }} className="p-0.5 hover:text-white text-zinc-600" title="Move Down (Ctrl+[)"><ChevronDown className="w-2.5 h-2.5" /></button>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { visible: !layer.visible }); }} className="p-0.5 shrink-0">
                       {layer.visible ? <Eye className="w-2.5 h-2.5 text-zinc-500" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-600" />}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { locked: !layer.locked }); }} className="p-0.5 shrink-0">
-                      {layer.locked ? <Lock className="w-2.5 h-2.5 text-red-400" /> : <Unlock className="w-2.5 h-2.5 text-zinc-700" />}
+                      {layer.locked ? <Lock className="w-2.5 h-2.5 text-white" /> : <Unlock className="w-2.5 h-2.5 text-zinc-700" />}
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }} className="p-0.5 hover:text-red-400 text-zinc-700 shrink-0"><Trash2 className="w-2.5 h-2.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }} className="p-0.5 hover:text-white text-zinc-700 shrink-0"><Trash2 className="w-2.5 h-2.5" /></button>
                   </div>
                   {dragReorderLayerId && dragOverLayerId === layer.id && dragOverPosition === "below" && dragReorderLayerId !== layer.id && (
-                    <div className="h-0.5 bg-cyan-400 mx-1 rounded-full" />
+                    <div className="h-0.5 bg-white mx-1 rounded-full" />
                   )}
                 </div>
               ))}
@@ -1876,10 +1930,14 @@ export default function HopCreator() {
                         <label className="text-[9px] text-zinc-500 uppercase font-bold">Stroke</label>
                         <input type="color" value={selectedLayer.strokeColor || "#000000"} onChange={(e) => updateLayer(selectedLayer.id, { strokeColor: e.target.value })} className="w-8 h-6 mt-0.5 cursor-pointer bg-transparent" />
                       </div>
+                      <div>
+                        <label className="text-[9px] text-zinc-500 uppercase font-bold">Stroke W</label>
+                        <input type="number" min={0} max={20} step={1} value={selectedLayer.strokeWidth || 0} onChange={(e) => updateLayer(selectedLayer.id, { strokeWidth: Number(e.target.value) })} className="w-12 bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5" data-testid="input-stroke-width" />
+                      </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => updateLayer(selectedLayer.id, { bold: !selectedLayer.bold })} className={`px-2 py-1 text-[10px] font-bold transition ${selectedLayer.bold ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>B</button>
-                      <button onClick={() => updateLayer(selectedLayer.id, { italic: !selectedLayer.italic })} className={`px-2 py-1 text-[10px] italic transition ${selectedLayer.italic ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>I</button>
+                      <button onClick={() => updateLayer(selectedLayer.id, { bold: !selectedLayer.bold })} className={`px-2 py-1 text-[10px] font-bold transition ${selectedLayer.bold ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"}`}>B</button>
+                      <button onClick={() => updateLayer(selectedLayer.id, { italic: !selectedLayer.italic })} className={`px-2 py-1 text-[10px] italic transition ${selectedLayer.italic ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"}`}>I</button>
                     </div>
                     <div>
                       <label className="text-[9px] text-zinc-500 uppercase font-bold">Text Animation</label>
@@ -1933,7 +1991,7 @@ export default function HopCreator() {
                       <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">STITCH LOOP</span>
                       <button
                         onClick={() => updateLayer(selectedLayer.id, { stitchMode: !selectedLayer.stitchMode })}
-                        className={`px-2 py-0.5 text-[8px] font-bold tracking-wider border transition ${selectedLayer.stitchMode ? "bg-cyan-600 border-cyan-500 text-white" : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"}`}
+                        className={`px-2 py-0.5 text-[8px] font-bold tracking-wider border transition ${selectedLayer.stitchMode ? "bg-white border-white text-black" : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"}`}
                         data-testid="button-stitch-toggle"
                       >
                         {selectedLayer.stitchMode ? "ON" : "OFF"}
@@ -1942,7 +2000,7 @@ export default function HopCreator() {
                     {selectedLayer.stitchMode && (
                       <div className="mt-1">
                         <span className="text-[8px] text-zinc-600">REPEATS: {selectedLayer.stitchRepeat || 2}x</span>
-                        <input type="range" min="2" max="8" value={selectedLayer.stitchRepeat || 2} onChange={(e) => updateLayer(selectedLayer.id, { stitchRepeat: Number(e.target.value) })} className="w-full h-1 accent-cyan-500 mt-0.5" data-testid="input-stitch-repeat" />
+                        <input type="range" min="2" max="8" value={selectedLayer.stitchRepeat || 2} onChange={(e) => updateLayer(selectedLayer.id, { stitchRepeat: Number(e.target.value) })} className="w-full h-1 accent-white mt-0.5" data-testid="input-stitch-repeat" />
                         <p className="text-[7px] text-zinc-600 mt-0.5">Tiles image end-to-end for seamless moving loop</p>
                       </div>
                     )}
@@ -1997,7 +2055,7 @@ export default function HopCreator() {
                   {selectedLayer.beatReact && selectedLayer.beatReact !== "none" && (
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-[8px] text-zinc-600">Intensity</span>
-                      <input type="range" min="0" max="100" value={selectedLayer.beatIntensity || 50} onChange={(e) => updateLayer(selectedLayer.id, { beatIntensity: Number(e.target.value) })} className="flex-1 h-1 accent-orange-500" />
+                      <input type="range" min="0" max="100" value={selectedLayer.beatIntensity || 50} onChange={(e) => updateLayer(selectedLayer.id, { beatIntensity: Number(e.target.value) })} className="flex-1 h-1 accent-white" />
                     </div>
                   )}
                 </div>
@@ -2034,7 +2092,7 @@ export default function HopCreator() {
                       <div className="flex gap-1 mt-1.5">
                         <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAssetUpload(currentSceneId, e)} />
                         <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition">Replace</button>
-                        <button onClick={() => handleUpdateScene(currentSceneId, { assetUrl: undefined })} className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-red-900/30 border border-white/10 text-red-400 transition">Remove</button>
+                        <button onClick={() => handleUpdateScene(currentSceneId, { assetUrl: undefined })} className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-400 transition">Remove</button>
                       </div>
                     )}
                   </div>
@@ -2050,7 +2108,7 @@ export default function HopCreator() {
                           key={dur}
                           onClick={() => setClipLengthMode(`${dur}s` as any)}
                           className={`flex-1 py-1 text-[9px] font-bold tracking-wider transition border ${
-                            targetDuration === dur ? "bg-orange-600 border-orange-500 text-white" : "bg-zinc-800 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
+                            targetDuration === dur ? "bg-white border-white text-black" : "bg-zinc-800 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
                           }`}
                           data-testid={`hop-length-${dur}`}
                         >
@@ -2059,7 +2117,7 @@ export default function HopCreator() {
                       ))}
                     </div>
                     <span className="text-[8px] text-zinc-600">{scenes.length} scenes · {totalDuration}s total</span>
-                    {targetDuration && <div className={`text-[8px] mt-0.5 ${totalDuration > targetDuration ? "text-red-400" : "text-green-400"}`}>{totalDuration}s / {targetDuration}s target</div>}
+                    {targetDuration && <div className={`text-[8px] mt-0.5 ${totalDuration > targetDuration ? "text-zinc-400" : "text-white"}`}>{totalDuration}s / {targetDuration}s target</div>}
                   </div>
 
                   <div>
@@ -2101,18 +2159,24 @@ export default function HopCreator() {
                   <div>
                     <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">CAMERA MOTION</span>
                     <div className="grid grid-cols-3 gap-1 mt-1.5">
-                      {CAMERA_MOTIONS.slice(1, 4).map(cm => (
+                      {CAMERA_PRESETS.map(cp => (
                         <button
-                          key={cm.id}
-                          onClick={() => handleUpdateScene(currentSceneId, { cameraAngle: cm.id })}
+                          key={cp.id}
+                          onClick={() => {
+                            if (cp.id === "none") {
+                              handleUpdateScene(currentSceneId, { cameraStart: undefined, cameraEnd: undefined, cameraAngle: undefined });
+                            } else {
+                              handleUpdateScene(currentSceneId, { cameraStart: { ...cp.start }, cameraEnd: { ...cp.end }, cameraAngle: cp.id });
+                            }
+                          }}
                           className={`py-1.5 text-[8px] font-bold tracking-wider transition border ${
-                            currentScene.cameraAngle === cm.id
+                            currentScene.cameraAngle === cp.id || (!currentScene.cameraAngle && cp.id === "none")
                               ? "bg-zinc-700 border-white/30 text-white"
                               : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
                           }`}
-                          data-testid={`camera-${cm.id}`}
+                          data-testid={`camera-${cp.id}`}
                         >
-                          {cm.label}
+                          {cp.label}
                         </button>
                       ))}
                     </div>
@@ -2223,7 +2287,7 @@ export default function HopCreator() {
                         <label className="text-[8px] text-zinc-600">Sync Mode</label>
                         <div className="flex gap-0.5 mt-0.5">
                           {(["manual", "snap-to-beat", "fill"] as const).map(mode => (
-                            <button key={mode} onClick={() => handleUpdateScene(currentSceneId, { syncMode: mode })} className={`flex-1 py-0.5 text-[8px] transition ${currentScene.syncMode === mode ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{mode}</button>
+                            <button key={mode} onClick={() => handleUpdateScene(currentSceneId, { syncMode: mode })} className={`flex-1 py-0.5 text-[8px] transition ${currentScene.syncMode === mode ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"}`}>{mode}</button>
                           ))}
                         </div>
                       </div>
@@ -2241,7 +2305,7 @@ export default function HopCreator() {
                           <label className="text-[9px] text-zinc-500">HOP Type</label>
                           <div className="flex gap-1 mt-0.5">
                             {(["single", "series"] as const).map(t => (
-                              <button key={t} onClick={() => setHopType(t)} className={`flex-1 py-1 text-[9px] transition ${hopType === t ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{t}</button>
+                              <button key={t} onClick={() => setHopType(t)} className={`flex-1 py-1 text-[9px] transition ${hopType === t ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"}`}>{t}</button>
                             ))}
                           </div>
                         </div>
@@ -2249,10 +2313,10 @@ export default function HopCreator() {
                           <label className="text-[9px] text-zinc-500">Duration Target</label>
                           <div className="flex gap-1 mt-0.5">
                             {(["30s", "60s", "90s", "120s", "custom"] as const).map(d => (
-                              <button key={d} onClick={() => setClipLengthMode(d)} className={`flex-1 py-1 text-[9px] transition ${clipLengthMode === d ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{d}</button>
+                              <button key={d} onClick={() => setClipLengthMode(d)} className={`flex-1 py-1 text-[9px] transition ${clipLengthMode === d ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"}`}>{d}</button>
                             ))}
                           </div>
-                          {targetDuration && <div className={`text-[8px] mt-0.5 ${totalDuration > targetDuration ? "text-red-400" : "text-green-400"}`}>{totalDuration}s / {targetDuration}s</div>}
+                          {targetDuration && <div className={`text-[8px] mt-0.5 ${totalDuration > targetDuration ? "text-zinc-400" : "text-white"}`}>{totalDuration}s / {targetDuration}s</div>}
                         </div>
                         <div>
                           <label className="text-[9px] text-zinc-500">Loop Mode</label>
@@ -2278,9 +2342,9 @@ export default function HopCreator() {
                           </div>
                           <div className="flex flex-wrap gap-0.5 mt-1">
                             {tags.map(tag => (
-                              <span key={tag} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-900/30 border border-orange-500/30 text-[8px] text-orange-300">
+                              <span key={tag} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-zinc-800 border border-white/20 text-[8px] text-zinc-300">
                                 {tag}
-                                <button onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="hover:text-red-400"><X className="w-2 h-2" /></button>
+                                <button onClick={() => setTags(prev => prev.filter(t => t !== tag))} className="hover:text-white"><X className="w-2 h-2" /></button>
                               </span>
                             ))}
                           </div>
@@ -2378,32 +2442,37 @@ export default function HopCreator() {
                     const scene = createDefaultScene(scenes.length);
                     const applied: HopScene = {
                       ...scene,
-                      duration: tmpl.defaults.duration,
-                      transition: tmpl.defaults.transition,
-                      mood: tmpl.defaults.mood,
-                      cameraAngle: tmpl.defaults.cameraAngle,
-                      lighting: tmpl.defaults.lighting,
-                      soundPack: tmpl.defaults.soundPack,
-                      textOverlay: tmpl.defaults.textOverlay,
+                      ...tmpl.scene,
                       templateId: tmpl.id,
                     };
+                    const placeholderText = tmpl.scene.textOverlay || tmpl.label;
+                    const textLayer = createDefaultLayer("text", placeholderText, 0);
+                    textLayer.text = placeholderText;
+                    textLayer.fontSize = tmpl.scene.textOverlay ? 28 : 18;
+                    textLayer.fontColor = "#FFFFFF";
+                    textLayer.strokeWidth = tmpl.scene.textOverlay ? 3 : 1;
+                    textLayer.strokeColor = "#000000";
+                    textLayer.positionY = 0;
                     setScenes(prev => [...prev, applied]);
+                    setSceneLayers(prev => ({ ...prev, [applied.id]: [textLayer] }));
                     setSelectedSceneIdx(scenes.length);
                     setShowSceneTemplates(false);
                     toast.success(`Added "${tmpl.label}" scene`);
                   }}
-                  className="w-full text-left p-3 bg-zinc-800 border border-white/10 hover:border-orange-500/50 transition"
+                  className="w-full text-left p-3 bg-zinc-800 border border-white/10 hover:border-white/30 transition"
                   data-testid={`template-${tmpl.id}`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{tmpl.emoji}</span>
                     <span className="text-xs font-bold text-white">{tmpl.label}</span>
-                    {tmpl.category === "premium" && <span className="text-[7px] text-orange-400 bg-orange-900/30 px-1.5 py-0.5 border border-orange-500/30">PREMIUM</span>}
+                    <span className="ml-auto text-[7px] text-zinc-500 uppercase border border-white/10 px-1.5 py-0.5">{tmpl.category}</span>
                   </div>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">{tmpl.description}</p>
-                  <div className="flex gap-2 mt-1 text-[8px] text-zinc-500">
-                    <span>{tmpl.defaults.duration}s</span>
-                    <span>{tmpl.defaults.transition}</span>
-                    {tmpl.defaults.mood && <span>{tmpl.defaults.mood}</span>}
+                  <p className="text-[10px] text-zinc-400 mt-1">{tmpl.description}</p>
+                  <div className="flex gap-2 mt-1.5 text-[8px] text-zinc-500">
+                    <span>{tmpl.scene.duration || 5}s</span>
+                    <span>{tmpl.scene.transition || "cut"}</span>
+                    {tmpl.scene.mood && <span>{tmpl.scene.mood}</span>}
+                    {tmpl.scene.cameraStart && <span>cam: {tmpl.scene.cameraStart.zoom}x→{tmpl.scene.cameraEnd?.zoom || 1}x</span>}
                   </div>
                 </button>
               ))}
@@ -2461,7 +2530,7 @@ export default function HopCreator() {
         <div className="fixed inset-0 bg-black z-[100]" data-testid="zone-out-mode" onDoubleClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }}>
           <div className={`absolute inset-0 overflow-hidden ${transitionClass}`}>
             {zoneOutFullFill ? (
-              <div className={`w-full h-full ${screensaverMode ? "hop-screensaver-ken-burns" : ""}`}>
+              <div className={`w-full h-full ${screensaverMode ? "hop-screensaver-ken-burns" : ""}`} style={!screensaverMode && previewScene ? getCameraStyle(previewScene, isPlaying ? cameraProgress : 0) : undefined}>
                 {previewScene?.assetUrl && (
                   (previewScene.assetUrl.match(/\.(mp4|webm|mov)/i) || previewScene.assetUrl.startsWith("data:video/")) ? (
                     <video src={previewScene.assetUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
@@ -2507,7 +2576,7 @@ export default function HopCreator() {
           <div className="absolute top-4 right-5 z-20 flex items-center gap-2">
             {audioTrack && (
               <button onClick={() => { const next = !audioMuted; setAudioMuted(next); if (!next && isPlaying) resumeAudio(); else pauseAudioNow(); }} className="p-1 hover:bg-white/10 rounded transition">
-                {audioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
+                {audioMuted ? <VolumeX className="w-4 h-4 text-zinc-500" /> : <Volume2 className="w-4 h-4 text-white" />}
               </button>
             )}
             <button onClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }} className="px-3 py-1 text-[10px] font-bold tracking-wider bg-white/10 hover:bg-white/20 text-white transition" data-testid="button-exit-zone-out">

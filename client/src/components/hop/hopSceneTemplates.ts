@@ -1,153 +1,178 @@
+import type { HopScene } from "@shared/schema";
+
+export type HopBlendMode = "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
+
 export interface HopSceneTemplate {
   id: string;
   label: string;
+  emoji: string;
   description: string;
-  category: "basic" | "premium";
-  defaults: {
-    duration: number;
-    mood?: string;
-    cameraAngle?: string;
-    lighting?: string;
-    transition: "cut" | "fade" | "zoom" | "glitch";
-    textOverlay?: string;
-    soundPack?: string;
-  };
+  category: "cinematic" | "action" | "dialogue" | "mood" | "music";
+  scene: Partial<HopScene>;
 }
 
 export const SCENE_TEMPLATES: HopSceneTemplate[] = [
   {
     id: "cinematic-opener",
-    label: "Cinematic Opener",
+    label: "CINEMATIC OPENER",
+    emoji: "🎬",
     description: "Wide shot, fade in, ambient audio",
-    category: "basic",
-    defaults: {
+    category: "cinematic",
+    scene: {
       duration: 8,
-      mood: "dark, cinematic, tension",
-      cameraAngle: "wide establishing",
-      lighting: "low-key",
       transition: "fade",
-      soundPack: "ambient_city",
+      mood: "cinematic, dramatic",
+      cameraAngle: "wide establishing",
+      lighting: "low-key, atmospheric",
+      cameraStart: { x: 0, y: 0, zoom: 1 },
+      cameraEnd: { x: 0, y: 0, zoom: 1.3 },
+      cameraEasing: "ease-in-out",
     },
   },
   {
     id: "action-sequence",
-    label: "Action Sequence",
+    label: "ACTION SEQUENCE",
+    emoji: "💥",
     description: "Quick cuts, burst FX, high energy",
-    category: "basic",
-    defaults: {
+    category: "action",
+    scene: {
       duration: 3,
-      mood: "intense, high-energy",
-      cameraAngle: "close-up",
-      lighting: "dynamic",
       transition: "cut",
+      mood: "intense, high-energy",
+      cameraAngle: "dynamic, close-up",
+      lighting: "harsh, contrasty",
+      cameraStart: { x: -5, y: 0, zoom: 1.2 },
+      cameraEnd: { x: 5, y: 0, zoom: 1.5 },
+      cameraEasing: "ease-out",
     },
   },
   {
     id: "dialogue-beat",
-    label: "Dialogue Beat",
-    description: "Speech bubbles, character focus, soft BG",
-    category: "basic",
-    defaults: {
-      duration: 5,
-      mood: "calm, conversational",
+    label: "DIALOGUE BEAT",
+    emoji: "💬",
+    description: "Character focus, speech bubbles, soft BG",
+    category: "dialogue",
+    scene: {
+      duration: 6,
+      transition: "fade",
+      mood: "conversational, intimate",
       cameraAngle: "medium shot",
       lighting: "soft, even",
-      transition: "fade",
+      cameraStart: { x: 0, y: 0, zoom: 1.1 },
+      cameraEnd: { x: 0, y: 0, zoom: 1.15 },
+      cameraEasing: "ease-in-out",
     },
   },
   {
-    id: "musical-climax",
-    label: "Musical Climax",
-    description: "Full FX, speed lines, peak energy, synced to drop",
-    category: "basic",
-    defaults: {
+    id: "dramatic-reveal",
+    label: "DRAMATIC REVEAL",
+    emoji: "😱",
+    description: "Slow zoom, tension build, iris transition",
+    category: "cinematic",
+    scene: {
+      duration: 5,
+      transition: "iris",
+      mood: "suspenseful, mysterious",
+      cameraAngle: "tight close-up",
+      lighting: "dramatic, single source",
+      cameraStart: { x: 0, y: 0, zoom: 1 },
+      cameraEnd: { x: 0, y: 0, zoom: 2 },
+      cameraEasing: "ease-in",
+    },
+  },
+  {
+    id: "transition-breather",
+    label: "BREATHER",
+    emoji: "🌙",
+    description: "Slow pan, calm mood, wipe transition",
+    category: "mood",
+    scene: {
+      duration: 7,
+      transition: "wipe-right",
+      mood: "calm, reflective",
+      cameraAngle: "wide",
+      lighting: "soft, warm",
+      cameraStart: { x: -8, y: 0, zoom: 1.1 },
+      cameraEnd: { x: 8, y: 0, zoom: 1.1 },
+      cameraEasing: "linear",
+    },
+  },
+  {
+    id: "music-drop",
+    label: "MUSIC DROP",
+    emoji: "🔥",
+    description: "Glitch transition, zoom burst, beat-synced",
+    category: "music",
+    scene: {
       duration: 4,
-      mood: "epic, peak energy",
-      cameraAngle: "dynamic zoom",
-      lighting: "neon, high contrast",
       transition: "glitch",
+      mood: "explosive, hype",
+      cameraAngle: "dynamic",
+      lighting: "neon, high contrast",
+      cameraStart: { x: 0, y: 0, zoom: 0.8 },
+      cameraEnd: { x: 0, y: 0, zoom: 1.6 },
+      cameraEasing: "ease-out",
+    },
+  },
+  {
+    id: "credits-roll",
+    label: "CREDITS / OUTRO",
+    emoji: "🎭",
+    description: "Slow fade out, text card ready",
+    category: "cinematic",
+    scene: {
+      duration: 10,
+      transition: "fade",
+      assetType: "text_card",
+      mood: "closing, reflective",
+      textOverlay: "Created with Press Start",
+      cameraStart: { x: 0, y: 0, zoom: 1 },
+      cameraEnd: { x: 0, y: 0, zoom: 1 },
+    },
+  },
+  {
+    id: "lyric-card",
+    label: "LYRIC CARD",
+    emoji: "🎤",
+    description: "Text-focused, bold typography, slide transition",
+    category: "music",
+    scene: {
+      duration: 5,
+      transition: "slide-left",
+      assetType: "text_card",
+      mood: "lyrical, expressive",
+      textOverlay: "Your lyrics here...",
     },
   },
   {
     id: "cool-down",
-    label: "Cool Down / Outro",
-    description: "Slow fade, credits overlay, ambient loop",
-    category: "basic",
-    defaults: {
-      duration: 10,
+    label: "COOL DOWN",
+    emoji: "🌊",
+    description: "Slow fade, ambient loop, wind-down energy",
+    category: "mood",
+    scene: {
+      duration: 8,
+      transition: "dissolve",
       mood: "reflective, calm",
       cameraAngle: "wide pull-out",
       lighting: "warm, fading",
-      transition: "fade",
-      soundPack: "ambient_nature",
-    },
-  },
-  {
-    id: "cyoa-branch",
-    label: "CYOA Branch",
-    description: "Decision point, split paths, interactive prompt",
-    category: "premium",
-    defaults: {
-      duration: 8,
-      mood: "suspense, choice",
-      cameraAngle: "direct address",
-      lighting: "spotlight",
-      transition: "zoom",
-      textOverlay: "What will you choose?",
+      cameraStart: { x: 0, y: 0, zoom: 1.2 },
+      cameraEnd: { x: 0, y: 0, zoom: 1 },
+      cameraEasing: "ease-in-out",
     },
   },
   {
     id: "montage",
-    label: "Montage",
-    description: "Rapid image sequence, energy build",
-    category: "premium",
-    defaults: {
+    label: "MONTAGE",
+    emoji: "⚡",
+    description: "Rapid cuts, energy build, rhythmic pace",
+    category: "action",
+    scene: {
       duration: 2,
+      transition: "cut",
       mood: "fast, rhythmic",
       cameraAngle: "mixed cuts",
       lighting: "varied",
-      transition: "cut",
-    },
-  },
-  {
-    id: "dream-sequence",
-    label: "Dream Sequence",
-    description: "Ethereal, slow, surreal visuals",
-    category: "premium",
-    defaults: {
-      duration: 6,
-      mood: "dreamy, surreal",
-      cameraAngle: "floating",
-      lighting: "soft glow",
-      transition: "fade",
-      soundPack: "ethereal_pad",
-    },
-  },
-  {
-    id: "horror-reveal",
-    label: "Horror Reveal",
-    description: "Building tension, sudden reveal, dark atmosphere",
-    category: "premium",
-    defaults: {
-      duration: 5,
-      mood: "dread, suspense",
-      cameraAngle: "slow zoom",
-      lighting: "low-key, shadows",
-      transition: "glitch",
-      soundPack: "tension_drone",
-    },
-  },
-  {
-    id: "title-card",
-    label: "Title Card",
-    description: "Bold text, minimal background, brand moment",
-    category: "premium",
-    defaults: {
-      duration: 3,
-      mood: "bold, declarative",
-      cameraAngle: "static center",
-      lighting: "even",
-      transition: "fade",
     },
   },
 ];
@@ -185,4 +210,17 @@ export const MOOD_PRESETS = [
   "dread, suspense", "bold, declarative",
   "romantic, warm", "mysterious, eerie",
   "joyful, celebratory", "melancholy, introspective",
+];
+
+export const VIBE_MODES = [
+  { id: "lofi-chill", label: "LO-FI CHILL", emoji: "🌙", gradient: ["rgba(138,43,226,0.25)", "rgba(0,0,0,0)"], blendMode: "screen" as HopBlendMode, tint: "#8B5CF6" },
+  { id: "golden-hour", label: "GOLDEN HOUR", emoji: "🌅", gradient: ["rgba(255,165,0,0.35)", "rgba(255,94,77,0.15)"], blendMode: "overlay" as HopBlendMode, tint: "#F59E0B" },
+  { id: "cyberpunk", label: "CYBERPUNK", emoji: "⚡", gradient: ["rgba(0,255,255,0.2)", "rgba(255,0,255,0.25)"], blendMode: "screen" as HopBlendMode, tint: "#06B6D4" },
+  { id: "noir", label: "NOIR", emoji: "🎬", gradient: ["rgba(0,0,0,0.5)", "rgba(0,0,0,0)"], blendMode: "multiply" as HopBlendMode, tint: "#6B7280" },
+  { id: "anime-pop", label: "ANIME POP", emoji: "✨", gradient: ["rgba(255,105,180,0.3)", "rgba(255,255,0,0.15)"], blendMode: "screen" as HopBlendMode, tint: "#EC4899" },
+  { id: "vintage", label: "VINTAGE", emoji: "📷", gradient: ["rgba(139,69,19,0.25)", "rgba(210,180,140,0.2)"], blendMode: "overlay" as HopBlendMode, tint: "#92400E" },
+  { id: "ice-cold", label: "ICE COLD", emoji: "❄️", gradient: ["rgba(0,191,255,0.3)", "rgba(135,206,250,0.1)"], blendMode: "screen" as HopBlendMode, tint: "#38BDF8" },
+  { id: "fire", label: "FIRE", emoji: "🔥", gradient: ["rgba(255,69,0,0.4)", "rgba(255,165,0,0.15)"], blendMode: "screen" as HopBlendMode, tint: "#EF4444" },
+  { id: "dream", label: "DREAM", emoji: "💫", gradient: ["rgba(255,182,193,0.3)", "rgba(176,224,230,0.2)"], blendMode: "screen" as HopBlendMode, tint: "#F9A8D4" },
+  { id: "matrix", label: "MATRIX", emoji: "🟢", gradient: ["rgba(0,255,0,0.15)", "rgba(0,128,0,0.25)"], blendMode: "screen" as HopBlendMode, tint: "#22C55E" },
 ];
