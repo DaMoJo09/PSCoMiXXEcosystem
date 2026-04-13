@@ -7,7 +7,7 @@ import {
   Zap, Clock, Sparkles, Settings2, Loader2, Download,
   Maximize2, SkipForward, SkipBack, FolderOpen, Search,
   Lock, Unlock, Copy, Layers, Monitor, Smartphone, Tablet, Square,
-  Palette, Wand2, LayoutGrid, Timer, PenTool, FileText
+  Palette, Wand2, LayoutGrid, Timer, PenTool, FileText, Expand
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useProjects, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
@@ -51,6 +51,8 @@ type HopLayer = {
   beatReact?: string;
   beatIntensity?: number;
   textAnimation?: string;
+  motionBlur?: number;
+  parallaxDepth?: number;
 };
 
 type TextOverlayStyle = {
@@ -309,6 +311,10 @@ export default function HopCreator() {
     try { return !localStorage.getItem("hop-builder-welcomed"); } catch { return true; }
   });
   const [showExportPanel, setShowExportPanel] = useState(false);
+  const [screensaverMode, setScreensaverMode] = useState(false);
+  const [playbackElapsed, setPlaybackElapsed] = useState(0);
+  const playbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [zoneOutFullFill, setZoneOutFullFill] = useState(true);
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [canvasConnections, setCanvasConnections] = useState<CanvasConnection[]>([]);
   const [canvasStickyNotes, setCanvasStickyNotes] = useState<CanvasStickyNote[]>([]);
@@ -762,11 +768,22 @@ export default function HopCreator() {
   }, [isPlaying, audioMuted, audioTrack, showPreview, zoneOutMode]);
 
   useEffect(() => {
+    if (zoneOutMode && isPlaying) {
+      setPlaybackElapsed(0);
+      playbackTimerRef.current = setInterval(() => setPlaybackElapsed(p => p + 1), 1000);
+      return () => { if (playbackTimerRef.current) clearInterval(playbackTimerRef.current); };
+    } else {
+      if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+      setPlaybackElapsed(0);
+    }
+  }, [zoneOutMode, isPlaying]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Escape") {
-        if (zoneOutMode) { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); }
+        if (zoneOutMode) { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }
         else if (showPreview) { setShowPreview(false); setIsPlaying(false); pauseAudioNow(); }
         else setSelectedLayerId(null);
       }
@@ -911,15 +928,18 @@ export default function HopCreator() {
         )}
         {sortedLayers.filter(l => l.visible).map(layer => {
           const isBg = layer.name === "Background" && layer.zIndex === 0;
+          const blurVal = layer.motionBlur ? `blur(${layer.motionBlur}px)` : undefined;
+          const parallaxShift = layer.parallaxDepth ? layer.parallaxDepth * 0.3 : 0;
           const style: React.CSSProperties = {
             position: "absolute",
             opacity: layer.opacity,
             mixBlendMode: layer.blendMode as any,
             zIndex: layer.zIndex,
+            filter: blurVal,
             ...(isBg ? { inset: 0 } : {
               left: "50%",
               top: "50%",
-              transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
+              transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
             }),
           };
           const beatAnim = layer.beatReact && layer.beatReact !== "none" && audioBpm
@@ -1042,75 +1062,91 @@ export default function HopCreator() {
         @keyframes hop-tzoom { to { transform: scale(1.5); opacity: 0 } }
         .hop-transition-glitch { animation: hop-tglitch 0.5s steps(4) forwards }
         @keyframes hop-tglitch { 0% { clip-path: inset(0) } 25% { clip-path: inset(20% 0 40% 0); transform: translate(8px,-4px) } 50% { clip-path: inset(50% 0 10% 0); transform: translate(-8px,4px) } 75% { clip-path: inset(10% 0 60% 0); transform: translate(4px,8px) } 100% { opacity: 0 } }
+        .hop-screensaver-ken-burns { animation: hop-kenburns 25s ease-in-out infinite alternate; transform-origin: center center }
+        @keyframes hop-kenburns { 0% { transform: scale(1) translate(0,0) } 25% { transform: scale(1.15) translate(-2%,1%) } 50% { transform: scale(1.1) translate(1%,-1.5%) } 75% { transform: scale(1.2) translate(-1%,-0.5%) } 100% { transform: scale(1.05) translate(1.5%,1%) }  }
       `}</style>
 
-      <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950 border-b border-white/10 shrink-0 gap-2">
-        <div className="flex items-center gap-2">
-          <Link href="/" className="px-3 py-1.5 border border-white/20 hover:bg-zinc-800 transition text-[10px] font-bold tracking-widest text-white" data-testid="button-back">
-            HOPS
-          </Link>
-          <div className="flex items-center gap-1.5">
-            <Settings2 className="w-4 h-4 text-zinc-400" />
-            <span className="text-sm font-bold tracking-wider text-white">HOP BUILDER</span>
+      <div className="bg-zinc-950 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-3 py-1 gap-2">
+          <div className="flex items-center gap-2">
+            <Link href="/" className="px-3 py-1 border border-white/20 hover:bg-zinc-800 transition text-[10px] font-bold tracking-widest text-white" data-testid="button-back">
+              HOPS
+            </Link>
+            <div className="flex items-center gap-1.5">
+              <Settings2 className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-bold tracking-wider text-white">HOP BUILDER</span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-0">
-          {([
-            { id: "create" as const, label: "CREATE", icon: "◉" },
-            { id: "enhance" as const, label: "ENHANCE", icon: "⚡" },
-            { id: "publish" as const, label: "PUBLISH", icon: "✦" },
-          ] as const).map((tab, i) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setWorkflowTab(tab.id);
-                if (tab.id === "create") setViewMode("builder");
-                if (tab.id === "publish") setShowExportPanel(true);
-              }}
-              className={`flex items-center gap-1.5 px-4 py-1.5 text-[10px] font-bold tracking-widest transition border-y border-r first:border-l ${
-                workflowTab === tab.id
-                  ? "bg-white text-black border-white/20"
-                  : "bg-transparent text-zinc-500 border-white/10 hover:text-zinc-300 hover:bg-zinc-900"
-              } ${i === 0 ? "border-l" : ""}`}
-              data-testid={`workflow-tab-${tab.id}`}
-            >
-              <span>{tab.icon}</span> {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0">
             {([
-              { id: "builder" as const, label: "BUILD", icon: LayoutGrid },
-              { id: "canvas" as const, label: "CANVAS", icon: PenTool },
-              { id: "timeline" as const, label: "TIMELINE", icon: Timer },
-            ] as const).map(v => (
+              { id: "create" as const, label: "CREATE", icon: "◉" },
+              { id: "enhance" as const, label: "ENHANCE", icon: "⚡" },
+              { id: "publish" as const, label: "PUBLISH", icon: "✦" },
+            ] as const).map((tab, i) => (
               <button
-                key={v.id}
-                onClick={() => setViewMode(v.id)}
-                className={`p-1.5 text-[9px] transition ${viewMode === v.id ? "bg-zinc-700 text-white" : "text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400"}`}
-                title={v.label}
-                data-testid={`view-mode-${v.id}`}
+                key={tab.id}
+                onClick={() => {
+                  setWorkflowTab(tab.id);
+                  if (tab.id === "create") setViewMode("builder");
+                  if (tab.id === "publish") setShowExportPanel(true);
+                }}
+                className={`flex items-center gap-1 px-3 py-1 text-[9px] font-bold tracking-widest transition border-y border-r first:border-l ${
+                  workflowTab === tab.id
+                    ? "bg-white text-black border-white/20"
+                    : "bg-transparent text-zinc-500 border-white/10 hover:text-zinc-300 hover:bg-zinc-900"
+                } ${i === 0 ? "border-l" : ""}`}
+                data-testid={`workflow-tab-${tab.id}`}
               >
-                <v.icon className="w-3.5 h-3.5" />
+                <span>{tab.icon}</span> {tab.label}
               </button>
             ))}
           </div>
-          <button
-            onClick={() => { setShowPreview(false); setZoneOutMode(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) startAudioFromBeginning(); }}
-            className="p-1.5 hover:bg-zinc-800 text-zinc-500 hover:text-purple-400 transition"
-            title="Zone Out"
-            data-testid="button-zone-out"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
+          <div className="w-20" />
+        </div>
+        <div className="flex items-center gap-1 px-2 py-1 border-t border-white/5 overflow-x-auto">
+          <button onClick={() => setShowProjectPicker(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-import">
+            IMPORT
           </button>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="bg-transparent text-white/60 text-xs border-b border-transparent hover:border-zinc-600 focus:border-white/30 outline-none px-1 py-0.5 w-32"
+            className="bg-transparent text-white font-bold text-xs tracking-wider border-b border-transparent hover:border-zinc-600 focus:border-white/30 outline-none px-1 py-0.5 w-28 shrink-0"
             data-testid="input-hop-title"
           />
-          <span className="text-[9px] text-zinc-600">RIGHT-CLICK FOR TOOLS</span>
+          <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+          <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-play-toolbar">
+            ▶ Play
+          </button>
+          <button onClick={() => { setIsPlaying(false); setPreviewSceneIndex(0); pauseAudioNow(); }} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-stop-toolbar">
+            ⏹ Stop
+          </button>
+          <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+          <button onClick={() => setDisplayMode("standard")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "standard" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>STANDARD</button>
+          <button onClick={() => setDisplayMode("moving")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "moving" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>SCROLL</button>
+          <button
+            onClick={() => { setShowPreview(false); setZoneOutMode(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) startAudioFromBeginning(); }}
+            className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0"
+            data-testid="button-zone-out"
+          >
+            ZONE OUT
+          </button>
+          <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+          <button onClick={handleSave} disabled={saving} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0 flex items-center gap-1" data-testid="button-save-toolbar">
+            {saving ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Save className="w-2.5 h-2.5" />} Save
+          </button>
+          <button onClick={handleAddScene} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-new-hop">+ New HOP</button>
+          <button onClick={() => setShowProjectPicker(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Projects</button>
+          <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+          <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${displayMode === "moving" ? "text-cyan-400" : "text-zinc-600"}`}>
+            {displayMode === "moving" ? ">> MOVING" : ">> STANDARD"}
+          </span>
+          <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-publish-toolbar">Publish</button>
+          <button onClick={handleSave} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Save HOP</button>
+          <button onClick={handleExportPng} disabled={exporting} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">GIF</button>
+          <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">MP4</button>
+          <Link href="/" className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">CoMiXX</Link>
+          <span className="text-[9px] text-zinc-500 shrink-0">100%</span>
+          <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">LIBRARY</button>
         </div>
       </div>
 
@@ -1513,24 +1549,28 @@ export default function HopCreator() {
             {rightContext === "layer" && selectedLayer ? (
               <>
                 <div>
-                  <label className="text-[9px] text-zinc-500 uppercase font-bold">Layer Name</label>
-                  <input value={selectedLayer.name} onChange={(e) => updateLayer(selectedLayer.id, { name: e.target.value })} className="w-full bg-zinc-900 border border-white/10 text-xs text-white p-1.5 outline-none mt-0.5" />
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-zinc-500">■</span>
+                    <span className="text-[10px] text-white font-bold tracking-widest uppercase">
+                      {selectedLayer.type === "media" ? "MEDIA LAYER" : selectedLayer.type === "text" ? "TEXT LAYER" : selectedLayer.type === "effect" ? "EFFECT LAYER" : "CAPTION LAYER"}
+                    </span>
+                  </div>
+                  <input value={selectedLayer.name} onChange={(e) => updateLayer(selectedLayer.id, { name: e.target.value })} className="w-full bg-zinc-900 border border-white/10 text-xs text-white p-1.5 outline-none font-mono" />
                 </div>
 
                 {selectedLayer.type === "media" && (
                   <>
                     <div>
-                      <label className="text-[9px] text-zinc-500 uppercase font-bold">Media</label>
                       <input ref={layerFileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleLayerFileUpload} />
-                      <button onClick={() => layerFileRef.current?.click()} className="w-full mt-0.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition" data-testid="button-replace-layer-media">
-                        {selectedLayer.dataUrl ? "Replace Media" : "Choose Media"}
+                      <button onClick={() => layerFileRef.current?.click()} className="w-full py-1.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition flex items-center justify-center gap-1.5" data-testid="button-replace-layer-media">
+                        <Upload className="w-3 h-3" /> {selectedLayer.dataUrl ? "Replace Media" : "Choose Media"}
                       </button>
                     </div>
                     <div>
-                      <label className="text-[9px] text-zinc-500 uppercase font-bold">Fit Mode</label>
-                      <div className="flex gap-1 mt-0.5">
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">FIT MODE</span>
+                      <div className="flex gap-1 mt-1">
                         {(["cover", "contain", "fill"] as const).map(fit => (
-                          <button key={fit} onClick={() => updateLayer(selectedLayer.id, { objectFit: fit })} className={`flex-1 py-1 text-[9px] transition ${selectedLayer.objectFit === fit ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{fit.toUpperCase()}</button>
+                          <button key={fit} onClick={() => updateLayer(selectedLayer.id, { objectFit: fit })} className={`flex-1 py-1 text-[9px] font-bold tracking-wider transition ${selectedLayer.objectFit === fit ? "bg-white text-black" : "bg-zinc-800 text-zinc-500 hover:text-white"}`}>{fit.toUpperCase()}</button>
                         ))}
                       </div>
                     </div>
@@ -1586,18 +1626,31 @@ export default function HopCreator() {
                 )}
 
                 <div>
-                  <label className="text-[9px] text-zinc-500 uppercase font-bold">Opacity</label>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <input type="range" min="0" max="100" value={Math.round(selectedLayer.opacity * 100)} onChange={(e) => updateLayer(selectedLayer.id, { opacity: Number(e.target.value) / 100 })} className="flex-1 h-1 accent-orange-500" />
-                    <span className="text-[9px] text-zinc-500 w-8 text-right">{Math.round(selectedLayer.opacity * 100)}%</span>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">OPACITY: {Math.round(selectedLayer.opacity * 100)}%</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <input type="range" min="0" max="100" value={Math.round(selectedLayer.opacity * 100)} onChange={(e) => updateLayer(selectedLayer.id, { opacity: Number(e.target.value) / 100 })} className="flex-1 h-1 accent-white" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[9px] text-zinc-500 uppercase font-bold">Blend Mode</label>
-                  <select value={selectedLayer.blendMode} onChange={(e) => updateLayer(selectedLayer.id, { blendMode: e.target.value })} className="w-full bg-zinc-900 border border-white/10 text-xs text-white p-1 mt-0.5">
-                    {BLEND_MODES.map(bm => <option key={bm} value={bm}>{bm}</option>)}
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">BLEND MODE</span>
+                  <select value={selectedLayer.blendMode} onChange={(e) => updateLayer(selectedLayer.id, { blendMode: e.target.value })} className="w-full bg-zinc-900 border border-white/10 text-xs text-white p-1 mt-1 uppercase tracking-wider">
+                    {BLEND_MODES.map(bm => <option key={bm} value={bm}>{bm.toUpperCase()}</option>)}
                   </select>
+                </div>
+
+                <div>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">MOTION BLUR: {selectedLayer.motionBlur || 0}PX</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <input type="range" min="0" max="20" value={selectedLayer.motionBlur || 0} onChange={(e) => updateLayer(selectedLayer.id, { motionBlur: Number(e.target.value) })} className="flex-1 h-1 accent-white" />
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">PARALLAX DEPTH: {selectedLayer.parallaxDepth || 0}%</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <input type="range" min="0" max="100" value={selectedLayer.parallaxDepth || 0} onChange={(e) => updateLayer(selectedLayer.id, { parallaxDepth: Number(e.target.value) })} className="flex-1 h-1 accent-white" />
+                  </div>
                 </div>
 
                 {selectedLayer.name !== "Background" && (
@@ -1644,6 +1697,29 @@ export default function HopCreator() {
             ) : (
               currentScene && (
                 <>
+                  <div className="border-b border-white/10 pb-2 mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider flex items-center gap-1">⚙ VIBE MODES</span>
+                      <button onClick={() => {}} className="text-[8px] text-zinc-600 hover:text-white transition tracking-wider">CLEAR</button>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {VIBE_MODES.slice(0, 10).map(vibe => (
+                        <button
+                          key={vibe.id}
+                          onClick={() => applyVibe(vibe.id)}
+                          onContextMenu={(e) => { e.preventDefault(); applyVibe(vibe.id, true); }}
+                          className="w-full aspect-square flex items-center justify-center text-[10px] transition hover:ring-1 hover:ring-white/30"
+                          style={{ background: `linear-gradient(135deg, ${vibe.colors[0]}, ${vibe.colors[1] || "transparent"})`, border: "1px solid rgba(255,255,255,0.1)" }}
+                          title={`${vibe.label} (right-click: all scenes)`}
+                          data-testid={`vibe-${vibe.id}`}
+                        >
+                          <span className="opacity-0 group-hover:opacity-100">{vibe.label[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[7px] text-zinc-700 mt-1 text-center tracking-wider">TAP · VIBE SCENE · RIGHT-CLICK · ALL</p>
+                  </div>
+
                   <div>
                     <span className="text-[10px] text-white font-bold tracking-widest uppercase">SCENE {selectedSceneIdx + 1}</span>
                     {currentScene.assetUrl && (
@@ -2051,28 +2127,78 @@ export default function HopCreator() {
       )}
 
       {zoneOutMode && (
-        <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center" data-testid="zone-out-mode" onDoubleClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); }}>
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-2 bg-gradient-to-b from-black/80 to-transparent z-10">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 font-mono flex items-center gap-1"><Repeat className="w-3 h-3" /> {loopCount}</span>
-              <span className="text-xs text-zinc-500 font-mono">Scene {previewSceneIndex + 1}/{scenes.length}</span>
-              {audioTrack && (
-                <button onClick={() => { const next = !audioMuted; setAudioMuted(next); if (!next && isPlaying) resumeAudio(); else pauseAudioNow(); }} className="p-1 hover:bg-white/10 transition">
-                  {audioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
-                </button>
-              )}
-            </div>
-            <button onClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); }} className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 text-white font-bold transition" data-testid="button-exit-zone-out">EXIT</button>
+        <div className="fixed inset-0 bg-black z-[100]" data-testid="zone-out-mode" onDoubleClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }}>
+          <div className={`absolute inset-0 overflow-hidden ${transitionClass}`}>
+            {zoneOutFullFill ? (
+              <div className={`w-full h-full ${screensaverMode ? "hop-screensaver-ken-burns" : ""}`}>
+                {previewScene?.assetUrl && (
+                  (previewScene.assetUrl.match(/\.(mp4|webm|mov)/i) || previewScene.assetUrl.startsWith("data:video/")) ? (
+                    <video src={previewScene.assetUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                  ) : (
+                    <img src={previewScene.assetUrl} className="w-full h-full object-cover" alt="" />
+                  )
+                )}
+                {previewLayers.filter(l => l.visible && l.type === "text").map(l => (
+                  <div key={l.id} className="absolute" style={{ left: `${l.positionX}%`, top: `${l.positionY}%`, transform: `scale(${(l.scale || 100) / 100}) rotate(${l.rotation || 0}deg)`, opacity: l.opacity, color: l.fontColor || "#fff", fontSize: `${(l.fontSize || 48) * 1.5}px`, fontFamily: l.fontFamily || "'Press Start 2P', monospace", fontWeight: "bold" }}>
+                    {l.text || l.name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div style={{ width: `${viewport.w}px`, height: `${viewport.h}px`, maxWidth: "100vw", maxHeight: "100vh", transform: `scale(${Math.min(window.innerWidth / viewport.w, window.innerHeight / viewport.h)})`, transformOrigin: "center center" }}>
+                  {renderCanvas(previewScene, previewLayers, previewTextStyle)}
+                </div>
+              </div>
+            )}
           </div>
-          <div className={`w-full h-full flex items-center justify-center ${transitionClass}`}>
-            <div style={{ width: `${viewport.w}px`, height: `${viewport.h}px`, maxWidth: "100vw", maxHeight: "100vh", transform: `scale(${Math.min(window.innerWidth / viewport.w, window.innerHeight / viewport.h)})`, transformOrigin: "center center" }}>
-              {renderCanvas(previewScene, previewLayers, previewTextStyle)}
-            </div>
+
+          <div className="absolute top-4 left-5 z-20">
+            <p className="text-[10px] text-zinc-500 font-bold tracking-[0.3em] uppercase">LOOPS SCREENSAVER</p>
           </div>
-          <div className="absolute bottom-4 left-0 right-0 text-center">
-            <p className="text-[10px] text-zinc-600">ESC or double-click to exit</p>
-            <p className="text-xs text-white font-bold mt-1">{title}</p>
-            <p className="text-[9px] text-zinc-500">{hopType} · {totalDuration}s · {scenes.length} scenes</p>
+
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+            <span className="text-sm text-white font-mono tabular-nums">{Math.floor(playbackElapsed / 60).toString().padStart(2, "0")}:{(playbackElapsed % 60).toString().padStart(2, "0")}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="p-1 hover:bg-white/10 rounded transition">
+                {isPlaying ? <Square className="w-3 h-3 text-white fill-white" /> : <Play className="w-3 h-3 text-white fill-white" />}
+              </button>
+              <button onClick={() => setScreensaverMode(!screensaverMode)} className={`p-1 hover:bg-white/10 rounded transition ${screensaverMode ? "text-cyan-400" : "text-zinc-500"}`} title="Screensaver Mode">
+                <Maximize2 className="w-3 h-3" />
+              </button>
+              <button onClick={() => setZoneOutFullFill(!zoneOutFullFill)} className={`p-1 hover:bg-white/10 rounded transition ${zoneOutFullFill ? "text-cyan-400" : "text-zinc-500"}`} title="Fill Screen">
+                <Expand className="w-3 h-3" />
+              </button>
+            </div>
+            <span className="text-[10px] text-zinc-600 font-mono">Loop {loopCount} · Scene {previewSceneIndex + 1}/{scenes.length}</span>
+          </div>
+
+          <div className="absolute top-4 right-5 z-20 flex items-center gap-2">
+            {audioTrack && (
+              <button onClick={() => { const next = !audioMuted; setAudioMuted(next); if (!next && isPlaying) resumeAudio(); else pauseAudioNow(); }} className="p-1 hover:bg-white/10 rounded transition">
+                {audioMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
+              </button>
+            )}
+            <button onClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }} className="px-3 py-1 text-[10px] font-bold tracking-wider bg-white/10 hover:bg-white/20 text-white transition" data-testid="button-exit-zone-out">
+              EXIT
+            </button>
+          </div>
+
+          <div className="absolute bottom-5 left-5 z-20">
+            <p className="text-white font-bold text-lg tracking-wider">{title || "Untitled HOP"}</p>
+            <p className="text-[10px] text-zinc-500 tracking-wider mt-0.5">{hopType === "single" ? "Single" : "Multi"} HOP · {totalDuration}s</p>
+          </div>
+
+          <div className="absolute bottom-5 right-5 z-20">
+            {previewScene?.assetUrl && (
+              <div className="w-16 h-10 border border-white/20 overflow-hidden opacity-60 hover:opacity-100 transition">
+                {(previewScene.assetUrl.match(/\.(mp4|webm|mov)/i) || previewScene.assetUrl.startsWith("data:video/")) ? (
+                  <video src={previewScene.assetUrl} className="w-full h-full object-cover" muted />
+                ) : (
+                  <img src={previewScene.assetUrl} className="w-full h-full object-cover" alt="" />
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
