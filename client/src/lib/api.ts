@@ -400,8 +400,18 @@ export interface FxEffect {
 
 export const fxStudioApi = {
   listEffects: async () => {
-    const response = await fetch(`${API_BASE}/fx-studio/effects`, { credentials: "include" });
-    return handleResponse<FxEffect[]>(response);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(`${API_BASE}/fx-studio/effects`, { credentials: "include", signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      clearTimeout(timeoutId);
+      return [];
+    }
   },
 
   getEffect: async (id: string) => {
@@ -478,8 +488,18 @@ export const fxStudioApi = {
     if (tag) params.set("asset_tag", tag);
     if (projectId) params.set("project_id", projectId);
     const qs = params.toString();
-    const response = await fetch(`${API_BASE}/fx-studio/effects${qs ? `?${qs}` : ""}`, { credentials: "include" });
-    return handleResponse<FxEffect[]>(response);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(`${API_BASE}/fx-studio/effects${qs ? `?${qs}` : ""}`, { credentials: "include", signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      clearTimeout(timeoutId);
+      return [];
+    }
   },
 
   healthCheck: async () => {

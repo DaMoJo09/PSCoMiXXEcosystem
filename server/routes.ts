@@ -7193,7 +7193,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
           const upstreamRes = await fetchWithTimeout(
             `${FX_API_URL}?${upstreamParams.toString()}`,
-            { method: "GET", headers: fxHeaders(), timeout: 8000 }
+            { method: "GET", headers: fxHeaders(), timeout: 4000 }
           );
 
           if (upstreamRes.ok) {

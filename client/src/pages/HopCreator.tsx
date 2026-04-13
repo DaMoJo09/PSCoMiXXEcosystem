@@ -1216,7 +1216,7 @@ export default function HopCreator() {
             position: "absolute",
             left: `calc(50% + ${layer.positionX}px)`,
             top: `calc(50% + ${layer.positionY + parallaxShift}px)`,
-            transform: "translate(-50%, -50%)",
+            transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`,
             overflow: canBleed ? "visible" : undefined,
             opacity: layer.opacity,
             mixBlendMode: layer.blendMode as any,
@@ -1224,7 +1224,6 @@ export default function HopCreator() {
             filter: combinedFilter,
             ...beatAnim,
           };
-          const contentTransform = `rotate(${layer.rotation}deg) scale(${layer.scale / 100})`;
           const isStitched = layer.stitchMode && displayMode === "moving";
           const stitchCount = layer.stitchRepeat || 2;
           if (layer.type === "media" && layer.dataUrl) {
@@ -1233,7 +1232,7 @@ export default function HopCreator() {
               const scrollPct = 100 / stitchCount;
               return (
                 <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                  <div style={{ transform: contentTransform, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
+                  <div style={{ width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
                     {Array.from({ length: stitchCount }).map((_, si) => (
                       isVideo ? (
                         <video key={si} src={layer.dataUrl} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
@@ -1262,13 +1261,11 @@ export default function HopCreator() {
             }
             return (
               <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                <div style={{ transform: contentTransform }}>
-                  {isVideo ? (
-                    <video src={layer.dataUrl} style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
-                  ) : (
-                    <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
-                  )}
-                </div>
+                {isVideo ? (
+                  <video src={layer.dataUrl} style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
+                ) : (
+                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
+                )}
                 {allowBleed && renderGizmo(layer)}
               </div>
             );
@@ -1276,9 +1273,7 @@ export default function HopCreator() {
           if (layer.type === "effect" && layer.dataUrl) {
             return (
               <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                <div style={{ transform: contentTransform }}>
-                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
-                </div>
+                <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                 {allowBleed && renderGizmo(layer)}
               </div>
             );
@@ -1290,22 +1285,20 @@ export default function HopCreator() {
               : layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
             return (
               <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                <div style={{ transform: contentTransform }}>
-                  <div className="px-4 py-2 whitespace-nowrap" style={{
-                    fontFamily: layer.fontFamily,
-                    fontSize: `${layer.fontSize || 14}px`,
-                    color: layer.fontColor || "#fff",
-                    fontWeight: layer.bold ? 700 : 400,
-                    fontStyle: layer.italic ? "italic" : "normal",
-                    WebkitTextStroke: layer.strokeWidth ? `${layer.strokeWidth}px ${layer.strokeColor || "#000"}` : undefined,
-                    textShadow: layer.shadowBlur ? `${layer.shadowX || 0}px ${layer.shadowY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000"}` : undefined,
-                    animation: textAnim,
-                    overflow: isTypewriter ? "hidden" : undefined,
-                    borderRight: isTypewriter ? "2px solid" : undefined,
-                    textAlign: "center",
-                  }}>
-                    {layer.text}
-                  </div>
+                <div className="px-4 py-2 whitespace-nowrap" style={{
+                  fontFamily: layer.fontFamily,
+                  fontSize: `${layer.fontSize || 14}px`,
+                  color: layer.fontColor || "#fff",
+                  fontWeight: layer.bold ? 700 : 400,
+                  fontStyle: layer.italic ? "italic" : "normal",
+                  WebkitTextStroke: layer.strokeWidth ? `${layer.strokeWidth}px ${layer.strokeColor || "#000"}` : undefined,
+                  textShadow: layer.shadowBlur ? `${layer.shadowX || 0}px ${layer.shadowY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000"}` : undefined,
+                  animation: textAnim,
+                  overflow: isTypewriter ? "hidden" : undefined,
+                  borderRight: isTypewriter ? "2px solid" : undefined,
+                  textAlign: "center",
+                }}>
+                  {layer.text}
                 </div>
                 {allowBleed && renderGizmo(layer)}
               </div>
@@ -1314,10 +1307,8 @@ export default function HopCreator() {
           if (layer.type === "caption" && layer.text) {
             return (
               <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                <div style={{ transform: contentTransform }}>
-                  <div className="bg-black/70 px-4 py-3 text-center whitespace-nowrap" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff" }}>
-                    {layer.text}
-                  </div>
+                <div className="bg-black/70 px-4 py-3 text-center whitespace-nowrap" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff" }}>
+                  {layer.text}
                 </div>
                 {allowBleed && renderGizmo(layer)}
               </div>

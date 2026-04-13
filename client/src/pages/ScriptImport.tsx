@@ -35,11 +35,12 @@ export default function ScriptImport() {
       const params = new URLSearchParams();
       params.set("type", "comic-script");
       const response = await fetch(`/api/fx-studio/effects?${params.toString()}`, { credentials: "include" });
+      if (!response.ok) { setScripts([]); return; }
       const data = await response.json();
       const list = Array.isArray(data) ? data : data?.effects || [];
       setScripts(list);
     } catch {
-      toast.error("Failed to load scripts from FX Studio");
+      setScripts([]);
     } finally {
       setLoading(false);
     }

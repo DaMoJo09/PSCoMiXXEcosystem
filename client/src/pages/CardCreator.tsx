@@ -2606,7 +2606,7 @@ export default function CardCreator() {
                   )
                 ) : side === "front" ? (
                   cardMode === "sports" ? (
-                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group overflow-hidden" style={{ backgroundColor: cardData.borderColor }} data-testid="card-preview-sports">
                     <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
                       {cardData.logo && side === "front" && (
                         <img src={cardData.logo} style={getLogoPositionStyle()} alt="Logo" data-testid="card-logo-sports" />
@@ -2678,8 +2678,8 @@ export default function CardCreator() {
                     </div>
                   </div>
                   ) : (
-                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group" style={{ backgroundColor: cardData.borderColor }}>
-                    <div className="absolute inset-2 bg-white flex flex-col relative">
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl group overflow-hidden" style={{ backgroundColor: cardData.borderColor }}>
+                    <div className="absolute inset-2 bg-white flex flex-col overflow-hidden">
                       {cardData.logo && (
                         <img src={cardData.logo} style={getLogoPositionStyle()} alt="Logo" data-testid="card-logo-tcg" />
                       )}
@@ -2746,7 +2746,7 @@ export default function CardCreator() {
                   </div>
                   )
                 ) : (
-                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center" style={{ backgroundColor: cardData.borderColor }}>
+                  <div className="relative w-[550px] aspect-[2.5/3.5] shadow-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: cardData.borderColor }}>
                     <div className="absolute inset-4 border-2 border-white/30" />
                     <div className="absolute inset-0 opacity-30">
                       <img src={cardData.backImage} className="w-full h-full object-cover grayscale" />

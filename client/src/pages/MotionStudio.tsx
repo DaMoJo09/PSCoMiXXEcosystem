@@ -1465,8 +1465,8 @@ export default function MotionStudio() {
     try {
       const effects = await fxStudioApi.listEffects();
       setFxEffects(Array.isArray(effects) ? effects : []);
-    } catch (err: any) {
-      toast.error("Failed to load FX Studio effects");
+    } catch {
+      setFxEffects([]);
     } finally {
       setFxLoading(false);
     }

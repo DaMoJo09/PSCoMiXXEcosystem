@@ -54,19 +54,20 @@ export function FxBrowserPanel({ onClose, onSelectEffect, onApplyToPanel, onRetu
         params.set("project_id", projectId);
         params.set("type", "panel-fx-return");
         const response = await fetch(`/api/fx-studio/effects?${params.toString()}`, { credentials: "include" });
-        const data = await response.json();
-        effects = Array.isArray(data) ? data : data?.effects || [];
+        if (!response.ok) { effects = []; } else {
+          const data = await response.json();
+          effects = Array.isArray(data) ? data : data?.effects || [];
+        }
       } else if (selectedFolder !== "project" && selectedFolder !== "returns") {
         effects = await fxStudioApi.listByTag(selectedFolder as AssetTag);
       } else {
         effects = await fxStudioApi.listEffects();
       }
       setFxEffects(Array.isArray(effects) ? effects : []);
-      setLoaded(true);
     } catch {
-      setLoaded(true);
-      if (!silent) toast.error("Failed to load FX Studio effects");
+      setFxEffects([]);
     } finally {
+      setLoaded(true);
       if (!silent) setFxLoading(false);
     }
   }, [selectedFolder, projectId]);
