@@ -212,7 +212,7 @@ function createDefaultLayer(type: HopLayer["type"], name: string, zIndex: number
     positionY: 0,
     scale: 100,
     rotation: 0,
-    objectFit: "cover",
+    objectFit: "contain",
     blendMode: "normal",
     fontFamily: "'Press Start 2P', monospace",
     fontSize: 14,
@@ -1030,38 +1030,78 @@ export default function HopCreator() {
           </div>
         )}
         {sortedLayers.filter(l => l.visible).map(layer => {
-          const blurVal = layer.motionBlur ? `blur(${layer.motionBlur}px)` : undefined;
           const parallaxShift = layer.parallaxDepth ? layer.parallaxDepth * 0.3 : 0;
-          const style: React.CSSProperties = {
+          const isBgLayer = layer.type === "media" && layer.dataUrl && layer.dataUrl === scene.assetUrl;
+          const shadowFilter = (layer.shadowBlur && layer.shadowBlur > 0)
+            ? `drop-shadow(${layer.shadowX || 0}px ${layer.shadowY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000"})`
+            : "";
+          const motionBlurFilter = (layer.motionBlur && layer.motionBlur > 0)
+            ? `blur(${layer.motionBlur * 0.3}px)`
+            : "";
+          const combinedFilter = [shadowFilter, motionBlurFilter].filter(Boolean).join(" ") || undefined;
+          const beatIntensityNorm = (layer.beatIntensity ?? 50) / 100;
+          const beatAnim: React.CSSProperties = (layer.beatReact && layer.beatReact !== "none" && audioBpm)
+            ? {
+              animation: `hop-beat-${layer.beatReact} ${60 / audioBpm}s ease-out infinite`,
+              "--hop-beat-intensity": `${1 + beatIntensityNorm * 0.3}`,
+              "--hop-beat-px": `${Math.round(beatIntensityNorm * 12)}px`,
+              "--hop-beat-deg": `${Math.round(beatIntensityNorm * 8)}deg`,
+            } as React.CSSProperties
+            : {};
+          const onLayerClick = (e: React.MouseEvent) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } };
+          const shellStyle: React.CSSProperties = isBgLayer ? {
             position: "absolute",
+            inset: 0,
+            overflow: "hidden",
             opacity: layer.opacity,
             mixBlendMode: layer.blendMode as any,
-            zIndex: layer.zIndex,
-            filter: blurVal,
-            left: "50%",
-            top: "50%",
-            transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
+            zIndex: layer.zIndex + 1,
+            filter: combinedFilter,
+            ...beatAnim,
+          } : {
+            position: "absolute",
+            left: `calc(50% + ${layer.positionX}px)`,
+            top: `calc(50% + ${layer.positionY + parallaxShift}px)`,
+            transform: "translate(-50%, -50%)",
+            opacity: layer.opacity,
+            mixBlendMode: layer.blendMode as any,
+            zIndex: layer.zIndex + 1,
+            filter: combinedFilter,
+            ...beatAnim,
           };
-          const beatAnim = layer.beatReact && layer.beatReact !== "none" && audioBpm
-            ? { animation: `hop-beat-${layer.beatReact} ${60 / audioBpm}s ease-out infinite`, "--hop-beat-intensity": `${1 + (layer.beatIntensity || 50) / 200}` } as React.CSSProperties
-            : {};
+          const contentTransform = `rotate(${layer.rotation}deg) scale(${layer.scale / 100})`;
           const isStitched = layer.stitchMode && displayMode === "moving";
           const stitchCount = layer.stitchRepeat || 2;
           const isMovingLayer = displayMode === "moving" && layer.type === "media";
           if (layer.type === "media" && layer.dataUrl) {
             const isVideo = layer.dataUrl.startsWith("data:video/") || layer.dataUrl.match(/\.(mp4|webm|ogg|mov)(\?|$)/i);
-            if (isStitched) {
+            if (isStitched && !isBgLayer) {
               const scrollPct = 100 / stitchCount;
               return (
-                <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                  <div style={{ ...beatAnim, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
+                <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                  <div style={{ transform: contentTransform, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
                     {Array.from({ length: stitchCount }).map((_, si) => (
                       isVideo ? (
-                        <video key={si} src={layer.dataUrl} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
+                        <video key={si} src={layer.dataUrl} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
                       ) : (
-                        <img key={si} src={layer.dataUrl} alt={layer.name} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} draggable={false} />
+                        <img key={si} src={layer.dataUrl} alt={layer.name} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit || "contain" }} draggable={false} />
                       )
                     ))}
+                  </div>
+                </div>
+              );
+            }
+            if (isBgLayer) {
+              const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
+              const movingClass = isMovingLayer ? "hop-moving-mode" : "";
+              return (
+                <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                  <div style={{ width: viewport.w, height: viewport.h, transform: `translate(${layer.positionX}px, ${layer.positionY}px) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center", ...movingStyle }} className={movingClass}>
+                    {isVideo ? (
+                      <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
+                    ) : (
+                      <img src={layer.dataUrl} alt={layer.name} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
+                    )}
                   </div>
                 </div>
               );
@@ -1069,12 +1109,12 @@ export default function HopCreator() {
             const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
             const movingClass = isMovingLayer ? "hop-moving-mode" : "";
             return (
-              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={{ ...beatAnim, ...movingStyle }} className={movingClass}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div style={{ transform: contentTransform, ...movingStyle }} className={movingClass}>
                   {isVideo ? (
-                    <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
+                    <video src={layer.dataUrl} style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
                   ) : (
-                    <img src={layer.dataUrl} alt={layer.name} className="w-full h-full" style={{ objectFit: layer.objectFit }} draggable={false} />
+                    <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                   )}
                 </div>
               </div>
@@ -1082,9 +1122,9 @@ export default function HopCreator() {
           }
           if (layer.type === "effect" && layer.dataUrl) {
             return (
-              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={beatAnim}>
-                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "cover" }} draggable={false} />
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div style={{ transform: contentTransform }}>
+                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                 </div>
               </div>
             );
@@ -1095,22 +1135,20 @@ export default function HopCreator() {
               ? `hop-text-typewriter 2s steps(${Math.max(1, (layer.text || "").length)}, end) forwards, hop-typewriter-cursor 0.75s step-end infinite`
               : layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
             return (
-              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={beatAnim}>
-                  <div style={{
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div style={{ transform: contentTransform }}>
+                  <div className="px-4 py-2 whitespace-nowrap" style={{
                     fontFamily: layer.fontFamily,
                     fontSize: `${layer.fontSize || 14}px`,
                     color: layer.fontColor || "#fff",
-                    fontWeight: layer.bold ? "bold" : "normal",
+                    fontWeight: layer.bold ? 700 : 400,
                     fontStyle: layer.italic ? "italic" : "normal",
                     WebkitTextStroke: layer.strokeWidth ? `${layer.strokeWidth}px ${layer.strokeColor || "#000"}` : undefined,
                     textShadow: layer.shadowBlur ? `${layer.shadowX || 0}px ${layer.shadowY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000"}` : undefined,
                     animation: textAnim,
-                    whiteSpace: isTypewriter ? "nowrap" : "pre-wrap",
                     overflow: isTypewriter ? "hidden" : undefined,
                     borderRight: isTypewriter ? "2px solid" : undefined,
                     textAlign: "center",
-                    padding: "8px",
                   }}>
                     {layer.text}
                   </div>
@@ -1120,9 +1158,9 @@ export default function HopCreator() {
           }
           if (layer.type === "caption" && layer.text) {
             return (
-              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={beatAnim}>
-                  <div className="bg-black/70 px-4 py-3 text-center" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff", whiteSpace: "nowrap" }}>
+              <div key={layer.id} style={shellStyle} onClick={onLayerClick}>
+                <div style={{ transform: contentTransform }}>
+                  <div className="bg-black/70 px-4 py-3 text-center whitespace-nowrap" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff" }}>
                     {layer.text}
                   </div>
                 </div>
@@ -1501,17 +1539,25 @@ export default function HopCreator() {
                         {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined, isSelected)}
                       </div>
                       {isSelected && selectedLayer && !selectedLayer.locked && (() => {
+                        const isBgGizmo = selectedLayer.type === "media" && selectedLayer.dataUrl && selectedLayer.dataUrl === scene.assetUrl;
                         const frameSize = Math.max(60, selectedLayer.scale);
                         return (
                           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
                             <div
                               className="absolute pointer-events-auto"
-                              style={{
-                                left: "50%",
-                                top: "50%",
+                              style={isBgGizmo ? {
+                                left: `calc(50% + ${selectedLayer.positionX}px)`,
+                                top: `calc(50% + ${selectedLayer.positionY}px)`,
+                                width: `${viewport.w}px`,
+                                height: `${viewport.h}px`,
+                                transform: `translate(-50%,-50%) rotate(${selectedLayer.rotation}deg) scale(${selectedLayer.scale / 100})`,
+                                transformOrigin: "center center",
+                              } : {
+                                left: `calc(50% + ${selectedLayer.positionX}px)`,
+                                top: `calc(50% + ${selectedLayer.positionY}px)`,
                                 width: `${frameSize}px`,
                                 height: `${frameSize}px`,
-                                transform: `translate(-50%,-50%) translate(${selectedLayer.positionX}px,${selectedLayer.positionY}px) rotate(${selectedLayer.rotation}deg)`,
+                                transform: `translate(-50%,-50%) rotate(${selectedLayer.rotation}deg)`,
                               }}
                             >
                               <div
