@@ -362,7 +362,7 @@ export const hopSceneSchema = z.object({
   textOverlay: z.string().optional(),
   caption: z.string().optional(),
   duration: z.number(),
-  transition: z.enum(["cut", "fade", "zoom", "glitch"]).default("cut"),
+  transition: z.enum(["cut", "fade", "zoom", "glitch", "slide-right", "slide-up", "dissolve", "wipe-left", "wipe-right", "wipe-down", "spin", "flash"]).default("cut"),
   loopInScene: z.boolean().default(false),
   effects: z.array(z.string()).optional(),
   title: z.string().optional(),

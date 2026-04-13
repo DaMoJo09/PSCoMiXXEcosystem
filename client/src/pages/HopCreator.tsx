@@ -90,10 +90,30 @@ const VIEWPORT_SIZES: Record<ViewportMode, { w: number; h: number; label: string
 };
 
 const TRANSITIONS = [
-  { id: "cut", label: "Cut", icon: "✂️" },
-  { id: "fade", label: "Fade", icon: "🌫️" },
-  { id: "zoom", label: "Zoom", icon: "🔍" },
-  { id: "glitch", label: "Glitch", icon: "⚡" },
+  { id: "cut", label: "✕", color: "bg-zinc-700" },
+  { id: "fade", label: "■", color: "bg-zinc-600" },
+  { id: "slide-right", label: "→", color: "bg-cyan-700" },
+  { id: "slide-up", label: "↑", color: "bg-teal-700" },
+  { id: "dissolve", label: "◌", color: "bg-red-700" },
+  { id: "wipe-left", label: "◄", color: "bg-red-600" },
+  { id: "wipe-right", label: "►", color: "bg-orange-600" },
+  { id: "wipe-down", label: "▼", color: "bg-orange-700" },
+  { id: "zoom", label: "⊕", color: "bg-amber-700" },
+  { id: "spin", label: "↻", color: "bg-pink-700" },
+  { id: "glitch", label: "⚡", color: "bg-purple-700" },
+  { id: "flash", label: "✦", color: "bg-rose-600" },
+] as const;
+
+const CAMERA_MOTIONS = [
+  { id: "none", label: "NONE" },
+  { id: "zoom-in", label: "ZOOM IN" },
+  { id: "zoom-out", label: "ZOOM OUT" },
+  { id: "pan-left", label: "PAN LEFT" },
+  { id: "pan-right", label: "PAN RIGHT" },
+  { id: "pan-up", label: "PAN UP" },
+  { id: "pan-down", label: "PAN DOWN" },
+  { id: "shake", label: "SHAKE" },
+  { id: "dolly", label: "DOLLY" },
 ] as const;
 
 const TEXT_PRESETS = [
@@ -284,6 +304,10 @@ export default function HopCreator() {
   const [exporting, setExporting] = useState(false);
 
   const [viewMode, setViewMode] = useState<"builder" | "canvas" | "timeline">("builder");
+  const [workflowTab, setWorkflowTab] = useState<"create" | "enhance" | "publish">("create");
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return !localStorage.getItem("hop-builder-welcomed"); } catch { return true; }
+  });
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [canvasConnections, setCanvasConnections] = useState<CanvasConnection[]>([]);
@@ -1022,11 +1046,40 @@ export default function HopCreator() {
 
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950 border-b border-white/10 shrink-0 gap-2">
         <div className="flex items-center gap-2">
-          <Link href="/" className="p-1.5 hover:bg-zinc-800 transition" data-testid="button-back">
-            <ArrowLeft className="w-4 h-4" />
+          <Link href="/" className="px-3 py-1.5 border border-white/20 hover:bg-zinc-800 transition text-[10px] font-bold tracking-widest text-white" data-testid="button-back">
+            HOPS
           </Link>
-          <Zap className="w-4 h-4 text-orange-400" />
-          <div className="flex items-center gap-0.5 mr-1">
+          <div className="flex items-center gap-1.5">
+            <Settings2 className="w-4 h-4 text-zinc-400" />
+            <span className="text-sm font-bold tracking-wider text-white">HOP BUILDER</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-0">
+          {([
+            { id: "create" as const, label: "CREATE", icon: "◉" },
+            { id: "enhance" as const, label: "ENHANCE", icon: "⚡" },
+            { id: "publish" as const, label: "PUBLISH", icon: "✦" },
+          ] as const).map((tab, i) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setWorkflowTab(tab.id);
+                if (tab.id === "create") setViewMode("builder");
+                if (tab.id === "publish") setShowExportPanel(true);
+              }}
+              className={`flex items-center gap-1.5 px-4 py-1.5 text-[10px] font-bold tracking-widest transition border-y border-r first:border-l ${
+                workflowTab === tab.id
+                  ? "bg-white text-black border-white/20"
+                  : "bg-transparent text-zinc-500 border-white/10 hover:text-zinc-300 hover:bg-zinc-900"
+              } ${i === 0 ? "border-l" : ""}`}
+              data-testid={`workflow-tab-${tab.id}`}
+            >
+              <span>{tab.icon}</span> {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
             {([
               { id: "builder" as const, label: "BUILD", icon: LayoutGrid },
               { id: "canvas" as const, label: "CANVAS", icon: PenTool },
@@ -1035,75 +1088,29 @@ export default function HopCreator() {
               <button
                 key={v.id}
                 onClick={() => setViewMode(v.id)}
-                className={`flex items-center gap-0.5 px-1.5 py-1 text-[9px] font-bold tracking-wider transition ${viewMode === v.id ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"}`}
+                className={`p-1.5 text-[9px] transition ${viewMode === v.id ? "bg-zinc-700 text-white" : "text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400"}`}
+                title={v.label}
                 data-testid={`view-mode-${v.id}`}
               >
-                <v.icon className="w-3 h-3" /> <span className="hidden sm:inline">{v.label}</span>
+                <v.icon className="w-3.5 h-3.5" />
               </button>
             ))}
           </div>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="bg-transparent text-white font-bold text-sm border-b border-transparent hover:border-zinc-600 focus:border-orange-500 outline-none px-1 py-0.5 w-40"
-            data-testid="input-hop-title"
-          />
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="flex items-center gap-0.5 mr-2">
-            {(Object.keys(VIEWPORT_SIZES) as ViewportMode[]).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setViewportMode(mode)}
-                className={`p-1 text-[9px] transition ${viewportMode === mode ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"}`}
-                title={VIEWPORT_SIZES[mode].label}
-                data-testid={`button-viewport-${mode}`}
-              >
-                {mode === "desktop" ? <Monitor className="w-3 h-3" /> : mode === "mobile" ? <Smartphone className="w-3 h-3" /> : mode === "tablet" ? <Tablet className="w-3 h-3" /> : <Square className="w-3 h-3" />}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setDisplayMode(d => d === "standard" ? "moving" : "standard")}
-            className={`px-2 py-1 text-[9px] font-bold transition ${displayMode === "moving" ? "bg-cyan-600 text-white" : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"}`}
-            data-testid="button-display-mode"
-          >
-            {displayMode === "standard" ? "STD" : "MOV"}
-          </button>
           <button
             onClick={() => { setShowPreview(false); setZoneOutMode(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) startAudioFromBeginning(); }}
-            className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-purple-400 transition"
+            className="p-1.5 hover:bg-zinc-800 text-zinc-500 hover:text-purple-400 transition"
             title="Zone Out"
             data-testid="button-zone-out"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={handleExportPng}
-            disabled={exporting}
-            className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-green-400 transition"
-            title="Export PNG"
-            data-testid="button-export-png"
-          >
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            onClick={() => setShowExportPanel(true)}
-            className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition flex items-center gap-1"
-            title="Full Export Panel"
-            data-testid="button-export-panel"
-          >
-            <FileText className="w-3 h-3" /> Export
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-orange-600 hover:bg-orange-500 text-white font-medium transition disabled:opacity-50"
-            data-testid="button-save"
-          >
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-            Save
-          </button>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="bg-transparent text-white/60 text-xs border-b border-transparent hover:border-zinc-600 focus:border-white/30 outline-none px-1 py-0.5 w-32"
+            data-testid="input-hop-title"
+          />
+          <span className="text-[9px] text-zinc-600">RIGHT-CLICK FOR TOOLS</span>
         </div>
       </div>
 
@@ -1146,16 +1153,20 @@ export default function HopCreator() {
 
       {viewMode === "builder" && (
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-60 bg-zinc-950 border-r border-white/10 flex flex-col shrink-0 overflow-hidden">
+        <div className="w-56 bg-zinc-950 border-r border-white/10 flex flex-col shrink-0 overflow-hidden">
           <div className="flex border-b border-white/10 shrink-0">
-            {(["scenes", "audio", "vibes"] as const).map(tab => (
+            {([
+              { id: "scenes" as const, icon: "◻", label: "SCENES" },
+              { id: "audio" as const, icon: "♪", label: "AUDIO" },
+              { id: "vibes" as const, icon: "⊞", label: "ASSETS" },
+            ]).map(tab => (
               <button
-                key={tab}
-                onClick={() => setLeftTab(tab)}
-                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition ${leftTab === tab ? "text-orange-400 border-b-2 border-orange-500 bg-zinc-900/50" : "text-zinc-500 hover:text-zinc-300"}`}
-                data-testid={`tab-${tab}`}
+                key={tab.id}
+                onClick={() => setLeftTab(tab.id)}
+                className={`flex-1 py-2 text-[10px] font-bold tracking-widest transition ${leftTab === tab.id ? "text-white border-b border-white bg-zinc-900/50" : "text-zinc-600 hover:text-zinc-400"}`}
+                data-testid={`tab-${tab.id}`}
               >
-                {tab}
+                <span className="mr-0.5">{tab.icon}</span> {tab.label}
               </button>
             ))}
           </div>
@@ -1164,48 +1175,58 @@ export default function HopCreator() {
             {leftTab === "scenes" && (
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] text-zinc-500 font-bold">{scenes.length} SCENES · {totalDuration}s</span>
+                  <span className="text-[9px] text-zinc-500 font-bold tracking-wider">{scenes.length} SCENES · {totalDuration}s</span>
                   <div className="flex gap-0.5">
-                    <button onClick={() => setShowSceneTemplates(true)} className="p-1 hover:bg-zinc-800 text-cyan-400 transition" title="From Template" data-testid="button-scene-templates">
+                    <button onClick={() => setShowSceneTemplates(true)} className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition" title="From Template" data-testid="button-scene-templates">
                       <FileText className="w-3 h-3" />
                     </button>
-                    <button onClick={handleAddScene} className="p-1 hover:bg-zinc-800 text-orange-400 transition" data-testid="button-add-scene">
+                    <button onClick={handleAddScene} className="p-1 hover:bg-zinc-800 text-zinc-400 transition" data-testid="button-add-scene">
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {["#ef4444","#22c55e","#3b82f6","#f59e0b","#a855f7","#ec4899","#06b6d4","#f97316"].map((c, i) => (
+                    <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: i < scenes.length ? c : "transparent", border: i < scenes.length ? "none" : "1px solid rgba(255,255,255,0.1)" }} />
+                  ))}
                 </div>
                 {scenes.map((scene, idx) => (
                   <div
                     key={scene.id}
                     onClick={() => { setSelectedSceneIdx(idx); setSelectedLayerId(null); setRightContext("scene"); }}
-                    className={`flex items-center gap-1.5 px-1.5 py-1.5 cursor-pointer transition text-xs ${
-                      selectedSceneIdx === idx ? "bg-orange-900/30 border border-orange-500/50" : "bg-zinc-900/50 border border-transparent hover:border-white/10"
+                    className={`relative group px-2 py-2 cursor-pointer transition ${
+                      selectedSceneIdx === idx ? "bg-zinc-800 border border-white/20" : "bg-zinc-900/30 border border-transparent hover:border-white/10"
                     }`}
                     data-testid={`scene-item-${idx}`}
                   >
-                    <div className="w-10 h-10 bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-                      {scene.assetUrl ? (
-                        scene.assetType === "video" ? <Film className="w-4 h-4 text-zinc-500" /> :
-                        <img src={scene.assetUrl} alt="" className="w-full h-full object-cover" />
-                      ) : scene.assetType === "text_card" ? <Type className="w-4 h-4 text-zinc-500" /> :
-                        <ImageIcon className="w-4 h-4 text-zinc-600" />}
+                    <div className="flex items-start gap-2">
+                      <div className="w-14 h-10 bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                        {scene.assetUrl ? (
+                          scene.assetType === "video" ? <Film className="w-4 h-4 text-zinc-500" /> :
+                          <img src={scene.assetUrl} alt="" className="w-full h-full object-cover" />
+                        ) : <ImageIcon className="w-4 h-4 text-zinc-700" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-zinc-300 text-[11px] font-bold tracking-wide">{scene.textOverlay || scene.caption || `Scene ${idx + 1}`}</div>
+                        <div className="text-[9px] text-zinc-600">{scene.duration}s · {scene.transition}</div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-zinc-300 truncate text-[11px]">{scene.textOverlay || scene.caption || scene.title || `Scene ${idx + 1}`}</div>
-                      <div className="text-[9px] text-zinc-500">{scene.duration}s · {scene.transition}{scene.mood ? ` · ${scene.mood.split(",")[0]}` : ""}{scene.templateId ? " [T]" : ""}</div>
-                    </div>
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "up"); }} className="p-0.5 hover:bg-zinc-700"><ChevronUp className="w-2.5 h-2.5 text-zinc-500" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "down"); }} className="p-0.5 hover:bg-zinc-700"><ChevronDown className="w-2.5 h-2.5 text-zinc-500" /></button>
-                    </div>
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); handleDuplicateScene(idx); }} className="p-0.5 hover:bg-zinc-700" title="Duplicate"><Copy className="w-2.5 h-2.5 text-zinc-500" /></button>
-                      {scenes.length > 1 && (
-                        <button onClick={(e) => { e.stopPropagation(); handleRemoveScene(scene.id); }} className="p-0.5 hover:bg-red-900/30 hover:text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
-                      )}
+                    <div className="absolute right-1 top-1 hidden group-hover:flex gap-0.5">
+                      <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "up"); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><ChevronUp className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleMoveScene(scene.id, "down"); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><ChevronDown className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDuplicateScene(idx); }} className="p-0.5 bg-zinc-700 hover:bg-zinc-600"><Copy className="w-2.5 h-2.5" /></button>
+                      {scenes.length > 1 && <button onClick={(e) => { e.stopPropagation(); handleRemoveScene(scene.id); }} className="p-0.5 bg-red-900/50 hover:bg-red-800"><Trash2 className="w-2.5 h-2.5 text-red-400" /></button>}
                     </div>
                   </div>
                 ))}
+                <div className="flex gap-1 mt-2">
+                  <button onClick={handleAddScene} className="flex-1 py-2 text-[10px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition flex items-center justify-center gap-1" data-testid="button-add-scene-bottom">
+                    <Plus className="w-3 h-3" /> + SCENE
+                  </button>
+                  <button onClick={() => addLayer("text")} className="flex-1 py-2 text-[10px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition flex items-center justify-center gap-1" data-testid="button-add-text-left">
+                    <Type className="w-3 h-3" /> + TEXT
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1335,14 +1356,23 @@ export default function HopCreator() {
               </div>
               {!currentScene?.assetUrl && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                  <div className="text-center pointer-events-auto">
-                    <Upload className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-                    <p className="text-xs text-zinc-500 mb-2">Drop media or click to upload</p>
+                  <div className="absolute inset-3 border-2 border-dashed border-white/15 rounded-lg" />
+                  <div className="text-center pointer-events-auto relative z-20">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-white/20 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full border-2 border-white/30 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-white/40" />
+                      </div>
+                    </div>
+                    <p className="text-lg font-bold tracking-widest text-white/80 mb-1" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: "13px" }}>DROP YOUR FIRST VIBE</p>
+                    <p className="text-[11px] text-zinc-500 mb-1">Drag image, video, or audio here</p>
                     <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAssetUpload(currentSceneId, e)} />
+                    <button onClick={() => fileInputRef.current?.click()} className="text-[11px] text-white/50 hover:text-white/80 underline underline-offset-2 transition mb-3 block mx-auto" data-testid="button-upload-asset">or click to browse</button>
                     <div className="flex gap-2 justify-center">
-                      <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition" data-testid="button-upload-asset">Choose File</button>
-                      <button onClick={() => setShowProjectPicker(true)} className="px-3 py-1.5 text-xs bg-orange-900/40 hover:bg-orange-800/50 border border-orange-500/30 text-orange-400 transition flex items-center gap-1" data-testid="button-import-from-projects">
-                        <FolderOpen className="w-3 h-3" /> My Projects
+                      <button onClick={() => setShowProjectPicker(true)} className="px-3 py-1.5 text-[10px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-400 hover:text-white transition flex items-center gap-1.5" data-testid="button-import-from-projects">
+                        <FolderOpen className="w-3 h-3" /> From Library
+                      </button>
+                      <button onClick={() => addLayer("text")} className="px-3 py-1.5 text-[10px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-400 hover:text-white transition flex items-center gap-1.5" data-testid="button-add-text-canvas">
+                        <Type className="w-3 h-3" /> + Text
                       </button>
                     </div>
                   </div>
@@ -1351,52 +1381,86 @@ export default function HopCreator() {
             </div>
           </div>
 
-          <div className="h-16 bg-zinc-950 border-t border-white/10 px-3 flex items-center gap-1 overflow-x-auto shrink-0">
-            <div className="flex items-center gap-2 mr-3 shrink-0">
-              <button onClick={() => setPreviewSceneIndex(Math.max(0, previewSceneIndex - 1))} className="p-1 hover:bg-zinc-800 transition" data-testid="timeline-prev"><SkipBack className="w-3 h-3" /></button>
-              <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 transition" data-testid="timeline-play">
+          <div className="bg-zinc-950 border-t border-white/10 shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/5">
+              <button onClick={() => setShowExportPanel(true)} className="px-2.5 py-1 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center gap-1" data-testid="button-save-to-library">
+                <FolderOpen className="w-3 h-3" /> SAVE TO LIBRARY
+              </button>
+              <button onClick={handleSave} disabled={saving} className="px-2.5 py-1 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center gap-1" data-testid="button-save">
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
+              </button>
+              <div className="w-px h-5 bg-white/10 mx-1" />
+              <button onClick={() => setPreviewSceneIndex(Math.max(0, previewSceneIndex - 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-prev"><SkipBack className="w-3 h-3" /></button>
+              <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 transition text-white" data-testid="timeline-play">
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
               </button>
-              <button onClick={() => setPreviewSceneIndex(Math.min(scenes.length - 1, previewSceneIndex + 1))} className="p-1 hover:bg-zinc-800 transition" data-testid="timeline-next"><SkipForward className="w-3 h-3" /></button>
-              <span className="text-[9px] text-zinc-500 font-mono">{selectedSceneIdx + 1}/{scenes.length}</span>
+              <button onClick={() => setPreviewSceneIndex(Math.min(scenes.length - 1, previewSceneIndex + 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-next"><SkipForward className="w-3 h-3" /></button>
+              <span className="text-[9px] text-zinc-600 font-mono">0.0s</span>
+              <span className="text-[9px] text-zinc-400 font-mono">{totalDuration}.0s</span>
               {isPlaying && <span className="text-[9px] text-orange-400 font-mono flex items-center gap-0.5"><Repeat className="w-2.5 h-2.5" />{loopCount}</span>}
             </div>
-            {scenes.map((scene, idx) => {
-              const w = targetDuration ? Math.min((scene.duration / targetDuration) * 100, 50) : (100 / scenes.length);
-              return (
-                <div
-                  key={scene.id}
-                  onClick={() => { setSelectedSceneIdx(idx); setPreviewSceneIndex(idx); }}
-                  className={`h-10 flex items-center justify-center cursor-pointer border transition shrink-0 ${
-                    selectedSceneIdx === idx ? "border-orange-500 bg-orange-900/20" : previewSceneIndex === idx && isPlaying ? "border-cyan-500/50 bg-cyan-900/10" : "border-white/10 bg-zinc-900 hover:bg-zinc-800"
-                  }`}
-                  style={{ width: `${Math.max(w, 6)}%`, minWidth: "50px" }}
-                  data-testid={`timeline-scene-${idx}`}
-                >
-                  <div className="text-center">
-                    <div className="text-[8px] text-zinc-400 font-mono">{idx + 1}</div>
-                    <div className="text-[7px] text-zinc-600">{scene.duration}s</div>
-                  </div>
+            <div className="px-3 py-1 flex flex-col gap-0.5">
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-20 shrink-0">+ SCENES</span>
+                <div className="flex-1 flex gap-0.5 items-center overflow-x-auto">
+                  {scenes.map((scene, idx) => {
+                    const w = targetDuration ? Math.min((scene.duration / targetDuration) * 100, 50) : (100 / scenes.length);
+                    return (
+                      <div
+                        key={scene.id}
+                        onClick={() => { setSelectedSceneIdx(idx); setPreviewSceneIndex(idx); }}
+                        className={`h-5 flex items-center justify-center cursor-pointer transition shrink-0 ${
+                          selectedSceneIdx === idx ? "bg-green-600" : previewSceneIndex === idx && isPlaying ? "bg-cyan-700" : "bg-zinc-700 hover:bg-zinc-600"
+                        }`}
+                        style={{ width: `${Math.max(w, 8)}%`, minWidth: "40px" }}
+                        data-testid={`timeline-scene-${idx}`}
+                      >
+                        <span className="text-[7px] text-white font-mono">{idx + 1}</span>
+                      </div>
+                    );
+                  })}
+                  <button onClick={handleAddScene} className="h-5 w-5 flex items-center justify-center text-zinc-600 hover:text-green-400 transition shrink-0" data-testid="timeline-add-scene">
+                    <Plus className="w-2.5 h-2.5" />
+                  </button>
                 </div>
-              );
-            })}
-            <button onClick={handleAddScene} className="h-10 w-10 flex items-center justify-center border border-dashed border-white/10 text-zinc-600 hover:text-orange-400 hover:border-orange-500/50 transition shrink-0" data-testid="timeline-add-scene">
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-20 shrink-0">+ ADD AUDIO</span>
+                <div className="flex-1 h-5 bg-zinc-900/50 border border-dashed border-white/10 flex items-center justify-center">
+                  {audioTrack ? (
+                    <span className="text-[8px] text-zinc-400 truncate px-1">{audioTrack.name}</span>
+                  ) : (
+                    <span className="text-[8px] text-zinc-600">+ DROP AUDIO CLIP</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-20 shrink-0" />
+                <div className="flex-1 flex items-center">
+                  {Array.from({ length: Math.ceil(totalDuration) }, (_, i) => (
+                    <div key={i} className="flex-1 flex items-center">
+                      <div className="w-px h-2 bg-white/10" />
+                      <span className="text-[7px] text-zinc-700 ml-0.5">{i + 1}s</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="w-72 bg-zinc-950 border-l border-white/10 flex flex-col shrink-0 overflow-hidden">
-          <div className="p-2 border-b border-white/10 shrink-0">
+          <div className="p-2.5 border-b border-white/10 shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold flex items-center gap-1"><Layers className="w-3 h-3" /> Layers</span>
-              <div className="flex gap-0.5">
-                <button onClick={() => addLayer("media")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-orange-400 transition" title="Add Media"><ImageIcon className="w-3 h-3" /></button>
-                <button onClick={() => addLayer("text")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-orange-400 transition" title="Add Text"><Type className="w-3 h-3" /></button>
-                <button onClick={() => addLayer("effect")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-orange-400 transition" title="Add Effect"><Sparkles className="w-3 h-3" /></button>
+              <span className="text-[10px] text-white uppercase tracking-widest font-bold flex items-center gap-1.5">✦ LAYERS</span>
+              <div className="flex gap-1">
+                <button onClick={() => addLayer("media")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white transition" title="Add Media"><ImageIcon className="w-3.5 h-3.5" /></button>
+                <button onClick={() => addLayer("text")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white transition" title="Add Text"><Type className="w-3.5 h-3.5" /></button>
+                <button onClick={() => addLayer("effect")} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white transition" title="Add Effect"><Sparkles className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setShowSettings(!showSettings)} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white transition" title="Settings"><Settings2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            <div className="space-y-0.5 max-h-40 overflow-y-auto">
+            <div className="space-y-0.5 max-h-32 overflow-y-auto mb-2">
               {[...currentLayers].sort((a, b) => b.zIndex - a.zIndex).map(layer => (
                 <div
                   key={layer.id}
@@ -1407,8 +1471,8 @@ export default function HopCreator() {
                   onDragEnd={() => setDragReorderLayerId(null)}
                   onClick={() => { setSelectedLayerId(layer.id); setRightContext("layer"); }}
                   className={`flex items-center gap-1 px-1.5 py-1 cursor-pointer transition text-[10px] ${
-                    selectedLayerId === layer.id ? "bg-orange-900/30 border border-orange-500/50" :
-                    dragReorderLayerId === layer.id ? "opacity-50 bg-zinc-900/30 border border-dashed border-orange-400/50" :
+                    selectedLayerId === layer.id ? "bg-zinc-800 border border-white/20" :
+                    dragReorderLayerId === layer.id ? "opacity-50 bg-zinc-900/30 border border-dashed border-white/20" :
                     "bg-zinc-900/30 border border-transparent hover:border-white/10"
                   }`}
                   data-testid={`layer-item-${layer.id}`}
@@ -1429,8 +1493,19 @@ export default function HopCreator() {
                 </div>
               ))}
               {currentLayers.length === 0 && (
-                <p className="text-[9px] text-zinc-600 text-center py-2">No layers — add media, text, or effects</p>
+                <p className="text-[10px] text-zinc-600 text-center py-3">No layers yet</p>
               )}
+            </div>
+            <div className="space-y-1">
+              <button onClick={() => { addLayer("media"); setTimeout(() => layerFileRef.current?.click(), 100); }} className="w-full py-1.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center justify-center gap-1.5" data-testid="button-upload-media-right">
+                <Upload className="w-3 h-3" /> Upload Media
+              </button>
+              <button onClick={() => addLayer("text")} className="w-full py-1.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center justify-center gap-1.5" data-testid="button-add-text-right">
+                <Type className="w-3 h-3" /> Add Text
+              </button>
+              <button onClick={() => addLayer("effect")} className="w-full py-1.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center justify-center gap-1.5" data-testid="button-add-effect-right">
+                <Sparkles className="w-3 h-3" /> Add Effect
+              </button>
             </div>
           </div>
 
@@ -1570,9 +1645,9 @@ export default function HopCreator() {
               currentScene && (
                 <>
                   <div>
-                    <label className="text-[9px] text-zinc-500 uppercase font-bold">Scene {selectedSceneIdx + 1}</label>
+                    <span className="text-[10px] text-white font-bold tracking-widest uppercase">SCENE {selectedSceneIdx + 1}</span>
                     {currentScene.assetUrl && (
-                      <div className="flex gap-1 mt-1">
+                      <div className="flex gap-1 mt-1.5">
                         <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleAssetUpload(currentSceneId, e)} />
                         <button onClick={() => fileInputRef.current?.click()} className="flex-1 py-1 text-[9px] bg-zinc-800 hover:bg-zinc-700 border border-white/10 transition">Replace</button>
                         <button onClick={() => handleUpdateScene(currentSceneId, { assetUrl: undefined })} className="px-2 py-1 text-[9px] bg-zinc-800 hover:bg-red-900/30 border border-white/10 text-red-400 transition">Remove</button>
@@ -1580,25 +1655,65 @@ export default function HopCreator() {
                     )}
                   </div>
 
+                  <div className="bg-zinc-900/50 p-2 border border-white/5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <LayoutGrid className="w-3 h-3 text-zinc-500" />
+                      <span className="text-[9px] text-zinc-400 font-bold tracking-wider">HOP LENGTH: {totalDuration}s</span>
+                    </div>
+                    <span className="text-[8px] text-zinc-600">{scenes.length} scenes · {totalDuration}s</span>
+                  </div>
+
                   <div>
-                    <label className="text-[9px] text-zinc-500 uppercase font-bold">Duration</label>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <input type="range" min="0.5" max="30" step="0.5" value={currentScene.duration} onChange={(e) => handleUpdateScene(currentSceneId, { duration: Number(e.target.value) })} className="flex-1 h-1 accent-orange-500" />
+                    <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">ADD BACKGROUND</span>
+                    <button onClick={() => addLayer("media")} className="w-full mt-1 py-1.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center justify-center gap-1" data-testid="button-add-bg-layer">
+                      <Plus className="w-3 h-3" /> + Add BG Layer
+                    </button>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">SCENE DURATION: {currentScene.duration}S</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <input type="range" min="0.5" max="30" step="0.5" value={currentScene.duration} onChange={(e) => handleUpdateScene(currentSceneId, { duration: Number(e.target.value) })} className="flex-1 h-1 accent-white" />
                       <span className="text-[9px] text-zinc-400 w-6 text-right">{currentScene.duration}s</span>
                     </div>
-                    <div className="flex gap-0.5 mt-1">
-                      {[1, 2, 3, 5, 10, 15].map(d => (
-                        <button key={d} onClick={() => handleUpdateScene(currentSceneId, { duration: d })} className={`flex-1 py-0.5 text-[8px] transition ${currentScene.duration === d ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{d}s</button>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">TRANSITION</span>
+                    <div className="grid grid-cols-4 gap-1 mt-1.5">
+                      {TRANSITIONS.map(tr => (
+                        <button
+                          key={tr.id}
+                          onClick={() => handleUpdateScene(currentSceneId, { transition: tr.id })}
+                          className={`h-7 flex items-center justify-center text-[10px] transition border ${
+                            currentScene.transition === tr.id
+                              ? `${tr.color} border-white/40 text-white ring-1 ring-white/30`
+                              : `${tr.color} border-transparent text-white/70 hover:border-white/20`
+                          }`}
+                          title={tr.id}
+                          data-testid={`transition-${tr.id}`}
+                        >
+                          {tr.label}
+                        </button>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[9px] text-zinc-500 uppercase font-bold">Transition</label>
-                    <div className="grid grid-cols-4 gap-0.5 mt-0.5">
-                      {TRANSITIONS.map(tr => (
-                        <button key={tr.id} onClick={() => handleUpdateScene(currentSceneId, { transition: tr.id })} className={`py-1 text-[9px] transition ${currentScene.transition === tr.id ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>
-                          {tr.label}
+                    <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">CAMERA MOTION</span>
+                    <div className="grid grid-cols-3 gap-1 mt-1.5">
+                      {CAMERA_MOTIONS.slice(1, 4).map(cm => (
+                        <button
+                          key={cm.id}
+                          onClick={() => handleUpdateScene(currentSceneId, { cameraAngle: cm.id })}
+                          className={`py-1.5 text-[8px] font-bold tracking-wider transition border ${
+                            currentScene.cameraAngle === cm.id
+                              ? "bg-zinc-700 border-white/30 text-white"
+                              : "bg-zinc-900 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
+                          }`}
+                          data-testid={`camera-${cm.id}`}
+                        >
+                          {cm.label}
                         </button>
                       ))}
                     </div>
@@ -1885,6 +2000,51 @@ export default function HopCreator() {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWelcome && (
+        <div className="fixed inset-0 bg-black/90 z-[95] flex items-center justify-center p-4" data-testid="welcome-dialog">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Settings2 className="w-5 h-5 text-zinc-400" />
+                <h2 className="text-lg font-bold tracking-widest text-white">HOP BUILDER</h2>
+              </div>
+              <p className="text-[11px] text-zinc-500 mb-6">Create animated motion comics</p>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">1</div>
+                  <div>
+                    <p className="text-[11px] font-bold text-white tracking-wider">ADD ASSETS</p>
+                    <p className="text-[10px] text-zinc-500">Import images, characters or effects as layers</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">2</div>
+                  <div>
+                    <p className="text-[11px] font-bold text-white tracking-wider">ANIMATE</p>
+                    <p className="text-[10px] text-zinc-500">Set keyframes — position, scale, opacity over time</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">3</div>
+                  <div>
+                    <p className="text-[11px] font-bold text-white tracking-wider">EXPORT</p>
+                    <p className="text-[10px] text-zinc-500">Save as GIF, MP4, or publish as interactive HOP</p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowWelcome(false); try { localStorage.setItem("hop-builder-welcomed", "1"); } catch {} }}
+                className="w-full mt-6 py-2.5 text-[11px] font-bold tracking-widest bg-white text-black hover:bg-zinc-200 transition flex items-center justify-center gap-2"
+                data-testid="button-welcome-dismiss"
+              >
+                <span>◆</span> ADD FIRST LAYER
+              </button>
+              <p className="text-[9px] text-zinc-600 text-center mt-3">This only shows once — you've got this!</p>
             </div>
           </div>
         </div>
