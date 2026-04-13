@@ -53,6 +53,8 @@ type HopLayer = {
   textAnimation?: string;
   motionBlur?: number;
   parallaxDepth?: number;
+  stitchMode?: boolean;
+  stitchRepeat?: number;
 };
 
 type TextOverlayStyle = {
@@ -1013,11 +1015,11 @@ export default function HopCreator() {
   const previewLayers = previewScene ? (sceneLayers[previewScene.id] || []) : [];
   const previewTextStyle = previewScene ? (sceneTextStyles[previewScene.id] || defaultTextStyle()) : defaultTextStyle();
 
-  const renderCanvas = (scene: HopScene | undefined, layers: HopLayer[], textStyle: TextOverlayStyle, ref?: React.RefObject<HTMLDivElement | null>) => {
+  const renderCanvas = (scene: HopScene | undefined, layers: HopLayer[], textStyle: TextOverlayStyle, ref?: React.RefObject<HTMLDivElement | null>, allowBleed?: boolean) => {
     if (!scene) return <div className="w-full h-full bg-zinc-900 flex items-center justify-center"><p className="text-xs text-zinc-600">No scene</p></div>;
     const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
     return (
-      <div ref={ref as any} className="relative w-full h-full overflow-hidden bg-black" style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
+      <div ref={ref as any} className={`relative w-full h-full bg-black ${allowBleed ? 'overflow-visible' : 'overflow-hidden'}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
         {scene.assetUrl && !layers.find(l => l.name === "Background" && l.type === "media") && (
           <div className="absolute inset-0">
             {scene.assetType === "video" ? (
@@ -1028,7 +1030,6 @@ export default function HopCreator() {
           </div>
         )}
         {sortedLayers.filter(l => l.visible).map(layer => {
-          const isBg = layer.name === "Background" && layer.zIndex === 0;
           const blurVal = layer.motionBlur ? `blur(${layer.motionBlur}px)` : undefined;
           const parallaxShift = layer.parallaxDepth ? layer.parallaxDepth * 0.3 : 0;
           const style: React.CSSProperties = {
@@ -1037,19 +1038,36 @@ export default function HopCreator() {
             mixBlendMode: layer.blendMode as any,
             zIndex: layer.zIndex,
             filter: blurVal,
-            ...(isBg ? { inset: 0 } : {
-              left: "50%",
-              top: "50%",
-              transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
-            }),
+            left: "50%",
+            top: "50%",
+            transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
           };
           const beatAnim = layer.beatReact && layer.beatReact !== "none" && audioBpm
             ? { animation: `hop-beat-${layer.beatReact} ${60 / audioBpm}s ease-out infinite`, "--hop-beat-intensity": `${1 + (layer.beatIntensity || 50) / 200}` } as React.CSSProperties
             : {};
+          const isStitched = layer.stitchMode && displayMode === "moving";
+          const stitchCount = layer.stitchRepeat || 2;
+          const isMovingLayer = displayMode === "moving" && layer.type === "media";
           if (layer.type === "media" && layer.dataUrl) {
             const isVideo = layer.dataUrl.startsWith("data:video/") || layer.dataUrl.match(/\.(mp4|webm|ogg|mov)(\?|$)/i);
-            const movingClass = displayMode === "moving" && isBg ? "hop-moving-mode" : "";
-            const movingStyle = displayMode === "moving" && isBg ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
+            if (isStitched) {
+              const scrollPct = 100 / stitchCount;
+              return (
+                <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+                  <div style={{ ...beatAnim, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
+                    {Array.from({ length: stitchCount }).map((_, si) => (
+                      isVideo ? (
+                        <video key={si} src={layer.dataUrl} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
+                      ) : (
+                        <img key={si} src={layer.dataUrl} alt={layer.name} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} draggable={false} />
+                      )
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+            const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
+            const movingClass = isMovingLayer ? "hop-moving-mode" : "";
             return (
               <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={{ ...beatAnim, ...movingStyle }} className={movingClass}>
@@ -1066,7 +1084,7 @@ export default function HopCreator() {
             return (
               <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={beatAnim}>
-                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "cover", width: isBg ? "100%" : undefined, height: isBg ? "100%" : undefined }} draggable={false} />
+                  <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "cover" }} draggable={false} />
                 </div>
               </div>
             );
@@ -1172,6 +1190,7 @@ export default function HopCreator() {
         @keyframes hop-beat-tilt { 0%,100% { transform: skewX(0) } 50% { transform: skewX(5deg) } }
         @keyframes hop-moving-pan { 0% { transform: translateX(0) } 100% { transform: translateX(-20%) } }
         .hop-moving-mode { animation: hop-moving-pan var(--hop-scene-dur, 5s) linear forwards; width: 140%; }
+        @keyframes hop-stitch-scroll { 0% { transform: translateX(0) } 100% { transform: translateX(var(--hop-stitch-shift, -50%)) } }
         .hop-transition-fade { animation: hop-tfade 0.5s ease-out forwards }
         @keyframes hop-tfade { to { opacity: 0 } }
         .hop-transition-zoom { animation: hop-tzoom 0.5s ease-in forwards }
@@ -1478,10 +1497,10 @@ export default function HopCreator() {
                       <span className="text-[8px] text-zinc-500 ml-1 font-mono">{scene.duration}s</span>
                     </div>
                     <div className="w-full h-full overflow-visible relative">
-                      <div className="w-full h-full overflow-hidden relative">
-                        {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined)}
+                      <div className="w-full h-full relative overflow-visible">
+                        {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined, isSelected)}
                       </div>
-                      {isSelected && selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (() => {
+                      {isSelected && selectedLayer && !selectedLayer.locked && (() => {
                         const frameSize = Math.max(60, selectedLayer.scale);
                         return (
                           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
@@ -1862,49 +1881,67 @@ export default function HopCreator() {
                   </div>
                 </div>
 
-                {selectedLayer.name !== "Background" && (
-                  <>
-                    <div>
-                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">LAYER ORDER</span>
-                      <div className="flex items-center gap-1 mt-1">
-                        <div className="flex items-center gap-0.5 flex-1">
-                          <span className="text-[8px] text-zinc-600">Z</span>
-                          <input type="number" min="0" value={selectedLayer.zIndex} onChange={(e) => updateLayer(selectedLayer.id, { zIndex: Number(e.target.value) })} className="w-12 bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" data-testid="input-layer-zindex" />
-                        </div>
-                        <button onClick={() => moveLayerToExtreme(selectedLayer.id, "top")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+]" data-testid="button-layer-to-front">FRONT</button>
-                        <button onClick={() => moveLayerInStack(selectedLayer.id, "up")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+]"><ChevronUp className="w-3 h-3" /></button>
-                        <button onClick={() => moveLayerInStack(selectedLayer.id, "down")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+["><ChevronDown className="w-3 h-3" /></button>
-                        <button onClick={() => moveLayerToExtreme(selectedLayer.id, "bottom")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+[" data-testid="button-layer-to-back">BACK</button>
-                      </div>
+                {selectedLayer.type === "media" && (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">STITCH LOOP</span>
+                      <button
+                        onClick={() => updateLayer(selectedLayer.id, { stitchMode: !selectedLayer.stitchMode })}
+                        className={`px-2 py-0.5 text-[8px] font-bold tracking-wider border transition ${selectedLayer.stitchMode ? "bg-cyan-600 border-cyan-500 text-white" : "bg-zinc-800 border-white/10 text-zinc-400 hover:text-white"}`}
+                        data-testid="button-stitch-toggle"
+                      >
+                        {selectedLayer.stitchMode ? "ON" : "OFF"}
+                      </button>
                     </div>
-                    <div>
-                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">POSITION</span>
-                      <div className="grid grid-cols-2 gap-1 mt-1">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[8px] text-zinc-600">X</span>
-                          <input type="number" value={selectedLayer.positionX} onChange={(e) => updateLayer(selectedLayer.id, { positionX: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[8px] text-zinc-600">Y</span>
-                          <input type="number" value={selectedLayer.positionY} onChange={(e) => updateLayer(selectedLayer.id, { positionY: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
-                        </div>
+                    {selectedLayer.stitchMode && (
+                      <div className="mt-1">
+                        <span className="text-[8px] text-zinc-600">REPEATS: {selectedLayer.stitchRepeat || 2}x</span>
+                        <input type="range" min="2" max="8" value={selectedLayer.stitchRepeat || 2} onChange={(e) => updateLayer(selectedLayer.id, { stitchRepeat: Number(e.target.value) })} className="w-full h-1 accent-cyan-500 mt-0.5" data-testid="input-stitch-repeat" />
+                        <p className="text-[7px] text-zinc-600 mt-0.5">Tiles image end-to-end for seamless moving loop</p>
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">TRANSFORM</span>
-                      <div className="grid grid-cols-2 gap-1 mt-1">
-                        <div>
-                          <span className="text-[7px] text-zinc-600">Scale %</span>
-                          <input type="number" min="10" max="500" value={selectedLayer.scale} onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
-                        </div>
-                        <div>
-                          <span className="text-[7px] text-zinc-600">Rotation °</span>
-                          <input type="number" min="-360" max="360" value={selectedLayer.rotation} onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
-                        </div>
-                      </div>
-                    </div>
-                  </>
+                    )}
+                  </div>
                 )}
+
+                <div>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">LAYER ORDER</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center gap-0.5 flex-1">
+                      <span className="text-[8px] text-zinc-600">Z</span>
+                      <input type="number" min="0" value={selectedLayer.zIndex} onChange={(e) => updateLayer(selectedLayer.id, { zIndex: Number(e.target.value) })} className="w-12 bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" data-testid="input-layer-zindex" />
+                    </div>
+                    <button onClick={() => moveLayerToExtreme(selectedLayer.id, "top")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+]" data-testid="button-layer-to-front">FRONT</button>
+                    <button onClick={() => moveLayerInStack(selectedLayer.id, "up")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+]"><ChevronUp className="w-3 h-3" /></button>
+                    <button onClick={() => moveLayerInStack(selectedLayer.id, "down")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+["><ChevronDown className="w-3 h-3" /></button>
+                    <button onClick={() => moveLayerToExtreme(selectedLayer.id, "bottom")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+[" data-testid="button-layer-to-back">BACK</button>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">POSITION</span>
+                  <div className="grid grid-cols-2 gap-1 mt-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] text-zinc-600">X</span>
+                      <input type="number" value={selectedLayer.positionX} onChange={(e) => updateLayer(selectedLayer.id, { positionX: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] text-zinc-600">Y</span>
+                      <input type="number" value={selectedLayer.positionY} onChange={(e) => updateLayer(selectedLayer.id, { positionY: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">TRANSFORM</span>
+                  <div className="grid grid-cols-2 gap-1 mt-1">
+                    <div>
+                      <span className="text-[7px] text-zinc-600">Scale %</span>
+                      <input type="number" min="10" max="500" value={selectedLayer.scale} onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                    </div>
+                    <div>
+                      <span className="text-[7px] text-zinc-600">Rotation °</span>
+                      <input type="number" min="-360" max="360" value={selectedLayer.rotation} onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="text-[9px] text-zinc-500 uppercase font-bold">Beat React</label>
