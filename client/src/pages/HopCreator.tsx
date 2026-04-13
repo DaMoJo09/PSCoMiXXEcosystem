@@ -332,6 +332,7 @@ export default function HopCreator() {
   const { data: allProjects } = useProjects(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const clipAudioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -768,6 +769,49 @@ export default function HopCreator() {
     el.loop = audioTrack.loop;
     if (!(isPlaying && !audioMuted)) el.pause();
   }, [isPlaying, audioMuted, audioTrack, showPreview, zoneOutMode]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      Object.values(clipAudioRefs.current).forEach(el => { el.pause(); });
+      return;
+    }
+    const playbackStart = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - playbackStart) / 1000;
+      audioClips.forEach(clip => {
+        const el = clipAudioRefs.current[clip.id];
+        if (!el) return;
+        el.volume = clip.muted ? 0 : clip.volume;
+        const clipEnd = clip.startTime + clip.duration;
+        if (elapsed >= clip.startTime && elapsed < clipEnd) {
+          if (el.paused) {
+            el.currentTime = elapsed - clip.startTime;
+            el.play().catch(() => {});
+          }
+        } else {
+          if (!el.paused) el.pause();
+        }
+      });
+    }, 100);
+    return () => {
+      clearInterval(interval);
+      Object.values(clipAudioRefs.current).forEach(el => { el.pause(); });
+    };
+  }, [isPlaying, audioClips]);
+
+  const scrubAudioClips = useCallback((time: number) => {
+    audioClips.forEach(clip => {
+      const el = clipAudioRefs.current[clip.id];
+      if (!el) return;
+      el.volume = clip.muted ? 0 : clip.volume;
+      const clipEnd = clip.startTime + clip.duration;
+      if (time >= clip.startTime && time < clipEnd) {
+        el.currentTime = time - clip.startTime;
+      } else {
+        el.pause();
+      }
+    });
+  }, [audioClips]);
 
   useEffect(() => {
     if (zoneOutMode && isPlaying) {
@@ -1211,11 +1255,14 @@ export default function HopCreator() {
             isPlaying={isPlaying}
             selectedSceneIdx={selectedSceneIdx}
             totalDuration={totalDuration}
+            audioClips={audioClips}
+            onAudioClipsChange={setAudioClips}
             onSceneSelect={(idx) => { setSelectedSceneIdx(idx); setSelectedLayerId(null); setRightContext("scene"); }}
             onSceneUpdate={(id, updates) => handleUpdateScene(id, updates)}
             onBeatMarkersChange={setBeatMarkers}
             onPlayToggle={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }}
             onAddScene={handleAddScene}
+            onScrub={(time) => { if (audioRef.current) audioRef.current.currentTime = time; scrubAudioClips(time); }}
           />
         </div>
       )}
@@ -2061,6 +2108,14 @@ export default function HopCreator() {
       )}
 
       {audioTrack && <audio key={audioTrack.src.slice(0, 64)} ref={audioRef} src={audioTrack.src} preload="auto" loop={audioTrack.loop} />}
+      {audioClips.map(clip => (
+        <audio
+          key={clip.id}
+          ref={el => { if (el) clipAudioRefs.current[clip.id] = el; else delete clipAudioRefs.current[clip.id]; }}
+          src={clip.dataUrl}
+          preload="auto"
+        />
+      ))}
 
       {showProjectPicker && (
         <div className="fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-4" data-testid="project-picker-overlay">
