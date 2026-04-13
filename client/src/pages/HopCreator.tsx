@@ -958,11 +958,9 @@ export default function HopCreator() {
       if (transformMode === 'move') {
         const dx = (clientX - start.mouseX) / cs;
         const dy = (clientY - start.mouseY) / cs;
-        const currentLayer = Object.values(sceneLayers).flat().find(l => l.id === selectedLayerId);
-        const isMediaDrag = currentLayer?.type === "media";
         updateLayer(selectedLayerId, {
           positionX: Math.round(start.layerX + dx),
-          ...(isMediaDrag ? {} : { positionY: Math.round(start.layerY + dy) }),
+          positionY: Math.round(start.layerY + dy),
         });
       } else if (transformMode === 'resize') {
         const dx = (clientX - start.mouseX) / cs;
@@ -1034,7 +1032,6 @@ export default function HopCreator() {
         {sortedLayers.filter(l => l.visible).map(layer => {
           const blurVal = layer.motionBlur ? `blur(${layer.motionBlur}px)` : undefined;
           const parallaxShift = layer.parallaxDepth ? layer.parallaxDepth * 0.3 : 0;
-          const isMedia = layer.type === "media";
           const style: React.CSSProperties = {
             position: "absolute",
             opacity: layer.opacity,
@@ -1042,11 +1039,8 @@ export default function HopCreator() {
             zIndex: layer.zIndex,
             filter: blurVal,
             left: "50%",
-            top: isMedia ? "0" : "50%",
-            transform: isMedia
-              ? `translateX(-50%) translateX(${layer.positionX}px) rotate(${layer.rotation}deg)`
-              : `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
-            ...(isMedia ? { height: "100%" } : {}),
+            top: "50%",
+            transform: `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
           };
           const beatAnim = layer.beatReact && layer.beatReact !== "none" && audioBpm
             ? { animation: `hop-beat-${layer.beatReact} ${60 / audioBpm}s ease-out infinite`, "--hop-beat-intensity": `${1 + (layer.beatIntensity || 50) / 200}` } as React.CSSProperties
@@ -1060,12 +1054,12 @@ export default function HopCreator() {
               const scrollPct = 100 / stitchCount;
               return (
                 <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                  <div style={{ ...beatAnim, width: `${stitchCount * 100}%`, height: "100%", display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
+                  <div style={{ ...beatAnim, width: `${stitchCount * 100}%`, display: "flex", animation: `hop-stitch-scroll ${scene.duration}s linear infinite`, "--hop-stitch-shift": `-${scrollPct}%` } as React.CSSProperties}>
                     {Array.from({ length: stitchCount }).map((_, si) => (
                       isVideo ? (
-                        <video key={si} src={layer.dataUrl} className="shrink-0" style={{ width: `${scrollPct}%`, height: "100%", objectFit: "cover" }} autoPlay loop muted playsInline draggable={false} />
+                        <video key={si} src={layer.dataUrl} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
                       ) : (
-                        <img key={si} src={layer.dataUrl} alt={layer.name} className="shrink-0" style={{ width: `${scrollPct}%`, height: "100%", objectFit: "cover" }} draggable={false} />
+                        <img key={si} src={layer.dataUrl} alt={layer.name} className="h-full shrink-0" style={{ width: `${scrollPct}%`, objectFit: layer.objectFit }} draggable={false} />
                       )
                     ))}
                   </div>
@@ -1074,14 +1068,13 @@ export default function HopCreator() {
             }
             const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
             const movingClass = isMovingLayer ? "hop-moving-mode" : "";
-            const mediaW = `${layer.scale}%`;
             return (
               <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={{ ...beatAnim, ...movingStyle, height: "100%", width: mediaW }} className={movingClass}>
+                <div style={{ ...beatAnim, ...movingStyle }} className={movingClass}>
                   {isVideo ? (
-                    <video src={layer.dataUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} autoPlay loop muted playsInline draggable={false} />
+                    <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
                   ) : (
-                    <img src={layer.dataUrl} alt={layer.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
+                    <img src={layer.dataUrl} alt={layer.name} className="w-full h-full" style={{ objectFit: layer.objectFit }} draggable={false} />
                   )}
                 </div>
               </div>
@@ -1138,18 +1131,6 @@ export default function HopCreator() {
           }
           return null;
         })}
-        {allowBleed && (
-          <>
-            <div className="absolute top-0 left-0 right-0 h-px bg-cyan-500/40 z-[55] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-cyan-500/40 z-[55] pointer-events-none" />
-            <div className="absolute top-0 left-0 z-[55] pointer-events-none px-1">
-              <span className="text-[6px] text-cyan-500/50 font-mono uppercase tracking-widest">ceiling</span>
-            </div>
-            <div className="absolute bottom-0 left-0 z-[55] pointer-events-none px-1">
-              <span className="text-[6px] text-cyan-500/50 font-mono uppercase tracking-widest">floor</span>
-            </div>
-          </>
-        )}
         {scene.textOverlay && (
           <div className="absolute left-0 right-0 z-[50] px-4 py-2" style={{
             ...(textStyle.position === "top" ? { top: 0 } : textStyle.position === "center" ? { top: "50%", transform: "translateY(-50%)" } : { bottom: 0 }),
@@ -1520,19 +1501,12 @@ export default function HopCreator() {
                         {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined, isSelected)}
                       </div>
                       {isSelected && selectedLayer && !selectedLayer.locked && (() => {
-                        const isMediaLayer = selectedLayer.type === "media";
                         const frameSize = Math.max(60, selectedLayer.scale);
                         return (
                           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
                             <div
                               className="absolute pointer-events-auto"
-                              style={isMediaLayer ? {
-                                left: "50%",
-                                top: "0",
-                                width: `${selectedLayer.scale}%`,
-                                height: "100%",
-                                transform: `translateX(-50%) translateX(${selectedLayer.positionX}px) rotate(${selectedLayer.rotation}deg)`,
-                              } : {
+                              style={{
                                 left: "50%",
                                 top: "50%",
                                 width: `${frameSize}px`,
