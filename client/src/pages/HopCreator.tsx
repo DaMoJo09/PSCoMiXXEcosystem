@@ -1044,7 +1044,7 @@ export default function HopCreator() {
             left: "50%",
             top: isMedia ? "0" : "50%",
             transform: isMedia
-              ? `translateX(-50%) translateX(${layer.positionX}px) scaleX(${layer.scale / 100}) rotate(${layer.rotation}deg)`
+              ? `translateX(-50%) translateX(${layer.positionX}px) rotate(${layer.rotation}deg)`
               : `translate(-50%,-50%) translate(${layer.positionX}px,${layer.positionY + parallaxShift}px) scale(${layer.scale / 100}) rotate(${layer.rotation}deg)`,
             ...(isMedia ? { height: "100%" } : {}),
           };
@@ -1074,13 +1074,14 @@ export default function HopCreator() {
             }
             const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
             const movingClass = isMovingLayer ? "hop-moving-mode" : "";
+            const mediaW = `${layer.scale}%`;
             return (
               <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
-                <div style={{ ...beatAnim, ...movingStyle, height: "100%" }} className={movingClass}>
+                <div style={{ ...beatAnim, ...movingStyle, height: "100%", width: mediaW }} className={movingClass}>
                   {isVideo ? (
-                    <video src={layer.dataUrl} style={{ height: "100%", objectFit: "cover" }} autoPlay loop muted playsInline draggable={false} />
+                    <video src={layer.dataUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} autoPlay loop muted playsInline draggable={false} />
                   ) : (
-                    <img src={layer.dataUrl} alt={layer.name} style={{ height: "100%", objectFit: "cover" }} draggable={false} />
+                    <img src={layer.dataUrl} alt={layer.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} draggable={false} />
                   )}
                 </div>
               </div>
@@ -1528,7 +1529,7 @@ export default function HopCreator() {
                               style={isMediaLayer ? {
                                 left: "50%",
                                 top: "0",
-                                width: `${frameSize}px`,
+                                width: `${selectedLayer.scale}%`,
                                 height: "100%",
                                 transform: `translateX(-50%) translateX(${selectedLayer.positionX}px) rotate(${selectedLayer.rotation}deg)`,
                               } : {
