@@ -1151,9 +1151,9 @@ export default function HopCreator() {
         {scene.assetUrl && !layers.find(l => l.name === "Background" && l.type === "media") && (
           <div className="absolute inset-0">
             {scene.assetType === "video" ? (
-              <video src={scene.assetUrl} className={`w-full h-full object-cover ${displayMode === "moving" ? "hop-moving-mode" : ""}`} style={displayMode === "moving" ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} autoPlay loop muted playsInline data-testid="canvas-bg-video" />
+              <video src={scene.assetUrl} className={`w-full h-full object-cover ${displayMode === "moving" && isPlaying ? "hop-moving-mode" : ""}`} style={displayMode === "moving" && isPlaying ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} autoPlay loop muted playsInline data-testid="canvas-bg-video" />
             ) : (
-              <img src={scene.assetUrl} alt="" className={`w-full h-full object-cover ${displayMode === "moving" ? "hop-moving-mode" : ""}`} style={displayMode === "moving" ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} data-testid="canvas-bg-image" />
+              <img src={scene.assetUrl} alt="" className={`w-full h-full object-cover ${displayMode === "moving" && isPlaying ? "hop-moving-mode" : ""}`} style={displayMode === "moving" && isPlaying ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} data-testid="canvas-bg-image" />
             )}
           </div>
         )}
@@ -1201,9 +1201,9 @@ export default function HopCreator() {
             ...beatAnim,
           };
           const contentTransform = `rotate(${layer.rotation}deg) scale(${layer.scale / 100})`;
-          const isStitched = layer.stitchMode && displayMode === "moving";
+          const isStitched = layer.stitchMode && displayMode === "moving" && isPlaying;
           const stitchCount = layer.stitchRepeat || 2;
-          const isMovingLayer = displayMode === "moving" && layer.type === "media";
+          const isMovingLayer = displayMode === "moving" && isPlaying && layer.type === "media";
           if (layer.type === "media" && layer.dataUrl) {
             const isVideo = layer.dataUrl.startsWith("data:video/") || layer.dataUrl.match(/\.(mp4|webm|ogg|mov)(\?|$)/i);
             if (isStitched && !isBgLayer) {
