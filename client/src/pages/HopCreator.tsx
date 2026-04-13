@@ -326,6 +326,8 @@ export default function HopCreator() {
   const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
   const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
   const [dragReorderLayerId, setDragReorderLayerId] = useState<string | null>(null);
+  const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<"above" | "below">("above");
 
   const { data: allProjects } = useProjects(true);
 
@@ -778,6 +780,31 @@ export default function HopCreator() {
     }
   }, [zoneOutMode, isPlaying]);
 
+  const moveLayerInStack = useCallback((layerId: string, direction: "up" | "down") => {
+    const displayLayers = [...(sceneLayers[currentSceneId] || [])].sort((a, b) => b.zIndex - a.zIndex);
+    const idx = displayLayers.findIndex(l => l.id === layerId);
+    if (idx < 0) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === displayLayers.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [displayLayers[idx], displayLayers[swapIdx]] = [displayLayers[swapIdx], displayLayers[idx]];
+    const maxZ = displayLayers.length - 1;
+    const reindexed = displayLayers.map((l, i) => ({ ...l, zIndex: maxZ - i }));
+    setSceneLayers(sl => ({ ...sl, [currentSceneId]: reindexed }));
+  }, [currentSceneId, sceneLayers]);
+
+  const moveLayerToExtreme = useCallback((layerId: string, position: "top" | "bottom") => {
+    const displayLayers = [...(sceneLayers[currentSceneId] || [])].sort((a, b) => b.zIndex - a.zIndex);
+    const idx = displayLayers.findIndex(l => l.id === layerId);
+    if (idx < 0) return;
+    const [moved] = displayLayers.splice(idx, 1);
+    if (position === "top") displayLayers.unshift(moved);
+    else displayLayers.push(moved);
+    const maxZ = displayLayers.length - 1;
+    const reindexed = displayLayers.map((l, i) => ({ ...l, zIndex: maxZ - i }));
+    setSceneLayers(sl => ({ ...sl, [currentSceneId]: reindexed }));
+  }, [currentSceneId, sceneLayers]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -809,10 +836,14 @@ export default function HopCreator() {
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
       if ((e.ctrlKey || e.metaKey) && e.key === "d" && selectedLayerId) { e.preventDefault(); duplicateLayer(selectedLayerId); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "]" && selectedLayerId) { e.preventDefault(); moveLayerInStack(selectedLayerId, "up"); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "[" && selectedLayerId) { e.preventDefault(); moveLayerInStack(selectedLayerId, "down"); }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "]" && selectedLayerId) { e.preventDefault(); moveLayerToExtreme(selectedLayerId, "top"); }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "[" && selectedLayerId) { e.preventDefault(); moveLayerToExtreme(selectedLayerId, "bottom"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [zoneOutMode, showPreview, selectedLayerId, removeLayer, duplicateLayer, handleSave, pauseAudioNow, currentLayers, currentSceneId]);
+  }, [zoneOutMode, showPreview, selectedLayerId, removeLayer, duplicateLayer, handleSave, pauseAudioNow, currentLayers, currentSceneId, moveLayerInStack, moveLayerToExtreme]);
 
   const handleAddTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
@@ -895,14 +926,16 @@ export default function HopCreator() {
     };
   }, [transformMode, selectedLayerId, updateLayer]);
 
-  const handleLayerReorder = useCallback((fromId: string, toId: string) => {
+  const handleLayerReorder = useCallback((fromId: string, toId: string, position?: "above" | "below") => {
     if (fromId === toId) return;
     const displayLayers = [...(sceneLayers[currentSceneId] || [])].sort((a, b) => b.zIndex - a.zIndex);
     const fromIdx = displayLayers.findIndex(l => l.id === fromId);
-    const toIdx = displayLayers.findIndex(l => l.id === toId);
+    let toIdx = displayLayers.findIndex(l => l.id === toId);
     if (fromIdx < 0 || toIdx < 0) return;
     const [moved] = displayLayers.splice(fromIdx, 1);
-    displayLayers.splice(toIdx, 0, moved);
+    if (position === "below" && fromIdx < toIdx) toIdx--;
+    else if (position === "above" && fromIdx > toIdx) toIdx;
+    displayLayers.splice(position === "below" ? toIdx + 1 : toIdx, 0, moved);
     const maxZ = displayLayers.length - 1;
     const reindexed = displayLayers.map((l, i) => ({ ...l, zIndex: maxZ - i }));
     setSceneLayers(sl => ({ ...sl, [currentSceneId]: reindexed }));
@@ -1496,40 +1529,78 @@ export default function HopCreator() {
                 <button onClick={() => setShowSettings(!showSettings)} className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white transition" title="Settings"><Settings2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            <div className="space-y-0.5 max-h-32 overflow-y-auto mb-2">
-              {[...currentLayers].sort((a, b) => b.zIndex - a.zIndex).map(layer => (
-                <div
-                  key={layer.id}
-                  draggable
-                  onDragStart={() => setDragReorderLayerId(layer.id)}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                  onDrop={(e) => { e.preventDefault(); if (dragReorderLayerId) { handleLayerReorder(dragReorderLayerId, layer.id); setDragReorderLayerId(null); } }}
-                  onDragEnd={() => setDragReorderLayerId(null)}
-                  onClick={() => { setSelectedLayerId(layer.id); setRightContext("layer"); }}
-                  className={`flex items-center gap-1 px-1.5 py-1 cursor-pointer transition text-[10px] ${
-                    selectedLayerId === layer.id ? "bg-zinc-800 border border-white/20" :
-                    dragReorderLayerId === layer.id ? "opacity-50 bg-zinc-900/30 border border-dashed border-white/20" :
-                    "bg-zinc-900/30 border border-transparent hover:border-white/10"
-                  }`}
-                  data-testid={`layer-item-${layer.id}`}
-                >
-                  <GripVertical className="w-2.5 h-2.5 text-zinc-600 shrink-0 cursor-grab" />
-                  <span className="text-zinc-500 shrink-0">
-                    {layer.type === "media" ? "🖼️" : layer.type === "text" ? "T" : layer.type === "effect" ? "✨" : "T"}
-                  </span>
-                  <span className="flex-1 truncate text-zinc-300">{layer.name}</span>
-                  <span className="text-zinc-600 text-[8px] shrink-0">{Math.round(layer.opacity * 100)}%</span>
-                  <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { visible: !layer.visible }); }} className="p-0.5">
-                    {layer.visible ? <Eye className="w-2.5 h-2.5 text-zinc-500" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-600" />}
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { locked: !layer.locked }); }} className="p-0.5">
-                    {layer.locked ? <Lock className="w-2.5 h-2.5 text-red-400" /> : <Unlock className="w-2.5 h-2.5 text-zinc-600" />}
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }} className="p-0.5 hover:text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
+            <div className="flex items-center gap-0.5 px-1.5 py-0.5 text-[7px] text-zinc-600 uppercase tracking-wider border-b border-white/5 mb-0.5">
+              <span className="w-3" />
+              <span className="w-3 text-center">#</span>
+              <span className="w-4" />
+              <span className="flex-1">Name</span>
+              <span className="w-5 text-center">Op</span>
+              <span className="w-4" />
+              <span className="w-4" />
+              <span className="w-4" />
+              <span className="w-4" />
+            </div>
+            <div className="space-y-0 max-h-40 overflow-y-auto mb-2" data-testid="layer-stack-panel">
+              {[...currentLayers].sort((a, b) => b.zIndex - a.zIndex).map((layer, displayIdx) => (
+                <div key={layer.id}>
+                  {dragReorderLayerId && dragOverLayerId === layer.id && dragOverPosition === "above" && dragReorderLayerId !== layer.id && (
+                    <div className="h-0.5 bg-cyan-400 mx-1 rounded-full" />
+                  )}
+                  <div
+                    draggable
+                    onDragStart={(e) => { setDragReorderLayerId(layer.id); e.dataTransfer.effectAllowed = 'move'; }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const midY = rect.top + rect.height / 2;
+                      setDragOverLayerId(layer.id);
+                      setDragOverPosition(e.clientY < midY ? "above" : "below");
+                    }}
+                    onDragLeave={() => { if (dragOverLayerId === layer.id) setDragOverLayerId(null); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragReorderLayerId && dragReorderLayerId !== layer.id) {
+                        handleLayerReorder(dragReorderLayerId, layer.id, dragOverPosition);
+                      }
+                      setDragReorderLayerId(null);
+                      setDragOverLayerId(null);
+                    }}
+                    onDragEnd={() => { setDragReorderLayerId(null); setDragOverLayerId(null); }}
+                    onClick={() => { setSelectedLayerId(layer.id); setRightContext("layer"); }}
+                    className={`group flex items-center gap-0.5 px-1 py-0.5 cursor-pointer transition-all text-[10px] ${
+                      selectedLayerId === layer.id ? "bg-zinc-800 border-l-2 border-l-cyan-400 border-y border-r border-white/10" :
+                      dragReorderLayerId === layer.id ? "opacity-40 bg-zinc-900/20 border border-dashed border-white/15" :
+                      "border-l-2 border-l-transparent border-y border-r border-transparent hover:bg-zinc-900/50 hover:border-white/5"
+                    }`}
+                    data-testid={`layer-item-${layer.id}`}
+                  >
+                    <GripVertical className="w-2.5 h-2.5 text-zinc-700 group-hover:text-zinc-400 shrink-0 cursor-grab active:cursor-grabbing" />
+                    <span className="text-[7px] text-zinc-600 w-3 text-center font-mono shrink-0">{layer.zIndex}</span>
+                    <span className="text-zinc-500 shrink-0 w-4 text-center text-[9px]">
+                      {layer.type === "media" ? "🖼" : layer.type === "text" ? "T" : layer.type === "effect" ? "✨" : "¶"}
+                    </span>
+                    <span className="flex-1 truncate text-zinc-300 min-w-0">{layer.name}</span>
+                    <span className="text-[7px] text-zinc-600 w-5 text-center font-mono shrink-0">{Math.round(layer.opacity * 100)}</span>
+                    <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "up"); }} className="p-0.5 hover:text-cyan-400 text-zinc-600" title="Move Up (Ctrl+])"><ChevronUp className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); moveLayerInStack(layer.id, "down"); }} className="p-0.5 hover:text-cyan-400 text-zinc-600" title="Move Down (Ctrl+[)"><ChevronDown className="w-2.5 h-2.5" /></button>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { visible: !layer.visible }); }} className="p-0.5 shrink-0">
+                      {layer.visible ? <Eye className="w-2.5 h-2.5 text-zinc-500" /> : <EyeOff className="w-2.5 h-2.5 text-zinc-600" />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); updateLayer(layer.id, { locked: !layer.locked }); }} className="p-0.5 shrink-0">
+                      {layer.locked ? <Lock className="w-2.5 h-2.5 text-red-400" /> : <Unlock className="w-2.5 h-2.5 text-zinc-700" />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }} className="p-0.5 hover:text-red-400 text-zinc-700 shrink-0"><Trash2 className="w-2.5 h-2.5" /></button>
+                  </div>
+                  {dragReorderLayerId && dragOverLayerId === layer.id && dragOverPosition === "below" && dragReorderLayerId !== layer.id && (
+                    <div className="h-0.5 bg-cyan-400 mx-1 rounded-full" />
+                  )}
                 </div>
               ))}
               {currentLayers.length === 0 && (
-                <p className="text-[10px] text-zinc-600 text-center py-3">No layers yet</p>
+                <p className="text-[10px] text-zinc-600 text-center py-4">No layers — add media, text or effects</p>
               )}
             </div>
             <div className="space-y-1">
@@ -1656,26 +1727,42 @@ export default function HopCreator() {
                 {selectedLayer.name !== "Background" && (
                   <>
                     <div>
-                      <label className="text-[9px] text-zinc-500 uppercase font-bold">Position</label>
-                      <div className="grid grid-cols-2 gap-1 mt-0.5">
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">LAYER ORDER</span>
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-0.5 flex-1">
+                          <span className="text-[8px] text-zinc-600">Z</span>
+                          <input type="number" min="0" value={selectedLayer.zIndex} onChange={(e) => updateLayer(selectedLayer.id, { zIndex: Number(e.target.value) })} className="w-12 bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" data-testid="input-layer-zindex" />
+                        </div>
+                        <button onClick={() => moveLayerToExtreme(selectedLayer.id, "top")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+]" data-testid="button-layer-to-front">FRONT</button>
+                        <button onClick={() => moveLayerInStack(selectedLayer.id, "up")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+]"><ChevronUp className="w-3 h-3" /></button>
+                        <button onClick={() => moveLayerInStack(selectedLayer.id, "down")} className="p-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+["><ChevronDown className="w-3 h-3" /></button>
+                        <button onClick={() => moveLayerToExtreme(selectedLayer.id, "bottom")} className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition" title="Ctrl+Shift+[" data-testid="button-layer-to-back">BACK</button>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">POSITION</span>
+                      <div className="grid grid-cols-2 gap-1 mt-1">
                         <div className="flex items-center gap-1">
                           <span className="text-[8px] text-zinc-600">X</span>
-                          <input type="number" value={selectedLayer.positionX} onChange={(e) => updateLayer(selectedLayer.id, { positionX: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1" />
+                          <input type="number" value={selectedLayer.positionX} onChange={(e) => updateLayer(selectedLayer.id, { positionX: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-[8px] text-zinc-600">Y</span>
-                          <input type="number" value={selectedLayer.positionY} onChange={(e) => updateLayer(selectedLayer.id, { positionY: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1" />
+                          <input type="number" value={selectedLayer.positionY} onChange={(e) => updateLayer(selectedLayer.id, { positionY: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      <div>
-                        <label className="text-[9px] text-zinc-500 uppercase font-bold">Scale %</label>
-                        <input type="number" min="10" max="500" value={selectedLayer.scale} onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5" />
-                      </div>
-                      <div>
-                        <label className="text-[9px] text-zinc-500 uppercase font-bold">Rotation</label>
-                        <input type="number" min="-360" max="360" value={selectedLayer.rotation} onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5" />
+                    <div>
+                      <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">TRANSFORM</span>
+                      <div className="grid grid-cols-2 gap-1 mt-1">
+                        <div>
+                          <span className="text-[7px] text-zinc-600">Scale %</span>
+                          <input type="number" min="10" max="500" value={selectedLayer.scale} onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                        </div>
+                        <div>
+                          <span className="text-[7px] text-zinc-600">Rotation °</span>
+                          <input type="number" min="-360" max="360" value={selectedLayer.rotation} onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 font-mono" />
+                        </div>
                       </div>
                     </div>
                   </>
