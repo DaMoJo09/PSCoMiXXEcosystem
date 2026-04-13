@@ -267,7 +267,7 @@ export default function HopCreator() {
   const [title, setTitle] = useState("Untitled HOP");
   const [description, setDescription] = useState("");
   const [hopType, setHopType] = useState<"single" | "series">("single");
-  const [clipLengthMode, setClipLengthMode] = useState<"30s" | "90s" | "custom">("30s");
+  const [clipLengthMode, setClipLengthMode] = useState<"30s" | "60s" | "90s" | "120s" | "custom">("30s");
   const [loopMode, setLoopMode] = useState<"single_loop" | "full_series_loop" | "manual_advance">("single_loop");
   const [scenes, setScenes] = useState<HopScene[]>([createDefaultScene(0)]);
   const [tags, setTags] = useState<string[]>([]);
@@ -326,6 +326,8 @@ export default function HopCreator() {
   const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
   const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
   const [dragReorderLayerId, setDragReorderLayerId] = useState<string | null>(null);
+  const [timelineDragSceneId, setTimelineDragSceneId] = useState<string | null>(null);
+  const [timelineDragOverIdx, setTimelineDragOverIdx] = useState<number | null>(null);
   const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<"above" | "below">("above");
 
@@ -347,7 +349,7 @@ export default function HopCreator() {
   const currentTextStyle = sceneTextStyles[currentSceneId] || defaultTextStyle();
   const viewport = VIEWPORT_SIZES[viewportMode];
   const totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
-  const targetDuration = clipLengthMode === "30s" ? 30 : clipLengthMode === "90s" ? 90 : null;
+  const targetDuration = clipLengthMode === "30s" ? 30 : clipLengthMode === "60s" ? 60 : clipLengthMode === "90s" ? 90 : clipLengthMode === "120s" ? 120 : null;
 
   const startAudioFromBeginning = useCallback(() => {
     const el = audioRef.current;
@@ -525,6 +527,28 @@ export default function HopCreator() {
       return arr.map((s, i) => ({ ...s, order: i }));
     });
   }, []);
+
+  const handleTimelineSceneReorder = useCallback((fromId: string, toIdx: number) => {
+    setScenes(prev => {
+      const fromIdx = prev.findIndex(s => s.id === fromId);
+      if (fromIdx < 0 || fromIdx === toIdx) return prev;
+      const selectedId = prev[selectedSceneIdx]?.id;
+      const previewId = prev[previewSceneIndex]?.id;
+      const arr = [...prev];
+      const [removed] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, removed);
+      const reordered = arr.map((s, i) => ({ ...s, order: i }));
+      if (selectedId) {
+        const newSelIdx = reordered.findIndex(s => s.id === selectedId);
+        if (newSelIdx >= 0) setSelectedSceneIdx(newSelIdx);
+      }
+      if (previewId) {
+        const newPrevIdx = reordered.findIndex(s => s.id === previewId);
+        if (newPrevIdx >= 0) setPreviewSceneIndex(newPrevIdx);
+      }
+      return reordered;
+    });
+  }, [selectedSceneIdx, previewSceneIndex]);
 
   const handleAssetUpload = useCallback((sceneId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1046,7 +1070,10 @@ export default function HopCreator() {
             );
           }
           if (layer.type === "text" && layer.text) {
-            const textAnim = layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
+            const isTypewriter = layer.textAnimation === "typewriter";
+            const textAnim = isTypewriter
+              ? `hop-text-typewriter 2s steps(${Math.max(1, (layer.text || "").length)}, end) forwards, hop-typewriter-cursor 0.75s step-end infinite`
+              : layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
             return (
               <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={beatAnim}>
@@ -1059,7 +1086,9 @@ export default function HopCreator() {
                     WebkitTextStroke: layer.strokeWidth ? `${layer.strokeWidth}px ${layer.strokeColor || "#000"}` : undefined,
                     textShadow: layer.shadowBlur ? `${layer.shadowX || 0}px ${layer.shadowY || 0}px ${layer.shadowBlur}px ${layer.shadowColor || "#000"}` : undefined,
                     animation: textAnim,
-                    whiteSpace: "pre-wrap",
+                    whiteSpace: isTypewriter ? "nowrap" : "pre-wrap",
+                    overflow: isTypewriter ? "hidden" : undefined,
+                    borderRight: isTypewriter ? "2px solid" : undefined,
                     textAlign: "center",
                     padding: "8px",
                   }}>
@@ -1094,7 +1123,12 @@ export default function HopCreator() {
               backgroundColor: `${textStyle.bgColor}${Math.round(textStyle.bgOpacity * 2.55).toString(16).padStart(2, "0")}`,
               textAlign: textStyle.textAlign,
               padding: "6px 12px",
-              animation: textStyle.animation !== "none" ? `hop-text-${textStyle.animation} 1s ease-out forwards` : undefined,
+              animation: textStyle.animation === "typewriter"
+                ? `hop-text-typewriter 2s steps(${Math.max(1, (scene.textOverlay || "").length)}, end) forwards, hop-typewriter-cursor 0.75s step-end infinite`
+                : textStyle.animation !== "none" ? `hop-text-${textStyle.animation} 1s ease-out forwards` : undefined,
+              overflow: textStyle.animation === "typewriter" ? "hidden" : undefined,
+              whiteSpace: textStyle.animation === "typewriter" ? "nowrap" : undefined,
+              borderRight: textStyle.animation === "typewriter" ? "2px solid" : undefined,
             }}>
               {scene.textOverlay}
             </div>
@@ -1113,6 +1147,7 @@ export default function HopCreator() {
     <div className="h-screen flex flex-col bg-black text-white select-none" data-testid="hop-creator">
       <style>{`
         @keyframes hop-text-typewriter { from { max-width: 0 } to { max-width: 100% } }
+        @keyframes hop-typewriter-cursor { 0%,100% { border-color: transparent } 50% { border-color: currentColor } }
         @keyframes hop-text-fade-in { from { opacity: 0 } to { opacity: 1 } }
         @keyframes hop-text-slide-up { from { opacity: 0; transform: translateY(30px) } to { opacity: 1; transform: translateY(0) } }
         @keyframes hop-text-glitch { 0% { clip-path: inset(0 0 80% 0); transform: translate(-4px, 2px) } 20% { clip-path: inset(20% 0 60% 0); transform: translate(4px, -2px) } 40% { clip-path: inset(40% 0 40% 0); transform: translate(-2px, 4px) } 60% { clip-path: inset(60% 0 20% 0); transform: translate(2px, -4px) } 80% { clip-path: inset(80% 0 0 0); transform: translate(4px, 2px) } 100% { clip-path: inset(0); transform: translate(0) } }
@@ -1406,10 +1441,15 @@ export default function HopCreator() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900/50">
-          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-            <div className="relative" style={{ width: `${viewport.w}px`, maxWidth: "100%", maxHeight: "100%" }}>
-              <div className={`border-2 border-zinc-700 overflow-hidden relative ${transitionClass}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
+        <div className="flex-1 flex flex-col overflow-hidden bg-black">
+          <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950/80 border-b border-white/5 shrink-0">
+            <span className="text-[9px] text-zinc-500 font-bold tracking-wider">
+              {displayMode === "moving" ? "MOVING" : "STANDARD"} HOP · {scenes.length} scenes · {totalDuration}s · {displayMode === "moving" ? "30px/s" : "static"} · {displayMode === "moving" ? ">> SCROLLING" : ""}
+            </span>
+          </div>
+          <div className="flex-1 flex items-center justify-center overflow-hidden relative" style={{ minHeight: 0 }}>
+            <div className="relative w-full h-full flex items-center justify-center" style={{ maxWidth: "100%", maxHeight: "100%" }}>
+              <div className={`border border-zinc-800 overflow-hidden relative ${transitionClass}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}`, width: "auto", height: "85%", maxWidth: "95%" }}>
                 {renderCanvas(currentScene, currentLayers, currentTextStyle, canvasRef)}
                 {selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (selectedLayer.type === "media" || selectedLayer.type === "text") && (() => {
                   const frameSize = Math.max(60, selectedLayer.scale);
@@ -1498,67 +1538,80 @@ export default function HopCreator() {
           </div>
 
           <div className="bg-zinc-950 border-t border-white/10 shrink-0">
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/5">
+            <div className="flex items-center gap-2 px-3 py-1 border-b border-white/5">
               <button onClick={() => setShowExportPanel(true)} className="px-2.5 py-1 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center gap-1" data-testid="button-save-to-library">
                 <FolderOpen className="w-3 h-3" /> SAVE TO LIBRARY
               </button>
               <button onClick={handleSave} disabled={saving} className="px-2.5 py-1 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center gap-1" data-testid="button-save">
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
               </button>
-              <div className="w-px h-5 bg-white/10 mx-1" />
+              <div className="flex-1" />
+              <span className="text-[8px] text-zinc-600 font-mono">Total: {totalDuration}s · {scenes.length} scene{scenes.length !== 1 ? "s" : ""} · {displayMode === "moving" ? `30px/s` : "static"}</span>
+              <div className="w-px h-4 bg-white/10" />
               <button onClick={() => setPreviewSceneIndex(Math.max(0, previewSceneIndex - 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-prev"><SkipBack className="w-3 h-3" /></button>
               <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 transition text-white" data-testid="timeline-play">
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
               </button>
               <button onClick={() => setPreviewSceneIndex(Math.min(scenes.length - 1, previewSceneIndex + 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-next"><SkipForward className="w-3 h-3" /></button>
-              <span className="text-[9px] text-zinc-600 font-mono">0.0s</span>
+              <span className="text-[9px] text-zinc-500 font-mono">0.0s</span>
               <span className="text-[9px] text-zinc-400 font-mono">{totalDuration}.0s</span>
               {isPlaying && <span className="text-[9px] text-orange-400 font-mono flex items-center gap-0.5"><Repeat className="w-2.5 h-2.5" />{loopCount}</span>}
+              <Settings2 className="w-3.5 h-3.5 text-zinc-600 hover:text-white cursor-pointer" onClick={() => setShowSettings(!showSettings)} />
             </div>
-            <div className="px-3 py-1 flex flex-col gap-0.5">
-              <div className="flex items-center gap-1">
-                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-20 shrink-0">+ SCENES</span>
-                <div className="flex-1 flex gap-0.5 items-center overflow-x-auto">
-                  {scenes.map((scene, idx) => {
-                    const w = targetDuration ? Math.min((scene.duration / targetDuration) * 100, 50) : (100 / scenes.length);
-                    return (
-                      <div
-                        key={scene.id}
-                        onClick={() => { setSelectedSceneIdx(idx); setPreviewSceneIndex(idx); }}
-                        className={`h-5 flex items-center justify-center cursor-pointer transition shrink-0 ${
-                          selectedSceneIdx === idx ? "bg-green-600" : previewSceneIndex === idx && isPlaying ? "bg-cyan-700" : "bg-zinc-700 hover:bg-zinc-600"
-                        }`}
-                        style={{ width: `${Math.max(w, 8)}%`, minWidth: "40px" }}
-                        data-testid={`timeline-scene-${idx}`}
-                      >
-                        <span className="text-[7px] text-white font-mono">{idx + 1}</span>
+            <div className="px-2 py-1.5">
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-16 shrink-0">SCENES</span>
+                <div className="flex-1 flex gap-1 items-center overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+                  {scenes.map((scene, idx) => (
+                    <div
+                      key={scene.id}
+                      draggable
+                      onDragStart={(e) => { setTimelineDragSceneId(scene.id); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setTimelineDragOverIdx(idx); }}
+                      onDragLeave={() => { if (timelineDragOverIdx === idx) setTimelineDragOverIdx(null); }}
+                      onDrop={(e) => { e.preventDefault(); if (timelineDragSceneId) handleTimelineSceneReorder(timelineDragSceneId, idx); setTimelineDragSceneId(null); setTimelineDragOverIdx(null); }}
+                      onDragEnd={() => { setTimelineDragSceneId(null); setTimelineDragOverIdx(null); }}
+                      onClick={() => { setSelectedSceneIdx(idx); setPreviewSceneIndex(idx); setRightContext("scene"); }}
+                      className={`relative flex-shrink-0 cursor-grab active:cursor-grabbing transition-all ${
+                        timelineDragSceneId === scene.id ? "opacity-40" : ""
+                      } ${timelineDragOverIdx === idx && timelineDragSceneId !== scene.id ? "ring-2 ring-cyan-400" : ""} ${
+                        selectedSceneIdx === idx ? "ring-2 ring-orange-500" : previewSceneIndex === idx && isPlaying ? "ring-1 ring-cyan-500" : ""
+                      }`}
+                      style={{ width: `${Math.max(80, (scene.duration / Math.max(totalDuration, 1)) * 300)}px`, height: "32px" }}
+                      data-testid={`timeline-scene-${idx}`}
+                    >
+                      <div className="w-full h-full bg-zinc-800 border border-white/10 overflow-hidden flex items-center justify-center">
+                        {scene.assetUrl ? (
+                          scene.assetType === "video" ? (
+                            <div className="w-full h-full bg-zinc-700 flex items-center justify-center"><Film className="w-3 h-3 text-zinc-400" /></div>
+                          ) : (
+                            <img src={scene.assetUrl} alt="" className="w-full h-full object-cover" />
+                          )
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+                            <span className="text-[7px] text-zinc-600 font-mono">Scene {idx + 1}</span>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                  <button onClick={handleAddScene} className="h-5 w-5 flex items-center justify-center text-zinc-600 hover:text-green-400 transition shrink-0" data-testid="timeline-add-scene">
-                    <Plus className="w-2.5 h-2.5" />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 flex items-center justify-between">
+                        <span className="text-[7px] text-white font-mono">{idx + 1}</span>
+                        <span className="text-[7px] text-zinc-400 font-mono">{scene.duration}s</span>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={handleAddScene} className="w-8 h-8 flex items-center justify-center text-zinc-600 hover:text-green-400 border border-dashed border-white/10 hover:border-green-500/50 transition shrink-0" data-testid="timeline-add-scene">
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-20 shrink-0">+ ADD AUDIO</span>
-                <div className="flex-1 h-5 bg-zinc-900/50 border border-dashed border-white/10 flex items-center justify-center">
+                <span className="text-[8px] text-zinc-600 font-bold tracking-wider w-16 shrink-0">+ ADD AUDIO</span>
+                <div className="flex-1 h-6 bg-zinc-900/50 border border-dashed border-white/10 flex items-center justify-center cursor-pointer hover:border-white/20 transition" onClick={() => audioInputRef.current?.click()}>
                   {audioTrack ? (
-                    <span className="text-[8px] text-zinc-400 truncate px-1">{audioTrack.name}</span>
+                    <span className="text-[8px] text-zinc-400 truncate px-1 flex items-center gap-1"><Music className="w-2.5 h-2.5 text-orange-400" /> {audioTrack.name}</span>
                   ) : (
-                    <span className="text-[8px] text-zinc-600">+ DROP AUDIO CLIP</span>
+                    <span className="text-[8px] text-zinc-600">+ ADD AUDIO CLIP</span>
                   )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="w-20 shrink-0" />
-                <div className="flex-1 flex items-center">
-                  {Array.from({ length: Math.ceil(totalDuration) }, (_, i) => (
-                    <div key={i} className="flex-1 flex items-center">
-                      <div className="w-px h-2 bg-white/10" />
-                      <span className="text-[7px] text-zinc-700 ml-0.5">{i + 1}s</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -1566,6 +1619,13 @@ export default function HopCreator() {
         </div>
 
         <div className="w-72 bg-zinc-950 border-l border-white/10 flex flex-col shrink-0 overflow-hidden">
+          <div className="px-2.5 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0">
+            <span className="text-[9px] text-zinc-400 font-bold tracking-widest">✦ SEND TO</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] text-zinc-600">▶</span>
+              <span className="text-[9px] text-zinc-400 font-bold tracking-wider">1080P</span>
+            </div>
+          </div>
           <div className="p-2.5 border-b border-white/10 shrink-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] text-white uppercase tracking-widest font-bold flex items-center gap-1.5">✦ LAYERS</span>
@@ -1866,11 +1926,26 @@ export default function HopCreator() {
                   </div>
 
                   <div className="bg-zinc-900/50 p-2 border border-white/5">
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5 mb-1.5">
                       <LayoutGrid className="w-3 h-3 text-zinc-500" />
                       <span className="text-[9px] text-zinc-400 font-bold tracking-wider">HOP LENGTH: {totalDuration}s</span>
                     </div>
-                    <span className="text-[8px] text-zinc-600">{scenes.length} scenes · {totalDuration}s</span>
+                    <div className="flex gap-1 mb-1.5">
+                      {([30, 60, 90, 120] as const).map(dur => (
+                        <button
+                          key={dur}
+                          onClick={() => setClipLengthMode(`${dur}s` as any)}
+                          className={`flex-1 py-1 text-[9px] font-bold tracking-wider transition border ${
+                            targetDuration === dur ? "bg-orange-600 border-orange-500 text-white" : "bg-zinc-800 border-white/10 text-zinc-500 hover:text-white hover:border-white/20"
+                          }`}
+                          data-testid={`hop-length-${dur}`}
+                        >
+                          {dur}s
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[8px] text-zinc-600">{scenes.length} scenes · {totalDuration}s total</span>
+                    {targetDuration && <div className={`text-[8px] mt-0.5 ${totalDuration > targetDuration ? "text-red-400" : "text-green-400"}`}>{totalDuration}s / {targetDuration}s target</div>}
                   </div>
 
                   <div>
@@ -2059,7 +2134,7 @@ export default function HopCreator() {
                         <div>
                           <label className="text-[9px] text-zinc-500">Duration Target</label>
                           <div className="flex gap-1 mt-0.5">
-                            {(["30s", "90s", "custom"] as const).map(d => (
+                            {(["30s", "60s", "90s", "120s", "custom"] as const).map(d => (
                               <button key={d} onClick={() => setClipLengthMode(d)} className={`flex-1 py-1 text-[9px] transition ${clipLengthMode === d ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"}`}>{d}</button>
                             ))}
                           </div>
