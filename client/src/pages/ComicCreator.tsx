@@ -2050,7 +2050,11 @@ export default function ComicCreator() {
         redoStackRef.current = [];
       }
       if (data?.comicMeta) {
-        setComicMeta(data.comicMeta);
+        setComicMeta(prev => ({
+          ...prev,
+          ...data.comicMeta,
+          bonusCards: data.comicMeta.bonusCards || prev.bonusCards || [],
+        }));
       }
       if (data?.coverDesign) {
         const cd = data.coverDesign;
