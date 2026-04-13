@@ -688,12 +688,42 @@ export default function CardCreator() {
     const oy = cardData.imageOffsetY || 0;
     const rot = cardData.imageRotation || 0;
     return {
+      position: "absolute" as const,
+      top: 0,
+      left: 0,
       width: "100%",
       height: "100%",
       objectFit: "cover" as const,
       transform: `translate(${ox}px, ${oy}px) scale(${s}) rotate(${rot}deg)`,
       transformOrigin: "center center",
     };
+  };
+
+  const handleImageDragStart = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origOx = cardData.imageOffsetX || 0;
+    const origOy = cardData.imageOffsetY || 0;
+    const onMove = (me: MouseEvent) => {
+      const dx = me.clientX - startX;
+      const dy = me.clientY - startY;
+      updateCard({ imageOffsetX: origOx + dx, imageOffsetY: origOy + dy });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const handleImageWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -5 : 5;
+    const next = Math.max(10, Math.min(300, (cardData.imageScale || 100) + delta));
+    updateCard({ imageScale: next });
   };
 
   const applyCardTemplate = (templateId: string) => {
@@ -2581,8 +2611,8 @@ export default function CardCreator() {
                       {cardData.logo && side === "front" && (
                         <img src={cardData.logo} style={getLogoPositionStyle()} alt="Logo" data-testid="card-logo-sports" />
                       )}
-                      <div className="flex-1 relative overflow-hidden">
-                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} />
+                      <div className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing" onMouseDown={handleImageDragStart} onWheel={handleImageWheel}>
+                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} draggable={false} />
                         {cardData.filters.halftone && (
                           <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
                                style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
@@ -2687,8 +2717,8 @@ export default function CardCreator() {
                           ))}
                         </div>
                       </div>
-                      <div className="flex-1 relative overflow-hidden border-b-2" style={{ borderColor: cardData.borderColor }}>
-                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} />
+                      <div className="flex-1 relative overflow-hidden border-b-2 cursor-grab active:cursor-grabbing" style={{ borderColor: cardData.borderColor }} onMouseDown={handleImageDragStart} onWheel={handleImageWheel}>
+                        <img src={cardData.frontImage} style={{ ...getImageTransformStyle(), ...getCardFilterStyle() }} draggable={false} />
                         {cardData.filters.halftone && (
                           <div className="absolute inset-0 pointer-events-none mix-blend-multiply" 
                                style={{ backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.3) 25%, transparent 25%)`, backgroundSize: '4px 4px' }} />
