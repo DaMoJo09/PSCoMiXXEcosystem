@@ -1051,7 +1051,7 @@ export default function HopCreator() {
             const movingClass = displayMode === "moving" && isBg ? "hop-moving-mode" : "";
             const movingStyle = displayMode === "moving" && isBg ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
             return (
-              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={{ ...beatAnim, ...movingStyle }} className={movingClass}>
                   {isVideo ? (
                     <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit }} autoPlay loop muted playsInline draggable={false} />
@@ -1064,7 +1064,7 @@ export default function HopCreator() {
           }
           if (layer.type === "effect" && layer.dataUrl) {
             return (
-              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={beatAnim}>
                   <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "cover", width: isBg ? "100%" : undefined, height: isBg ? "100%" : undefined }} draggable={false} />
                 </div>
@@ -1077,7 +1077,7 @@ export default function HopCreator() {
               ? `hop-text-typewriter 2s steps(${Math.max(1, (layer.text || "").length)}, end) forwards, hop-typewriter-cursor 0.75s step-end infinite`
               : layer.textAnimation && layer.textAnimation !== "none" ? `hop-text-${layer.textAnimation} 1s ease-out forwards` : undefined;
             return (
-              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={beatAnim}>
                   <div style={{
                     fontFamily: layer.fontFamily,
@@ -1102,7 +1102,7 @@ export default function HopCreator() {
           }
           if (layer.type === "caption" && layer.text) {
             return (
-              <div key={layer.id} style={style} onClick={() => { if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
+              <div key={layer.id} style={style} onClick={(e) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } }}>
                 <div style={beatAnim}>
                   <div className="bg-black/70 px-4 py-3 text-center" style={{ fontFamily: layer.fontFamily || "'Press Start 2P', monospace", fontSize: `${layer.fontSize || 12}px`, color: layer.fontColor || "#fff", whiteSpace: "nowrap" }}>
                     {layer.text}
@@ -1461,19 +1461,26 @@ export default function HopCreator() {
                 return (
                   <div
                     key={scene.id}
-                    className={`relative shrink-0 transition-all cursor-pointer group ${
+                    className={`relative shrink-0 transition-all cursor-pointer group overflow-visible ${
                       isSelected ? "ring-2 ring-orange-500" : isPlayed ? "ring-1 ring-cyan-500" : "ring-1 ring-white/10 hover:ring-white/20"
                     }`}
-                    style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}` }}
-                    onClick={() => { setSelectedSceneIdx(idx); setSelectedLayerId(null); setRightContext("scene"); }}
+                    style={{ height: "90%", aspectRatio: `${viewport.w}/${viewport.h}`, zIndex: isSelected ? 10 : 1 }}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('[data-testid="transform-move"], [data-testid^="transform-resize"], [data-testid="transform-rotate"]')) return;
+                      setSelectedSceneIdx(idx);
+                      setSelectedLayerId(null);
+                      setRightContext("scene");
+                    }}
                     data-testid={`canvas-scene-${idx}`}
                   >
-                    <div className="absolute top-1 left-1 z-[60] px-1.5 py-0.5 bg-black/70 border border-white/10">
+                    <div className="absolute top-1 left-1 z-[60] px-1.5 py-0.5 bg-black/70 border border-white/10 pointer-events-none">
                       <span className="text-[8px] text-zinc-300 font-mono font-bold">{idx + 1}</span>
                       <span className="text-[8px] text-zinc-500 ml-1 font-mono">{scene.duration}s</span>
                     </div>
-                    <div className="w-full h-full overflow-hidden relative">
-                      {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined)}
+                    <div className="w-full h-full overflow-visible relative">
+                      <div className="w-full h-full overflow-hidden relative">
+                        {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined)}
+                      </div>
                       {isSelected && selectedLayer && selectedLayer.name !== "Background" && !selectedLayer.locked && (() => {
                         const frameSize = Math.max(60, selectedLayer.scale);
                         return (
