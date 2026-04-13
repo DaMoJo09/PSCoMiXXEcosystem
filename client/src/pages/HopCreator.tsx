@@ -7,7 +7,7 @@ import {
   Zap, Clock, Sparkles, Settings2, Loader2, Download,
   Maximize2, SkipForward, SkipBack, FolderOpen, Search,
   Lock, Unlock, Copy, Layers, Monitor, Smartphone, Tablet, Square,
-  Palette, Wand2, LayoutGrid, Timer, PenTool, FileText, Expand
+  Palette, Wand2, LayoutGrid, Timer, PenTool, FileText, Expand, RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProject, useProjects, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
@@ -345,8 +345,6 @@ export default function HopCreator() {
   const [transitionClass, setTransitionClass] = useState("");
   const [cameraProgress, setCameraProgress] = useState(0);
   const cameraRafRef = useRef<number | null>(null);
-  const [transformMode, setTransformMode] = useState<'move' | 'resize' | 'rotate' | null>(null);
-  const transformStartRef = useRef<{ mouseX: number; mouseY: number; layerX: number; layerY: number; layerScale: number; layerRotation: number; canvasScale: number } | null>(null);
   const [dragReorderLayerId, setDragReorderLayerId] = useState<string | null>(null);
   const [timelineDragSceneId, setTimelineDragSceneId] = useState<string | null>(null);
   const [timelineDragOverIdx, setTimelineDragOverIdx] = useState<number | null>(null);
@@ -640,8 +638,7 @@ export default function HopCreator() {
       bgLayer.dataUrl = url;
       setSceneLayers(sl => ({ ...sl, [sceneId]: [bgLayer] }));
     }
-    if (emptyScene && !isPlaying) {
-      setIsPlaying(true);
+    if (emptyScene) {
       setPreviewSceneIndex(scenes.findIndex(s => s.id === sceneId));
     }
   }, [scenes, sceneLayers, isPlaying, handleUpdateScene]);
@@ -994,78 +991,136 @@ export default function HopCreator() {
     }
   }, [tagInput, tags]);
 
-  const getCanvasScale = useCallback(() => {
-    if (!canvasRef.current) return 1;
-    const rect = canvasRef.current.getBoundingClientRect();
-    return rect.width / viewport.w;
-  }, [viewport.w]);
-
-  const handleTransformStart = useCallback((e: React.MouseEvent | React.TouchEvent, mode: 'move' | 'resize' | 'rotate') => {
-    if (!selectedLayer || selectedLayer.locked) return;
-    e.preventDefault();
+  const startLayerMove = useCallback((e: React.MouseEvent, layer: HopLayer) => {
+    if (layer.locked) return;
     e.stopPropagation();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setTransformMode(mode);
-    transformStartRef.current = {
-      mouseX: clientX,
-      mouseY: clientY,
-      layerX: selectedLayer.positionX,
-      layerY: selectedLayer.positionY,
-      layerScale: selectedLayer.scale,
-      layerRotation: selectedLayer.rotation,
-      canvasScale: getCanvasScale(),
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLayer = { ...layer };
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const cs = canvasRect.width / viewport.w;
+    const handleMouseMove = (moveE: MouseEvent) => {
+      const dx = (moveE.clientX - startX) / cs;
+      const dy = (moveE.clientY - startY) / cs;
+      updateLayer(layer.id, {
+        positionX: Math.round(startLayer.positionX + dx),
+        positionY: Math.round(startLayer.positionY + dy),
+      });
     };
-  }, [selectedLayer, getCanvasScale]);
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [updateLayer, viewport.w]);
 
-  useEffect(() => {
-    if (!transformMode || !transformStartRef.current || !selectedLayerId) return;
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      if ('touches' in e) e.preventDefault();
-      const start = transformStartRef.current!;
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
-      const cs = start.canvasScale || 1;
-      if (transformMode === 'move') {
-        const dx = (clientX - start.mouseX) / cs;
-        const dy = (clientY - start.mouseY) / cs;
-        updateLayer(selectedLayerId, {
-          positionX: Math.round(start.layerX + dx),
-          positionY: Math.round(start.layerY + dy),
-        });
-      } else if (transformMode === 'resize') {
-        const dx = (clientX - start.mouseX) / cs;
-        const dy = (clientY - start.mouseY) / cs;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const sign = (dx + dy) > 0 ? 1 : -1;
-        const newScale = Math.max(10, Math.min(500, start.layerScale + sign * (dist / 50) * start.layerScale * 0.5));
-        updateLayer(selectedLayerId, { scale: Math.round(newScale) });
-      } else if (transformMode === 'rotate') {
-        if (!canvasRef.current) return;
-        const rect = canvasRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2 + (start.layerX * cs);
-        const centerY = rect.top + rect.height / 2 + (start.layerY * cs);
-        const angle = Math.atan2(clientY - centerY, clientX - centerX) * (180 / Math.PI) + 90;
-        updateLayer(selectedLayerId, { rotation: Math.round(angle) });
-      }
+  const startLayerResize = useCallback((e: React.MouseEvent, layer: HopLayer, handle: string) => {
+    if (layer.locked) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startScale = layer.scale;
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const cs = canvasRect.width / viewport.w;
+    const handleMouseMove = (moveE: MouseEvent) => {
+      const dx = (moveE.clientX - startX) / cs;
+      const dy = (moveE.clientY - startY) / cs;
+      let delta = 0;
+      if (handle.includes('e')) delta += dx;
+      if (handle.includes('w')) delta -= dx;
+      if (handle.includes('s')) delta += dy;
+      if (handle.includes('n')) delta -= dy;
+      const newScale = Math.max(10, Math.min(500, startScale + delta * 0.5));
+      updateLayer(layer.id, { scale: Math.round(newScale) });
     };
-    const handleUp = () => {
-      setTransformMode(null);
-      transformStartRef.current = null;
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleUp);
-    window.addEventListener('touchcancel', handleUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleUp);
-      window.removeEventListener('touchcancel', handleUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [updateLayer, viewport.w]);
+
+  const startLayerRotate = useCallback((e: React.MouseEvent, layer: HopLayer) => {
+    if (layer.locked) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const startAngle = layer.rotation;
+    const el = (e.currentTarget as HTMLElement).parentElement;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const startMouseAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    const handleMouseMove = (moveE: MouseEvent) => {
+      const mouseAngle = Math.atan2(moveE.clientY - centerY, moveE.clientX - centerX) * (180 / Math.PI);
+      let newRotation = startAngle + (mouseAngle - startMouseAngle);
+      if (moveE.shiftKey) newRotation = Math.round(newRotation / 15) * 15;
+      updateLayer(layer.id, { rotation: Math.round(newRotation) });
     };
-  }, [transformMode, selectedLayerId, updateLayer]);
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [updateLayer]);
+
+  const GIZMO_HANDLE_SIZE = 10;
+  const GIZMO_HANDLES = [
+    { position: 'nw', cursor: 'nwse-resize', x: -GIZMO_HANDLE_SIZE / 2, y: -GIZMO_HANDLE_SIZE / 2 },
+    { position: 'n', cursor: 'ns-resize', x: '50%', y: -GIZMO_HANDLE_SIZE / 2, tx: '-50%' },
+    { position: 'ne', cursor: 'nesw-resize', x: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)`, y: -GIZMO_HANDLE_SIZE / 2 },
+    { position: 'w', cursor: 'ew-resize', x: -GIZMO_HANDLE_SIZE / 2, y: '50%', ty: '-50%' },
+    { position: 'e', cursor: 'ew-resize', x: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)`, y: '50%', ty: '-50%' },
+    { position: 'sw', cursor: 'nesw-resize', x: -GIZMO_HANDLE_SIZE / 2, y: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)` },
+    { position: 's', cursor: 'ns-resize', x: '50%', y: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)`, tx: '-50%' },
+    { position: 'se', cursor: 'nwse-resize', x: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)`, y: `calc(100% - ${GIZMO_HANDLE_SIZE / 2}px)` },
+  ] as const;
+
+  const renderGizmo = (layer: HopLayer) => {
+    if (layer.id !== selectedLayerId || layer.locked) return null;
+    return (
+      <>
+        <div className="absolute inset-0 border-2 border-white pointer-events-none" style={{ boxShadow: '0 0 0 1px black' }} />
+        {GIZMO_HANDLES.map((handle) => (
+          <div
+            key={handle.position}
+            className="absolute bg-white border-2 border-black z-50"
+            style={{
+              width: GIZMO_HANDLE_SIZE,
+              height: GIZMO_HANDLE_SIZE,
+              left: handle.x,
+              top: handle.y,
+              cursor: handle.cursor,
+              transform: `${handle.tx ? `translateX(${handle.tx})` : ''} ${handle.ty ? `translateY(${handle.ty})` : ''}`.trim() || undefined,
+            }}
+            onMouseDown={(e) => startLayerResize(e, layer, handle.position)}
+            data-testid={`transform-resize-${handle.position}`}
+          />
+        ))}
+        <div
+          className="absolute -top-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-2 border-black rounded-full flex items-center justify-center cursor-grab hover:bg-gray-300 z-50"
+          onMouseDown={(e) => startLayerRotate(e, layer)}
+          data-testid="transform-rotate"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </div>
+        <div
+          className="absolute inset-0 z-10 cursor-move"
+          onMouseDown={(e) => startLayerMove(e, layer)}
+          data-testid="transform-move"
+        />
+      </>
+    );
+  };
 
   const handleLayerReorder = useCallback((fromId: string, toId: string, position?: "above" | "below") => {
     if (fromId === toId) return;
@@ -1123,10 +1178,11 @@ export default function HopCreator() {
             : {};
           const onLayerClick = (e: React.MouseEvent) => { e.stopPropagation(); if (!layer.locked) { setSelectedLayerId(layer.id); setRightContext("layer"); } };
           const layerDataAttr = { "data-layer-id": layer.id };
+          const canBleed = allowBleed || displayMode === "moving";
           const shellStyle: React.CSSProperties = isBgLayer ? {
             position: "absolute",
             inset: 0,
-            overflow: "hidden",
+            overflow: canBleed ? "visible" : "hidden",
             opacity: layer.opacity,
             mixBlendMode: layer.blendMode as any,
             zIndex: layer.zIndex + 1,
@@ -1137,6 +1193,7 @@ export default function HopCreator() {
             left: `calc(50% + ${layer.positionX}px)`,
             top: `calc(50% + ${layer.positionY + parallaxShift}px)`,
             transform: "translate(-50%, -50%)",
+            overflow: canBleed ? "visible" : undefined,
             opacity: layer.opacity,
             mixBlendMode: layer.blendMode as any,
             zIndex: layer.zIndex + 1,
@@ -1162,6 +1219,7 @@ export default function HopCreator() {
                       )
                     ))}
                   </div>
+                  {allowBleed && renderGizmo(layer)}
                 </div>
               );
             }
@@ -1177,6 +1235,7 @@ export default function HopCreator() {
                       <img src={layer.dataUrl} alt={layer.name} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                     )}
                   </div>
+                  {allowBleed && renderGizmo(layer)}
                 </div>
               );
             }
@@ -1191,6 +1250,7 @@ export default function HopCreator() {
                     <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                   )}
                 </div>
+                {allowBleed && renderGizmo(layer)}
               </div>
             );
           }
@@ -1200,6 +1260,7 @@ export default function HopCreator() {
                 <div style={{ transform: contentTransform }}>
                   <img src={layer.dataUrl} alt={layer.name} style={{ objectFit: layer.objectFit || "contain" }} draggable={false} />
                 </div>
+                {allowBleed && renderGizmo(layer)}
               </div>
             );
           }
@@ -1227,6 +1288,7 @@ export default function HopCreator() {
                     {layer.text}
                   </div>
                 </div>
+                {allowBleed && renderGizmo(layer)}
               </div>
             );
           }
@@ -1238,6 +1300,7 @@ export default function HopCreator() {
                     {layer.text}
                   </div>
                 </div>
+                {allowBleed && renderGizmo(layer)}
               </div>
             );
           }
@@ -1587,77 +1650,6 @@ export default function HopCreator() {
                       <div className="w-full h-full relative overflow-visible">
                         {renderCanvas(scene, sLayers, sTextStyle, isSelected ? canvasRef : undefined, isSelected)}
                       </div>
-                      {isSelected && selectedLayer && !selectedLayer.locked && (() => {
-                        const isBgGizmo = selectedLayer.type === "media" && selectedLayer.dataUrl && selectedLayer.dataUrl === scene.assetUrl;
-                        return (
-                          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 998 }}>
-                            <div
-                              className="absolute pointer-events-auto"
-                              ref={(el) => {
-                                if (!el || !canvasRef.current) return;
-                                const layerEl = canvasRef.current.querySelector(`[data-layer-id="${selectedLayer.id}"]`) as HTMLElement | null;
-                                if (layerEl) {
-                                  const canvasRect = canvasRef.current.getBoundingClientRect();
-                                  const layerRect = layerEl.getBoundingClientRect();
-                                  el.style.left = `${layerRect.left - canvasRect.left}px`;
-                                  el.style.top = `${layerRect.top - canvasRect.top}px`;
-                                  el.style.width = `${layerRect.width}px`;
-                                  el.style.height = `${layerRect.height}px`;
-                                }
-                              }}
-                              style={isBgGizmo ? {
-                                left: `calc(50% + ${selectedLayer.positionX}px)`,
-                                top: `calc(50% + ${selectedLayer.positionY}px)`,
-                                width: `${viewport.w}px`,
-                                height: `${viewport.h}px`,
-                                transform: `translate(-50%,-50%) rotate(${selectedLayer.rotation}deg) scale(${selectedLayer.scale / 100})`,
-                                transformOrigin: "center center",
-                              } : undefined}
-                            >
-                              <div
-                                className="absolute inset-0 border-2 border-white/80"
-                                style={{ cursor: transformMode === 'move' ? 'grabbing' : 'move', touchAction: 'none' }}
-                                onMouseDown={(e) => handleTransformStart(e, 'move')}
-                                onTouchStart={(e) => handleTransformStart(e, 'move')}
-                                data-testid="transform-move"
-                              />
-                              {[
-                                { x: 0, y: 0 },
-                                { x: 1, y: 0 },
-                                { x: 0, y: 1 },
-                                { x: 1, y: 1 },
-                              ].map((corner, i) => (
-                                <div
-                                  key={i}
-                                  className="absolute w-5 h-5 bg-white border border-zinc-900"
-                                  style={{
-                                    left: corner.x ? '100%' : '0%',
-                                    top: corner.y ? '100%' : '0%',
-                                    transform: 'translate(-50%,-50%)',
-                                    cursor: (corner.x === corner.y) ? 'nwse-resize' : 'nesw-resize',
-                                    touchAction: 'none',
-                                    minWidth: '20px',
-                                    minHeight: '20px',
-                                  }}
-                                  onMouseDown={(e) => handleTransformStart(e, 'resize')}
-                                  onTouchStart={(e) => handleTransformStart(e, 'resize')}
-                                  data-testid={`transform-resize-${i}`}
-                                />
-                              ))}
-                              <div
-                                className="absolute left-1/2 flex flex-col items-center"
-                                style={{ bottom: '100%', transform: 'translateX(-50%)', cursor: 'grab', marginBottom: '4px', touchAction: 'none' }}
-                                onMouseDown={(e) => handleTransformStart(e, 'rotate')}
-                                onTouchStart={(e) => handleTransformStart(e, 'rotate')}
-                                data-testid="transform-rotate"
-                              >
-                                <div className="w-5 h-5 rounded-full bg-white border border-zinc-900" />
-                                <div className="w-px h-3 bg-white" />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
                     {!scene.assetUrl && sLayers.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
