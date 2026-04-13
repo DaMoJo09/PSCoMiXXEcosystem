@@ -2522,19 +2522,10 @@ export default function HopCreator() {
         <div className="fixed inset-0 bg-black z-[100]" data-testid="zone-out-mode" onDoubleClick={() => { setZoneOutMode(false); setIsPlaying(false); pauseAudioNow(); setScreensaverMode(false); }}>
           <div className={`absolute inset-0 overflow-hidden ${transitionClass}`}>
             {zoneOutFullFill ? (
-              <div className={`w-full h-full ${screensaverMode ? "hop-screensaver-ken-burns" : ""}`} style={!screensaverMode && previewScene ? getCameraStyle(previewScene, isPlaying ? cameraProgress : 0) : undefined}>
-                {previewScene?.assetUrl && (
-                  (previewScene.assetUrl.match(/\.(mp4|webm|mov)/i) || previewScene.assetUrl.startsWith("data:video/")) ? (
-                    <video src={previewScene.assetUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline />
-                  ) : (
-                    <img src={previewScene.assetUrl} className="w-full h-full object-cover" alt="" />
-                  )
-                )}
-                {previewLayers.filter(l => l.visible && l.type === "text").map(l => (
-                  <div key={l.id} className="absolute" style={{ left: `${l.positionX}%`, top: `${l.positionY}%`, transform: `scale(${(l.scale || 100) / 100}) rotate(${l.rotation || 0}deg)`, opacity: l.opacity, color: l.fontColor || "#fff", fontSize: `${(l.fontSize || 48) * 1.5}px`, fontFamily: l.fontFamily || "'Press Start 2P', monospace", fontWeight: "bold" }}>
-                    {l.text || l.name}
-                  </div>
-                ))}
+              <div className={`w-full h-full ${screensaverMode ? "hop-screensaver-ken-burns" : ""}`}>
+                <div className="w-full h-full relative overflow-hidden">
+                  {renderCanvas(previewScene, previewLayers, previewTextStyle)}
+                </div>
               </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
