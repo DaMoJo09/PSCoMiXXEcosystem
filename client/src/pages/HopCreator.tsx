@@ -85,6 +85,7 @@ type HopAudioClip = {
 
 type ViewportMode = "desktop" | "mobile" | "tablet" | "square";
 type DisplayMode = "standard" | "moving";
+type ScrollDirection = "forward" | "backward";
 
 const VIEWPORT_SIZES: Record<ViewportMode, { w: number; h: number; label: string }> = {
   desktop: { w: 800, h: 500, label: "16:9" },
@@ -320,6 +321,9 @@ export default function HopCreator() {
 
   const [viewportMode, setViewportMode] = useState<ViewportMode>("mobile");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("standard");
+  const [scrollDirection, setScrollDirection] = useState<ScrollDirection>("forward");
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const scrollRafRef = useRef<number | null>(null);
   const [leftTab, setLeftTab] = useState<"scenes" | "audio" | "vibes">("scenes");
   const [rightContext, setRightContext] = useState<"scene" | "layer">("scene");
   const [showSettings, setShowSettings] = useState(false);
@@ -858,6 +862,26 @@ export default function HopCreator() {
     return () => { if (cameraRafRef.current) cancelAnimationFrame(cameraRafRef.current); };
   }, [isPlaying, previewSceneIndex, scenes]);
 
+  const SCROLL_SPEED = 30;
+  useEffect(() => {
+    if (!isPlaying || displayMode !== "moving") {
+      if (scrollRafRef.current) { cancelAnimationFrame(scrollRafRef.current); scrollRafRef.current = null; }
+      if (!isPlaying) setScrollOffset(0);
+      return;
+    }
+    let lastTime = performance.now();
+    const tick = () => {
+      const now = performance.now();
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      const dir = scrollDirection === "forward" ? -1 : 1;
+      setScrollOffset(prev => prev + dir * SCROLL_SPEED * dt);
+      scrollRafRef.current = requestAnimationFrame(tick);
+    };
+    scrollRafRef.current = requestAnimationFrame(tick);
+    return () => { if (scrollRafRef.current) { cancelAnimationFrame(scrollRafRef.current); scrollRafRef.current = null; } };
+  }, [isPlaying, displayMode, scrollDirection]);
+
   useEffect(() => {
     if (!(isPlaying && !audioMuted)) {
       stopGaplessAudio();
@@ -1147,13 +1171,13 @@ export default function HopCreator() {
     const camStyle = getCameraStyle(scene, isPlaying ? cameraProgress : 0);
     return (
       <div ref={ref as any} className={`relative w-full h-full bg-black ${allowBleed ? 'overflow-visible' : 'overflow-hidden'}`} style={{ aspectRatio: `${viewport.w}/${viewport.h}` }}>
-        <div className={`absolute inset-0 ${displayMode === "moving" ? "overflow-visible" : ""}`} style={camStyle}>
+        <div className={`absolute inset-0 ${displayMode === "moving" ? "overflow-visible" : ""}`} style={{ ...camStyle, ...(displayMode === "moving" && scrollOffset !== 0 ? { transform: `${camStyle?.transform || ""} translateX(${scrollOffset}px)`.trim() } : {}) }}>
         {scene.assetUrl && !layers.find(l => l.name === "Background" && l.type === "media") && (
           <div className="absolute inset-0">
             {scene.assetType === "video" ? (
-              <video src={scene.assetUrl} className={`w-full h-full object-cover ${displayMode === "moving" && isPlaying ? "hop-moving-mode" : ""}`} style={displayMode === "moving" && isPlaying ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} autoPlay loop muted playsInline data-testid="canvas-bg-video" />
+              <video src={scene.assetUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline data-testid="canvas-bg-video" />
             ) : (
-              <img src={scene.assetUrl} alt="" className={`w-full h-full object-cover ${displayMode === "moving" && isPlaying ? "hop-moving-mode" : ""}`} style={displayMode === "moving" && isPlaying ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : undefined} data-testid="canvas-bg-image" />
+              <img src={scene.assetUrl} alt="" className="w-full h-full object-cover" data-testid="canvas-bg-image" />
             )}
           </div>
         )}
@@ -1201,9 +1225,8 @@ export default function HopCreator() {
             ...beatAnim,
           };
           const contentTransform = `rotate(${layer.rotation}deg) scale(${layer.scale / 100})`;
-          const isStitched = layer.stitchMode && displayMode === "moving" && isPlaying;
+          const isStitched = layer.stitchMode && displayMode === "moving";
           const stitchCount = layer.stitchRepeat || 2;
-          const isMovingLayer = displayMode === "moving" && isPlaying && layer.type === "media";
           if (layer.type === "media" && layer.dataUrl) {
             const isVideo = layer.dataUrl.startsWith("data:video/") || layer.dataUrl.match(/\.(mp4|webm|ogg|mov)(\?|$)/i);
             if (isStitched && !isBgLayer) {
@@ -1224,11 +1247,9 @@ export default function HopCreator() {
               );
             }
             if (isBgLayer) {
-              const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
-              const movingClass = isMovingLayer ? "hop-moving-mode" : "";
               return (
                 <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                  <div style={{ width: viewport.w, height: viewport.h, transform: `translate(${layer.positionX}px, ${layer.positionY}px) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center", ...movingStyle }} className={movingClass}>
+                  <div style={{ width: viewport.w, height: viewport.h, transform: `translate(${layer.positionX}px, ${layer.positionY}px) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center" }}>
                     {isVideo ? (
                       <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
                     ) : (
@@ -1239,11 +1260,9 @@ export default function HopCreator() {
                 </div>
               );
             }
-            const movingStyle: React.CSSProperties = isMovingLayer ? { "--hop-scene-dur": `${scene.duration}s` } as React.CSSProperties : {};
-            const movingClass = isMovingLayer ? "hop-moving-mode" : "";
             return (
               <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                <div style={{ transform: contentTransform, ...movingStyle }} className={movingClass}>
+                <div style={{ transform: contentTransform }}>
                   {isVideo ? (
                     <video src={layer.dataUrl} style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
                   ) : (
@@ -1344,8 +1363,6 @@ export default function HopCreator() {
   return (
     <div className="h-screen flex flex-col bg-black text-white select-none" data-testid="hop-creator">
       <style>{`
-        @keyframes hop-moving-pan { 0% { transform: translateX(0) } 100% { transform: translateX(-20%) } }
-        .hop-moving-mode { animation: hop-moving-pan var(--hop-scene-dur, 5s) linear forwards; width: 140%; }
         @keyframes hop-stitch-scroll { 0% { transform: translateX(0) } 100% { transform: translateX(var(--hop-stitch-shift, -50%)) } }
         .hop-screensaver-ken-burns { animation: hop-kenburns 25s ease-in-out infinite alternate; transform-origin: center center }
         @keyframes hop-kenburns { 0% { transform: scale(1) translate(0,0) } 25% { transform: scale(1.15) translate(-2%,1%) } 50% { transform: scale(1.1) translate(1%,-1.5%) } 75% { transform: scale(1.2) translate(-1%,-0.5%) } 100% { transform: scale(1.05) translate(1.5%,1%) } }
@@ -1408,6 +1425,11 @@ export default function HopCreator() {
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
           <button onClick={() => setDisplayMode("standard")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "standard" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>STANDARD</button>
           <button onClick={() => setDisplayMode("moving")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "moving" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>SCROLL</button>
+          {displayMode === "moving" && (
+            <button onClick={() => setScrollDirection(d => d === "forward" ? "backward" : "forward")} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-scroll-direction">
+              {scrollDirection === "forward" ? "→ FWD" : "← BWD"}
+            </button>
+          )}
           <button
             onClick={() => { setShowPreview(false); setZoneOutMode(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) startAudioFromBeginning(); }}
             className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0"
@@ -1423,7 +1445,7 @@ export default function HopCreator() {
           <button onClick={() => setShowProjectPicker(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Projects</button>
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
           <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${displayMode === "moving" ? "text-white" : "text-zinc-600"}`}>
-            {displayMode === "moving" ? ">> MOVING" : ">> STANDARD"}
+            {displayMode === "moving" ? `>> SCROLL ${scrollDirection === "forward" ? "→" : "←"} ${isPlaying ? Math.abs(Math.round(scrollOffset)) + "px" : "READY"}` : ">> STANDARD"}
           </span>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-publish-toolbar">Publish</button>
           <button onClick={handleSave} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Save HOP</button>
@@ -1617,7 +1639,7 @@ export default function HopCreator() {
         <div className="flex-1 flex flex-col overflow-hidden bg-black">
           <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950/80 border-b border-white/5 shrink-0">
             <span className="text-[9px] text-zinc-500 font-bold tracking-wider">
-              {displayMode === "moving" ? "MOVING" : "STANDARD"} HOP · {scenes.length} scenes · {totalDuration}s · {displayMode === "moving" ? "30px/s" : "static"} · {displayMode === "moving" ? ">> SCROLLING" : ""}
+              {displayMode === "moving" ? "SCROLL" : "STANDARD"} HOP · {scenes.length} scenes · {totalDuration}s · {displayMode === "moving" ? `${SCROLL_SPEED}px/s ${scrollDirection === "forward" ? "→" : "←"}` : "static"}
             </span>
           </div>
           <div className="flex-1 overflow-x-auto overflow-y-hidden relative" style={{ minHeight: 0 }}>
@@ -1688,7 +1710,7 @@ export default function HopCreator() {
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
               </button>
               <div className="flex-1" />
-              <span className="text-[8px] text-zinc-600 font-mono">Total: {totalDuration}s · {scenes.length} scene{scenes.length !== 1 ? "s" : ""} · {displayMode === "moving" ? `30px/s` : "static"}</span>
+              <span className="text-[8px] text-zinc-600 font-mono">Total: {totalDuration}s · {scenes.length} scene{scenes.length !== 1 ? "s" : ""} · {displayMode === "moving" ? `${SCROLL_SPEED}px/s ${scrollDirection === "forward" ? "→" : "←"}` : "static"}</span>
               <div className="w-px h-4 bg-white/10" />
               <button onClick={() => setPreviewSceneIndex(Math.max(0, previewSceneIndex - 1))} className="p-1 hover:bg-zinc-800 transition text-zinc-500" data-testid="timeline-prev"><SkipBack className="w-3 h-3" /></button>
               <button onClick={() => { const next = !isPlaying; setIsPlaying(next); if (next && audioTrack && !audioMuted) resumeAudio(); else pauseAudioNow(); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 transition text-white" data-testid="timeline-play">
