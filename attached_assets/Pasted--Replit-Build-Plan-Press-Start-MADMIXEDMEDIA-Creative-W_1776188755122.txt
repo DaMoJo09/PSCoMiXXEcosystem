@@ -1,0 +1,962 @@
+# Replit Build Plan: Press Start | MADMIXEDMEDIA Creative Workforce Ecosystem
+
+## Mission
+
+Build the next version of the Press Start | MADMIXEDMEDIA ecosystem across three connected platforms:
+
+* CoMiXX
+* Press Start LMS
+* Press Start Streaming
+
+The ecosystem must function as one connected Creative Technology Workforce Hub where users can:
+
+* learn
+* create
+* publish
+* earn XP
+* build a verified Skill Passport
+* unlock mentorship/apprenticeship eligibility
+* transition into real work through MADMIXEDMEDIA
+
+This is not three separate apps. This is one connected workforce pipeline expressed through three products.
+
+---
+
+## Core Product Thesis
+
+The system should connect:
+
+**Learn -> Create -> Publish -> Level Up -> Mentor -> Apprentice -> Paid Apprentice -> Work**
+
+The ecosystem must solve these problems:
+
+* creative learning is disconnected from real jobs
+* portfolios alone do not prove real skill progression
+* hiring is often subjective and biased
+* creative tools are siloed from workforce pathways
+* students and emerging creators need visible, fair progression
+
+The new build must make skill progression visible, measurable, portable, and connected to opportunity.
+
+---
+
+## Platform Roles
+
+### 1. CoMiXX
+
+The creation engine.
+
+Purpose:
+
+* create comics
+* create visual novels
+* create choose-your-own-adventure projects
+* create trading cards
+* create covers and title designs
+* create HOPs-ready visual content
+* create projects that can feed streaming and portfolio systems
+
+CoMiXX must become the main creator workspace for:
+
+* storytelling
+* visual design
+* publishing-ready asset development
+* HOPs scene prep
+* portfolio generation
+
+### 2. Press Start LMS
+
+The learning, progression, review, and workforce-readiness engine.
+
+Purpose:
+
+* deliver curriculum
+* assign pathways and modules
+* track XP and milestones
+* manage mentor review and approvals
+* manage Skill Passport data
+* show role eligibility
+* support school and cohort progress
+* manage apprenticeship readiness pipelines
+
+The LMS must become the central system of record for learning, verified progress, role gating, and workforce readiness.
+
+### 3. Press Start Streaming
+
+The publishing, engagement, discovery, and talent surfacing engine.
+
+Purpose:
+
+* publish creator content
+* host HOPs as flagship short-form loop content
+* showcase comics, VNs, CYOA projects, audio, video, and creator channels
+* track engagement signals
+* generate audience-based XP
+* surface top talent
+* support school stations and creator stations
+* become the public-facing proof that work is real and being consumed
+
+Streaming must become the ecosystem's visibility and validation layer.
+
+---
+
+## Non-Negotiable Ecosystem Features
+
+These must work across all three platforms.
+
+### A. Unified Identity / Auth
+
+Build one shared user identity system across CoMiXX, LMS, and Streaming.
+
+Requirements:
+
+* single sign-on across all three apps
+* one user profile shared across ecosystem
+* role system: learner, creator, mentor, apprentice, paid apprentice, contributor, admin
+* school mode and independent creator mode
+* parent/guardian permissions where needed for minors
+* workspace switching based on role and age
+
+### B. Unified XP Engine
+
+XP is the spine of the ecosystem.
+
+XP must not just reward activity. It must support:
+
+* engagement
+* skill progression
+* role eligibility
+* apprenticeship readiness
+* transparent advancement
+* fair compensation frameworks later
+
+Track XP from:
+
+* lesson completion
+* time-on-task
+* project creation
+* project saving
+* project export
+* publishing
+* streaming engagement
+* mentor validation
+* challenge completion
+* external tool submission
+* verified production participation
+
+XP system requirements:
+
+* event-based architecture
+* all apps can write XP events
+* central XP ledger
+* deduplication protection
+* cooldowns / anti-abuse logic
+* action categories and source tags
+* level thresholds configurable in admin panel
+
+### C. Skill Passport
+
+Build a persistent cross-platform Skill Passport for each user.
+
+Passport should track:
+
+* overall XP level
+* app-specific XP
+* tool-specific XP
+* completed courses/pathways
+* projects created
+* projects published
+* mentor-approved work
+* badges / certifications
+* apprenticeship eligibility
+* role unlocks
+* production credits
+* external tool submissions
+
+Passport purpose:
+
+* show what users can actually do
+* act as a better-than-resume proof layer
+* combine learning + output + validation + audience response
+* help identify candidates for mentorship, apprenticeship, or paid work
+
+### D. Apprenticeship / Workforce Ladder
+
+Build the role system into the product.
+
+Proposed progression:
+
+* Level 0-5: Learner
+* Level 5-10: Creator
+* Level 10-15: Mentor Eligible
+* Level 15-20: Apprentice Eligible
+* Level 20-25: Paid Apprentice Eligible
+* Level 25+: Contributor / Specialist / Lead
+
+Important:
+XP alone must not auto-hire or auto-promote people.
+Build gating rules that include:
+
+* XP threshold
+* required completed pathways
+* project quality review
+* mentor approval
+* conduct / reliability flags
+* application or admin approval where required
+
+### E. Partner Tool Tracking
+
+Build for future integration with partner tools like:
+
+* Unreal Engine
+* Reallusion
+* Maxon
+* Adobe
+* Blender
+* Marvelous Designer
+* selected AI tools
+
+Phase 1 requirement:
+Do not wait for real APIs.
+Start with export/import and verified submission tracking.
+
+The system should allow users to:
+
+* upload or link exported work from external tools
+* tag source tool used
+* tag skill category
+* submit for validation
+* receive XP and passport updates after validation
+
+Future-ready architecture:
+
+* external_tools table
+* project_source metadata
+* webhook-ready ingestion layer
+* import endpoint for future plugins or integrations
+* “Export to Press Start” concept support
+
+---
+
+## System Architecture Expectations
+
+Replit should build this as a modular monorepo or tightly coordinated multi-app system with shared packages.
+
+Suggested stack:
+
+* Frontend: React + TypeScript + Vite
+* Styling: Tailwind CSS + shadcn/ui
+* Backend: Node.js + Express or modern Replit-supported server framework
+* Database: PostgreSQL
+* ORM: Drizzle ORM
+* Auth: secure shared auth system
+* Storage: object/file storage for media and project assets
+* Queue/background jobs: for XP processing, media processing, notifications, analytics rollups
+
+Shared packages/modules should include:
+
+* auth
+* user profile
+* XP engine
+* Skill Passport service
+* roles / permissions
+* notifications
+* media metadata
+* taxonomy / skill tagging
+* partner tool ingestion models
+* analytics events
+
+All three apps should read/write to shared services where appropriate rather than duplicating logic.
+
+---
+
+## CoMiXX Build Requirements
+
+### Core Mission
+
+CoMiXX must be the ecosystem's primary creative production studio.
+
+### Existing / expected creation modes
+
+* Comic Creator
+* Visual Novel Creator
+* CYOA Builder
+* Trading Card Creator
+* Cover Creator
+* Title / logo design support
+* HOPs content prep workflow
+
+### New strategic requirements
+
+#### 1. HOPs Template / HOPs Builder Flow
+
+HOPs must be treated as a flagship content type.
+
+Users should be able to:
+
+* start from HOPs template
+* build 30-90 second loop-based visual experiences
+* add layered backgrounds, foregrounds, GIFs, images, clips, text, and FX
+* reorder layers reliably
+* transform every element
+* control z-order correctly in preview and final output
+* use fullscreen preview
+* chain HOPs into series
+* export/publish directly to Streaming
+
+#### 2. Cross-Project Output to Streaming
+
+Users should be able to publish from CoMiXX into Streaming with clear statuses:
+
+* draft
+* submitted for review
+* approved
+* published
+* featured
+
+#### 3. Portfolio and Passport Metadata
+
+Every project should carry:
+
+* project type
+* skills used
+* tools used
+* completion status
+* export history
+* publish history
+* mentor review state
+* XP events generated
+* links to passport entries
+
+#### 4. XP Hooks in CoMiXX
+
+Award XP for:
+
+* creating project
+* saving project
+* editing session duration
+* exporting
+* publishing
+* challenge completion
+* mentor-approved revisions
+* featured publication
+
+#### 5. Curriculum-Aware Creation
+
+CoMiXX should support LMS-connected assignments.
+Examples:
+
+* “Create a 6-panel comic using imported Unreal render stills”
+* “Build a 30-second HOP using iClone export frames”
+* “Create a trading card set using original character pipeline assets”
+
+Assignment integration should allow:
+
+* open assignment directly inside creation flow
+* submit from editor to LMS review queue
+* auto-tag work to pathway/skill category
+
+---
+
+## LMS Build Requirements
+
+### Core Mission
+
+The LMS is the operating system for progression, curriculum, validation, and role readiness.
+
+### Major modules required
+
+#### 1. Pathways and Curriculum
+
+Support structured learning paths such as:
+
+* Character Design + Rendering
+* Animation + Performance
+* Unreal Worldbuilding + Cinematics
+* CoMiXX Narrative Design
+* FX / Motion Design
+* HOPs Creation Pipeline
+* Publishing + Creator Growth
+* Workforce Readiness / Production Readiness
+
+Each pathway should include:
+
+* lessons
+* checkpoints
+* projects
+* tool requirements
+* expected deliverables
+* XP rewards
+* badge/passport outputs
+
+#### 2. XP Dashboard
+
+Users need visibility into:
+
+* current XP
+* XP by source/app/tool
+* current level
+* next unlock
+* role eligibility progress
+* required tasks to advance
+
+Admins/mentors need visibility into:
+
+* cohort XP trends
+* top performers
+* stalled learners
+* pathway completion rates
+* candidate pools for mentorship/apprenticeship
+
+#### 3. Skill Passport Dashboard
+
+The LMS should be the main place where the Skill Passport is viewed and managed.
+
+Must show:
+
+* overall level
+* app-specific XP
+* tool-specific competencies
+* completed pathways
+* approved submissions
+* current unlocked roles
+* next eligible roles
+* production credits
+* external tool proof submissions
+
+#### 4. Role Eligibility Engine
+
+Build a configurable rule engine for role eligibility.
+
+Examples:
+
+* Mentor Eligible if XP >= X and Pathway A complete and 3 approved projects
+* Apprentice Eligible if XP >= Y and mentor review passed and attendance/reliability score acceptable
+* Paid Apprentice Eligible if XP >= Z and production trial complete
+
+#### 5. Review + Approval Queue
+
+Mentors/admins need a queue for:
+
+* assignment submissions
+* external tool submissions
+* portfolio review
+* HOPs review
+* creator advancement review
+* apprenticeship candidate review
+
+#### 6. Cohort / School Management
+
+Support:
+
+* schools
+* classrooms
+* cohorts
+* districts
+* independent users
+* creator communities
+
+#### 7. Apprenticeship Pipeline Module
+
+Create a dedicated module for:
+
+* applications
+* eligibility flags
+* review notes
+* apprenticeship tracks
+* accepted / waitlisted / active / completed statuses
+* transition to paid opportunities under MMM workflows later
+
+---
+
+## Streaming Build Requirements
+
+### Core Mission
+
+Streaming is the ecosystem's publishing, discovery, and audience-validation platform.
+
+### Strategic direction
+
+This should not just be a place to watch things.
+It must become the platform where the ecosystem's work is surfaced, validated, and discovered.
+
+### Required content types
+
+* HOPs
+* comics
+* visual novels
+* CYOA experiences
+* music/audio loops
+* short videos
+* school station content
+* creator channel content
+* MMM-produced content
+
+### Major modules required
+
+#### 1. HOPs as Flagship Experience
+
+HOPs should get premium treatment in UI and feed logic.
+
+Features:
+
+* immersive fullscreen loop playback
+* loop counter
+* XP triggers tied to watch behavior
+* series chaining
+* creator profile tie-in
+* comments / likes / follows / shares
+* leaderboard support
+* featured HOPs rails
+* school and creator competition modes
+
+#### 2. Publishing Intake from CoMiXX and LMS
+
+Streaming should receive content from:
+
+* direct creator publishing
+* reviewed LMS assignments
+* school station workflows
+* MMM production outputs
+
+#### 3. Engagement-Based XP Signals
+
+Streaming should write XP events for:
+
+* publishing
+* featured publication
+* engagement milestones
+* series completion
+* community participation
+
+Need anti-abuse protection for:
+
+* self-loop farming
+* fake engagement
+* repeated watch spam
+
+#### 4. Discovery and Talent Surfacing
+
+Build discovery surfaces for:
+
+* top creators
+* rising creators
+* top school stations
+* HOPs leaderboard
+* featured projects by pathway/tool
+* apprenticeship watchlist / talent spotlight
+
+#### 5. Public Proof Layer
+
+Every creator should have a public-facing creator profile showing:
+
+* published works
+* engagement milestones
+* optionally selected passport badges
+* role/status indicators if desired
+
+This becomes part of the ecosystem's proof of value and talent visibility.
+
+---
+
+## Cross-Platform Data Model Requirements
+
+Replit should design the backend around shared entities.
+
+Minimum core entities:
+
+* users
+* user_profiles
+* roles
+* organizations
+* schools
+* cohorts
+* pathways
+* lessons
+* assignments
+* projects
+* project_versions
+* publications
+* media_assets
+* xp_events
+* xp_balances
+* levels
+* badges
+* passport_entries
+* competencies
+* skill_tags
+* external_tools
+* external_submissions
+* reviews
+* approvals
+* apprenticeship_tracks
+* apprenticeship_applications
+* production_roles
+* creator_channels
+* school_stations
+* engagement_events
+* notifications
+
+All project and XP data should be source-aware so the system can tell whether activity came from:
+
+* CoMiXX
+* LMS
+* Streaming
+* Unreal
+* Reallusion
+* Maxon
+* Adobe
+* Blender
+* AI platform uploads
+* manual admin award
+
+---
+
+## Admin + Mentor Tools
+
+Build an admin console shared across ecosystem for:
+
+* managing users and roles
+* managing XP rules
+* editing level thresholds
+* configuring role unlock rules
+* managing pathways and curriculum
+* reviewing submissions
+* approving passport entries
+* selecting talent for apprenticeship tracks
+* spotlighting creators to Streaming
+* managing school stations
+* running reports
+
+Mentor tools should allow:
+
+* reviewing submissions
+* approving or rejecting work
+* leaving feedback
+* validating external tool work
+* nominating users for advancement
+* tracking mentee progress
+
+---
+
+## Analytics + Reporting Requirements
+
+The ecosystem needs strong analytics because this is both product and workforce infrastructure.
+
+Track at minimum:
+
+* active users by platform
+* XP earned by source
+* pathway completion rates
+* project creation rates
+* publication rates
+* engagement rates
+* mentor review turnaround
+* role eligibility progression
+* apprenticeship funnel metrics
+* external tool submission counts by platform
+* conversion from learner -> creator -> mentor -> apprentice -> paid contributor
+
+Need exportable reporting for:
+
+* schools
+* funders
+* partners
+* internal MMM / Press Start strategy
+
+---
+
+## UX / Product Direction
+
+General direction:
+
+* sexy futuristic brutalist look
+* clean but bold
+* black-and-white foundation with strong accent moments
+* high-end creator software feel
+* immersive interfaces where appropriate
+* no generic LMS ugliness
+* no stale corporate streaming look
+
+Each platform should feel distinct but clearly part of one ecosystem.
+
+Shared UI principles:
+
+* ecosystem nav consistency
+* clear progression visibility
+* visible role/level indicators
+* premium creator identity treatment
+* portfolio-forward presentation
+* fullscreen immersive media where needed
+
+---
+
+## Security / Trust / Moderation
+
+Need school-ready guardrails and strong moderation architecture.
+
+Requirements:
+
+* role-based permissions
+* moderation queue for published content
+* school-safe publishing controls
+* age-appropriate feature gating
+* parent/guardian support if needed
+* audit logs for admin actions
+* anti-spam and rate limiting
+* secure file handling
+* privacy settings per project/content type
+
+---
+
+## Build Phases
+
+### Phase 1: Shared Foundation
+
+Build first:
+
+* shared auth
+* shared database schema
+* shared user/profile/role system
+* XP event service
+* Skill Passport base models
+* shared design system
+
+### Phase 2: LMS as System of Record
+
+Build:
+
+* pathways
+* assignments
+* XP dashboard
+* passport dashboard
+* review system
+* role eligibility engine
+* apprenticeship module
+
+### Phase 3: CoMiXX Integration Layer
+
+Build:
+
+* project metadata sync
+* assignment-linked creation
+* XP hooks
+* publish flow into Streaming
+* HOPs template / pipeline support
+
+### Phase 4: Streaming Upgrade
+
+Build:
+
+* HOPs-first feed improvements
+* engagement tracking
+* leaderboard/discovery surfaces
+* creator profiles
+* school stations
+* XP signal output
+
+### Phase 5: External Tool Submission Layer
+
+Build:
+
+* external project upload flow
+* source tagging
+* validation workflow
+* passport integration
+* admin/mentor approval tools
+
+### Phase 6: Apprenticeship + Workforce Layer
+
+Build:
+
+* role gating rules
+* apprenticeship tracks
+* application workflows
+* talent watchlists
+* MMM transition states
+* contributor readiness dashboards
+
+### Phase 7: Partner Integration Readiness
+
+Build architecture for future:
+
+* import endpoints
+* webhook listeners
+* partner metadata ingestion
+* export-to-Press-Start workflows
+* certification / badge mapping models
+
+---
+
+## Specific Replit Deliverables
+
+Replit should return:
+
+1. A full technical architecture plan for the three-platform connected ecosystem
+2. A proposed database schema for shared XP, passport, curriculum, publishing, and roles
+3. API/service map showing what is shared vs platform-specific
+4. UI/UX system proposal showing how the ecosystem remains unified across apps
+5. MVP build order with milestones
+6. Implementation plan for XP engine and anti-abuse logic
+7. Implementation plan for Skill Passport
+8. Implementation plan for HOPs flagship flow across CoMiXX + Streaming
+9. Implementation plan for external tool tracking MVP
+10. Implementation plan for apprenticeship eligibility and review workflow
+11. Admin and mentor dashboard plan
+12. Rollout plan that prioritizes usable impact over perfection
+
+---
+
+## Replit Instruction on Strategy
+
+Do not treat this as a normal app feature request.
+Treat this as the buildout of a new category:
+
+**a creative education + publishing + workforce operating system**
+
+Replit should think forward, not just literally.
+That means:
+
+* anticipate edge cases
+* recommend best architecture for scale
+* identify what should be shared services vs per-app features
+* propose clean UX around XP and passport visibility
+* make HOPs a flagship content object
+* make apprenticeship and workforce progression feel native to product, not bolted on
+* keep the system school-ready but not childish
+* preserve creator cool factor while building institutional trust
+
+---
+
+## Additional Strategic Requirements From Founder Notes
+
+These notes must also be explicitly included in the implementation plan and not treated as side ideas.
+
+### 1. Program Naming / Positioning
+
+The system should support and reinforce the framing:
+
+**Press Start Creative Tech Apprenticeship Program**
+
+This language should appear in LMS/apprenticeship flows, partner-facing admin architecture, and future outward-facing modules where appropriate.
+
+### 2. XP Must Tie Into Roles at MMM
+
+XP is not just for motivation or platform gamification.
+It must explicitly tie into eligibility for real opportunities at MADMIXEDMEDIA.
+
+This means the system should support:
+
+* XP thresholds for role eligibility
+* apprenticeship readiness based on XP + validation
+* mentor role eligibility based on XP + completion + review
+* MMM contributor eligibility states
+* future compensation band mapping based on verified level / role / output
+
+### 3. Global Bug Reporting System (ALL Apps)
+
+Build a universal bug reporting and issue submission system that works across ALL apps in the ecosystem, not just AI tools.
+
+This system must be accessible from:
+
+* CoMiXX
+* Press Start LMS
+* Press Start Streaming
+* future AI tools
+* future partner-integrated apps
+
+Users should be able to submit:
+
+* screenshots
+* screen recordings
+* written description of the issue
+* app/tool involved (auto-tagged based on context)
+* project context
+* reproduction steps if possible
+
+System requirements:
+
+* global "Report Issue" entry point in UI across all apps
+* auto-capture of environment data (app, mode, project ID, user role)
+* attachment handling for media (images/video)
+* categorized issue types (bug, UX issue, feature request, partner tool issue)
+* internal admin dashboard for triage and tracking
+* status tracking (submitted, reviewing, in progress, resolved)
+
+This system should support:
+
+* creator support workflows
+* platform QA across all products
+* feedback loop for CoMiXX / LMS / Streaming / AI tools / partner integrations
+* structured issue tagging and analytics to identify systemic problems
+
+### 4. Ask Partners What Skills They Want Tracked
+
+The system should be designed so partner companies can help define what skills matter most.
+
+Build future support for:
+
+* partner-specific skill taxonomies
+* custom competency tags
+* trackable skill categories by partner/tool
+* input on what evidence or outputs they value
+* configurable passport dimensions based on partner collaboration
+
+This is important because the long-term goal is not just to track activity, but to track the skills industry actually wants to see.
+
+### 5. Make External Creative Tools and AI Apps a Real End Point for Output
+
+One of the most important value propositions of the ecosystem is that it gives rendered work a meaningful home.
+
+Most creators using external creative tools do one of the following:
+
+* render work and do nothing with it
+* post to social and get buried in the feed
+* lose the work inside fragmented platforms
+
+This ecosystem must solve that by making CoMiXX and Press Start Streaming a real destination for work made in outside tools.
+
+That means the build must support:
+
+* rendered stills finding a home inside comics, cards, covers, visual novels, and creator portfolios
+* animations, clips, and loops finding a home inside HOPs and Streaming
+* imported work from external tools becoming publishable, trackable, and valuable inside the Press Start ecosystem
+* an output flow where content does not die after render/export
+
+This should be treated as a core differentiator in product architecture and partner positioning.
+
+### 6. Support Imported Output From Creative Tools Into Ecosystem Workflows
+
+The ecosystem should make it easy to bring in work created from partner tools and AI platforms so it can become part of learning, publishing, portfolio, and workforce progression.
+
+Examples:
+
+* Unreal stills imported into comics or HOPs
+* Reallusion character renders imported into trading cards, comics, and visual novels
+* Maxon renders and motion graphics imported into covers, title sequences, and Streaming content
+* AI-generated assets imported into FX, narrative work, and publishing flows
+
+This should be reflected in:
+
+* upload/import UX
+* source-tool tagging
+* assignment templates
+* passport skill attribution
+* publishing flows
+
+## North Star Outcome
+
+The finished ecosystem should let a user:
+
+* enter through learning
+* create in CoMiXX or external tools
+* publish into Streaming
+* earn XP for real work and engagement
+* build a visible Skill Passport
+* unlock mentor and apprenticeship eligibility
+* transition into paid work through MADMIXEDMEDIA
+* carry verified proof of skill into the wider workforce
+
+That is the product goal.
+That is the platform vision.
+That is the mark we are trying to leave on education, entertainment, and workforce development.

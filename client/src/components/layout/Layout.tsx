@@ -5,6 +5,7 @@ import { Menu, X, Home, ShoppingBag, Users, User, Sparkles, Monitor, Layers, Set
 import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { AppIcon, AppIconInline } from "@/components/ui/app-icon";
+import { BugReportButton } from "@/components/BugReportDialog";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -217,6 +218,7 @@ export function Layout({ children }: LayoutProps) {
       >
         {children}
       </main>
+      <BugReportButton />
     </div>
   );
 }

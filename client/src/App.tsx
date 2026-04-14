@@ -97,6 +97,11 @@ const VerifyPageLazy = lazy(() => import("@/pages/CertificationsPage").then(m =>
 const SSOCallbackPage = lazy(() => import("@/pages/SSOCallbackPage"));
 const CoverCreator = lazy(() => import("@/pages/CoverCreator"));
 const FxStudioPage = lazy(() => import("@/pages/FxStudioPage"));
+const SkillPassportPage = lazy(() => import("@/pages/SkillPassportPage"));
+const ApprenticeshipPage = lazy(() => import("@/pages/ApprenticeshipPage"));
+const ExternalToolSubmissions = lazy(() => import("@/pages/ExternalToolSubmissions"));
+const EcosystemPathways = lazy(() => import("@/pages/EcosystemPathways"));
+const EcosystemAdmin = lazy(() => import("@/pages/EcosystemAdmin"));
 
 function LazyFallback() {
   return (
@@ -214,6 +219,11 @@ function ProtectedRouter() {
         <Route path="/ecosystem/events" component={EventsModule} />
         <Route path="/ecosystem/events/:id" component={EventsModule} />
         <Route path="/ecosystem/publish" component={PublishModule} />
+        <Route path="/ecosystem/passport" component={SkillPassportPage} />
+        <Route path="/ecosystem/apprenticeship" component={ApprenticeshipPage} />
+        <Route path="/ecosystem/external-tools" component={ExternalToolSubmissions} />
+        <Route path="/ecosystem/pathways" component={EcosystemPathways} />
+        <Route path="/admin/ecosystem" component={EcosystemAdmin} />
         <Route path="/battle" component={CardBattle} />
         <Route path="/social" component={SocialFeed} />
         <Route path="/profile" component={ProfileCard} />

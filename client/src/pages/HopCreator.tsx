@@ -489,6 +489,19 @@ export default function HopCreator() {
     beatMarkers: beatMarkers.length > 0 ? beatMarkers : undefined,
   } as any), [hopType, clipLengthMode, loopMode, scenes, tags, visibility, totalDuration, audioTrack, sceneLayers, sceneTextStyles, audioClips, displayMode, canvasNodes, canvasConnections, canvasStickyNotes, canvasReferenceImages, canvasAnnotations, beatMarkers]);
 
+  const fireXpEvent = useCallback(async (action: string, projectId?: number | null, metadata?: Record<string, any>) => {
+    try {
+      await apiRequest("POST", "/api/ecosystem/xp/event", {
+        action,
+        source: "comixx",
+        sourceApp: "comixx",
+        toolUsed: "hop_creator",
+        projectId: projectId || undefined,
+        metadata: { projectType: "hop", ...metadata },
+      });
+    } catch {}
+  }, []);
+
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
@@ -496,6 +509,7 @@ export default function HopCreator() {
       if (effectiveProjectId) {
         await saveProjectWithOfflineFallback(effectiveProjectId, { title, data: hopData }, "hop");
         toast.success("HOP saved");
+        fireXpEvent("project_save", effectiveProjectId, { sceneCount: scenes.length });
         try {
           const badgeRes = await apiRequest("POST", "/api/hop/check-badges", {
             sceneCount: scenes.length,
@@ -517,13 +531,14 @@ export default function HopCreator() {
         setEffectiveProjectId(project.id);
         window.history.replaceState(null, "", `/creator/hop?id=${project.id}`);
         toast.success("HOP created");
+        fireXpEvent("project_create", project.id, { sceneCount: scenes.length });
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to save");
     } finally {
       setSaving(false);
     }
-  }, [buildHopData, title, effectiveProjectId, createProject]);
+  }, [buildHopData, title, effectiveProjectId, createProject, fireXpEvent]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -804,12 +819,13 @@ export default function HopCreator() {
       link.href = dataUrl;
       link.click();
       toast.success("PNG exported");
+      fireXpEvent("project_export", effectiveProjectId, { format: "png" });
     } catch (err: any) {
       toast.error("Export failed: " + (err.message || "unknown error"));
     } finally {
       setExporting(false);
     }
-  }, [title]);
+  }, [title, fireXpEvent, effectiveProjectId]);
 
   useEffect(() => {
     if (isPlaying && scenes.length > 0) {
@@ -2333,7 +2349,7 @@ export default function HopCreator() {
                         </div>
                         <div>
                           <label className="text-[9px] text-zinc-500">Visibility</label>
-                          <select value={visibility} onChange={(e) => setVisibility(e.target.value as any)} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
+                          <select value={visibility} onChange={(e) => { const v = e.target.value as any; setVisibility(v); if (v === "public") fireXpEvent("project_publish", effectiveProjectId); }} className="w-full bg-zinc-900 border border-white/10 text-[9px] text-white p-1 mt-0.5">
                             <option value="private">Private</option>
                             <option value="unlisted">Unlisted</option>
                             <option value="public">Public</option>

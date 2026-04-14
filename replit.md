@@ -90,11 +90,38 @@ Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, a
 - `POST /api/v1/integration/render-handoff` — render pipeline handoff (Reallusion/Unreal)
 - Auth via `X-API-Key` header or Bearer token, timing-safe comparison
 
+### MADMIXEDMEDIA Creative Workforce Ecosystem
+Three-platform connected creative education + publishing + workforce operating system:
+- **CoMiXX (this app):** Creator studio, XP engine, Skill Passport, project publishing
+- **Press Start LMS (pressstart.tech):** Learning pathways, lessons, certifications
+- **Press Start Streaming (psstreaming.com):** Content distribution, creator channels, school stations
+
+**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`
+
+**Ecosystem API Routes (`/api/ecosystem/`):**
+- XP: `POST /xp/event`, `GET /xp/breakdown`, `GET /xp/events`
+- Passport: `GET /passport/:userId?`, `POST /passport/entry`
+- Roles: `GET /roles/eligibility`, `GET /roles/rules`, `PUT /roles/rules/:id`
+- Apprenticeships: `GET /apprenticeships/tracks`, `POST /apprenticeships/tracks`, `GET /apprenticeships/applications`, `POST /apprenticeships/apply`, `PUT /apprenticeships/applications/:id/review`
+- External Tools: `GET /external-tools`, `POST /external-tools`, `GET /external-submissions`, `POST /external-submissions`, `PUT /external-submissions/:id/review`
+- Bug Reports: `GET /bug-reports`, `POST /bug-reports`, `PUT /bug-reports/:id`
+- Pathways: `GET /pathways`, `POST /pathways/:id/enroll`
+- Cross-platform Ingest: `POST /ingest/xp`, `POST /ingest/passport-entry` (JWT auth via ECOSYSTEM_JWT_SECRET)
+
+**XP Engine (`server/xpEngine.ts`):** Event-based XP with deduplication, cooldown, source/tool tagging, balance rollup, role eligibility checks.
+
+**Ecosystem User Fields:** `ecosystemRole` (learner→lead), `conductScore`, `reliabilityScore`, `mentorId`
+
+**Frontend Pages:** SkillPassportPage, ApprenticeshipPage, ExternalToolSubmissions, EcosystemPathways, EcosystemAdmin
+
+**XP Hooks:** HopCreator fires XP events on project create, save, export, and publish.
+
 ### Documentation
 - `docs/PRODUCTION_READINESS.md` — checklist for production deployment
 - `docs/DEPLOYMENT_GUIDE.md` — step-by-step deployment + school/district guide
 - `docs/API_INTEGRATION.md` — partner API reference with examples
 - `docs/PAYMENT_FLOW.md` — payment system documentation + audit trail
+- `ECOSYSTEM_INTEGRATION.md` — cross-platform API reference for LMS and Streaming
 
 ### UI/Utility Libraries
 - `react`, `typescript`, `vite`, `wouter`, `tailwindcss`

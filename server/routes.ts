@@ -13,9 +13,9 @@ function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import passport from "passport";
-import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema, xpTransactions } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema, xpTransactions, xpEvents as xpEventsTable, xpBalances as xpBalancesTable, passportEntries as passportEntriesTable, competencies as competenciesTable, skillTags as skillTagsTable, externalTools as externalToolsTable, externalSubmissions as externalSubmissionsTable, roleEligibilityRules as roleEligibilityRulesTable, apprenticeshipTracks as apprenticeshipTracksTable, apprenticeshipApplications as apprenticeshipAppsTable, productionRoles as productionRolesTable, mentorReviews as mentorReviewsTable, bugReports as bugReportsTable, creatorChannels as creatorChannelsTable, schoolStations as schoolStationsTable, pathways as pathwaysTable, userPathwayProgress as userPathwayProgressTable, XP_ACTIONS as XP_ACTIONS_IMPORT } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, and, or, desc, ilike, isNull } from "drizzle-orm";
+import { sql, eq, and, or, desc, ilike, isNull, gte } from "drizzle-orm";
 import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -10107,6 +10107,572 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
   // Start webhook retry worker
   startWebhookRetryWorker();
+
+  // ==========================================
+  // ECOSYSTEM: XP EVENT ENGINE
+  // ==========================================
+
+  app.post("/api/ecosystem/xp/event", isAuthenticated, async (req, res) => {
+    try {
+      const { recordXpAction } = await import('./xpEngine');
+      const { action, source, sourceApp, toolUsed, projectId, eventKey, metadata } = req.body;
+      if (!action) return res.status(400).json({ error: "action is required" });
+
+      const actionConfig = Object.values(XP_ACTIONS_IMPORT).find((a: any) => a.action === action);
+      if (!actionConfig) return res.status(400).json({ error: "Invalid action" });
+
+      const result = await (await import('./xpEngine')).recordXpEvent({
+        userId: req.user!.id,
+        action: actionConfig.action,
+        category: actionConfig.category,
+        xpAmount: actionConfig.xp,
+        source: source || 'comixx',
+        sourceApp: sourceApp || 'comixx',
+        toolUsed,
+        projectId,
+        eventKey,
+        metadata,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/xp/breakdown", isAuthenticated, async (req, res) => {
+    try {
+      const { getUserXpBreakdown } = await import('./xpEngine');
+      const breakdown = await getUserXpBreakdown(req.user!.id);
+      res.json(breakdown);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/xp/events", isAuthenticated, async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const events = await db.select()
+        .from(xpEventsTable)
+        .where(eq(xpEventsTable.userId, req.user!.id))
+        .orderBy(desc(xpEventsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+      res.json(events);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: SKILL PASSPORT
+  // ==========================================
+
+  app.get("/api/ecosystem/passport/:userId?", isAuthenticated, async (req, res) => {
+    try {
+      const targetUserId = req.params.userId || req.user!.id;
+      const entries = await db.select()
+        .from(passportEntriesTable)
+        .where(eq(passportEntriesTable.userId, targetUserId))
+        .orderBy(desc(passportEntriesTable.createdAt));
+
+      const competencyData = await db.select()
+        .from(competenciesTable)
+        .where(eq(competenciesTable.userId, targetUserId));
+
+      const balances = await db.select()
+        .from(xpBalancesTable)
+        .where(eq(xpBalancesTable.userId, targetUserId));
+
+      const [user] = await db.select({
+        xp: users.xp,
+        level: users.level,
+        ecosystemRole: users.ecosystemRole,
+        creatorClass: users.creatorClass,
+      }).from(users).where(eq(users.id, targetUserId));
+
+      const productionCredits = await db.select()
+        .from(productionRolesTable)
+        .where(eq(productionRolesTable.userId, targetUserId));
+
+      res.json({
+        user: user || {},
+        entries,
+        competencies: competencyData,
+        balancesBySource: balances,
+        productionCredits,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/passport/entry", isAuthenticated, async (req, res) => {
+    try {
+      const [entry] = await db.insert(passportEntriesTable).values({
+        userId: req.user!.id,
+        ...req.body,
+      }).returning();
+      res.json(entry);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: ROLE ELIGIBILITY
+  // ==========================================
+
+  app.get("/api/ecosystem/roles/eligibility", isAuthenticated, async (req, res) => {
+    try {
+      const { checkRoleEligibility } = await import('./xpEngine');
+      const result = await checkRoleEligibility(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/roles/rules", isAuthenticated, async (req, res) => {
+    try {
+      const rules = await db.select()
+        .from(roleEligibilityRulesTable)
+        .where(eq(roleEligibilityRulesTable.active, true))
+        .orderBy(roleEligibilityRulesTable.sortOrder);
+      res.json(rules);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/ecosystem/roles/rules/:id", isAdmin, async (req, res) => {
+    try {
+      const [updated] = await db.update(roleEligibilityRulesTable)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(roleEligibilityRulesTable.id, req.params.id))
+        .returning();
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: APPRENTICESHIP TRACKS
+  // ==========================================
+
+  app.get("/api/ecosystem/apprenticeships/tracks", isAuthenticated, async (req, res) => {
+    try {
+      const tracks = await db.select().from(apprenticeshipTracksTable);
+      res.json(tracks);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/apprenticeships/tracks", isAdmin, async (req, res) => {
+    try {
+      const [track] = await db.insert(apprenticeshipTracksTable).values(req.body).returning();
+      res.json(track);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/apprenticeships/applications", isAuthenticated, async (req, res) => {
+    try {
+      const isAdminUser = req.user!.role === 'admin';
+      const apps = isAdminUser
+        ? await db.select().from(apprenticeshipAppsTable).orderBy(desc(apprenticeshipAppsTable.createdAt))
+        : await db.select().from(apprenticeshipAppsTable).where(eq(apprenticeshipAppsTable.userId, req.user!.id)).orderBy(desc(apprenticeshipAppsTable.createdAt));
+      res.json(apps);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/apprenticeships/apply", isAuthenticated, async (req, res) => {
+    try {
+      const { trackId, applicationNote, portfolioLinks } = req.body;
+      if (!trackId) return res.status(400).json({ error: "trackId is required" });
+
+      const [user] = await db.select({ xp: users.xp, level: users.level }).from(users).where(eq(users.id, req.user!.id));
+
+      const [existing] = await db.select({ id: apprenticeshipAppsTable.id })
+        .from(apprenticeshipAppsTable)
+        .where(and(
+          eq(apprenticeshipAppsTable.userId, req.user!.id),
+          eq(apprenticeshipAppsTable.trackId, trackId),
+          sql`${apprenticeshipAppsTable.status} NOT IN ('rejected', 'completed')`
+        ))
+        .limit(1);
+
+      if (existing) return res.status(400).json({ error: "You already have an active application for this track" });
+
+      const [app] = await db.insert(apprenticeshipAppsTable).values({
+        userId: req.user!.id,
+        trackId,
+        applicationNote,
+        portfolioLinks,
+        xpAtApplication: user?.xp || 0,
+        levelAtApplication: user?.level || 1,
+      }).returning();
+      res.json(app);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/ecosystem/apprenticeships/applications/:id/review", isAdmin, async (req, res) => {
+    try {
+      const { status, reviewNotes } = req.body;
+      const [updated] = await db.update(apprenticeshipAppsTable)
+        .set({
+          status,
+          reviewNotes,
+          reviewerId: req.user!.id,
+          reviewedAt: new Date(),
+          ...(status === 'accepted' ? { startDate: new Date() } : {}),
+        })
+        .where(eq(apprenticeshipAppsTable.id, req.params.id))
+        .returning();
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: EXTERNAL TOOL SUBMISSIONS
+  // ==========================================
+
+  app.get("/api/ecosystem/external-tools", isAuthenticated, async (req, res) => {
+    try {
+      const tools = await db.select().from(externalToolsTable).where(eq(externalToolsTable.active, true));
+      res.json(tools);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/external-tools", isAdmin, async (req, res) => {
+    try {
+      const [tool] = await db.insert(externalToolsTable).values(req.body).returning();
+      res.json(tool);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/external-submissions", isAuthenticated, async (req, res) => {
+    try {
+      const isAdminUser = req.user!.role === 'admin';
+      const subs = isAdminUser
+        ? await db.select().from(externalSubmissionsTable).orderBy(desc(externalSubmissionsTable.createdAt))
+        : await db.select().from(externalSubmissionsTable).where(eq(externalSubmissionsTable.userId, req.user!.id)).orderBy(desc(externalSubmissionsTable.createdAt));
+      res.json(subs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/external-submissions", isAuthenticated, async (req, res) => {
+    try {
+      const [sub] = await db.insert(externalSubmissionsTable).values({
+        userId: req.user!.id,
+        ...req.body,
+      }).returning();
+
+      const { recordXpAction } = await import('./xpEngine');
+      await recordXpAction(req.user!.id, 'EXTERNAL_TOOL_SUBMISSION', {
+        toolUsed: req.body.toolName,
+        projectId: sub.id,
+        eventKey: `ext-sub-${sub.id}`,
+      });
+
+      res.json(sub);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/ecosystem/external-submissions/:id/review", isAdmin, async (req, res) => {
+    try {
+      const { status, reviewNotes, xpAwarded } = req.body;
+      const [updated] = await db.update(externalSubmissionsTable)
+        .set({
+          status,
+          reviewNotes,
+          reviewerId: req.user!.id,
+          reviewedAt: new Date(),
+          xpAwarded: xpAwarded || 0,
+        })
+        .where(eq(externalSubmissionsTable.id, req.params.id))
+        .returning();
+
+      if (status === 'approved' && updated && xpAwarded > 0) {
+        const { recordXpEvent } = await import('./xpEngine');
+        await recordXpEvent({
+          userId: updated.userId,
+          action: 'external_tool_approved',
+          category: 'validation',
+          xpAmount: xpAwarded,
+          source: updated.toolName || 'external',
+          eventKey: `ext-approved-${updated.id}`,
+        });
+      }
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: MENTOR REVIEWS
+  // ==========================================
+
+  app.get("/api/ecosystem/mentor-reviews", isAuthenticated, async (req, res) => {
+    try {
+      const isMentor = ['mentor', 'mentor_eligible'].includes(req.user!.ecosystemRole || '') || req.user!.role === 'admin';
+      const reviews = isMentor
+        ? await db.select().from(mentorReviewsTable).where(eq(mentorReviewsTable.mentorId, req.user!.id)).orderBy(desc(mentorReviewsTable.createdAt))
+        : await db.select().from(mentorReviewsTable).where(eq(mentorReviewsTable.userId, req.user!.id)).orderBy(desc(mentorReviewsTable.createdAt));
+      res.json(reviews);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/mentor-reviews", isAuthenticated, async (req, res) => {
+    try {
+      const [review] = await db.insert(mentorReviewsTable).values({
+        mentorId: req.user!.id,
+        ...req.body,
+      }).returning();
+      res.json(review);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/ecosystem/mentor-reviews/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { status, rating, feedback, approved, xpAwarded } = req.body;
+      const [updated] = await db.update(mentorReviewsTable)
+        .set({ status, rating, feedback, approved, xpAwarded: xpAwarded || 0 })
+        .where(and(
+          eq(mentorReviewsTable.id, req.params.id),
+          eq(mentorReviewsTable.mentorId, req.user!.id)
+        ))
+        .returning();
+
+      if (approved && updated && xpAwarded > 0) {
+        const { recordXpEvent } = await import('./xpEngine');
+        await recordXpEvent({
+          userId: updated.userId,
+          action: 'mentor_validation',
+          category: 'validation',
+          xpAmount: xpAwarded,
+          eventKey: `mentor-review-${updated.id}`,
+        });
+      }
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: BUG REPORTS (Universal)
+  // ==========================================
+
+  app.get("/api/ecosystem/bug-reports", isAuthenticated, async (req, res) => {
+    try {
+      const isAdminUser = req.user!.role === 'admin';
+      const reports = isAdminUser
+        ? await db.select().from(bugReportsTable).orderBy(desc(bugReportsTable.createdAt)).limit(100)
+        : await db.select().from(bugReportsTable).where(eq(bugReportsTable.userId, req.user!.id)).orderBy(desc(bugReportsTable.createdAt));
+      res.json(reports);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/bug-reports", isAuthenticated, async (req, res) => {
+    try {
+      const [report] = await db.insert(bugReportsTable).values({
+        userId: req.user!.id,
+        userRole: req.user!.role,
+        ...req.body,
+      }).returning();
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/ecosystem/bug-reports/:id", isAdmin, async (req, res) => {
+    try {
+      const { status, assignedTo, resolution } = req.body;
+      const [updated] = await db.update(bugReportsTable)
+        .set({
+          status,
+          assignedTo,
+          resolution,
+          ...(status === 'resolved' ? { resolvedAt: new Date() } : {}),
+        })
+        .where(eq(bugReportsTable.id, req.params.id))
+        .returning();
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: PATHWAYS
+  // ==========================================
+
+  app.get("/api/ecosystem/pathways", isAuthenticated, async (req, res) => {
+    try {
+      const allPathways = await db.select().from(pathwaysTable).where(eq(pathwaysTable.published, true)).orderBy(pathwaysTable.sortOrder);
+      
+      const progress = await db.select()
+        .from(userPathwayProgressTable)
+        .where(eq(userPathwayProgressTable.userId, req.user!.id));
+
+      const progressMap = new Map(progress.map(p => [p.pathwayId, p]));
+      const result = allPathways.map(p => ({
+        ...p,
+        userProgress: progressMap.get(p.id) || null,
+      }));
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/pathways/:id/enroll", isAuthenticated, async (req, res) => {
+    try {
+      const [existing] = await db.select()
+        .from(userPathwayProgressTable)
+        .where(and(
+          eq(userPathwayProgressTable.userId, req.user!.id),
+          eq(userPathwayProgressTable.pathwayId, req.params.id)
+        )).limit(1);
+
+      if (existing) return res.json(existing);
+
+      const [enrollment] = await db.insert(userPathwayProgressTable).values({
+        userId: req.user!.id,
+        pathwayId: req.params.id,
+        status: 'enrolled',
+        completedLessons: [],
+        xpEarned: 0,
+        percentComplete: 0,
+      }).returning();
+      res.json(enrollment);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: SKILL TAGS
+  // ==========================================
+
+  app.get("/api/ecosystem/skill-tags", isAuthenticated, async (req, res) => {
+    try {
+      const tags = await db.select().from(skillTagsTable);
+      res.json(tags);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: CREATOR CHANNELS + SCHOOL STATIONS
+  // ==========================================
+
+  app.get("/api/ecosystem/creator-channels", async (req, res) => {
+    try {
+      const channels = await db.select().from(creatorChannelsTable).orderBy(desc(creatorChannelsTable.followerCount)).limit(50);
+      res.json(channels);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/school-stations", async (req, res) => {
+    try {
+      const stations = await db.select().from(schoolStationsTable).where(eq(schoolStationsTable.active, true));
+      res.json(stations);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: PRODUCTION ROLES (MMM)
+  // ==========================================
+
+  app.get("/api/ecosystem/production-roles", isAuthenticated, async (req, res) => {
+    try {
+      const roles = await db.select()
+        .from(productionRolesTable)
+        .where(eq(productionRolesTable.userId, req.user!.id));
+      res.json(roles);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // ECOSYSTEM: CROSS-PLATFORM INGESTION (for LMS/Streaming)
+  // ==========================================
+
+  app.post("/api/ecosystem/ingest/xp", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== `Bearer ${process.env.ECOSYSTEM_JWT_SECRET}`) {
+        return res.status(401).json({ error: "Invalid ecosystem token" });
+      }
+      const { userId, action, category, xpAmount, source, sourceApp, toolUsed, eventKey, metadata } = req.body;
+      if (!userId || !action || !xpAmount) {
+        return res.status(400).json({ error: "userId, action, and xpAmount are required" });
+      }
+
+      const { recordXpEvent } = await import('./xpEngine');
+      const result = await recordXpEvent({
+        userId,
+        action,
+        category: category || 'external',
+        xpAmount,
+        source: source || 'external',
+        sourceApp: sourceApp || 'external',
+        toolUsed,
+        eventKey,
+        metadata,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/ingest/passport-entry", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== `Bearer ${process.env.ECOSYSTEM_JWT_SECRET}`) {
+        return res.status(401).json({ error: "Invalid ecosystem token" });
+      }
+      const [entry] = await db.insert(passportEntriesTable).values(req.body).returning();
+      res.json(entry);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   return server;
 }

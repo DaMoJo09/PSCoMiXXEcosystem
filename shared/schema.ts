@@ -34,6 +34,10 @@ export const users = pgTable("users", {
   loginCount: integer("login_count").default(0),
   lastLoginAt: timestamp("last_login_at"),
   signupSource: text("signup_source"),
+  ecosystemRole: text("ecosystem_role").default("learner"),
+  conductScore: integer("conduct_score").default(100),
+  reliabilityScore: integer("reliability_score").default(100),
+  mentorId: varchar("mentor_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -2696,3 +2700,485 @@ export const insertPrintProductReviewSchema = createInsertSchema(printProductRev
 
 export type InsertPrintProductReview = z.infer<typeof insertPrintProductReviewSchema>;
 export type PrintProductReview = typeof printProductReviews.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: XP Event Ledger
+// ==========================================
+export const xpEvents = pgTable("xp_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  category: text("category").notNull(),
+  xpAmount: integer("xp_amount").notNull(),
+  source: text("source").notNull().default("comixx"),
+  sourceApp: text("source_app").notNull().default("comixx"),
+  toolUsed: text("tool_used"),
+  projectId: varchar("project_id"),
+  eventKey: text("event_key"),
+  metadata: jsonb("metadata"),
+  deduplicationHash: text("deduplication_hash"),
+  cooldownGroup: text("cooldown_group"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertXpEventSchema = createInsertSchema(xpEvents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertXpEvent = z.infer<typeof insertXpEventSchema>;
+export type XpEvent = typeof xpEvents.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: XP Balances (per source/tool rollups)
+// ==========================================
+export const xpBalances = pgTable("xp_balances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  source: text("source").notNull(),
+  toolUsed: text("tool_used"),
+  totalXp: integer("total_xp").notNull().default(0),
+  eventCount: integer("event_count").notNull().default(0),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
+export const insertXpBalanceSchema = createInsertSchema(xpBalances).omit({
+  id: true,
+});
+export type InsertXpBalance = z.infer<typeof insertXpBalanceSchema>;
+export type XpBalance = typeof xpBalances.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Skill Tags / Taxonomy
+// ==========================================
+export const skillTags = pgTable("skill_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  category: text("category").notNull(),
+  partnerDefined: boolean("partner_defined").default(false),
+  partnerId: varchar("partner_id"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSkillTagSchema = createInsertSchema(skillTags).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSkillTag = z.infer<typeof insertSkillTagSchema>;
+export type SkillTag = typeof skillTags.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Competencies
+// ==========================================
+export const competencies = pgTable("competencies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  skillTagId: varchar("skill_tag_id").notNull().references(() => skillTags.id, { onDelete: "cascade" }),
+  level: integer("level").notNull().default(0),
+  totalXp: integer("total_xp").notNull().default(0),
+  verifiedBy: varchar("verified_by"),
+  verifiedAt: timestamp("verified_at"),
+  evidence: jsonb("evidence"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertCompetencySchema = createInsertSchema(competencies).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertCompetency = z.infer<typeof insertCompetencySchema>;
+export type Competency = typeof competencies.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Skill Passport Entries
+// ==========================================
+export const passportEntries = pgTable("passport_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  entryType: text("entry_type").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  source: text("source").notNull(),
+  sourceApp: text("source_app"),
+  skillTags: jsonb("skill_tags"),
+  evidence: jsonb("evidence"),
+  mentorApproved: boolean("mentor_approved").default(false),
+  mentorId: varchar("mentor_id"),
+  mentorApprovedAt: timestamp("mentor_approved_at"),
+  xpAwarded: integer("xp_awarded").default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPassportEntrySchema = createInsertSchema(passportEntries).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPassportEntry = z.infer<typeof insertPassportEntrySchema>;
+export type PassportEntry = typeof passportEntries.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: External Tools Registry
+// ==========================================
+export const externalTools = pgTable("external_tools", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  category: text("category").notNull(),
+  logoUrl: text("logo_url"),
+  website: text("website"),
+  description: text("description"),
+  skillCategories: jsonb("skill_categories"),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExternalToolSchema = createInsertSchema(externalTools).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertExternalTool = z.infer<typeof insertExternalToolSchema>;
+export type ExternalTool = typeof externalTools.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: External Submissions
+// ==========================================
+export const externalSubmissions = pgTable("external_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  toolId: varchar("tool_id").references(() => externalTools.id, { onDelete: "set null" }),
+  toolName: text("tool_name").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  fileUrl: text("file_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  sourceToolVersion: text("source_tool_version"),
+  skillTags: jsonb("skill_tags"),
+  projectId: varchar("project_id"),
+  status: text("status").notNull().default("submitted"),
+  reviewerId: varchar("reviewer_id"),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
+  xpAwarded: integer("xp_awarded").default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertExternalSubmissionSchema = createInsertSchema(externalSubmissions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertExternalSubmission = z.infer<typeof insertExternalSubmissionSchema>;
+export type ExternalSubmission = typeof externalSubmissions.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Role Eligibility Rules
+// ==========================================
+export const roleEligibilityRules = pgTable("role_eligibility_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleName: text("role_name").notNull(),
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  minXp: integer("min_xp").notNull().default(0),
+  minLevel: integer("min_level").notNull().default(0),
+  requiredPathways: jsonb("required_pathways"),
+  requiredApprovedProjects: integer("required_approved_projects").default(0),
+  requiredMentorApproval: boolean("required_mentor_approval").default(false),
+  requiredConductScore: integer("required_conduct_score").default(70),
+  requiredReliabilityScore: integer("required_reliability_score").default(70),
+  additionalRules: jsonb("additional_rules"),
+  sortOrder: integer("sort_order").default(0),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertRoleEligibilityRuleSchema = createInsertSchema(roleEligibilityRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRoleEligibilityRule = z.infer<typeof insertRoleEligibilityRuleSchema>;
+export type RoleEligibilityRule = typeof roleEligibilityRules.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Apprenticeship Tracks
+// ==========================================
+export const apprenticeshipTracks = pgTable("apprenticeship_tracks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  department: text("department"),
+  skillRequirements: jsonb("skill_requirements"),
+  minXp: integer("min_xp").default(0),
+  minLevel: integer("min_level").default(0),
+  maxSlots: integer("max_slots").default(5),
+  currentSlots: integer("current_slots").default(0),
+  status: text("status").notNull().default("active"),
+  mentorIds: jsonb("mentor_ids"),
+  duration: text("duration"),
+  isPaid: boolean("is_paid").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertApprenticeshipTrackSchema = createInsertSchema(apprenticeshipTracks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertApprenticeshipTrack = z.infer<typeof insertApprenticeshipTrackSchema>;
+export type ApprenticeshipTrack = typeof apprenticeshipTracks.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Apprenticeship Applications
+// ==========================================
+export const apprenticeshipApplications = pgTable("apprenticeship_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trackId: varchar("track_id").notNull().references(() => apprenticeshipTracks.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("submitted"),
+  applicationNote: text("application_note"),
+  portfolioLinks: jsonb("portfolio_links"),
+  reviewerId: varchar("reviewer_id"),
+  reviewNotes: text("review_notes"),
+  reviewedAt: timestamp("reviewed_at"),
+  xpAtApplication: integer("xp_at_application").default(0),
+  levelAtApplication: integer("level_at_application").default(0),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  completedAt: timestamp("completed_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertApprenticeshipApplicationSchema = createInsertSchema(apprenticeshipApplications).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertApprenticeshipApplication = z.infer<typeof insertApprenticeshipApplicationSchema>;
+export type ApprenticeshipApplication = typeof apprenticeshipApplications.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Production Roles (MMM)
+// ==========================================
+export const productionRoles = pgTable("production_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  roleName: text("role_name").notNull(),
+  department: text("department"),
+  projectName: text("project_name"),
+  status: text("status").notNull().default("active"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  creditType: text("credit_type"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProductionRoleSchema = createInsertSchema(productionRoles).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertProductionRole = z.infer<typeof insertProductionRoleSchema>;
+export type ProductionRole = typeof productionRoles.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Mentor Reviews
+// ==========================================
+export const mentorReviews = pgTable("mentor_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mentorId: varchar("mentor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reviewType: text("review_type").notNull(),
+  targetId: varchar("target_id"),
+  targetType: text("target_type"),
+  status: text("status").notNull().default("pending"),
+  rating: integer("rating"),
+  feedback: text("feedback"),
+  approved: boolean("approved"),
+  xpAwarded: integer("xp_awarded").default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMentorReviewSchema = createInsertSchema(mentorReviews).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertMentorReview = z.infer<typeof insertMentorReviewSchema>;
+export type MentorReview = typeof mentorReviews.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Bug Reports (Universal)
+// ==========================================
+export const bugReports = pgTable("bug_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  app: text("app").notNull().default("comixx"),
+  category: text("category").notNull().default("bug"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  stepsToReproduce: text("steps_to_reproduce"),
+  screenshotUrls: jsonb("screenshot_urls"),
+  contextData: jsonb("context_data"),
+  projectId: varchar("project_id"),
+  userRole: text("user_role"),
+  severity: text("severity").default("medium"),
+  status: text("status").notNull().default("submitted"),
+  assignedTo: varchar("assigned_to"),
+  resolution: text("resolution"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBugReportSchema = createInsertSchema(bugReports).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBugReport = z.infer<typeof insertBugReportSchema>;
+export type BugReport = typeof bugReports.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Creator Channels
+// ==========================================
+export const creatorChannels = pgTable("creator_channels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  bannerUrl: text("banner_url"),
+  avatarUrl: text("avatar_url"),
+  followerCount: integer("follower_count").default(0),
+  totalViews: integer("total_views").default(0),
+  featured: boolean("featured").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCreatorChannelSchema = createInsertSchema(creatorChannels).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCreatorChannel = z.infer<typeof insertCreatorChannelSchema>;
+export type CreatorChannel = typeof creatorChannels.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: School Stations
+// ==========================================
+export const schoolStations = pgTable("school_stations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  bannerUrl: text("banner_url"),
+  contentPolicy: text("content_policy"),
+  moderatorIds: jsonb("moderator_ids"),
+  active: boolean("active").default(true),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSchoolStationSchema = createInsertSchema(schoolStations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertSchoolStation = z.infer<typeof insertSchoolStationSchema>;
+export type SchoolStation = typeof schoolStations.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Pathways (Curriculum Tracks)
+// ==========================================
+export const pathways = pgTable("pathways", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  category: text("category").notNull(),
+  difficulty: text("difficulty").default("beginner"),
+  estimatedHours: integer("estimated_hours"),
+  toolsRequired: jsonb("tools_required"),
+  skillTags: jsonb("skill_tags"),
+  xpReward: integer("xp_reward").default(0),
+  badgeId: varchar("badge_id"),
+  lessonCount: integer("lesson_count").default(0),
+  sortOrder: integer("sort_order").default(0),
+  published: boolean("published").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPathwaySchema = createInsertSchema(pathways).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPathway = z.infer<typeof insertPathwaySchema>;
+export type Pathway = typeof pathways.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: User Pathway Progress
+// ==========================================
+export const userPathwayProgress = pgTable("user_pathway_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pathwayId: varchar("pathway_id").notNull().references(() => pathways.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("enrolled"),
+  completedLessons: jsonb("completed_lessons"),
+  currentLessonId: varchar("current_lesson_id"),
+  xpEarned: integer("xp_earned").default(0),
+  percentComplete: integer("percent_complete").default(0),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertUserPathwayProgressSchema = createInsertSchema(userPathwayProgress).omit({
+  id: true,
+  enrolledAt: true,
+});
+export type InsertUserPathwayProgress = z.infer<typeof insertUserPathwayProgressSchema>;
+export type UserPathwayProgress = typeof userPathwayProgress.$inferSelect;
+
+// ==========================================
+// ECOSYSTEM: Workforce Ladder Constants
+// ==========================================
+export const ECOSYSTEM_ROLES = [
+  "learner",
+  "creator",
+  "mentor_eligible",
+  "mentor",
+  "apprentice_eligible",
+  "apprentice",
+  "paid_apprentice_eligible",
+  "paid_apprentice",
+  "contributor",
+  "specialist",
+  "lead",
+] as const;
+
+export type EcosystemRole = typeof ECOSYSTEM_ROLES[number];
+
+export const XP_ACTIONS = {
+  PROJECT_CREATE: { action: "project_create", category: "creation", xp: 25, cooldownSeconds: 60 },
+  PROJECT_SAVE: { action: "project_save", category: "creation", xp: 5, cooldownSeconds: 300 },
+  PROJECT_EXPORT: { action: "project_export", category: "creation", xp: 15, cooldownSeconds: 120 },
+  PROJECT_PUBLISH: { action: "project_publish", category: "publishing", xp: 100, cooldownSeconds: 600 },
+  LESSON_COMPLETE: { action: "lesson_complete", category: "learning", xp: 50, cooldownSeconds: 0 },
+  PATHWAY_COMPLETE: { action: "pathway_complete", category: "learning", xp: 500, cooldownSeconds: 0 },
+  CHALLENGE_COMPLETE: { action: "challenge_complete", category: "achievement", xp: 75, cooldownSeconds: 0 },
+  MENTOR_VALIDATION: { action: "mentor_validation", category: "validation", xp: 200, cooldownSeconds: 0 },
+  EDIT_SESSION: { action: "edit_session", category: "creation", xp: 2, cooldownSeconds: 60 },
+  DAILY_LOGIN: { action: "daily_login", category: "engagement", xp: 10, cooldownSeconds: 86400 },
+  FEATURED_PUBLICATION: { action: "featured_publication", category: "publishing", xp: 250, cooldownSeconds: 0 },
+  EXTERNAL_TOOL_SUBMISSION: { action: "external_tool_submission", category: "creation", xp: 30, cooldownSeconds: 120 },
+  STREAMING_MILESTONE: { action: "streaming_milestone", category: "engagement", xp: 50, cooldownSeconds: 0 },
+  PRODUCTION_CREDIT: { action: "production_credit", category: "workforce", xp: 300, cooldownSeconds: 0 },
+} as const;
+
+export const DEFAULT_ROLE_ELIGIBILITY = [
+  { roleName: "creator", minXp: 100, minLevel: 2, requiredApprovedProjects: 0, description: "Active creator status" },
+  { roleName: "mentor_eligible", minXp: 2000, minLevel: 10, requiredApprovedProjects: 5, description: "Eligible to become a mentor" },
+  { roleName: "apprentice_eligible", minXp: 5000, minLevel: 15, requiredApprovedProjects: 10, description: "Eligible for apprenticeship" },
+  { roleName: "paid_apprentice_eligible", minXp: 10000, minLevel: 20, requiredApprovedProjects: 15, description: "Eligible for paid apprenticeship" },
+  { roleName: "contributor", minXp: 20000, minLevel: 25, requiredApprovedProjects: 20, description: "Full contributor/specialist status" },
+] as const;

@@ -291,6 +291,11 @@ export default function AdminDashboard() {
                   <BarChart3 className="w-4 h-4 mr-2" /> Platform Analytics
                 </Button>
               </Link>
+              <Link href="/admin/ecosystem">
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-ecosystem-admin">
+                  <ShieldCheck className="w-4 h-4 mr-2" /> Ecosystem
+                </Button>
+              </Link>
             </div>
           </div>
         </header>
