@@ -67,6 +67,28 @@ export function setupAuth(app: Express) {
       { usernameField: "email" },
       async (email, password, done) => {
         try {
+          const adminEmail = process.env.ADMIN_EMAIL;
+          const adminPassword = process.env.ADMIN_PASSWORD;
+          if (adminEmail && adminPassword && email === adminEmail && password === adminPassword) {
+            let adminUser = await storage.getUserByEmail(adminEmail);
+            const hashed = await hashPassword(adminPassword);
+            if (!adminUser) {
+              adminUser = await storage.createUser({
+                email: adminEmail,
+                password: hashed,
+                name: "Administrator",
+                role: "admin",
+              });
+            } else {
+              if (adminUser.role !== "admin") {
+                await storage.updateUserRole(adminUser.id, "admin");
+              }
+              await storage.updateUserPassword(adminUser.id, hashed);
+              adminUser = { ...adminUser, role: "admin", password: hashed };
+            }
+            return done(null, adminUser);
+          }
+
           const user = await storage.getUserByEmail(email);
           if (!user) {
             return done(null, false, { message: "Incorrect email or password" });
