@@ -96,7 +96,7 @@ Three-platform connected creative education + publishing + workforce operating s
 - **Press Start LMS (pressstart.tech):** Learning pathways, lessons, certifications
 - **Press Start Streaming (psstreaming.com):** Content distribution, creator channels, school stations
 
-**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`
+**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`, `sync_queue`, `sync_logs`, `sso_audit_log`
 
 **Ecosystem API Routes (`/api/ecosystem/`):**
 - XP: `POST /xp/event`, `GET /xp/breakdown`, `GET /xp/events`
@@ -107,6 +107,15 @@ Three-platform connected creative education + publishing + workforce operating s
 - Bug Reports: `GET /bug-reports`, `POST /bug-reports`, `PUT /bug-reports/:id`
 - Pathways: `GET /pathways`, `POST /pathways/:id/enroll`
 - Cross-platform Ingest: `POST /ingest/xp`, `POST /ingest/passport-entry` (JWT auth via ECOSYSTEM_JWT_SECRET)
+- Cross-platform Sync: `POST /api/ecosystem/sync` (queue-based with exponential backoff retries)
+- Sync Status: `GET /api/sync/status`, `GET /api/sync/history`, `POST /api/sync/retry/:id`
+- Admin Sync: `GET /api/admin/sync/dashboard`, `GET /api/admin/sync/health`, `GET /api/admin/sso/audit`
+
+**Sync Engine (`server/syncEngine.ts`):** Queue-based cross-platform sync with exponential backoff (2s base, 5min max), 5 retries, stale recovery, worker loop (10s interval). Functions: `enqueueSyncEvent()`, `startSyncWorker()`, `getSyncStatus()`, `getSyncHistory()`, `retrySyncEvent()`, `getSyncHealthMetrics()`, `logSSOAudit()`, `getSSOHealthMetrics()`.
+
+**SSO Hardening (`server/sso.ts`):** JWT tokens include `aud: "madmixedmedia-ecosystem"`, `jti`, `nbf` claims. Structured error responses with request IDs and elapsed timing. All SSO attempts audit-logged to `sso_audit_log` table. Error codes: TOKEN_MISSING, TOKEN_MALFORMED, TOKEN_SIGNATURE_INVALID, TOKEN_EXPIRED, TOKEN_NOT_YET_VALID, TOKEN_ISSUER_INVALID, TOKEN_AUDIENCE_INVALID, USER_NOT_FOUND, SESSION_ERROR, INTERNAL_ERROR.
+
+**Frontend Sync Components:** `SyncStatusIndicator` in Layout header (real-time sync status with retry controls), Sync Health tab and SSO Audit tab in EcosystemAdmin.
 
 **XP Engine (`server/xpEngine.ts`):** Event-based XP with deduplication, cooldown, source/tool tagging, balance rollup, role eligibility checks.
 

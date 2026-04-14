@@ -173,19 +173,155 @@ The HopCreator automatically fires XP events for:
 
 All events include `source: "comixx"`, `tool: "hop_creator"`, and project metadata.
 
+## Cross-Platform Sync Infrastructure (LOCKED CONTRACT)
+
+All cross-platform data flows use a queue-based sync system with exponential backoff retries.
+
+### POST /api/ecosystem/sync — Receive Sync Events
+
+External platforms send sync events to CoMiXX for processing.
+
+**Authentication (any one of):**
+```
+Authorization: Bearer {ECOSYSTEM_JWT_SECRET}
+X-Webhook-Secret: {EMERGENT_WEBHOOK_SECRET}
+X-API-Key: {FX_STUDIO_API_KEY}
+```
+
+**Request Headers:**
+```
+Content-Type: application/json
+X-Sync-Id: <unique sync identifier>
+X-Source-App: <fxstudio|streaming|lms>
+```
+
+**Request Body:**
+```json
+{
+  "syncId": "uuid-from-source",
+  "eventType": "xp_broadcast|asset.sync|project.publish|user.update|xp.sync",
+  "sourceApp": "fxstudio",
+  "userId": "optional-comixx-user-id",
+  "projectId": "optional-project-id",
+  "payload": {
+    "user_email": "user@example.com",
+    "xp_awarded": 25,
+    "action": "lesson_complete",
+    "total_xp": 500,
+    "level": 5,
+    "level_title": "Artisan"
+  },
+  "timestamp": "2026-04-14T12:00:00Z"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "request_id": "sync_abc123",
+  "sync_queue_id": "uuid-of-queued-item",
+  "elapsed_ms": 15,
+  "status": "accepted"
+}
+```
+
+**Error Responses:**
+```json
+{
+  "error": "UNAUTHORIZED|MISSING_FIELD|INTERNAL_ERROR",
+  "detail": "Human-readable error description",
+  "request_id": "sync_abc123",
+  "elapsed_ms": 2
+}
+```
+
+### Sync Queue Processing
+
+Events are processed with exponential backoff:
+- Base delay: 2 seconds, max: 5 minutes
+- Default max retries: 5
+- Stale processing recovery: 2 minutes
+- Worker poll interval: 10 seconds
+
+### SSO Token Contract
+
+JWT tokens issued by CoMiXX include:
+```json
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "iss": "pscomixx",
+  "aud": "madmixedmedia-ecosystem",
+  "jti": "unique-token-id",
+  "iat": 1713100800,
+  "exp": 1713104400,
+  "nbf": 1713100800
+}
+```
+
+**Verify endpoint always returns structured responses:**
+
+Success:
+```json
+{
+  "valid": true,
+  "request_id": "sso_abc123",
+  "elapsed_ms": 5,
+  "user": { ... }
+}
+```
+
+Error:
+```json
+{
+  "error": "TOKEN_EXPIRED|TOKEN_SIGNATURE_INVALID|TOKEN_MISSING|...",
+  "detail": "Human-readable error description",
+  "request_id": "sso_abc123",
+  "elapsed_ms": 2
+}
+```
+
+### Sync Status Endpoints (Authenticated)
+
+- `GET /api/sync/status` — Current user's sync status (pending/completed/failed counts)
+- `GET /api/sync/history?limit=50` — Recent sync events for current user
+- `GET /api/sync/logs/:syncId` — Detailed logs for a sync event
+- `POST /api/sync/retry/:syncId` — Manual retry of a failed sync event
+
+### Admin Sync Endpoints (Admin Only)
+
+- `GET /api/admin/sync/dashboard` — Full sync + SSO health overview
+- `GET /api/admin/sync/health` — Sync health status with alerts
+- `GET /api/admin/sso/audit?failures=true&limit=100` — SSO audit log
+
+### Admin Dashboard Tabs
+
+The Ecosystem Admin (`/admin/ecosystem`) includes:
+- Sync Health tab: real-time sync queue metrics, alert banners, recent event log
+- SSO Audit tab: full SSO attempt history with error details, filterable by failures
+
 ## Implementation Notes for LMS Chat
 
 When building the LMS integration:
-1. Use the XP ingest API to send lesson/pathway completion events
-2. Include `pathwayId` and `lessonId` in metadata for tracking
+1. Use the sync endpoint (`POST /api/ecosystem/sync`) for all data flows
+2. Include `pathwayId` and `lessonId` in payload metadata for tracking
 3. Send passport entries for completed certifications
 4. The ECOSYSTEM_JWT_SECRET must match between platforms
-5. XP events have built-in deduplication — safe to retry on failure
+5. Events are queued with automatic retry — safe to send and forget
 
 ## Implementation Notes for Streaming Chat
 
 When building the Streaming integration:
-1. Use the XP ingest API to send watch time and engagement events
+1. Use the sync endpoint (`POST /api/ecosystem/sync`) for all data flows
 2. Send `stream_watch` events in 15-minute intervals with segment metadata
 3. Creator channels and school stations are tracked in CoMiXX database
 4. Published content from CoMiXX can be syndicated to streaming via the export pipeline
+
+## Implementation Notes for FX Studio (Lovable/Supabase)
+
+FX Studio has its own `sync_queue` table in Supabase. To send events to CoMiXX:
+1. Insert into FX Studio's `sync_queue` with `target_app: 'comixx'`
+2. FX Studio's sync worker calls `POST /api/ecosystem/sync` with auth
+3. CoMiXX queues, processes, and retries automatically
+4. SSO verify uses `aud: 'madmixedmedia-ecosystem'` claim

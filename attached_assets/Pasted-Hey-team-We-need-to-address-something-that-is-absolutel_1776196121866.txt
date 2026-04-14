@@ -1,0 +1,191 @@
+Hey team,
+
+We need to address something that is absolutely critical to the success of the ecosystem:
+
+**The connection and syncing between CoMiXX (Replit), FX Studio (Lovable), and Streaming must be reliable, observable, and fault-tolerant.**
+
+Right now, login (SSO) and cross-app syncing appear to be unstable or inconsistent. This cannot remain a “best effort” system. It needs to be treated as core infrastructure.
+
+I want us to implement a **robust cross-platform sync and auth architecture** with the following requirements:
+
+---
+
+## 1. Unified Auth + Token Standard
+
+* Shared JWT standard between CoMiXX and FX
+* Same:
+
+  * signing method
+  * secret/public key
+  * issuer (`iss`)
+  * audience (`aud`)
+  * expiration rules
+* Strict validation on both sides
+* Clear error responses when validation fails
+
+---
+
+## 2. Reliable SSO Handoff (CoMiXX → FX)
+
+The `/sso/callback` flow must:
+
+* Always:
+
+  * validate token
+  * create session
+  * persist auth state
+  * redirect to a valid authenticated route
+
+If anything fails:
+
+* return structured error
+* log failure with reason
+* do NOT silently fail
+
+---
+
+## 3. Cross-App Identity Consistency
+
+* One canonical user ID across:
+
+  * CoMiXX
+  * FX
+  * Streaming
+* No duplicate or mismatched identities
+* Email-based matching fallback only if necessary
+* Sync user metadata consistently
+
+---
+
+## 4. Sync as a Queue-Based System (NOT direct-only)
+
+All cross-app syncing (projects, FX assets, HOPs, etc.) must:
+
+* Use a queue/event-based system
+* Support:
+
+  * retries
+  * delayed processing
+  * failure recovery
+
+Each sync event should include:
+
+* source app
+* user ID
+* project ID
+* payload metadata
+* timestamp
+* status
+
+---
+
+## 5. Retry + Recovery Logic
+
+If sync fails:
+
+* automatically retry (with backoff)
+* track retry count
+* escalate after threshold
+
+Users should NEVER lose work because of a temporary failure.
+
+---
+
+## 6. Sync Status Tracking (User-Facing)
+
+Users should be able to see:
+
+* syncing
+* synced
+* failed
+* retrying
+
+No silent failures.
+
+---
+
+## 7. Global Logging + Debug Visibility
+
+We need centralized logs for:
+
+* SSO attempts
+* token validation failures
+* sync events
+* sync failures
+* retry attempts
+
+This should be accessible for debugging across both platforms.
+
+---
+
+## 8. Cross-Domain Session Stability
+
+Since we are using:
+
+* `pscomixx.com`
+* `pscomixx.online`
+
+We must ensure:
+
+* cookies are properly configured (SameSite, secure, domain)
+* sessions persist across redirects
+* CORS is correctly configured
+
+---
+
+## 9. API Contract Between Platforms
+
+Define and lock:
+
+* endpoints
+* payload structures
+* auth headers
+* expected responses
+* error formats
+
+No “guessing” between systems.
+
+---
+
+## 10. External Tool Sync Readiness
+
+This system must also support future ingestion from:
+
+* Unreal
+* Reallusion
+* Maxon
+* AI tools
+
+So architecture must be:
+
+* extensible
+* source-aware
+* event-driven
+
+---
+
+## 11. Monitoring + Alerts
+
+We need alerts when:
+
+* SSO failure rate spikes
+* sync failures exceed threshold
+* callback errors increase
+
+We should never find out from users first.
+
+---
+
+## Bottom Line
+
+This ecosystem depends on seamless movement between apps:
+
+**Create (CoMiXX) → Enhance (FX) → Publish (Streaming)**
+
+If that connection breaks, the core experience breaks.
+
+We need to treat this as foundational infrastructure, not a feature.
+
+Let’s align on an implementation plan and timeline for stabilizing and hardening this system.
+
+– MoJo

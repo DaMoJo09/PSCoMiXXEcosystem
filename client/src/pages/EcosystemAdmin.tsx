@@ -11,10 +11,11 @@ import { toast } from "sonner";
 import {
   Shield, Briefcase, Bug, Package, Star, Users, ArrowLeft,
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, ChevronDown, ChevronUp,
+  RefreshCw, Activity, Loader2, Key,
 } from "lucide-react";
 import { Link } from "wouter";
 
-type AdminTab = "bug-reports" | "apprenticeships" | "external-reviews" | "xp-rules" | "role-rules";
+type AdminTab = "bug-reports" | "apprenticeships" | "external-reviews" | "xp-rules" | "role-rules" | "sync-health" | "sso-audit";
 
 export default function EcosystemAdmin() {
   const { user } = useAuth();
@@ -36,6 +37,8 @@ export default function EcosystemAdmin() {
     { id: "external-reviews", label: "External Reviews", icon: Package },
     { id: "xp-rules", label: "XP Rules", icon: Star },
     { id: "role-rules", label: "Role Rules", icon: Shield },
+    { id: "sync-health", label: "Sync Health", icon: Activity },
+    { id: "sso-audit", label: "SSO Audit", icon: Key },
   ];
 
   return (
@@ -75,6 +78,8 @@ export default function EcosystemAdmin() {
         {activeTab === "external-reviews" && <ExternalSubmissionReview />}
         {activeTab === "xp-rules" && <XPRulesPanel />}
         {activeTab === "role-rules" && <RoleRulesPanel />}
+        {activeTab === "sync-health" && <SyncHealthDashboard />}
+        {activeTab === "sso-audit" && <SSOAuditPanel />}
       </div>
     </Layout>
   );
@@ -471,6 +476,152 @@ function RoleRulesPanel() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function SyncHealthDashboard() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/sync/dashboard"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/sync/dashboard");
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
+
+  if (isLoading) return <div className="flex justify-center p-8"><Spinner /></div>;
+  if (!data) return <p className="text-zinc-500 text-sm">Unable to load sync data</p>;
+
+  const { sync, sso, recentSyncEvents } = data;
+
+  return (
+    <div className="space-y-6" data-testid="sync-health-dashboard">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Sync Health Monitor</h2>
+        <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh-sync">
+          <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard label="Pending" value={sync?.statusCounts?.pending || 0} icon={<Clock className="w-4 h-4 text-blue-500" />} />
+        <MetricCard label="Processing" value={sync?.statusCounts?.processing || 0} icon={<Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />} />
+        <MetricCard label="Completed" value={sync?.statusCounts?.completed || 0} icon={<CheckCircle className="w-4 h-4 text-green-500" />} />
+        <MetricCard label="Failed" value={sync?.statusCounts?.failed || 0} icon={<XCircle className="w-4 h-4 text-red-500" />} />
+      </div>
+
+      {sync?.alerts && (
+        <div className="space-y-2">
+          {sync.alerts.highFailureRate && (
+            <div className="bg-red-50 border border-red-200 text-red-800 p-3 text-sm flex items-center gap-2" data-testid="alert-high-failure">
+              <AlertTriangle className="w-4 h-4" /> High failure rate detected
+            </div>
+          )}
+          {sync.alerts.deadLetterBacklog && (
+            <div className="bg-orange-50 border border-orange-200 text-orange-800 p-3 text-sm flex items-center gap-2" data-testid="alert-dead-letter">
+              <AlertTriangle className="w-4 h-4" /> Dead letter backlog growing
+            </div>
+          )}
+          {sync.alerts.retryBacklog && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 text-sm flex items-center gap-2" data-testid="alert-retry-backlog">
+              <AlertTriangle className="w-4 h-4" /> Retry backlog detected
+            </div>
+          )}
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-bold text-sm mb-2">Recent Sync Events</h3>
+        <div className="border border-black divide-y divide-zinc-200 max-h-64 overflow-y-auto">
+          {(!recentSyncEvents || recentSyncEvents.length === 0) && <p className="p-3 text-sm text-zinc-500">No sync events yet</p>}
+          {recentSyncEvents?.map((e: any) => (
+            <div key={e.id} className="p-3 flex items-center justify-between text-sm" data-testid={`sync-event-row-${e.id}`}>
+              <div className="flex items-center gap-2">
+                {e.status === "completed" && <CheckCircle className="w-3 h-3 text-green-500" />}
+                {e.status === "failed" && <XCircle className="w-3 h-3 text-red-500" />}
+                {e.status === "pending" && <Clock className="w-3 h-3 text-blue-500" />}
+                {e.status === "retrying" && <RefreshCw className="w-3 h-3 text-orange-500" />}
+                {e.status === "processing" && <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />}
+                <span className="font-mono text-xs">{e.eventType}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                <span>{e.sourceApp} → {e.targetApp}</span>
+                <span>{new Date(e.createdAt).toLocaleString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+  return (
+    <div className="border-2 border-black p-3 bg-white" data-testid={`metric-${label.toLowerCase()}`}>
+      <div className="flex items-center justify-between mb-1">
+        {icon}
+        <span className="text-2xl font-bold font-mono">{value}</span>
+      </div>
+      <p className="text-xs text-zinc-500 font-bold uppercase">{label}</p>
+    </div>
+  );
+}
+
+function SSOAuditPanel() {
+  const [showFailuresOnly, setShowFailuresOnly] = useState(false);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/sso/audit", showFailuresOnly],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/admin/sso/audit?failures=${showFailuresOnly}&limit=100`);
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  if (isLoading) return <div className="flex justify-center p-8"><Spinner /></div>;
+
+  return (
+    <div className="space-y-4" data-testid="sso-audit-panel">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">SSO Audit Log</h2>
+        <div className="flex gap-2">
+          <Button
+            variant={showFailuresOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFailuresOnly(!showFailuresOnly)}
+            data-testid="button-toggle-failures"
+          >
+            <AlertTriangle className="w-3 h-3 mr-1" /> {showFailuresOnly ? "Showing Failures" : "Show All"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh-sso">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="border border-black divide-y divide-zinc-200 max-h-96 overflow-y-auto">
+        {(!data || data.length === 0) && <p className="p-3 text-sm text-zinc-500">No SSO events recorded</p>}
+        {data?.map((log: any) => (
+          <div key={log.id} className="p-3 text-sm" data-testid={`sso-log-${log.id}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {log.success ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                <span className="font-mono text-xs font-bold">{log.action}</span>
+                {log.email && <span className="text-zinc-500 text-xs">{log.email}</span>}
+              </div>
+              <span className="text-xs text-zinc-400">{new Date(log.createdAt).toLocaleString()}</span>
+            </div>
+            {!log.success && log.errorMessage && (
+              <div className="mt-1 text-xs text-red-600 font-mono bg-red-50 p-1 rounded">
+                [{log.errorCode}] {log.errorMessage}
+              </div>
+            )}
+            {log.sourceApp && <span className="text-[10px] text-zinc-400 mt-1 block">from: {log.sourceApp} | IP: {log.ipAddress || "n/a"}</span>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

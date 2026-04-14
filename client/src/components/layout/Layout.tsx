@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { AppIcon, AppIconInline } from "@/components/ui/app-icon";
 import { BugReportButton } from "@/components/BugReportDialog";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -102,7 +103,7 @@ export function Layout({ children }: LayoutProps) {
               alt="Press Start CoMixx"
               className="h-8 w-auto"
             />
-            <div className="w-10" />
+            <SyncStatusIndicator />
           </header>
 
           {mobileMenuOpen && (

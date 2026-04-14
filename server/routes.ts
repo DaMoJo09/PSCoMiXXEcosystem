@@ -22,7 +22,8 @@ import { stripeService } from "./stripeService";
 import { getStripeSync, getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 import { filterContent, isStudentSafe } from "./contentFilter";
 import { logAuditEvent, auditAuth, auditAdmin, auditStudent } from "./auditLogger";
-import { issueEcosystemToken, verifyEcosystemToken, getRedirectUrl, findOrCreateUserFromToken } from "./sso";
+import { issueEcosystemToken, verifyEcosystemToken, verifyEcosystemTokenDetailed, getRedirectUrl, findOrCreateUserFromToken, makeSSOError, generateRequestId } from "./sso";
+import { enqueueSyncEvent, getSyncStatus, getSyncHistory, getSyncLogs, getSyncHealthMetrics, retrySyncEvent, logSSOAudit, getSSOAuditHistory, getSSOHealthMetrics, startSyncWorker } from "./syncEngine";
 import { dispatchWebhook, retryFailedWebhooks, getWebhookLogs, startWebhookRetryWorker } from "./webhookService";
 import { createExportJob, getExportJob, getProjectExports } from "./publishService";
 import { seedDemoContent } from "./seed-content";
@@ -9120,11 +9121,23 @@ Sitemap: https://pscomixx.com/sitemap.xml`
   });
 
   app.post("/api/auth/sso/verify", async (req, res) => {
+    const requestId = generateRequestId();
+    const startTime = Date.now();
     try {
       const { token } = req.body;
-      if (!token) return res.status(400).json({ message: "Token required" });
-      const payload = verifyEcosystemToken(token);
-      if (!payload) return res.status(401).json({ message: "Invalid or expired token" });
+      if (!token) {
+        await logSSOAudit({ action: "verify", success: false, errorCode: "TOKEN_MISSING", errorMessage: "No token provided", ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+        return res.status(400).json(makeSSOError("TOKEN_MISSING", "Token is required in request body", requestId, startTime));
+      }
+
+      const result = verifyEcosystemTokenDetailed(token);
+      if (!result.valid) {
+        await logSSOAudit({ action: "verify", success: false, errorCode: result.errorCode, errorMessage: result.errorDetail, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+        const statusCode = result.errorCode === "TOKEN_EXPIRED" ? 401 : result.errorCode === "TOKEN_SIGNATURE_INVALID" ? 401 : 400;
+        return res.status(statusCode).json(makeSSOError(result.errorCode!, result.errorDetail!, requestId, startTime));
+      }
+
+      const payload = result.payload!;
       const user = await findOrCreateUserFromToken(payload);
 
       const { eq } = await import("drizzle-orm");
@@ -9135,8 +9148,12 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         if (cert) certSlugs.push(cert.slug);
       }
 
+      await logSSOAudit({ action: "verify", userId: user?.id || payload.sub, email: payload.email, success: true, tokenId: payload.jti, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+
       res.json({
         valid: true,
+        request_id: requestId,
+        elapsed_ms: Date.now() - startTime,
         user: {
           id: user?.id || payload.sub,
           email: payload.email,
@@ -9153,8 +9170,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           certifications: certSlugs,
         },
       });
-    } catch (err) {
-      res.status(500).json({ message: "Error verifying SSO token" });
+    } catch (err: any) {
+      await logSSOAudit({ action: "verify", success: false, errorCode: "INTERNAL_ERROR", errorMessage: err.message, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+      res.status(500).json(makeSSOError("INTERNAL_ERROR", "Internal error verifying SSO token", requestId, startTime));
     }
   });
 
@@ -9246,22 +9264,39 @@ Sitemap: https://pscomixx.com/sitemap.xml`
   });
 
   app.post("/api/auth/sso/ecosystem-login", async (req, res) => {
+    const requestId = generateRequestId();
+    const startTime = Date.now();
     try {
       const { token, source } = req.body;
-      if (!token) return res.status(400).json({ message: "Token required" });
-      const payload = verifyEcosystemToken(token);
-      if (!payload) return res.status(401).json({ message: "Invalid or expired token" });
+      if (!token) {
+        await logSSOAudit({ action: "ecosystem_login", success: false, sourceApp: source, errorCode: "TOKEN_MISSING", errorMessage: "No token provided", ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+        return res.status(400).json(makeSSOError("TOKEN_MISSING", "Token is required", requestId, startTime));
+      }
 
+      const result = verifyEcosystemTokenDetailed(token);
+      if (!result.valid) {
+        await logSSOAudit({ action: "ecosystem_login", success: false, sourceApp: source, errorCode: result.errorCode, errorMessage: result.errorDetail, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+        return res.status(401).json(makeSSOError(result.errorCode!, result.errorDetail!, requestId, startTime));
+      }
+
+      const payload = result.payload!;
       let user = await storage.getUserByEmail(payload.email);
       if (!user) {
-        return res.status(404).json({ message: "No account found. Please sign up on PSCoMiXX first." });
+        await logSSOAudit({ action: "ecosystem_login", email: payload.email, success: false, sourceApp: source, errorCode: "USER_NOT_FOUND", errorMessage: "No account found for this email", ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+        return res.status(404).json(makeSSOError("USER_NOT_FOUND", "No account found. Please sign up on PSCoMiXX first.", requestId, startTime));
       }
 
       req.login(user, (err: any) => {
-        if (err) return res.status(500).json({ message: "Session error" });
+        if (err) {
+          logSSOAudit({ action: "ecosystem_login", userId: user!.id, email: user!.email, success: false, sourceApp: source, errorCode: "SESSION_ERROR", errorMessage: err.message, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+          return res.status(500).json(makeSSOError("SESSION_ERROR", "Failed to establish session", requestId, startTime));
+        }
+        logSSOAudit({ action: "ecosystem_login", userId: user!.id, email: user!.email, success: true, sourceApp: source, tokenId: payload.jti, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
         console.log(`[sso] Ecosystem login for ${user!.email} from ${source || "unknown"}`);
         res.json({
           success: true,
+          request_id: requestId,
+          elapsed_ms: Date.now() - startTime,
           user: {
             id: user!.id,
             email: user!.email,
@@ -9272,8 +9307,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           },
         });
       });
-    } catch (err) {
-      res.status(500).json({ message: "Error during ecosystem SSO login" });
+    } catch (err: any) {
+      await logSSOAudit({ action: "ecosystem_login", success: false, errorCode: "INTERNAL_ERROR", errorMessage: err.message, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+      res.status(500).json(makeSSOError("INTERNAL_ERROR", "Error during ecosystem SSO login", requestId, startTime));
     }
   });
 
@@ -9296,6 +9332,173 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         db: "disconnected",
         error: (err as Error).message,
       });
+    }
+  });
+
+  // =========== CROSS-PLATFORM SYNC INFRASTRUCTURE ===========
+
+  startSyncWorker().catch(() => {});
+
+  app.post("/api/ecosystem/sync", async (req, res) => {
+    const requestId = `sync_${Date.now().toString(36)}`;
+    const startTime = Date.now();
+    try {
+      const authHeader = req.headers.authorization;
+      const webhookSecret = req.headers["x-webhook-secret"] as string | undefined;
+      const apiKey = req.headers["x-api-key"] as string | undefined;
+
+      let authenticated = false;
+      if (process.env.ECOSYSTEM_JWT_SECRET && authHeader === `Bearer ${process.env.ECOSYSTEM_JWT_SECRET}`) authenticated = true;
+      if (process.env.EMERGENT_WEBHOOK_SECRET && webhookSecret && webhookSecret === process.env.EMERGENT_WEBHOOK_SECRET) authenticated = true;
+      if (process.env.FX_STUDIO_API_KEY && apiKey && apiKey === process.env.FX_STUDIO_API_KEY) authenticated = true;
+
+      if (!authenticated) {
+        return res.status(401).json({ error: "UNAUTHORIZED", detail: "Invalid or missing authentication", request_id: requestId, elapsed_ms: Date.now() - startTime });
+      }
+
+      const { syncId, eventType, sourceApp, userId, projectId, payload, timestamp } = req.body;
+      if (!eventType) {
+        return res.status(400).json({ error: "MISSING_FIELD", detail: "eventType is required", request_id: requestId, elapsed_ms: Date.now() - startTime });
+      }
+
+      let localUserId = userId;
+      if (payload?.user_email && !localUserId) {
+        const user = await storage.getUserByEmail(payload.user_email);
+        if (user) localUserId = user.id;
+      }
+
+      const queueId = await enqueueSyncEvent({
+        sourceApp: sourceApp || "external",
+        targetApp: "comixx",
+        eventType,
+        userId: localUserId,
+        projectId,
+        payload: { ...payload, externalSyncId: syncId, receivedAt: new Date().toISOString() },
+      });
+
+      if (eventType === "xp_broadcast" || eventType === "xp.sync") {
+        try {
+          const { recordXpEvent } = await import('./xpEngine');
+          if (localUserId && payload?.xp_awarded) {
+            await recordXpEvent({
+              userId: localUserId,
+              action: payload.action || "external_sync",
+              category: "sync",
+              xpAmount: payload.xp_awarded || payload.xpAmount || 0,
+              source: sourceApp || "external",
+              eventKey: `sync-${syncId || queueId}`,
+              metadata: payload,
+            });
+          }
+        } catch {}
+      }
+
+      res.json({
+        success: true,
+        request_id: requestId,
+        sync_queue_id: queueId,
+        elapsed_ms: Date.now() - startTime,
+        status: "accepted",
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message, request_id: requestId, elapsed_ms: Date.now() - startTime });
+    }
+  });
+
+  app.get("/api/sync/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const status = await getSyncStatus(userId);
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.get("/api/sync/history", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const history = await getSyncHistory(userId, limit);
+      res.json(history);
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.get("/api/sync/logs/:syncId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const history = await getSyncHistory(undefined, 1000);
+      const event = history.find((e: any) => e.id === req.params.syncId);
+      if (!event) return res.status(404).json({ error: "NOT_FOUND", detail: "Sync event not found" });
+      if (event.userId && event.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ error: "ACCESS_DENIED", detail: "Not authorized to view this sync event" });
+      }
+      const logs = await getSyncLogs(req.params.syncId);
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.post("/api/sync/retry/:syncId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const history = await getSyncHistory(undefined, 1000);
+      const event = history.find((e: any) => e.id === req.params.syncId);
+      if (!event) return res.status(404).json({ error: "NOT_FOUND", detail: "Sync event not found" });
+      if (event.userId && event.userId !== user.id && user.role !== "admin") {
+        return res.status(403).json({ error: "ACCESS_DENIED", detail: "Not authorized to retry this sync event" });
+      }
+      const success = await retrySyncEvent(req.params.syncId);
+      if (!success) return res.status(404).json({ error: "NOT_FOUND", detail: "Sync event not found" });
+      res.json({ success: true, message: "Retry initiated" });
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.get("/api/admin/sync/dashboard", isAdmin, async (req, res) => {
+    try {
+      const [syncHealth, ssoHealth] = await Promise.all([
+        getSyncHealthMetrics(),
+        getSSOHealthMetrics(),
+      ]);
+      const recentFailed = await getSyncHistory(undefined, 20);
+      const ssoRecent = await getSSOAuditHistory({ limit: 20 });
+      res.json({ sync: syncHealth, sso: ssoHealth, recentSyncEvents: recentFailed, recentSSOEvents: ssoRecent });
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.get("/api/admin/sync/health", isAdmin, async (req, res) => {
+    try {
+      const [syncHealth, ssoHealth] = await Promise.all([
+        getSyncHealthMetrics(),
+        getSSOHealthMetrics(),
+      ]);
+      const hasAlerts = syncHealth.alerts.highFailureRate || syncHealth.alerts.deadLetterBacklog || syncHealth.alerts.retryBacklog || ssoHealth.alerts.ssoFailureSpike;
+      res.json({
+        status: hasAlerts ? "degraded" : "healthy",
+        sync: syncHealth,
+        sso: ssoHealth,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
+    }
+  });
+
+  app.get("/api/admin/sso/audit", isAdmin, async (req, res) => {
+    try {
+      const failuresOnly = req.query.failures === "true";
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await getSSOAuditHistory({ failuresOnly, limit });
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ error: "INTERNAL_ERROR", detail: err.message });
     }
   });
 

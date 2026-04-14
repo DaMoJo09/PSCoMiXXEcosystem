@@ -3182,3 +3182,91 @@ export const DEFAULT_ROLE_ELIGIBILITY = [
   { roleName: "paid_apprentice_eligible", minXp: 10000, minLevel: 20, requiredApprovedProjects: 15, description: "Eligible for paid apprenticeship" },
   { roleName: "contributor", minXp: 20000, minLevel: 25, requiredApprovedProjects: 20, description: "Full contributor/specialist status" },
 ] as const;
+
+// ==========================================
+// CROSS-PLATFORM SYNC QUEUE
+// ==========================================
+export const syncQueue = pgTable("sync_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceApp: text("source_app").notNull().default("comixx"),
+  targetApp: text("target_app").notNull(),
+  eventType: text("event_type").notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  projectId: varchar("project_id"),
+  payload: jsonb("payload"),
+  status: text("status").notNull().default("pending"),
+  retryCount: integer("retry_count").notNull().default(0),
+  maxRetries: integer("max_retries").notNull().default(5),
+  nextRetryAt: timestamp("next_retry_at"),
+  lastError: text("last_error"),
+  targetUrl: text("target_url"),
+  responseCode: integer("response_code"),
+  responseBody: text("response_body"),
+  processingStartedAt: timestamp("processing_started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSyncQueueSchema = createInsertSchema(syncQueue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSyncQueue = z.infer<typeof insertSyncQueueSchema>;
+export type SyncQueueItem = typeof syncQueue.$inferSelect;
+
+// ==========================================
+// SYNC LOGS (detailed event log)
+// ==========================================
+export const syncLogs = pgTable("sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  syncQueueId: varchar("sync_queue_id").references(() => syncQueue.id, { onDelete: "cascade" }),
+  level: text("level").notNull().default("info"),
+  message: text("message").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SyncLog = typeof syncLogs.$inferSelect;
+
+// ==========================================
+// SSO AUDIT LOG
+// ==========================================
+export const ssoAuditLog = pgTable("sso_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: text("action").notNull(),
+  userId: varchar("user_id"),
+  email: text("email"),
+  sourceApp: text("source_app"),
+  targetApp: text("target_app"),
+  success: boolean("success").notNull(),
+  errorMessage: text("error_message"),
+  errorCode: text("error_code"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  tokenId: text("token_id"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SSOAuditLog = typeof ssoAuditLog.$inferSelect;
+
+export const SYNC_STATUSES = ["pending", "processing", "completed", "failed", "retrying", "dead_letter"] as const;
+export type SyncStatus = typeof SYNC_STATUSES[number];
+
+export const ECOSYSTEM_APPS = ["comixx", "fxstudio", "streaming", "lms", "unreal", "reallusion", "maxon", "ai_tools"] as const;
+export type EcosystemApp = typeof ECOSYSTEM_APPS[number];
+
+export const SYNC_EVENT_TYPES = [
+  "project_publish",
+  "project_update",
+  "profile_sync",
+  "asset_sync",
+  "xp_broadcast",
+  "fx_asset_return",
+  "content_bundle",
+  "user_metadata_sync",
+  "external_tool_sync",
+] as const;
+export type SyncEventType = typeof SYNC_EVENT_TYPES[number];
