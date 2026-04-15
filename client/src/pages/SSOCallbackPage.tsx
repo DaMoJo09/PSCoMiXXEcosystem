@@ -24,11 +24,30 @@ export default function SSOCallbackPage() {
         });
         if (!res.ok) {
           const data = await res.json();
-          setError(data.message || "SSO login failed");
+          const detail = data.detail || data.message || "SSO login failed";
+          const errorCode = data.error || "UNKNOWN";
+          console.error(`[sso-callback] Login failed: ${errorCode} — ${detail} (request_id: ${data.request_id})`);
+          setError(`${detail} (${errorCode})`);
           return;
         }
+        const data = await res.json();
+        console.log(`[sso-callback] Login success from ${source}, request_id: ${data.request_id}`);
+        if (window.opener && source) {
+          const OPENER_ORIGINS: Record<string, string> = {
+            fxstudio: "https://www.pscomixx.online",
+            streaming: "https://psstreaming.com",
+            lms: "https://pressstart.tech",
+          };
+          const targetOrigin = OPENER_ORIGINS[source];
+          if (targetOrigin) {
+            try {
+              window.opener.postMessage({ type: "sso-login-complete", source: "pscomixx", userId: data.user?.id }, targetOrigin);
+            } catch {}
+          }
+        }
         window.location.href = "/";
-      } catch {
+      } catch (err) {
+        console.error("[sso-callback] Connection error:", err);
         setError("Connection error during SSO login");
       }
     })();

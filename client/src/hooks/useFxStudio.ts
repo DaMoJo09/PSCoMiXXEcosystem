@@ -6,6 +6,8 @@ const FX_STUDIO_BASE = "https://www.pscomixx.online";
 const ALLOWED_ORIGINS = [
   "https://pscomixx.online",
   "https://www.pscomixx.online",
+  "https://pscomixx.com",
+  "https://www.pscomixx.com",
   "https://panel-play-forge.lovable.app",
 ];
 
@@ -59,6 +61,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const activeTargetRef = useRef<FxTarget>(null);
   activeTargetRef.current = activeTarget;
   const studioWindowRef = useRef<Window | null>(null);
+  const studioOriginRef = useRef<string>(FX_STUDIO_BASE);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const optionsRef = useRef(options);
@@ -88,6 +91,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
       switch (type) {
         case "fx-studio-ready":
         case "fx-studio-pong":
+          studioOriginRef.current = event.origin;
           setConnected(true);
           break;
 
@@ -123,6 +127,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           setIsOpen(false);
           setConnected(false);
           studioWindowRef.current = null;
+          studioOriginRef.current = FX_STUDIO_BASE;
           clearPing();
           break;
       }
@@ -135,12 +140,16 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const sendPing = useCallback(() => {
     const win = studioWindowRef.current;
     if (!win || win.closed) return;
-    for (const origin of ALLOWED_ORIGINS) {
+    if (connected && studioOriginRef.current) {
       try {
-        win.postMessage({ type: "comixx-ping" }, origin);
+        win.postMessage({ type: "comixx-ping" }, studioOriginRef.current);
+      } catch {}
+    } else {
+      try {
+        win.postMessage({ type: "comixx-ping" }, FX_STUDIO_BASE);
       } catch {}
     }
-  }, []);
+  }, [connected]);
 
   useEffect(() => {
     if (isOpen) {
@@ -150,6 +159,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           setIsOpen(false);
           setConnected(false);
           studioWindowRef.current = null;
+          studioOriginRef.current = FX_STUDIO_BASE;
           clearPoll();
           clearPing();
           if (optionsRef.current.onAssetsUpdated) {
@@ -204,6 +214,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
       return;
     }
     studioWindowRef.current = win;
+    studioOriginRef.current = FX_STUDIO_BASE;
     setIsOpen(true);
     setConnected(false);
   }, []);
@@ -211,14 +222,13 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const sendToFxStudio = useCallback((data: Record<string, unknown>) => {
     if (studioWindowRef.current && !studioWindowRef.current.closed) {
       const enrichedData = { ...data, target: activeTargetRef.current };
-      for (const origin of ALLOWED_ORIGINS) {
-        try {
-          studioWindowRef.current.postMessage(
-            { type: "comixx-panel-data", payload: enrichedData },
-            origin
-          );
-        } catch {}
-      }
+      const origin = studioOriginRef.current || FX_STUDIO_BASE;
+      try {
+        studioWindowRef.current.postMessage(
+          { type: "comixx-panel-data", payload: enrichedData },
+          origin
+        );
+      } catch {}
     }
   }, []);
 
@@ -229,6 +239,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     setIsOpen(false);
     setConnected(false);
     studioWindowRef.current = null;
+    studioOriginRef.current = FX_STUDIO_BASE;
     clearPing();
   }, [clearPing]);
 
