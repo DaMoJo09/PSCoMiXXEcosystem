@@ -9154,6 +9154,16 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         valid: true,
         request_id: requestId,
         elapsed_ms: Date.now() - startTime,
+        token_claims: {
+          iss: payload.iss,
+          aud: payload.aud,
+          alg: "HS256",
+          exp: payload.exp,
+          iat: payload.iat,
+          nbf: payload.nbf,
+          jti: payload.jti,
+          sub: payload.sub,
+        },
         user: {
           id: user?.id || payload.sub,
           email: payload.email,
