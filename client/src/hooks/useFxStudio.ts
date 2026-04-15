@@ -140,16 +140,10 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const sendPing = useCallback(() => {
     const win = studioWindowRef.current;
     if (!win || win.closed) return;
-    if (connected && studioOriginRef.current) {
-      try {
-        win.postMessage({ type: "comixx-ping" }, studioOriginRef.current);
-      } catch {}
-    } else {
-      try {
-        win.postMessage({ type: "comixx-ping" }, FX_STUDIO_BASE);
-      } catch {}
-    }
-  }, [connected]);
+    try {
+      win.postMessage({ type: "comixx-ping" }, "*");
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (isOpen) {

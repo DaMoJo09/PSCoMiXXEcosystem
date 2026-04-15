@@ -32,18 +32,10 @@ export default function SSOCallbackPage() {
         }
         const data = await res.json();
         console.log(`[sso-callback] Login success from ${source}, request_id: ${data.request_id}`);
-        if (window.opener && source) {
-          const OPENER_ORIGINS: Record<string, string> = {
-            fxstudio: "https://www.pscomixx.online",
-            streaming: "https://psstreaming.com",
-            lms: "https://pressstart.tech",
-          };
-          const targetOrigin = OPENER_ORIGINS[source];
-          if (targetOrigin) {
-            try {
-              window.opener.postMessage({ type: "sso-login-complete", source: "pscomixx", userId: data.user?.id }, targetOrigin);
-            } catch {}
-          }
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: "sso-login-complete", source: "pscomixx", userId: data.user?.id }, window.location.origin);
+          } catch {}
         }
         window.location.href = "/";
       } catch (err) {
