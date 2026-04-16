@@ -3270,3 +3270,256 @@ export const SYNC_EVENT_TYPES = [
   "external_tool_sync",
 ] as const;
 export type SyncEventType = typeof SYNC_EVENT_TYPES[number];
+
+// ==========================================
+// SCHOOL-SAFE POLICY ENGINE
+// ==========================================
+
+export const POLICY_SCOPES = ["district", "school", "classroom", "user"] as const;
+export type PolicyScope = typeof POLICY_SCOPES[number];
+
+export const schoolSafePolicies = pgTable("school_safe_policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(),
+  scopeId: varchar("scope_id").notNull(),
+  schoolId: varchar("school_id").references(() => schools.id, { onDelete: "cascade" }),
+  parentPolicyId: varchar("parent_policy_id"),
+  label: text("label").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  messagingAllowed: boolean("messaging_allowed").default(false),
+  matureContentAllowed: boolean("mature_content_allowed").default(false),
+  marketplaceAllowed: boolean("marketplace_allowed").default(false),
+  externalPublishingAllowed: boolean("external_publishing_allowed").default(false),
+  publicProfileAllowed: boolean("public_profile_allowed").default(false),
+  remixCollabAllowed: boolean("remix_collab_allowed").default(true),
+  moderatedPublishing: boolean("moderated_publishing").default(true),
+  externalContactAllowed: boolean("external_contact_allowed").default(false),
+  allowedContentCategories: jsonb("allowed_content_categories"),
+  allowedAssetPacks: jsonb("allowed_asset_packs"),
+  allowedTemplates: jsonb("allowed_templates"),
+  customRules: jsonb("custom_rules"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSchoolSafePolicySchema = createInsertSchema(schoolSafePolicies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSchoolSafePolicy = z.infer<typeof insertSchoolSafePolicySchema>;
+export type SchoolSafePolicy = typeof schoolSafePolicies.$inferSelect;
+
+export const districts = pgTable("districts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  contactEmail: text("contact_email"),
+  state: text("state"),
+  country: text("country"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDistrictSchema = createInsertSchema(districts).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertDistrict = z.infer<typeof insertDistrictSchema>;
+export type District = typeof districts.$inferSelect;
+
+export const classrooms = pgTable("classrooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  gradeLevel: text("grade_level"),
+  subject: text("subject"),
+  joinCode: varchar("join_code").unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertClassroomSchema = createInsertSchema(classrooms).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertClassroom = z.infer<typeof insertClassroomSchema>;
+export type Classroom = typeof classrooms.$inferSelect;
+
+export const classroomMemberships = pgTable("classroom_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  classroomId: varchar("classroom_id").notNull().references(() => classrooms.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("student"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
+export const policyAuditLog = pgTable("policy_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  policyId: varchar("policy_id"),
+  action: text("action").notNull(),
+  actorId: varchar("actor_id").references(() => users.id),
+  targetUserId: varchar("target_user_id"),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ==========================================
+// WORKFORCE PIPELINE + SKILL PASSPORT
+// ==========================================
+
+export const WORKFORCE_SIGNAL_TYPES = [
+  "project_completed", "project_published", "assignment_completed",
+  "challenge_completed", "certification_earned", "teacher_validation",
+  "team_participation", "deadline_met", "revision_completed",
+  "client_project", "internship_milestone", "apprenticeship_milestone",
+  "paid_work", "mentorship_given", "portfolio_addition",
+] as const;
+export type WorkforceSignalType = typeof WORKFORCE_SIGNAL_TYPES[number];
+
+export const READINESS_TIERS = [
+  "exploring", "developing", "proficient", "advanced", "professional",
+] as const;
+export type ReadinessTier = typeof READINESS_TIERS[number];
+
+export const workforceSignals = pgTable("workforce_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  signalType: text("signal_type").notNull(),
+  projectId: varchar("project_id"),
+  projectType: text("project_type"),
+  toolsUsed: jsonb("tools_used"),
+  independenceLevel: text("independence_level"),
+  revisionCycles: integer("revision_cycles").default(0),
+  deadlineMet: boolean("deadline_met"),
+  teacherReviewed: boolean("teacher_reviewed").default(false),
+  teacherReviewerId: varchar("teacher_reviewer_id"),
+  paidWork: boolean("paid_work").default(false),
+  teamSize: integer("team_size").default(1),
+  skillCategories: jsonb("skill_categories"),
+  sourceApp: text("source_app").default("comixx"),
+  verificationLevel: text("verification_level").default("self_reported"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceSignalSchema = createInsertSchema(workforceSignals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkforceSignal = z.infer<typeof insertWorkforceSignalSchema>;
+export type WorkforceSignal = typeof workforceSignals.$inferSelect;
+
+export const workforceProfiles = pgTable("workforce_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  readinessTier: text("readiness_tier").notNull().default("exploring"),
+  contractReady: boolean("contract_ready").default(false),
+  mmmCreatorEligible: boolean("mmm_creator_eligible").default(false),
+  partnerReady: boolean("partner_ready").default(false),
+  internshipReady: boolean("internship_ready").default(false),
+  apprenticeshipReady: boolean("apprenticeship_ready").default(false),
+  totalProjects: integer("total_projects").default(0),
+  publishedProjects: integer("published_projects").default(0),
+  teacherEndorsements: integer("teacher_endorsements").default(0),
+  adminEndorsements: integer("admin_endorsements").default(0),
+  deadlinesMet: integer("deadlines_met").default(0),
+  deadlinesMissed: integer("deadlines_missed").default(0),
+  revisionCyclesTotal: integer("revision_cycles_total").default(0),
+  paidProjectsCompleted: integer("paid_projects_completed").default(0),
+  teamProjectsCompleted: integer("team_projects_completed").default(0),
+  topSkills: jsonb("top_skills"),
+  toolProficiency: jsonb("tool_proficiency"),
+  lastComputedAt: timestamp("last_computed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type WorkforceProfile = typeof workforceProfiles.$inferSelect;
+
+export const workforceEndorsements = pgTable("workforce_endorsements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endorserId: varchar("endorser_id").notNull().references(() => users.id),
+  endorserRole: text("endorser_role").notNull(),
+  skillCategory: text("skill_category").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceEndorsementSchema = createInsertSchema(workforceEndorsements).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkforceEndorsement = z.infer<typeof insertWorkforceEndorsementSchema>;
+export type WorkforceEndorsement = typeof workforceEndorsements.$inferSelect;
+
+// ==========================================
+// XP INGESTION RULES ENGINE
+// ==========================================
+
+export const XP_INGESTION_ACTIONS = ["auto_award", "hold_for_review", "deny", "translate_to_workforce"] as const;
+export type XpIngestionAction = typeof XP_INGESTION_ACTIONS[number];
+
+export const xpIngestionRules = pgTable("xp_ingestion_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceApp: text("source_app").notNull(),
+  eventType: text("event_type").notNull(),
+  action: text("action").notNull().default("auto_award"),
+  xpMultiplier: integer("xp_multiplier").default(1),
+  skillCategoryMapping: text("skill_category_mapping"),
+  maxXpPerEvent: integer("max_xp_per_event").default(100),
+  cooldownMinutes: integer("cooldown_minutes").default(0),
+  requiresVerification: boolean("requires_verification").default(false),
+  generateWorkforceSignal: boolean("generate_workforce_signal").default(false),
+  workforceSignalType: text("workforce_signal_type"),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertXpIngestionRuleSchema = createInsertSchema(xpIngestionRules).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertXpIngestionRule = z.infer<typeof insertXpIngestionRuleSchema>;
+export type XpIngestionRule = typeof xpIngestionRules.$inferSelect;
+
+export const XP_INGESTION_STATUSES = ["awarded", "held", "denied", "translated", "duplicate", "error"] as const;
+export type XpIngestionStatus = typeof XP_INGESTION_STATUSES[number];
+
+export const xpIngestionLog = pgTable("xp_ingestion_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceApp: text("source_app").notNull(),
+  sourceUserId: text("source_user_id"),
+  ecosystemUserId: varchar("ecosystem_user_id").references(() => users.id),
+  eventType: text("event_type").notNull(),
+  eventTimestamp: timestamp("event_timestamp"),
+  ruleId: varchar("rule_id").references(() => xpIngestionRules.id),
+  status: text("status").notNull(),
+  xpAwarded: integer("xp_awarded").default(0),
+  rawPayload: jsonb("raw_payload"),
+  deduplicationKey: text("deduplication_key"),
+  reviewNote: text("review_note"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type XpIngestionLog = typeof xpIngestionLog.$inferSelect;
+
+// ==========================================
+// APP HANDOFF / LAUNCH TICKETS
+// ==========================================
+
+export const launchTickets = pgTable("launch_tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceApp: text("source_app").notNull(),
+  targetApp: text("target_app").notNull(),
+  ticketToken: text("ticket_token").notNull().unique(),
+  context: jsonb("context").notNull(),
+  schoolSafePolicy: jsonb("school_safe_policy"),
+  consumed: boolean("consumed").default(false),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

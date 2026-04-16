@@ -102,6 +102,7 @@ const ApprenticeshipPage = lazy(() => import("@/pages/ApprenticeshipPage"));
 const ExternalToolSubmissions = lazy(() => import("@/pages/ExternalToolSubmissions"));
 const EcosystemPathways = lazy(() => import("@/pages/EcosystemPathways"));
 const EcosystemAdmin = lazy(() => import("@/pages/EcosystemAdmin"));
+const SchoolSafeAdmin = lazy(() => import("@/pages/SchoolSafeAdmin"));
 
 function LazyFallback() {
   return (
@@ -224,6 +225,7 @@ function ProtectedRouter() {
         <Route path="/ecosystem/external-tools" component={ExternalToolSubmissions} />
         <Route path="/ecosystem/pathways" component={EcosystemPathways} />
         <Route path="/admin/ecosystem" component={EcosystemAdmin} />
+        <Route path="/admin/school-safe" component={SchoolSafeAdmin} />
         <Route path="/battle" component={CardBattle} />
         <Route path="/social" component={SocialFeed} />
         <Route path="/profile" component={ProfileCard} />

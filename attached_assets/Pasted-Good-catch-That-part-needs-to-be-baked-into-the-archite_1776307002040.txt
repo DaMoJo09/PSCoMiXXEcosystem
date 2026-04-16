@@ -1,0 +1,912 @@
+Good catch. That part needs to be **baked into the architecture**, not stapled on later after some school admin asks whether your platform can accidentally turn into Lord of the Flies with plugins.
+
+Below are **three copy-paste briefs**:
+
+1. **Replit brief** for CoMiXX + Streaming + LMS
+2. **Lovable brief** for FX Studio
+3. **Tauri Hub brief** for MMM Hub
+
+I’ve included:
+
+* **school-safe mode**
+* **XP tied to workforce pipeline**
+* **outside-app XP ingestion/sync**
+* **cross-app buttons**
+* **shared auth**
+* **desktop + web fallback**
+
+---
+
+# REPLIT BRIEF
+
+## For CoMiXX + Streaming + LMS
+
+**Project Title:**
+MADMIXEDMEDIA Ecosystem Core Apps Integration Build
+(CoMiXX + Streaming + LMS)
+
+**Objective:**
+Transform CoMiXX, Streaming, and LMS into a unified ecosystem that works as both:
+
+1. web-based school-safe tools
+2. desktop-launchable apps through MMM Hub
+
+These apps must share:
+
+* authentication
+* user identity
+* project ownership
+* XP/progression
+* workforce readiness data
+* publish flows
+* school-safe controls
+* app-to-app navigation and handoff
+
+---
+
+## CORE PRODUCT DIRECTION
+
+This is not just a group of separate web apps.
+
+This is one ecosystem with different specialized applications:
+
+* **CoMiXX** = core creation app
+* **Streaming** = publishing, showcase, discovery, engagement, creator proof-of-work
+* **LMS** = curriculum, assignments, teacher dashboards, credential tracking
+
+Each app must feel like part of one platform and must include ecosystem navigation.
+
+---
+
+## GLOBAL REQUIREMENTS
+
+### 1. Shared Ecosystem Navigation
+
+In every app, create a persistent ecosystem nav/header/menu with buttons for:
+
+* Hub
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* Profile / XP / Projects
+
+Behavior:
+
+* In desktop mode, buttons should call deep-link routes for installed apps
+* In web mode, buttons should use browser routes/URLs
+* If destination app is not installed in desktop mode, redirect to MMM Hub install screen or download prompt
+
+---
+
+### 2. Shared Authentication
+
+Implement one shared authentication/session architecture across:
+
+* CoMiXX
+* Streaming
+* LMS
+* FX Studio
+* MMM Hub
+
+Requirements:
+
+* single sign-on
+* shared user profile
+* shared subscription/access tier
+* shared XP profile
+* shared portfolio/work history
+* shared school/teacher/student role handling
+
+User roles should support:
+
+* student
+* teacher
+* school admin
+* independent creator
+* workforce creator
+* ecosystem admin
+
+---
+
+### 3. School-Safe Mode
+
+This must be a system-level feature, not just a UI toggle.
+
+Create a **School Safe Mode** profile that can be enabled:
+
+* per school
+* per class
+* per teacher
+* per student account type
+* per organization
+
+School Safe Mode requirements:
+
+* disable or restrict public messaging/chat unless explicitly enabled
+* disable or restrict mature or unsafe content categories
+* restrict marketplace access unless approved
+* restrict external publishing destinations unless approved
+* restrict public creator profile visibility where needed
+* restrict remix/collab to teacher-approved or organization-approved environments
+* require moderated publishing flow for student work
+* allow teachers/admins to approve content before Streaming publication
+* support FERPA/COPPA-ready account logic and school-controlled visibility settings
+* allow separate school-safe asset packs, templates, and prompts
+* disable external user-to-student contact vectors by default
+* log moderation and approval actions for admin review
+
+Add configuration layers:
+
+* district-level policy
+* school-level policy
+* classroom-level policy
+* user-level exceptions
+
+---
+
+### 4. XP + Workforce Pipeline System
+
+Build the XP system as a cross-ecosystem identity and workforce signal.
+
+XP is not just gamification.
+XP must support:
+
+* learning progress
+* tool usage
+* published output
+* collaboration
+* teacher validation
+* portfolio development
+* workforce readiness
+* verified paid-work eligibility
+
+Create an **XP and Workforce Engine** with:
+
+#### XP Sources
+
+* time in app
+* lesson completion
+* assignment completion
+* save/export actions
+* content publishing
+* approved submissions
+* remix/collaboration actions
+* teacher verification
+* badge/certification completion
+* challenge participation
+* client/project completion
+* external app sync events
+
+#### Workforce Signals
+
+Track structured data for:
+
+* completed projects
+* project type
+* tools used
+* level of independence
+* teacher-reviewed work
+* published work
+* team participation
+* deadlines met
+* revision cycles completed
+* real-world production participation
+* paid contract participation
+* internship/apprenticeship readiness
+
+Create a **Skill Passport / Workforce Profile** that includes:
+
+* XP total
+* XP by skill category
+* verified competencies
+* tool proficiency
+* published works
+* teacher endorsements
+* admin endorsements
+* workforce eligibility flags
+* contract readiness tier
+* internal MMM creator eligibility
+* outside-partner readiness data
+
+---
+
+### 5. Outside-App XP Sync / External Data Intake
+
+The XP system must be open to receiving verified activity data from outside apps.
+
+Create an **External XP Ingestion API**.
+
+Requirements:
+
+* secure authenticated API/webhook endpoint
+* accepts structured activity payloads from approved external apps
+* supports source verification and API keys
+* supports deduplication to prevent duplicate XP awards
+* supports event logging and audit history
+* supports moderation/review for high-impact XP events
+* supports mapping external actions into internal XP categories
+
+Payload structure should support:
+
+* external app name
+* external app user identifier
+* mapped ecosystem user identifier
+* event type
+* event timestamp
+* duration if applicable
+* asset/project ID if applicable
+* action category
+* skill category
+* raw score/value
+* verification level
+* metadata blob
+
+Examples of external sync sources:
+
+* FX Studio
+* future desktop tools
+* partner tools
+* third-party creative tools
+* internal production tools
+* outside certification systems
+
+Create rules engine support for:
+
+* award XP automatically
+* hold XP pending review
+* deny XP if source unverified
+* translate external skill events into workforce indicators
+
+Also support:
+
+* inbound portfolio/project metadata
+* inbound certification completion events
+* inbound usage metrics for approved partner apps
+
+---
+
+## COMIXX REQUIREMENTS
+
+### Core Role
+
+CoMiXX is the central creative workspace.
+
+### Required Features
+
+* project creation and editing
+* comic / VN / CYOA / card / HOP support
+* save/export/publish pipeline
+* “Open in FX Studio” action
+* “Publish to Streaming” action
+* “Open LMS Assignment Context” action
+* project metadata tied to XP and workforce profile
+
+### CoMiXX to FX Flow
+
+Button: **Open in FX Studio**
+
+Pass:
+
+* user ID
+* session token or secure launch ticket
+* project ID
+* asset IDs
+* layer metadata
+* effect target
+* content type
+* school-safe mode flags
+* publish permissions
+
+### CoMiXX to Streaming Flow
+
+Button: **Publish to Streaming**
+
+Pass:
+
+* exported content
+* title
+* description
+* tags
+* creator info
+* school-safe flags
+* moderation status
+* XP event trigger
+* workforce portfolio flag
+
+---
+
+## STREAMING REQUIREMENTS
+
+### Core Role
+
+Streaming is the destination for:
+
+* published work
+* student showcase
+* creator showcase
+* HOP engagement
+* school channels
+* proof-of-work
+* audience/engagement data
+
+### Requirements
+
+* school-safe publishing mode
+* moderated school channels
+* creator channels
+* district/school/private/public visibility modes
+* content type tagging
+* leaderboard and XP hooks
+* portfolio linkage
+* remix/challenge support
+* teacher/admin approval tools
+* public/private toggle logic by account role
+
+Streaming must support:
+
+* student-safe school channels
+* workforce portfolio channels
+* creator-public channels
+* moderated comments/reactions based on policy
+
+### XP/Workforce Support
+
+Streaming events that should feed XP/workforce:
+
+* publish approved work
+* complete challenge
+* audience engagement milestones
+* school showcase participation
+* remix participation
+* event/festival submission
+* featured creator selection
+* teacher-endorsed publication
+
+---
+
+## LMS REQUIREMENTS
+
+### Core Role
+
+LMS is the structured learning and credential layer.
+
+### Requirements
+
+* assignments
+* pacing guides
+* lessons
+* rubrics
+* submissions
+* feedback
+* dashboard views
+* credential and badge tracking
+* school-safe workflows
+* teacher moderation and approval flows
+
+### LMS Launch Buttons
+
+Add:
+
+* **Launch in CoMiXX**
+* **Launch in FX Studio**
+* **View Published Work in Streaming**
+
+Pass:
+
+* assignment ID
+* lesson ID
+* starter assets
+* template type
+* rubric metadata
+* due dates
+* class/course context
+* school-safe rules
+
+### Workforce Layer
+
+LMS should track:
+
+* teacher validations
+* rubric performance
+* mastery progress
+* badge completion
+* certification readiness
+* career pathway alignment
+* project portfolio milestones
+
+---
+
+## BACKEND / DATA ARCHITECTURE
+
+Create shared services for:
+
+* auth/session
+* user profiles
+* XP engine
+* workforce engine
+* external XP ingestion
+* project metadata
+* publish pipeline
+* moderation workflow
+* school-safe policy engine
+* notifications
+* audit logs
+
+Must support:
+
+* multi-tenant organizations
+* district / school / classroom scopes
+* creator mode vs school mode
+* shared profile with role-based controls
+
+---
+
+## IMPORTANT PRODUCT RULES
+
+1. Build this so it works in both:
+
+* browser/web mode
+* desktop/hub mode
+
+2. Do not hardcode browser-only assumptions.
+
+3. All routes/actions should be abstracted so they can later launch installed desktop apps through MMM Hub.
+
+4. School-safe mode must affect data, permissions, and publishing behavior, not just UI visibility.
+
+5. XP must directly support the workforce implementation, not just visual levels.
+
+6. External apps must be able to securely send verified XP/work data into the ecosystem.
+
+---
+
+# LOVABLE BRIEF
+
+## For FX Studio
+
+**Project Title:**
+MADMIXEDMEDIA FX Studio Integration + School Safe + XP Sync Build
+
+**Objective:**
+Build FX Studio as a specialized ecosystem app that works as:
+
+* a standalone tool
+* a launch target from CoMiXX and LMS
+* a return path back into CoMiXX
+* a source of XP/workforce activity data
+* a school-safe compatible app
+* a future desktop-packaged app through MMM Hub
+
+---
+
+## CORE ROLE
+
+FX Studio is the dedicated motion/effects/animation tool in the ecosystem.
+
+It must feel like part of one family with:
+
+* CoMiXX
+* Streaming
+* LMS
+* MMM Hub
+
+This app should support:
+
+* import from CoMiXX
+* return to CoMiXX
+* publish HOPs to Streaming
+* LMS assignment launch
+* XP and workforce sync
+* school-safe controls
+* GitHub sync/export for broader ecosystem integration
+
+---
+
+## REQUIRED ECOSYSTEM NAV
+
+Add persistent nav/menu/buttons for:
+
+* Hub
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* Profile / XP / Projects
+
+Behavior:
+
+* desktop mode uses deep-link launch behavior
+* web mode uses browser route behavior
+
+---
+
+## SHARED AUTH + PROFILE
+
+FX Studio must use the shared ecosystem auth/session system.
+
+It must recognize:
+
+* user identity
+* role
+* subscription tier
+* organization/school
+* school-safe mode flags
+* XP profile
+* workforce eligibility flags
+
+---
+
+## SCHOOL SAFE MODE
+
+Implement system-aware school-safe behavior in FX Studio.
+
+Requirements:
+
+* approved asset libraries for school-safe environments
+* restricted effects/content categories in school mode
+* disabled unsafe upload/public-share paths in school mode unless approved
+* school-approved templates and presets
+* moderated publish-to-streaming flow for student accounts
+* restricted external collaboration/contact pathways
+* teacher/admin visibility where required
+* student-safe export/share rules
+
+Make school-safe mode configurable by:
+
+* organization
+* class/course
+* user role
+
+---
+
+## APP HANDOFF FLOWS
+
+### Launch from CoMiXX
+
+Support receiving:
+
+* project ID
+* source asset(s)
+* layer data
+* effect target
+* content type
+* user identity
+* school-safe policy data
+* launch context
+
+### Return to CoMiXX
+
+Button: **Send Back to CoMiXX**
+
+Return:
+
+* rendered asset
+* edited sequence
+* animation metadata
+* preview image/video
+* placement instructions
+* school-safe compliance status
+* XP event payload
+
+### Publish to Streaming
+
+Button: **Publish HoP to Streaming**
+
+Send:
+
+* content export
+* metadata
+* creator/project info
+* school-safe flags
+* moderation status
+* XP trigger
+* workforce portfolio marker
+
+### Launch from LMS
+
+Button/flow support:
+
+* open assignment in FX
+* receive lesson context
+* receive rubric metadata
+* receive starter assets
+* receive class-safe restrictions
+
+---
+
+## XP + WORKFORCE DATA SUPPORT
+
+FX Studio must generate structured XP/workforce events.
+
+Create event outputs for:
+
+* time active
+* project started
+* project saved
+* asset completed
+* animation/effect completed
+* assignment completed
+* approved publish
+* challenge completion
+* revision cycle completed
+* team/project participation
+
+Each event should support sending:
+
+* user ID
+* source app = FX Studio
+* project ID
+* event type
+* timestamp
+* duration
+* skill category
+* output category
+* verification level
+* metadata
+
+FX Studio must be able to:
+
+* send these events to the shared ecosystem XP API
+* retry failed syncs
+* avoid duplicate events
+* support queued sync if offline or temporarily disconnected
+
+This is critical:
+FX Studio must not be a dead-end app.
+It must actively contribute to the shared XP + workforce profile.
+
+---
+
+## GITHUB / OWNERSHIP / EXPORT
+
+Lovable must keep this project GitHub-synced and portable.
+
+Requirements:
+
+* GitHub sync/export
+* shared design system compatibility
+* shared auth compatibility
+* shared API compatibility
+* future Tauri/Electron packaging compatibility
+* maintainable code structure for broader ecosystem integration
+
+---
+
+## IMPORTANT PRODUCT RULES
+
+1. Do not build FX Studio as a disconnected one-off.
+2. It must behave as a full member of the ecosystem.
+3. It must support school-safe mode deeply, not cosmetically.
+4. It must send structured XP/workforce data into the shared system.
+5. It must accept incoming launch context from CoMiXX and LMS.
+6. It must be portable for future desktop packaging through MMM Hub.
+
+---
+
+# TAURI HUB BRIEF
+
+## For MMM Hub
+
+**Project Title:**
+MMM Hub Desktop Launcher and Ecosystem Controller
+
+**Objective:**
+Build MMM Hub as the downloadable desktop front door for the MADMIXEDMEDIA ecosystem.
+
+MMM Hub should function like:
+
+* launcher
+* updater
+* installer
+* ecosystem controller
+* account/profile center
+* XP/workforce dashboard
+* deep-link router
+* app state coordinator
+
+It should connect:
+
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* future ecosystem apps
+
+---
+
+## CORE EXPERIENCE
+
+User journey:
+
+1. visit MMM website
+2. download MMM Hub
+3. install MMM Hub
+4. log in once
+5. install/open ecosystem apps
+6. move between apps using shared buttons and deep links
+7. sync projects, XP, and profile progress across all apps
+
+---
+
+## HUB FEATURES
+
+### 1. App Launcher
+
+Support installing, uninstalling, launching, and updating:
+
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* future apps
+
+### 2. Shared Login
+
+One login for all apps.
+
+### 3. Ecosystem Dashboard
+
+Display:
+
+* recent projects
+* installed apps
+* available updates
+* XP totals
+* XP by category
+* badges/certifications
+* workforce readiness status
+* contract eligibility flags
+* notifications
+* school/org context
+
+### 4. Deep-Link Routing
+
+Register routes like:
+
+* `mmm://hub`
+* `mmm://comixx/open?project=ID`
+* `mmm://fx/open?project=ID`
+* `mmm://streaming/publish?content=ID`
+* `mmm://lms/assignment?lesson=ID`
+
+### 5. Web/Desktop Bridge
+
+If app is installed:
+
+* open installed app
+
+If app is not installed:
+
+* prompt install or open web version
+
+---
+
+## SCHOOL SAFE SUPPORT
+
+MMM Hub must support organization-aware safe mode.
+
+Requirements:
+
+* detect school-managed accounts
+* apply organization policy
+* pass school-safe mode flags to launched apps
+* display policy-restricted install/use states if necessary
+* show teacher/admin-managed environment labels where relevant
+* support separate app availability by account type
+
+Examples:
+
+* student accounts may not install/open public creator mode surfaces without approval
+* school accounts may default to moderated visibility
+* public creator tools may be hidden or gated under school policies
+
+---
+
+## XP + WORKFORCE DASHBOARD
+
+MMM Hub should become the visible home for progression.
+
+Display:
+
+* total XP
+* XP by tool
+* XP by skill category
+* verified projects
+* badges/certifications
+* teacher validations
+* published works
+* workforce readiness score/tier
+* contract eligibility
+* apprenticeship/internship milestones
+* partner opportunity flags in future
+
+This is where the system shows:
+**you are not just leveling up, you are becoming eligible for real work.**
+
+---
+
+## EXTERNAL DATA SUPPORT
+
+MMM Hub must work with the shared external XP/workforce ingestion system.
+
+Requirements:
+
+* display synced XP from outside apps
+* show external tool contributions in user profile
+* maintain audit visibility of source apps
+* support reconciliation if duplicate/out-of-order data arrives
+* support future connector integrations
+
+---
+
+## APP COMMUNICATION RULES
+
+All ecosystem apps should be launchable from Hub.
+
+Hub must:
+
+* receive app launch requests
+* pass auth/session launch context
+* pass project/user context when needed
+* receive completion/status callbacks where applicable
+* update recent projects and activity feed
+
+---
+
+## FUTURE-READY REQUIREMENTS
+
+Design MMM Hub to support:
+
+* plugins/extensions in future
+* asset marketplace in future
+* school deployment bundles in future
+* installer packages for Windows/macOS
+* optional offline caching/local sync in future
+
+---
+
+# WHAT YOU SHOULD SEND WHERE
+
+## Send to Replit:
+
+the **Replit brief** above
+
+## Send to Lovable:
+
+the **Lovable brief** above
+
+## For the Hub:
+
+this is the **Tauri brief**
+If you don’t yet have a team or tool working on the Hub, keep it ready as the next build phase.
+
+---
+
+# My blunt recommendation on rollout
+
+Do this in order:
+
+### Phase 1
+
+Replit + Lovable:
+
+* shared nav buttons
+* shared auth
+* school-safe mode
+* XP/workforce engine
+* outside-app XP ingestion
+* app handoff flows
+
+### Phase 2
+
+Tauri Hub:
+
+* installer/launcher/updater
+* deep links
+* ecosystem dashboard
+
+That way you’re not waiting for the Hub to exist before the ecosystem starts behaving like an ecosystem, because that would be a deeply human way to stall yourself.
+
+If you want, next I’ll turn these into:
+**three tighter one-message copy-paste prompts** written in the exact style Replit, Lovable, and a Hub builder can digest fast.

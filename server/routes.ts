@@ -10843,36 +10843,8 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
   // ==========================================
   // ECOSYSTEM: CROSS-PLATFORM INGESTION (for LMS/Streaming)
+  // Consolidated into XP Ingestion Engine routes below
   // ==========================================
-
-  app.post("/api/ecosystem/ingest/xp", async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || authHeader !== `Bearer ${process.env.ECOSYSTEM_JWT_SECRET}`) {
-        return res.status(401).json({ error: "Invalid ecosystem token" });
-      }
-      const { userId, action, category, xpAmount, source, sourceApp, toolUsed, eventKey, metadata } = req.body;
-      if (!userId || !action || !xpAmount) {
-        return res.status(400).json({ error: "userId, action, and xpAmount are required" });
-      }
-
-      const { recordXpEvent } = await import('./xpEngine');
-      const result = await recordXpEvent({
-        userId,
-        action,
-        category: category || 'external',
-        xpAmount,
-        source: source || 'external',
-        sourceApp: sourceApp || 'external',
-        toolUsed,
-        eventKey,
-        metadata,
-      });
-      res.json(result);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   app.post("/api/ecosystem/ingest/passport-entry", async (req, res) => {
     try {
@@ -10886,6 +10858,427 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ============================================
+  // SCHOOL-SAFE POLICY ENGINE ROUTES
+  // ============================================
+
+  app.get("/api/school-safe/effective-policy", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { resolveEffectivePolicy } = await import("./schoolSafeEngine");
+      const policy = await resolveEffectivePolicy(req.user!.id);
+      res.json(policy);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/school-safe/policies/:schoolId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    const user = req.user!;
+    if (user.role !== "admin" && user.role !== "teacher") return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { getPoliciesForSchool } = await import("./schoolSafeEngine");
+      const policies = await getPoliciesForSchool(req.params.schoolId);
+      res.json(policies);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/school-safe/policies", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    const user = req.user!;
+    if (user.role !== "admin" && user.role !== "teacher") return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { createPolicy } = await import("./schoolSafeEngine");
+      const policy = await createPolicy({ ...req.body, createdBy: user.id });
+      res.json(policy);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/school-safe/policies/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    const user = req.user!;
+    if (user.role !== "admin" && user.role !== "teacher") return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { updatePolicy } = await import("./schoolSafeEngine");
+      const policy = await updatePolicy(req.params.id, req.body);
+      if (!policy) return res.status(404).json({ error: "Policy not found" });
+      res.json(policy);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/school-safe/policies/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const { deletePolicy } = await import("./schoolSafeEngine");
+      const deleted = await deletePolicy(req.params.id);
+      res.json({ deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // WORKFORCE PIPELINE + SKILL PASSPORT ROUTES
+  // ============================================
+
+  app.get("/api/workforce/profile", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { getWorkforceProfile, recomputeProfile } = await import("./workforceEngine");
+      let profile = await getWorkforceProfile(req.user!.id);
+      if (!profile) profile = await recomputeProfile(req.user!.id);
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/workforce/passport", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { getSkillPassport } = await import("./workforceEngine");
+      const passport = await getSkillPassport(req.user!.id);
+      res.json(passport);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/workforce/passport/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    const user = req.user!;
+    if (user.role !== "admin" && user.role !== "teacher") return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { getSkillPassport } = await import("./workforceEngine");
+      const passport = await getSkillPassport(req.params.userId);
+      res.json(passport);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/workforce/signal", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { recordWorkforceSignal } = await import("./workforceEngine");
+      const signal = await recordWorkforceSignal({ ...req.body, userId: req.user!.id });
+      res.json(signal);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/workforce/endorse", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    const user = req.user!;
+    if (user.role !== "admin" && user.role !== "teacher") return res.status(403).json({ error: "Only teachers and admins can endorse" });
+    try {
+      const { addEndorsement } = await import("./workforceEngine");
+      const endorsement = await addEndorsement({
+        ...req.body,
+        endorserId: user.id,
+        endorserRole: user.role,
+      });
+      res.json(endorsement);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/workforce/recompute", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { recomputeProfile } = await import("./workforceEngine");
+      const profile = await recomputeProfile(req.user!.id);
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // XP INGESTION ENGINE ROUTES
+  // ============================================
+
+  app.post("/api/ecosystem/ingest/xp", async (req, res) => {
+    try {
+      const apiKey = req.headers["x-api-key"] || req.headers["apikey"];
+      const webhookSecret = req.headers["x-webhook-secret"];
+      const authHeader = req.headers.authorization;
+
+      const validKeys = [
+        process.env.FX_STUDIO_API_KEY,
+        process.env.PSLMS_API_KEY,
+        process.env.PSSTREAMING_SECRET,
+        process.env.ECOSYSTEM_JWT_SECRET,
+      ].filter(Boolean);
+
+      const providedKey = apiKey || webhookSecret || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null);
+      if (!providedKey || !validKeys.includes(providedKey as string)) {
+        return res.status(401).json({ error: "Invalid API key" });
+      }
+
+      const { ingestExternalXp } = await import("./xpIngestionEngine");
+      const result = await ingestExternalXp(req.body);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/ingest/xp/review", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const { reviewHeldEvent } = await import("./xpIngestionEngine");
+      const result = await reviewHeldEvent(req.body.logId, req.body.action, req.user!.id, req.body.note);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/ingest/log", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const { getIngestionLog } = await import("./xpIngestionEngine");
+      const log = await getIngestionLog({
+        sourceApp: req.query.sourceApp as string,
+        status: req.query.status as string,
+        userId: req.query.userId as string,
+        limit: req.query.limit ? Number(req.query.limit) : 50,
+      });
+      res.json(log);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ecosystem/ingest/rules", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const result = await db.execute(sql.raw(`SELECT * FROM xp_ingestion_rules ORDER BY source_app, event_type`));
+      res.json((result as any).rows || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/ecosystem/ingest/rules", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const { sourceApp, eventType, action, xpMultiplier, maxXpPerEvent, cooldownMinutes, requiresVerification, generateWorkforceSignal, workforceSignalType } = req.body;
+      const result = await db.execute(sql.raw(`
+        INSERT INTO xp_ingestion_rules (source_app, event_type, action, xp_multiplier, max_xp_per_event, cooldown_minutes, requires_verification, generate_workforce_signal, workforce_signal_type)
+        VALUES ('${sourceApp}', '${eventType}', '${action || "auto_award"}', ${xpMultiplier || 1}, ${maxXpPerEvent || 100}, ${cooldownMinutes || 0}, ${requiresVerification || false}, ${generateWorkforceSignal || false}, ${workforceSignalType ? `'${workforceSignalType}'` : "NULL"})
+        RETURNING *
+      `));
+      res.json((result as any).rows[0]);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // APP HANDOFF / LAUNCH TICKET ROUTES
+  // ============================================
+
+  app.post("/api/handoff/prepare", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { targetApp, context } = req.body;
+      if (!targetApp) return res.status(400).json({ error: "targetApp required" });
+
+      const { resolveEffectivePolicy } = await import("./schoolSafeEngine");
+      const policy = await resolveEffectivePolicy(req.user!.id);
+
+      const crypto = await import("crypto");
+      const ticketToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      await db.execute(sql.raw(`
+        INSERT INTO launch_tickets (user_id, source_app, target_app, ticket_token, context, school_safe_policy, expires_at)
+        VALUES ('${req.user!.id}', 'comixx', '${targetApp}', '${ticketToken}', '${JSON.stringify(context || {}).replace(/'/g, "''")}'::jsonb, '${JSON.stringify(policy).replace(/'/g, "''")}'::jsonb, '${expiresAt.toISOString()}')
+      `));
+
+      const { getEcosystemDomains } = await import("./sso");
+      const domains = getEcosystemDomains();
+      const targetDomain = (domains as any)[targetApp];
+
+      res.json({
+        ticketToken,
+        targetApp,
+        targetUrl: targetDomain ? `${targetDomain}/handoff?ticket=${ticketToken}` : null,
+        expiresAt: expiresAt.toISOString(),
+        schoolSafeActive: policy.schoolSafeActive,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/handoff/consume", async (req, res) => {
+    try {
+      const { ticketToken } = req.body;
+      if (!ticketToken) return res.status(400).json({ error: "ticketToken required" });
+
+      const result = await db.execute(sql.raw(`
+        UPDATE launch_tickets SET consumed = true
+        WHERE ticket_token = '${ticketToken}' AND consumed = false AND expires_at > NOW()
+        RETURNING *
+      `));
+
+      const ticket = (result as any).rows?.[0];
+      if (!ticket) return res.status(404).json({ error: "Invalid or expired ticket" });
+
+      const userResult = await db.execute(sql.raw(`SELECT id, email, name, role, account_type, xp, level FROM users WHERE id = '${ticket.user_id}'`));
+      const user = (userResult as any).rows?.[0];
+
+      res.json({
+        user,
+        context: ticket.context,
+        schoolSafePolicy: ticket.school_safe_policy,
+        sourceApp: ticket.source_app,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // CLASSROOM MANAGEMENT ROUTES
+  // ============================================
+
+  app.get("/api/classrooms", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const result = await db.execute(sql.raw(`
+        SELECT c.*, cm.role AS member_role FROM classrooms c
+        JOIN classroom_memberships cm ON cm.classroom_id = c.id
+        WHERE cm.user_id = '${req.user!.id}'
+        ORDER BY c.created_at DESC
+      `));
+      res.json((result as any).rows || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/classrooms", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "teacher" && req.user!.role !== "admin") return res.status(403).json({ error: "Teachers/admins only" });
+    try {
+      const { schoolId, name, gradeLevel, subject } = req.body;
+      const crypto = await import("crypto");
+      const joinCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+      const result = await db.execute(sql.raw(`
+        INSERT INTO classrooms (school_id, teacher_id, name, grade_level, subject, join_code)
+        VALUES ('${schoolId}', '${req.user!.id}', '${name.replace(/'/g, "''")}', ${gradeLevel ? `'${gradeLevel}'` : "NULL"}, ${subject ? `'${subject}'` : "NULL"}, '${joinCode}')
+        RETURNING *
+      `));
+
+      const classroom = (result as any).rows[0];
+
+      await db.execute(sql.raw(`
+        INSERT INTO classroom_memberships (classroom_id, user_id, role)
+        VALUES ('${classroom.id}', '${req.user!.id}', 'teacher')
+      `));
+
+      res.json(classroom);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/classrooms/join", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      const { joinCode } = req.body;
+      const classResult = await db.execute(sql.raw(`SELECT * FROM classrooms WHERE join_code = '${joinCode}'`));
+      const classroom = (classResult as any).rows?.[0];
+      if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+
+      await db.execute(sql.raw(`
+        INSERT INTO classroom_memberships (classroom_id, user_id, role)
+        VALUES ('${classroom.id}', '${req.user!.id}', 'student')
+        ON CONFLICT DO NOTHING
+      `));
+
+      res.json(classroom);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/classrooms/:id/students", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "teacher" && req.user!.role !== "admin") return res.status(403).json({ error: "Teachers/admins only" });
+    try {
+      const result = await db.execute(sql.raw(`
+        SELECT u.id, u.name, u.email, u.xp, u.level, u.creator_class, cm.role, cm.joined_at
+        FROM classroom_memberships cm
+        JOIN users u ON u.id = cm.user_id
+        WHERE cm.classroom_id = '${req.params.id}'
+        ORDER BY u.name ASC
+      `));
+      res.json((result as any).rows || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // DISTRICT MANAGEMENT ROUTES
+  // ============================================
+
+  app.get("/api/districts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const result = await db.execute(sql.raw(`SELECT * FROM districts ORDER BY name ASC`));
+      res.json((result as any).rows || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/districts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
+    if (req.user!.role !== "admin") return res.status(403).json({ error: "Admin only" });
+    try {
+      const { name, contactEmail, state, country } = req.body;
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "");
+      const result = await db.execute(sql.raw(`
+        INSERT INTO districts (name, slug, contact_email, state, country)
+        VALUES ('${name.replace(/'/g, "''")}', '${slug}', ${contactEmail ? `'${contactEmail}'` : "NULL"}, ${state ? `'${state}'` : "NULL"}, ${country ? `'${country}'` : "NULL"})
+        RETURNING *
+      `));
+      res.json((result as any).rows[0]);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  try {
+    const { seedDefaultRules } = await import("./xpIngestionEngine");
+    await seedDefaultRules();
+    console.log("[xp-ingestion] Default rules seeded");
+  } catch (err: any) {
+    console.error("[xp-ingestion] Seed error:", err.message);
+  }
 
   return server;
 }

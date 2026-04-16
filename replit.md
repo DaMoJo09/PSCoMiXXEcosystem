@@ -96,7 +96,7 @@ Three-platform connected creative education + publishing + workforce operating s
 - **Press Start LMS (pressstart.tech):** Learning pathways, lessons, certifications
 - **Press Start Streaming (psstreaming.com):** Content distribution, creator channels, school stations
 
-**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`, `sync_queue`, `sync_logs`, `sso_audit_log`
+**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`, `sync_queue`, `sync_logs`, `sso_audit_log`, `school_safe_policies`, `districts`, `classrooms`, `classroom_memberships`, `policy_audit_log`, `workforce_signals`, `workforce_profiles`, `workforce_endorsements`, `xp_ingestion_rules`, `xp_ingestion_log`, `launch_tickets`
 
 **Ecosystem API Routes (`/api/ecosystem/`):**
 - XP: `POST /xp/event`, `GET /xp/breakdown`, `GET /xp/events`
@@ -121,7 +121,14 @@ Three-platform connected creative education + publishing + workforce operating s
 
 **Ecosystem User Fields:** `ecosystemRole` (learner→lead), `conductScore`, `reliabilityScore`, `mentorId`
 
-**Frontend Pages:** SkillPassportPage, ApprenticeshipPage, ExternalToolSubmissions, EcosystemPathways, EcosystemAdmin
+**Frontend Pages:** SkillPassportPage (with Workforce tab), ApprenticeshipPage, ExternalToolSubmissions, EcosystemPathways, EcosystemAdmin, SchoolSafeAdmin (`/admin/school-safe`)
+
+**Phase 1 Engines:**
+- **School-Safe Policy Engine** (`server/schoolSafeEngine.ts`): District→school→classroom→user cascade policy resolution. Controls messaging, content categories, marketplace, publishing, profile visibility, remix/collab, moderation, external contact.
+- **Workforce Pipeline** (`server/workforceEngine.ts`): Signal recording, tier recomputation (exploring→professional), skill passport, endorsements. APIs: `/api/workforce/profile`, `/api/workforce/passport`, `/api/workforce/signal`, `/api/workforce/endorse`.
+- **XP Ingestion Rules Engine** (`server/xpIngestionEngine.ts`): Rules-based external XP processing with deduplication, cooldown, hold/deny/translate/award actions. Seed defaults at startup. Unified `/api/ecosystem/ingest/xp` route.
+- **App Handoff Flows** (`useHandoff.ts` hook): Secure launch tickets for CoMiXX↔FX Studio, CoMiXX→Streaming, LMS→CoMiXX. `POST /api/handoff/prepare` + `POST /api/handoff/consume`.
+- **Ecosystem Navigation** (`EcosystemNav.tsx`): Hub/CoMiXX/FX/Streaming/LMS bar with SSO-aware navigation, desktop hub mode detection.
 
 **XP Hooks:** HopCreator fires XP events on project create, save, export, and publish.
 

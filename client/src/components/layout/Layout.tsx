@@ -7,6 +7,7 @@ import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { AppIcon, AppIconInline } from "@/components/ui/app-icon";
 import { BugReportButton } from "@/components/BugReportDialog";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import { EcosystemNav } from "./EcosystemNav";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -72,9 +73,11 @@ export function Layout({ children }: LayoutProps) {
         Skip to main content
       </a>
 
+      <EcosystemNav />
+
       {!isMobile && (
         <div
-          className="fixed left-0 top-0 h-screen z-50 hidden md:block"
+          className="fixed left-0 top-8 h-[calc(100vh-2rem)] z-50 hidden md:block"
           onMouseEnter={() => setSidebarHovered(true)}
           onMouseLeave={() => setSidebarHovered(false)}
           style={{ width: isExpanded ? "16rem" : "3rem" }}

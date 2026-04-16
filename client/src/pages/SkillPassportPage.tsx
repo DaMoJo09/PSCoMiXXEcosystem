@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Shield, Award, Star, TrendingUp, Briefcase, BookOpen, Zap, ChevronRight, ExternalLink } from "lucide-react";
+import { Shield, Award, Star, TrendingUp, Briefcase, BookOpen, Zap, ChevronRight, ExternalLink, CheckCircle, AlertCircle, Clock, Users } from "lucide-react";
 
 interface PassportData {
   user: {
@@ -38,7 +38,7 @@ export default function SkillPassportPage() {
   const [passport, setPassport] = useState<PassportData | null>(null);
   const [eligibility, setEligibility] = useState<EligibilityData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "entries" | "competencies" | "xp" | "ladder">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "entries" | "competencies" | "xp" | "ladder" | "workforce">("overview");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -106,7 +106,7 @@ export default function SkillPassportPage() {
           </div>
 
           <div className="flex gap-1 mb-6 border-b border-zinc-800">
-            {(["overview", "entries", "competencies", "xp", "ladder"] as const).map(tab => (
+            {(["overview", "entries", "competencies", "xp", "ladder", "workforce"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -221,6 +221,10 @@ export default function SkillPassportPage() {
           {activeTab === "ladder" && eligibility && (
             <WorkforceLadder eligibility={eligibility} />
           )}
+
+          {activeTab === "workforce" && (
+            <WorkforceTab />
+          )}
         </div>
       </div>
     </Layout>
@@ -256,6 +260,111 @@ function XpBreakdownTab() {
         </div>
       )) : (
         <p className="text-zinc-600 text-center py-8">No XP events yet.</p>
+      )}
+    </div>
+  );
+}
+
+const TIER_CONFIG: Record<string, { label: string; color: string }> = {
+  exploring: { label: "Exploring", color: "text-zinc-400" },
+  developing: { label: "Developing", color: "text-blue-400" },
+  proficient: { label: "Proficient", color: "text-emerald-400" },
+  advanced: { label: "Advanced", color: "text-amber-400" },
+  professional: { label: "Professional", color: "text-purple-400" },
+};
+
+function WorkforceTab() {
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/workforce/passport", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setProfile(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-zinc-500 text-center py-8">Loading workforce data...</div>;
+  if (!profile) return <div className="text-zinc-500 text-center py-8">No workforce data available yet.</div>;
+
+  const p = profile.profile || {};
+  const tier = TIER_CONFIG[p.readiness_tier || "exploring"] || TIER_CONFIG.exploring;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-zinc-900 border border-zinc-800 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold flex items-center gap-2"><Briefcase className="w-4 h-4" /> Workforce Readiness</h3>
+          <span className={`text-sm font-bold ${tier.color}`} data-testid="text-workforce-tier">{tier.label}</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            { label: "Contract Ready", active: p.contract_ready },
+            { label: "MMM Creator", active: p.mmm_creator_eligible },
+            { label: "Partner Ready", active: p.partner_ready },
+            { label: "Internship Ready", active: p.internship_ready },
+            { label: "Apprenticeship", active: p.apprenticeship_ready },
+          ].map((b, i) => (
+            <div key={i} className={`flex items-center gap-2 px-3 py-2 border ${b.active ? "border-zinc-700 bg-zinc-800" : "border-zinc-800 bg-zinc-900/50"}`}>
+              {b.active ? <CheckCircle className="w-3.5 h-3.5 text-white" /> : <AlertCircle className="w-3.5 h-3.5 text-zinc-700" />}
+              <span className={`text-xs ${b.active ? "text-white" : "text-zinc-600"}`}>{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 p-4">
+          <h4 className="text-zinc-400 text-xs font-bold mb-3">STATS</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div><div className="text-xl font-bold text-white">{p.total_projects || 0}</div><div className="text-[10px] text-zinc-600">Total Projects</div></div>
+            <div><div className="text-xl font-bold text-white">{p.published_projects || 0}</div><div className="text-[10px] text-zinc-600">Published</div></div>
+            <div><div className="text-xl font-bold text-white">{p.team_projects_completed || 0}</div><div className="text-[10px] text-zinc-600">Team Projects</div></div>
+            <div><div className="text-xl font-bold text-white">{p.paid_projects_completed || 0}</div><div className="text-[10px] text-zinc-600">Paid Projects</div></div>
+            <div><div className="text-xl font-bold text-white">{p.deadlines_met || 0}</div><div className="text-[10px] text-zinc-600">Deadlines Met</div></div>
+            <div><div className="text-xl font-bold text-white">{p.teacher_endorsements || 0}</div><div className="text-[10px] text-zinc-600">Endorsements</div></div>
+          </div>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 p-4">
+          <h4 className="text-zinc-400 text-xs font-bold mb-3">TOP SKILLS</h4>
+          {(p.top_skills || []).length === 0 && <p className="text-zinc-600 text-xs">Complete projects to build skill signals</p>}
+          {(p.top_skills || []).slice(0, 8).map((s: any, i: number) => (
+            <div key={i} className="flex items-center justify-between py-1 border-b border-zinc-800 last:border-0">
+              <span className="text-zinc-300 text-sm">{s.skill}</span>
+              <span className="text-zinc-500 text-xs">{s.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {(profile.teacherEndorsements || []).length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 p-4">
+          <h4 className="text-zinc-400 text-xs font-bold mb-3">ENDORSEMENTS</h4>
+          {profile.teacherEndorsements.map((e: any, i: number) => (
+            <div key={i} className="py-2 border-b border-zinc-800 last:border-0">
+              <div className="flex items-center gap-1 text-sm">
+                <Users className="w-3 h-3 text-zinc-500" />
+                <span className="text-zinc-300">{e.skill_category}</span>
+                <span className="text-zinc-600 text-xs ml-auto">{e.endorser_role}</span>
+              </div>
+              {e.comment && <p className="text-zinc-500 text-xs mt-0.5">{e.comment}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(profile.recentSignals || []).length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 p-4">
+          <h4 className="text-zinc-400 text-xs font-bold mb-3">RECENT SIGNALS</h4>
+          {profile.recentSignals.slice(0, 10).map((s: any, i: number) => (
+            <div key={i} className="flex items-center gap-2 text-xs py-1 border-b border-zinc-800/50 last:border-0">
+              <Clock className="w-3 h-3 text-zinc-700" />
+              <span className="text-zinc-400">{s.signal_type?.replace(/_/g, " ")}</span>
+              {s.source_app && <span className="text-zinc-600">via {s.source_app}</span>}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
