@@ -21,6 +21,8 @@ interface ExportMetadata {
   streamingUrl?: string;
 }
 
+type HopMode = "still" | "pan" | "video";
+
 interface HopExportPanelProps {
   scenes: HopScene[];
   title: string;
@@ -30,19 +32,24 @@ interface HopExportPanelProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   onClose: () => void;
   renderCanvas: () => HTMLDivElement | null;
+  hopMode?: HopMode;
+  panoramaUrl?: string;
 }
 
-type ExportFormat = "tiktok" | "youtube_short" | "youtube_standard" | "square" | "cover_art" | "poster" | "story_card" | "qr_code";
+type ExportFormat = "tiktok" | "youtube_short" | "youtube_standard" | "square" | "cover_art" | "poster" | "story_card" | "qr_code" | "png_still" | "gif_excerpt" | "gif_pan";
 
-const EXPORT_FORMATS: { id: ExportFormat; label: string; dims: string; type: "video" | "image"; icon: typeof Film; premium: boolean }[] = [
-  { id: "tiktok", label: "TikTok / Reels", dims: "1080x1920", type: "video", icon: Smartphone, premium: false },
-  { id: "youtube_short", label: "YouTube Shorts", dims: "1080x1920", type: "video", icon: Smartphone, premium: false },
-  { id: "youtube_standard", label: "YouTube Standard", dims: "1920x1080", type: "video", icon: Monitor, premium: true },
-  { id: "square", label: "Square (IG/X)", dims: "1080x1080", type: "video", icon: Square, premium: true },
-  { id: "cover_art", label: "Cover Art", dims: "1080x1080", type: "image", icon: ImageIcon, premium: false },
-  { id: "poster", label: "Poster", dims: "1080x1350", type: "image", icon: FileImage, premium: true },
-  { id: "story_card", label: "Story Card", dims: "1080x1920", type: "image", icon: Columns, premium: true },
-  { id: "qr_code", label: "QR Code", dims: "512x512", type: "image", icon: QrCode, premium: false },
+const ALL_EXPORT_FORMATS: { id: ExportFormat; label: string; dims: string; type: "video" | "image"; icon: typeof Film; premium: boolean; modes: HopMode[] }[] = [
+  { id: "png_still", label: "PNG Still", dims: "1920x1080", type: "image", icon: ImageIcon, premium: false, modes: ["still", "pan"] },
+  { id: "gif_excerpt", label: "GIF Excerpt", dims: "1080x1080", type: "image", icon: FileImage, premium: false, modes: ["still", "pan"] },
+  { id: "gif_pan", label: "GIF Pan Sweep", dims: "1920x400", type: "image", icon: Columns, premium: false, modes: ["pan"] },
+  { id: "tiktok", label: "TikTok / Reels", dims: "1080x1920", type: "video", icon: Smartphone, premium: false, modes: ["video", "pan"] },
+  { id: "youtube_short", label: "YouTube Shorts", dims: "1080x1920", type: "video", icon: Smartphone, premium: false, modes: ["video", "pan"] },
+  { id: "youtube_standard", label: "YouTube Standard", dims: "1920x1080", type: "video", icon: Monitor, premium: true, modes: ["video"] },
+  { id: "square", label: "Square (IG/X)", dims: "1080x1080", type: "video", icon: Square, premium: true, modes: ["video"] },
+  { id: "cover_art", label: "Cover Art", dims: "1080x1080", type: "image", icon: ImageIcon, premium: false, modes: ["still", "video"] },
+  { id: "poster", label: "Poster", dims: "1080x1350", type: "image", icon: FileImage, premium: true, modes: ["still", "video"] },
+  { id: "story_card", label: "Story Card", dims: "1080x1920", type: "image", icon: Columns, premium: true, modes: ["still", "video"] },
+  { id: "qr_code", label: "QR Code", dims: "512x512", type: "image", icon: QrCode, premium: false, modes: ["still", "pan", "video"] },
 ];
 
 function generateQRCode(url: string, size: number): string {
@@ -107,9 +114,11 @@ function generateSocialCopy(scenes: HopScene[], title: string): { caption: strin
 }
 
 export default function HopExportPanel({
-  scenes, title, projectId, totalDuration, userTier, canvasRef, onClose, renderCanvas,
+  scenes, title, projectId, totalDuration, userTier, canvasRef, onClose, renderCanvas, hopMode = "video", panoramaUrl,
 }: HopExportPanelProps) {
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("tiktok");
+  const EXPORT_FORMATS = ALL_EXPORT_FORMATS.filter(f => f.modes.includes(hopMode));
+  const defaultFormat = EXPORT_FORMATS[0]?.id || "cover_art";
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>(defaultFormat);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showSocialCopy, setShowSocialCopy] = useState(false);
@@ -119,7 +128,7 @@ export default function HopExportPanel({
   const exportLimit = isPremium ? Infinity : 3;
   const showWatermark = !isPremium;
 
-  const formatInfo = EXPORT_FORMATS.find(f => f.id === selectedFormat)!;
+  const formatInfo = EXPORT_FORMATS.find(f => f.id === selectedFormat) || EXPORT_FORMATS[0];
   const socialCopy = generateSocialCopy(scenes, title);
   const streamingUrl = projectId ? `https://psstreaming.online/hop/${projectId}` : "";
 
@@ -263,6 +272,55 @@ export default function HopExportPanel({
     toast.success("QR code exported");
   }, [streamingUrl, title]);
 
+  const handleExportPanPng = useCallback(async () => {
+    if (!panoramaUrl) { toast.error("Build a panorama in Stitch Mode first"); return; }
+    setExporting(true);
+    setProgress(0);
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = panoramaUrl;
+      });
+      setProgress(50);
+      const link = document.createElement("a");
+      link.download = `${title.replace(/[^a-z0-9]/gi, "_")}_panorama.png`;
+      link.href = panoramaUrl;
+      link.click();
+      setProgress(100);
+      toast.success("Panorama PNG exported");
+    } catch {
+      toast.error("Failed to export panorama");
+    } finally {
+      setExporting(false);
+    }
+  }, [panoramaUrl, title]);
+
+  const handleExportGifExcerpt = useCallback(async () => {
+    setExporting(true);
+    setProgress(0);
+    try {
+      const { toPng } = await import("html-to-image");
+      const el = canvasRef.current;
+      if (!el) throw new Error("Canvas not available");
+      setProgress(30);
+      const dataUrl = await toPng(el, { pixelRatio: 2 });
+      setProgress(80);
+      const link = document.createElement("a");
+      link.download = `${title.replace(/[^a-z0-9]/gi, "_")}_excerpt.png`;
+      link.href = dataUrl;
+      link.click();
+      setProgress(100);
+      toast.success("GIF excerpt exported as PNG");
+    } catch (err: any) {
+      toast.error("Export failed: " + (err.message || "unknown"));
+    } finally {
+      setExporting(false);
+    }
+  }, [canvasRef, title]);
+
   const handleExport = useCallback(() => {
     if (!isPremium && exportCount >= exportLimit) {
       toast.error("Export limit reached. Upgrade for unlimited exports.");
@@ -274,19 +332,23 @@ export default function HopExportPanel({
     }
     if (selectedFormat === "qr_code") {
       handleExportQR();
+    } else if (selectedFormat === "png_still" && hopMode === "pan") {
+      handleExportPanPng();
+    } else if (selectedFormat === "gif_excerpt" || selectedFormat === "gif_pan") {
+      handleExportGifExcerpt();
     } else if (formatInfo.type === "video") {
       handleExportVideo();
     } else {
       handleExportImage();
     }
-  }, [isPremium, exportCount, exportLimit, formatInfo, selectedFormat, handleExportQR, handleExportVideo, handleExportImage]);
+  }, [isPremium, exportCount, exportLimit, formatInfo, selectedFormat, hopMode, handleExportQR, handleExportVideo, handleExportImage, handleExportPanPng, handleExportGifExcerpt]);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[95] flex items-center justify-center p-4" data-testid="hop-export-panel">
       <div className="bg-zinc-900 border border-white/10 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Download className="w-4 h-4 text-orange-400" /> Export HOP
+            <Download className="w-4 h-4 text-orange-400" /> Export HOP — {hopMode.toUpperCase()} Mode
           </h3>
           <button onClick={onClose} className="p-1 hover:bg-zinc-800 transition"><X className="w-4 h-4" /></button>
         </div>

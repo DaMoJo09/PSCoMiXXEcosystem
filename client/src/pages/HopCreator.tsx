@@ -18,6 +18,11 @@ import HopStudioCanvas from "@/components/hop/HopStudioCanvas";
 import type { CanvasNode, CanvasConnection, CanvasStickyNote, CanvasReferenceImage } from "@/components/hop/HopStudioCanvas";
 import HopWaveformTimeline from "@/components/hop/HopWaveformTimeline";
 import HopExportPanel from "@/components/hop/HopExportPanel";
+import HopStitchMode from "@/components/hop/HopStitchMode";
+import type { StitchSegment } from "@/components/hop/HopStitchMode";
+import HopPanPlayer from "@/components/hop/HopPanPlayer";
+import type { ParallaxLayer } from "@/components/hop/HopPanPlayer";
+import SendToMenu from "@/components/ecosystem/SendToMenu";
 import { SCENE_TEMPLATES, SOUND_PACKS, CAMERA_ANGLES, LIGHTING_PRESETS, MOOD_PRESETS } from "@/components/hop/hopSceneTemplates";
 
 type HopLayer = {
@@ -86,6 +91,7 @@ type HopAudioClip = {
 type ViewportMode = "desktop" | "mobile" | "tablet" | "square";
 type DisplayMode = "standard" | "moving";
 type ScrollDirection = "forward" | "backward";
+type HopMode = "still" | "pan" | "video";
 
 const VIEWPORT_SIZES: Record<ViewportMode, { w: number; h: number; label: string }> = {
   desktop: { w: 800, h: 500, label: "16:9" },
@@ -319,9 +325,15 @@ export default function HopCreator() {
   const [sceneTextStyles, setSceneTextStyles] = useState<Record<string, TextOverlayStyle>>({});
   const [audioClips, setAudioClips] = useState<HopAudioClip[]>([]);
 
+  const [hopMode, setHopMode] = useState<HopMode>("still");
   const [viewportMode, setViewportMode] = useState<ViewportMode>("mobile");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("standard");
   const [scrollDirection, setScrollDirection] = useState<ScrollDirection>("forward");
+  const [stitchSegments, setStitchSegments] = useState<StitchSegment[]>([]);
+  const [parallaxLayers, setParallaxLayers] = useState<ParallaxLayer[]>([]);
+  const [panoramaUrl, setPanoramaUrl] = useState<string>("");
+  const [panoramaWidth, setPanoramaWidth] = useState(0);
+  const [showSendTo, setShowSendTo] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
   const scrollRafRef = useRef<number | null>(null);
   const [leftTab, setLeftTab] = useState<"scenes" | "audio" | "vibes">("scenes");
@@ -329,7 +341,7 @@ export default function HopCreator() {
   const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"builder" | "canvas" | "timeline">("builder");
+  const [viewMode, setViewMode] = useState<"builder" | "canvas" | "timeline" | "stitch">("builder");
   const [workflowTab, setWorkflowTab] = useState<"create" | "enhance" | "publish">("create");
   const [showWelcome, setShowWelcome] = useState(() => {
     try { return !localStorage.getItem("hop-builder-welcomed"); } catch { return true; }
@@ -455,6 +467,10 @@ export default function HopCreator() {
         if (data.sceneTextStyles) setSceneTextStyles(data.sceneTextStyles);
         if (data.audioClips) setAudioClips(data.audioClips);
         if (data.displayMode) setDisplayMode(data.displayMode);
+        if (data.hopMode) setHopMode(data.hopMode);
+        if (data.stitchSegments) setStitchSegments(data.stitchSegments);
+        if (data.parallaxLayers) setParallaxLayers(data.parallaxLayers);
+        if (data.panoramaUrl) { setPanoramaUrl(data.panoramaUrl); setPanoramaWidth(data.panoramaWidth || 0); }
         if (data.canvasNodes) setCanvasNodes(data.canvasNodes);
         if (data.canvasConnections) setCanvasConnections(data.canvasConnections);
         if (data.canvasStickyNotes) setCanvasStickyNotes(data.canvasStickyNotes);
@@ -481,13 +497,18 @@ export default function HopCreator() {
     sceneTextStyles,
     audioClips,
     displayMode,
+    hopMode,
+    stitchSegments: stitchSegments.length > 0 ? stitchSegments : undefined,
+    parallaxLayers: parallaxLayers.length > 0 ? parallaxLayers : undefined,
+    panoramaUrl: panoramaUrl || undefined,
+    panoramaWidth: panoramaWidth || undefined,
     canvasNodes: canvasNodes.length > 0 ? canvasNodes : undefined,
     canvasConnections: canvasConnections.length > 0 ? canvasConnections : undefined,
     canvasStickyNotes: canvasStickyNotes.length > 0 ? canvasStickyNotes : undefined,
     canvasReferenceImages: canvasReferenceImages.length > 0 ? canvasReferenceImages : undefined,
     canvasAnnotations: canvasAnnotations.length > 0 ? canvasAnnotations : undefined,
     beatMarkers: beatMarkers.length > 0 ? beatMarkers : undefined,
-  } as any), [hopType, clipLengthMode, loopMode, scenes, tags, visibility, totalDuration, audioTrack, sceneLayers, sceneTextStyles, audioClips, displayMode, canvasNodes, canvasConnections, canvasStickyNotes, canvasReferenceImages, canvasAnnotations, beatMarkers]);
+  } as any), [hopType, clipLengthMode, loopMode, scenes, tags, visibility, totalDuration, audioTrack, sceneLayers, sceneTextStyles, audioClips, displayMode, hopMode, stitchSegments, parallaxLayers, panoramaUrl, panoramaWidth, canvasNodes, canvasConnections, canvasStickyNotes, canvasReferenceImages, canvasAnnotations, beatMarkers]);
 
   const fireXpEvent = useCallback(async (action: string, projectId?: number | null, metadata?: Record<string, any>) => {
     try {
@@ -1430,12 +1451,16 @@ export default function HopCreator() {
             ⏹ Stop
           </button>
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
-          <button onClick={() => setDisplayMode("standard")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "standard" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>STANDARD</button>
-          <button onClick={() => setDisplayMode("moving")} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${displayMode === "moving" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`}>SCROLL</button>
-          {displayMode === "moving" && (
-            <button onClick={() => setScrollDirection(d => d === "forward" ? "backward" : "forward")} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-scroll-direction">
-              {scrollDirection === "forward" ? "→ FWD" : "← BWD"}
-            </button>
+          <button onClick={() => { setHopMode("still"); setDisplayMode("standard"); }} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${hopMode === "still" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`} data-testid="button-mode-still">STILL</button>
+          <button onClick={() => { setHopMode("pan"); setDisplayMode("moving"); }} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${hopMode === "pan" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`} data-testid="button-mode-pan">PAN</button>
+          <button onClick={() => { setHopMode("video"); setDisplayMode("standard"); }} className={`px-2 py-0.5 text-[9px] font-bold tracking-wider border border-white/10 transition shrink-0 ${hopMode === "video" ? "bg-zinc-700 text-white" : "bg-zinc-900 text-zinc-500"}`} data-testid="button-mode-video">VIDEO</button>
+          {hopMode === "pan" && (
+            <>
+              <button onClick={() => setScrollDirection(d => d === "forward" ? "backward" : "forward")} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-scroll-direction">
+                {scrollDirection === "forward" ? "→ FWD" : "← BWD"}
+              </button>
+              <button onClick={() => setViewMode(viewMode === "stitch" ? "builder" : "stitch")} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-stitch-toggle">STITCH</button>
+            </>
           )}
           <button
             onClick={() => { setShowPreview(false); setZoneOutMode(true); setPreviewSceneIndex(0); setLoopCount(0); setIsPlaying(true); if (audioTrack && !audioMuted) startAudioFromBeginning(); }}
@@ -1451,8 +1476,8 @@ export default function HopCreator() {
           <button onClick={handleAddScene} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-new-hop">+ New HOP</button>
           <button onClick={() => setShowProjectPicker(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Projects</button>
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
-          <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${displayMode === "moving" ? "text-white" : "text-zinc-600"}`}>
-            {displayMode === "moving" ? `>> SCROLL ${scrollDirection === "forward" ? "→" : "←"} ${isPlaying ? Math.abs(Math.round(scrollOffset)) + "px" : "READY"}` : ">> STANDARD"}
+          <span className={`px-2 py-0.5 text-[9px] font-bold tracking-wider shrink-0 ${hopMode !== "still" ? "text-white" : "text-zinc-600"}`}>
+            {hopMode === "pan" ? `>> PAN ${scrollDirection === "forward" ? "→" : "←"} ${isPlaying ? Math.abs(Math.round(scrollOffset)) + "px" : "READY"}` : hopMode === "video" ? ">> VIDEO" : ">> STILL"}
           </span>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-publish-toolbar">Publish</button>
           <button onClick={handleSave} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Save HOP</button>
@@ -1461,6 +1486,14 @@ export default function HopCreator() {
           <Link href="/" className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">CoMiXX</Link>
           <span className="text-[9px] text-zinc-500 shrink-0">100%</span>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">LIBRARY</button>
+          <div className="relative shrink-0">
+            <button onClick={() => setShowSendTo(!showSendTo)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition" data-testid="button-send-to">SEND TO</button>
+            {showSendTo && (
+              <div className="absolute right-0 top-full mt-1 z-50">
+                <SendToMenu projectId={effectiveProjectId || undefined} contentType="hop" onClose={() => setShowSendTo(false)} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1501,6 +1534,35 @@ export default function HopCreator() {
             onAddScene={handleAddScene}
             onScrub={(time) => { if (audioRef.current) audioRef.current.currentTime = time; scrubAudioClips(time); }}
           />
+        </div>
+      )}
+
+      {viewMode === "stitch" && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <HopStitchMode
+            segments={stitchSegments}
+            onSegmentsChange={setStitchSegments}
+            canvasHeight={VIEWPORT_SIZES[viewportMode].h}
+            onExportPanorama={(url, w) => {
+              setPanoramaUrl(url);
+              setPanoramaWidth(w);
+              toast.success(`Panorama built: ${w}px wide`);
+              setViewMode("builder");
+            }}
+          />
+          {panoramaUrl && (
+            <div className="bg-zinc-950 border-t border-zinc-800 p-2">
+              <div className="text-[10px] text-zinc-500 mb-1">Pan Preview</div>
+              <HopPanPlayer
+                panoramaUrl={panoramaUrl}
+                panoramaWidth={panoramaWidth}
+                viewportWidth={Math.min(VIEWPORT_SIZES[viewportMode].w, 600)}
+                viewportHeight={200}
+                parallaxLayers={parallaxLayers}
+                autoPlay={false}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -2445,6 +2507,8 @@ export default function HopCreator() {
           canvasRef={canvasRef}
           onClose={() => setShowExportPanel(false)}
           renderCanvas={() => canvasRef.current}
+          hopMode={hopMode}
+          panoramaUrl={panoramaUrl}
         />
       )}
 

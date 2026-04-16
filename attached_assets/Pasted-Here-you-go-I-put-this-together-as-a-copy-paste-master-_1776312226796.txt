@@ -1,0 +1,968 @@
+Here you go. I put this together as a **copy-paste master build plan** for both **Replit** and **Lovable**, with all the pieces we discussed folded in so nothing gets lost in the usual human ritual of “we’ll remember it later” and then absolutely not remembering it later.
+
+You can send the **Replit section** to Replit and the **Lovable section** to Lovable.
+
+---
+
+# MASTER ECOSYSTEM BUILD PLAN
+
+## MADMIXEDMEDIA | PRESS START
+
+## CoMiXX + HOPs + Streaming + LMS + FX Studio + MMM Hub Readiness
+
+---
+
+# PART 1: MASTER PRODUCT VISION
+
+We are building a **unified creative ecosystem**, not a collection of disconnected web apps.
+
+The ecosystem should ultimately function like a **Maxon / Reallusion-style software suite**, where:
+
+* the **MADMIXEDMEDIA website** tells the story and acts as the public-facing front door
+* users can **download MMM Hub**
+* MMM Hub acts as the launcher, updater, login shell, and ecosystem controller
+* users can install/open:
+
+  * **CoMiXX**
+  * **FX Studio**
+  * **Streaming**
+  * **LMS**
+  * future apps
+* each app can launch or send assets/data to the others
+* each app shares:
+
+  * auth
+  * user identity
+  * project ownership
+  * asset pipeline
+  * XP
+  * workforce readiness
+  * school-safe rules
+  * publish and portfolio data
+
+Even before MMM Hub is built, all apps should behave **as if they are already one ecosystem**.
+
+This means:
+
+* shared branding
+* shared navigation
+* shared auth
+* shared data model
+* shared asset movement
+* shared XP/workforce pipeline
+* school-safe mode
+* desktop-launch readiness
+* web fallback support
+
+---
+
+# PART 2: CORE ECOSYSTEM RULES
+
+## Rule 1: One Ecosystem
+
+CoMiXX, HOPs, FX Studio, Streaming, and LMS must not feel like separate products. They are specialized surfaces inside one ecosystem.
+
+## Rule 2: Shared Navigation
+
+Every app must include ecosystem navigation/buttons for:
+
+* Hub
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* Profile / XP / Projects / Portfolio
+
+Behavior:
+
+* in desktop mode, these should trigger deep links or installed-app launch logic
+* in web mode, these should route to URLs or web app views
+* if the target app is not installed in desktop mode, prompt install via Hub or open web fallback
+
+## Rule 3: Shared Auth
+
+There must be one shared authentication/session model across the ecosystem:
+
+* single sign-on
+* shared user profile
+* shared subscriptions/access tier
+* shared XP profile
+* shared workforce profile
+* shared portfolio/publishing history
+* shared school/organization context
+
+## Rule 4: School-Safe by Design
+
+School-safe behavior must be built into the system at the data, permission, moderation, and publishing levels, not just as a UI setting.
+
+## Rule 5: XP Must Mean Workforce
+
+XP is not just gamification. It must support:
+
+* learning progression
+* verified skills
+* portfolio growth
+* teacher validation
+* publication milestones
+* workforce readiness
+* contract and opportunity eligibility
+
+## Rule 6: Outside Apps Must Be Able to Sync XP
+
+The ecosystem must support secure intake of XP and work data from outside apps and future tools through authenticated APIs/webhooks.
+
+## Rule 7: Everything Created Anywhere Can Feed Everywhere
+
+All graphic modes and outputs should feed a shared ecosystem asset pipeline, so anything created in one mode can be reused in others.
+
+---
+
+# PART 3: SCHOOL-SAFE SYSTEM REQUIREMENTS
+
+Build a **School Safe Mode** system that can be applied:
+
+* per district
+* per school
+* per classroom/course
+* per teacher/admin
+* per student/user role
+* per organization profile
+
+## School Safe Mode must support:
+
+* moderated publishing flow for student work
+* approval before public publication
+* optional private/classroom-only publishing
+* restricted or disabled public messaging/contact
+* restricted or disabled public remix/collaboration unless approved
+* restricted asset categories where needed
+* approved school-safe asset packs and templates
+* restricted marketplace access where needed
+* restricted public creator profile exposure
+* role-based external sharing/export controls
+* admin and teacher audit visibility
+* COPPA/FERPA-oriented behavior and visibility logic
+* school-managed identity and permissions
+
+## Policy hierarchy:
+
+* district-level policy
+* school-level policy
+* classroom-level policy
+* user-level overrides where appropriate
+
+All app-to-app payloads must carry relevant school-safe flags and policy context.
+
+---
+
+# PART 4: XP + WORKFORCE + SKILL PASSPORT SYSTEM
+
+We already have foundational work started around:
+
+* roles
+* school-safe policies
+* workforce profile
+* skill events
+* external XP ingestion 
+
+Now the full ecosystem must use that foundation consistently.
+
+## XP sources should include:
+
+* time active in app
+* lesson completion
+* assignment completion
+* project creation
+* save actions
+* export actions
+* publish actions
+* approved publication
+* remix/collaboration actions
+* review/revision cycles
+* teacher validation
+* skill badge completion
+* challenge participation
+* portfolio milestone completion
+* external app sync events
+* production/client work participation
+
+## Workforce profile / Skill Passport should track:
+
+* XP total
+* XP by skill category
+* XP by tool/app
+* completed projects
+* project types
+* verified competencies
+* teacher endorsements
+* admin endorsements
+* published works
+* revision cycles completed
+* tool proficiency
+* collaboration/team participation
+* workforce readiness tier
+* internship/apprenticeship readiness
+* MMM contract eligibility
+* outside partner readiness
+* certification and badge records
+
+## External XP Ingestion
+
+Support outside-app XP/work data intake via secure API/webhook:
+
+* authenticated source verification
+* source registry/API keys
+* deduplication
+* audit trail
+* moderation/review for high-impact events
+* mapping external events into internal skill/workforce categories
+
+Examples:
+
+* FX Studio
+* future desktop tools
+* partner tools
+* outside creative apps
+* certification platforms
+
+---
+
+# PART 5: SHARED ASSET PIPELINE
+
+This is a major ecosystem rule:
+
+**Any asset generated in one graphic mode should be reusable in all other supported modes.**
+
+## Shared asset pipeline requirements:
+
+Every asset should have:
+
+* asset ID
+* project ID
+* creator/user ID
+* source app
+* source mode
+* file type
+* dimensions
+* transparency support
+* animation support
+* tags
+* school-safe status
+* approval/moderation state
+* reuse permissions
+* export variants
+* created/updated timestamps
+
+## Asset sources may include:
+
+* Motion FX mode outputs
+* still frame HOP outputs
+* pan mode panorama segments
+* video mode scene assets
+* comic panels
+* card elements
+* VN/CYOA assets
+* title treatments
+* overlays
+* animated loops
+* environmental elements
+* stickers
+* scene backgrounds
+* transparent effects
+* text animation outputs
+
+## Every mode should support:
+
+* **Import From Library**
+* **Send To**
+* **Export**
+
+## Send To destinations may include:
+
+* Send to CoMiXX
+* Send to FX Studio
+* Send to HOPs
+* Send to Streaming
+* Send to LMS assignment/project
+* Send to Asset Library
+* Send to Portfolio / Publish pipeline
+
+## Export minimum:
+
+* PNG
+* GIF
+
+Later support:
+
+* WEBM
+* MP4
+* transparent image sequences
+* JSON project packages
+* layered asset bundles
+
+---
+
+# PART 6: HOPs MASTER PRODUCT DEFINITION
+
+HOPs is not just one playback trick. It is a **short-form visual storytelling system** with multiple playback modes.
+
+## HOPs must support 3 core playback modes:
+
+### 1. Still Frame Mode
+
+A composed fixed-frame scene.
+Can be:
+
+* static
+* subtly animated
+* ambient
+* poster-like
+* breathing comic panel
+* title card scene
+
+Should support:
+
+* layered compositions
+* imported assets
+* motion FX overlays
+* subtle animation
+* export as PNG and GIF
+
+### 2. Pan Mode
+
+This is the Roku City-inspired drifting world mode.
+
+Should support:
+
+* wide horizontal stitched canvas
+* looping panoramic world
+* camera drift/pan
+* variable speed
+* seamless looping
+* parallax layers
+* optional moving live elements
+* imported FX Studio assets
+* PNG poster export
+* GIF excerpt export
+
+### 3. Video Mode
+
+A regular framed motion mode.
+
+Should support:
+
+* fixed viewport
+* scene/shot playback
+* timeline-based sequencing
+* cuts/fades/simple transitions
+* imported assets and motion elements
+* export as GIF and later video formats
+
+## Product framing:
+
+HOPs should allow creators to tell short-form visual stories in three ways:
+
+* **Still**
+* **Pan**
+* **Video**
+
+Do not make these separate unrelated tools. They should be playback modes inside one HOPs system.
+
+---
+
+# PART 7: HOPs STITCH MODE / ROKU CITY EXECUTION
+
+Inside HOPs, especially for Pan Mode, create a **Stitch Mode**.
+
+## Stitch Mode
+
+Purpose:
+Build one long panoramic visual world from multiple images/assets.
+
+## Stitch Mode requirements:
+
+* import images from device
+* import images from asset library
+* pull in assets from FX Studio / CoMiXX outputs
+* place images end-to-end on a horizontal cutting-floor style canvas
+* reorder segments
+* snap edges together
+* support overlap/blending at seams if possible
+* support cropping and transform controls
+* support extremely wide panoramic compositions
+* output to a pan-ready world canvas
+
+## Pan Mode playback requirements:
+
+* camera pans through stitched scene
+* adjustable scroll speed
+* reverse direction option
+* loop toggle
+* start/end offset controls
+* smooth/cinematic motion options
+* seamless looping if configured
+
+## Parallax system requirements:
+
+Each layer should support:
+
+* depth
+* speed multiplier
+* independent motion settings
+
+Example:
+
+* sky = slowest
+* distant background = slow
+* buildings = medium
+* foreground = fast
+
+## Live animated elements in Pan Mode:
+
+Allow individual placed assets to:
+
+* move independently
+* loop movement
+* follow simple paths
+* repeat across timeline/world
+* act like cars, birds, lights, characters, etc.
+
+This should be phased:
+
+* first basic stitch + pan
+* then parallax
+* then live looping element motion
+
+---
+
+# PART 8: FX STUDIO ROLE IN THE ECOSYSTEM
+
+FX Studio is not a disconnected side app. It is a specialized **asset forge / motion layer factory / effects generator** for the ecosystem.
+
+FX Studio must:
+
+* launch from CoMiXX or LMS
+* receive context from CoMiXX/HOPs/LMS
+* return assets back to CoMiXX/HOPs
+* publish HOP-related work to Streaming
+* send structured XP/workforce events into the ecosystem
+* respect school-safe rules
+* support GitHub sync/export for integration readiness
+
+## FX Studio outputs should be reusable across:
+
+* HOPs Still Mode
+* HOPs Pan Mode
+* HOPs Video Mode
+* comics
+* cards
+* VN/CYOA
+* streaming content
+* poster/promotional outputs
+
+## FX outputs may include:
+
+* overlays
+* particles
+* title effects
+* animated text
+* loopable motion elements
+* character motion elements
+* environmental loops
+* transparent animated effects
+* scene accents
+* mood and atmosphere layers
+
+## FX Studio export requirements:
+
+At minimum:
+
+* PNG
+* GIF
+
+Later:
+
+* WEBM
+* transparent sequences
+* reusable effect bundles
+
+---
+
+# PART 9: COMIXX ROLE IN THE ECOSYSTEM
+
+CoMiXX is the central narrative creation and assembly environment.
+
+It must support:
+
+* comics
+* visual novels
+* CYOA
+* cards
+* HOPs integration
+* import from shared asset library
+* export to shared asset library
+* publish to Streaming
+* launch into FX Studio
+* assignment integration with LMS
+* project metadata tied to XP/workforce systems
+
+## CoMiXX to FX Studio flow
+
+Button:
+
+* **Open in FX Studio**
+
+Pass:
+
+* user/session
+* project ID
+* selected asset(s)
+* target layer info
+* content type
+* school-safe context
+* publish permissions
+
+## FX Studio to CoMiXX flow
+
+Button:
+
+* **Send Back to CoMiXX**
+
+Return:
+
+* rendered asset
+* animation/effect metadata
+* placement/insertion data
+* preview
+* school-safe compliance state
+* XP event payload
+
+---
+
+# PART 10: STREAMING ROLE IN THE ECOSYSTEM
+
+Streaming is:
+
+* publishing destination
+* showcase platform
+* proof-of-work surface
+* school channel surface
+* creator channel surface
+* HOPs engagement engine
+* portfolio validation surface
+
+## Streaming must support:
+
+* school-safe publishing
+* moderation flows
+* public/private/classroom/school visibility modes
+* creator profiles
+* school channels
+* challenge/remix structures
+* leaderboard and engagement hooks
+* portfolio linkage
+* HOP-centric publishing/display
+* comments/reactions restricted by school-safe policy
+
+## Streaming XP/workforce triggers:
+
+* publish approved work
+* feature milestone
+* challenge participation
+* showcase inclusion
+* remix participation
+* engagement milestones where appropriate
+* school event/festival submission
+* teacher-endorsed publication
+
+---
+
+# PART 11: LMS ROLE IN THE ECOSYSTEM
+
+LMS is the structured learning, assignment, teacher dashboard, and credential layer.
+
+## LMS must support:
+
+* lessons
+* assignments
+* pacing guides
+* rubrics
+* submissions
+* approvals
+* feedback
+* badge/certification tracking
+* workforce milestone tracking
+* teacher/admin validation
+* school-safe workflows
+* launch into CoMiXX and FX Studio
+* link to published output in Streaming
+
+## LMS buttons/actions:
+
+* **Launch in CoMiXX**
+* **Launch in FX Studio**
+* **View Published Work in Streaming**
+
+Pass:
+
+* assignment ID
+* lesson ID
+* starter assets
+* template type
+* rubric metadata
+* class/course context
+* due dates
+* school-safe rules
+
+---
+
+# PART 12: DESKTOP + WEB FUTURE READINESS
+
+All apps must be built so they work in both:
+
+* **web mode**
+* **desktop/hub mode**
+
+Do not hardcode browser-only assumptions.
+
+All app-to-app routing/actions should be abstracted so they can later:
+
+* launch installed desktop apps via MMM Hub
+* fall back to web routes if the app is not installed
+
+This means all apps should be designed as:
+
+* browser-usable now
+* desktop-launchable later
+
+---
+
+# PART 13: REPLIT BUILD PLAN
+
+## Send this section to Replit
+
+**Project Title:**
+MADMIXEDMEDIA Ecosystem Core Build
+(CoMiXX + HOPs + Streaming + LMS + cross-app integration + school-safe + XP/workforce)
+
+**Build Goal:**
+Turn CoMiXX, HOPs, Streaming, and LMS into a unified ecosystem with:
+
+* shared navigation
+* shared auth
+* shared school-safe system
+* shared XP/workforce logic
+* shared asset pipeline
+* HOPs Still/Pan/Video modes
+* Stitch Mode for Pan Mode
+* cross-app handoff flows
+* outside-app XP ingestion support
+* desktop-launch readiness
+* web fallback behavior
+
+## Replit requirements:
+
+### A. Global ecosystem navigation
+
+Persistent nav/header/menu in all apps:
+
+* Hub
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* Profile / XP / Projects / Portfolio
+
+Must support desktop deep-link behavior later and web fallback now.
+
+### B. Shared auth and user context
+
+Use one auth/session/user context across:
+
+* CoMiXX
+* HOPs
+* Streaming
+* LMS
+* future Hub compatibility
+* FX integration compatibility
+
+### C. School-safe engine
+
+Implement hierarchical school-safe behavior with:
+
+* district / school / classroom / user scopes
+* moderation and approval flows
+* restricted visibility and messaging
+* approved asset/template filtering
+* school-managed publishing and sharing logic
+
+### D. XP + workforce integration
+
+Use the workforce profile / skill event model consistently.
+Everything should emit structured XP/workforce events.
+
+### E. External XP ingestion compatibility
+
+Integrate with secure outside-app XP/work sync endpoints and dedup logic already being established. 
+
+### F. Shared asset pipeline
+
+Implement asset library architecture and cross-mode import/send/export logic.
+
+### G. HOPs implementation
+
+Build HOPs as one system with 3 modes:
+
+* Still
+* Pan
+* Video
+
+#### Still Mode
+
+* fixed scene composition
+* subtle motion support
+* PNG/GIF export
+
+#### Pan Mode
+
+* Stitch Mode
+* horizontal world/panorama builder
+* camera drift
+* parallax
+* loop playback
+* simple live moving element support
+* PNG/GIF output
+
+#### Video Mode
+
+* fixed frame/timeline scene playback
+* simple sequencing
+* imported asset support
+* GIF export and future video readiness
+
+### H. Stitch Mode
+
+Implement HOPs Stitch Mode:
+
+* image import from device
+* import from asset library
+* import from project-generated assets
+* place assets end-to-end
+* reorder
+* snap edges
+* optional seam blend support
+* transform/crop support
+* output panoramic canvas
+
+### I. Cross-app flows
+
+Support:
+
+* CoMiXX → FX Studio
+* FX Studio → CoMiXX
+* CoMiXX/HOPs → Streaming
+* LMS → CoMiXX
+* LMS → FX Studio
+* Streaming → remix/create follow-up in CoMiXX/HOPs later
+
+### J. Shared export logic
+
+Where supported, every graphic mode should export at minimum:
+
+* PNG
+* GIF
+
+### K. Build structure
+
+Code should be structured for:
+
+* future desktop deep-linking
+* future MMM Hub launching
+* web fallback
+* future outside-app connectors
+* future plugin/marketplace support
+
+---
+
+# PART 14: LOVABLE BUILD PLAN
+
+## Send this section to Lovable
+
+**Project Title:**
+MADMIXEDMEDIA FX Studio Ecosystem Build
+(FX Studio integration + school-safe + XP/workforce + asset pipeline)
+
+**Build Goal:**
+Build FX Studio as a specialized ecosystem app that:
+
+* feels like a full member of the ecosystem
+* can launch from CoMiXX and LMS
+* can send work back into CoMiXX/HOPs
+* can publish HOP-related outputs to Streaming
+* supports school-safe mode
+* sends structured XP/workforce data
+* exports reusable assets to the ecosystem
+* supports GitHub sync/export for full integration and future desktop packaging
+
+## Lovable requirements:
+
+### A. Persistent ecosystem navigation
+
+Include:
+
+* Hub
+* CoMiXX
+* FX Studio
+* Streaming
+* LMS
+* Profile / XP / Projects / Portfolio
+
+### B. Shared auth compatibility
+
+FX Studio must use shared auth/session/user identity and recognize:
+
+* user role
+* school-safe status
+* organization context
+* subscription tier
+* XP/workforce profile
+
+### C. School-safe behavior
+
+FX Studio must support:
+
+* school-safe asset filtering
+* approved templates/presets
+* restricted publish/share paths in school mode
+* moderated student publishing behavior
+* role-based export/share controls
+
+### D. Shared asset pipeline compatibility
+
+FX Studio must act as an asset source for:
+
+* CoMiXX
+* HOPs Still/Pan/Video
+* Streaming
+* cards
+* VN/CYOA
+* asset library
+
+### E. Motion FX as ecosystem asset forge
+
+Outputs should include reusable:
+
+* overlays
+* particles
+* animated titles
+* loopable motion elements
+* transparent effects
+* environmental loops
+* animated scene layers
+* mood/accent effects
+
+### F. Export support
+
+At minimum:
+
+* PNG
+* GIF
+
+### G. Structured XP/workforce events
+
+FX Studio must emit structured events for:
+
+* project started
+* time active
+* asset created
+* project saved
+* effect/motion completed
+* revision cycles
+* publish actions
+* assignment completion
+* challenge participation
+* approved output
+
+Must support:
+
+* retry failed sync
+* queue if offline
+* deduplication-safe sync
+
+### H. App handoff compatibility
+
+Support launch from:
+
+* CoMiXX
+* LMS
+
+Support return/send-back to:
+
+* CoMiXX
+* HOPs/shared asset pipeline
+
+Support publish to:
+
+* Streaming
+
+### I. GitHub/export portability
+
+Code must remain portable and integration-ready for:
+
+* broader ecosystem integration
+* shared auth/api compatibility
+* future MMM Hub / desktop packaging compatibility
+
+---
+
+# PART 15: EXECUTION ORDER
+
+## Phase 1
+
+* shared nav
+* shared auth
+* school-safe enforcement
+* XP/workforce integration
+* external XP ingestion compatibility
+* shared asset pipeline foundation
+
+## Phase 2
+
+* HOPs Still Mode
+* HOPs Pan Mode with Stitch Mode
+* HOPs Video Mode
+* PNG/GIF exports across supported modes
+
+## Phase 3
+
+* stronger cross-app send/import flows
+* FX Studio deeper asset reuse everywhere
+* Streaming/HOP publishing loop refinement
+
+## Phase 4
+
+* MMM Hub / Tauri launcher layer
+* deep links
+* installed app behavior
+* updater/launcher experience
+
+---
+
+# PART 16: NON-NEGOTIABLE PRODUCT PRINCIPLES
+
+1. Do not build any part of this as a disconnected one-off.
+2. Do not build school-safe mode as cosmetic only.
+3. Do not treat XP as meaningless gamification.
+4. Do not silo assets by mode.
+5. Do not make HOPs only one playback style.
+6. Do not build browser-only assumptions into routing and handoff.
+7. Build now for web use, but structure everything for desktop suite behavior later.
+
+---
+
+# FINAL ONE-LINER TO ATTACH
+
+**We are building a unified creative ecosystem where learning, creation, motion, publishing, portfolio growth, XP progression, and workforce readiness all connect across CoMiXX, HOPs, FX Studio, Streaming, and LMS. Every app must behave like part of one platform, support school-safe deployment, share assets and identity, and prepare for future desktop Hub-based distribution.**
+
+If you want, I can also turn this into:
+**one shorter “super prompt” version for Replit and one shorter “super prompt” version for Lovable**, so you have the long version and the fast version.

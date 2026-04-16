@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { saveProjectWithOfflineFallback, type SaveResult } from "@/lib/offlineStorage";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
+import SendToMenu from "@/components/ecosystem/SendToMenu";
 import type { AssetTag } from "@/types/asset-tags";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
@@ -1788,6 +1789,7 @@ export default function ComicCreator() {
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [assetLibraryTab, setAssetLibraryTab] = useState<"library" | "fx-studio">("library");
   const [showFxConfirm, setShowFxConfirm] = useState(false);
+  const [showSendTo, setShowSendTo] = useState(false);
   const [skipFxConfirm, setSkipFxConfirm] = useState(() => localStorage.getItem("skipFxStudioConfirm") === "true");
   const fxStudio = useFxStudio({
     projectId: projectId || undefined,
@@ -8158,6 +8160,23 @@ export default function ComicCreator() {
         onFocus={() => fxStudio.openFxStudio()}
         onClose={() => fxStudio.closeFxStudio()}
       />
+
+      <div className="fixed bottom-2 right-2 z-50">
+        <div className="relative">
+          <button
+            onClick={() => setShowSendTo(!showSendTo)}
+            className="px-3 py-1.5 text-[10px] font-bold tracking-wider bg-black border border-white/20 text-zinc-400 hover:text-white transition rounded"
+            data-testid="button-send-to-comic"
+          >
+            SEND TO ▸
+          </button>
+          {showSendTo && (
+            <div className="absolute right-0 bottom-full mb-1">
+              <SendToMenu projectId={projectId || undefined} contentType="comic" onClose={() => setShowSendTo(false)} />
+            </div>
+          )}
+        </div>
+      </div>
 
       {showAssetLibrary && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
