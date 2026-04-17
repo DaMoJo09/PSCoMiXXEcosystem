@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout/Layout";
 import { FirstProjectGuide } from "@/components/FirstProjectGuide";
+import { VersionHistory } from "@/components/projects/VersionHistory";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
@@ -5822,6 +5823,7 @@ export default function ComicCreator() {
                 <p>Save project <span className="text-zinc-400 ml-1">(Ctrl+S)</span></p>
               </TooltipContent>
             </Tooltip>
+            <VersionHistory projectId={effectiveProjectId ?? undefined} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

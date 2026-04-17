@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 import type { HopScene, HopData, Project } from "@shared/schema";
 import HopStudioCanvas from "@/components/hop/HopStudioCanvas";
+import { VersionHistory } from "@/components/projects/VersionHistory";
 import type { CanvasNode, CanvasConnection, CanvasStickyNote, CanvasReferenceImage } from "@/components/hop/HopStudioCanvas";
 import HopWaveformTimeline from "@/components/hop/HopWaveformTimeline";
 import HopExportPanel from "@/components/hop/HopExportPanel";
@@ -1778,6 +1779,7 @@ export default function HopCreator() {
               <button onClick={handleSave} disabled={saving} className="px-2.5 py-1 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 hover:border-white/20 text-zinc-500 hover:text-white transition flex items-center gap-1" data-testid="button-save">
                 {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} SAVE
               </button>
+              <VersionHistory projectId={effectiveProjectId ?? undefined} />
               <div className="flex-1" />
               <span className="text-[8px] text-zinc-600 font-mono">Total: {totalDuration}s · {scenes.length} scene{scenes.length !== 1 ? "s" : ""} · {displayMode === "moving" ? `${SCROLL_SPEED}px/s ${scrollDirection === "forward" ? "→" : "←"}` : "static"}</span>
               <div className="w-px h-4 bg-white/10" />

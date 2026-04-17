@@ -1529,6 +1529,37 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Silent backup: snapshot the project state after a meaningful save.
+  // Keeps the most recent SNAPSHOT_KEEP per project so a buggy client or
+  // accidental overwrite can be recovered without losing student work.
+  const SNAPSHOT_KEEP = 10;
+  async function snapshotProject(p: { id: string; userId: string; title: string; data: any }, reason: string) {
+    try {
+      const data = p.data || {};
+      const spreads = Array.isArray(data.spreads) ? data.spreads : [];
+      let contentScore = 0;
+      for (const s of spreads) {
+        for (const side of [s?.leftPage, s?.rightPage]) {
+          if (Array.isArray(side)) for (const panel of side) contentScore += (panel?.contents?.length || 0);
+        }
+      }
+      // Skip empty snapshots — never pollute history with a blank state.
+      if (spreads.length === 0 && contentScore === 0 && reason !== "manual") return;
+      await storage.createProjectSnapshot({
+        projectId: p.id,
+        userId: p.userId,
+        title: p.title,
+        data,
+        spreadCount: spreads.length,
+        contentScore,
+        reason,
+      });
+      await storage.pruneProjectSnapshots(p.id, SNAPSHOT_KEEP);
+    } catch (err) {
+      console.error(`[snapshot] failed for project ${p.id}:`, err);
+    }
+  }
+
   app.put("/api/projects/:id", isAuthenticated, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
@@ -1582,6 +1613,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const updated = await storage.updateProject(req.params.id, updateBody);
+      if (updated) {
+        snapshotProject({ id: updated.id, userId: updated.userId, title: updated.title, data: updated.data }, "save");
+      }
       if (project.type === "hop") {
         processProgressionEvent(req.user!.id, "hop_saved", req.params.id, "project").catch(() => {});
       }
@@ -1616,8 +1650,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         (s.leftPage || []).some((p: any) => (p.contents || []).length > 0) || 
         (s.rightPage || []).some((p: any) => (p.contents || []).length > 0)
       );
-      if (existingHasContent && !incomingHasContent && incomingSpreads.length > 0) {
-        console.warn(`[autosave] BLOCKED empty spread overwrite for project ${req.params.id} — existing has content, incoming does not`);
+      // Block any incoming save where the existing project has real content
+      // but the incoming payload doesn't — regardless of whether the incoming
+      // spreads array is empty (`[]`) or non-empty-but-blank. This is the
+      // exact wipe-out scenario this route exists to prevent.
+      if (existingHasContent && !incomingHasContent) {
+        console.warn(`[autosave] BLOCKED empty spread overwrite for project ${req.params.id} — existing has ${existingSpreads.length} spreads with content, incoming has ${incomingSpreads.length} blank`);
         delete incomingData.spreads;
       }
 
@@ -1639,11 +1677,62 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (req.body.title) updatePayload.title = req.body.title;
       if (req.body.thumbnail) updatePayload.thumbnail = req.body.thumbnail;
       const updated = await storage.updateProject(req.params.id, updatePayload);
+      if (updated) {
+        snapshotProject({ id: updated.id, userId: updated.userId, title: updated.title, data: updated.data }, "autosave");
+      }
       if (project.type === "hop") {
         processProgressionEvent(req.user!.id, "hop_saved", req.params.id, "project").catch(() => {});
       }
       res.json({ saved: true, id: updated?.id });
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // List recent silent backups for a project (most recent first).
+  app.get("/api/projects/:id/snapshots", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const snapshots = await storage.getProjectSnapshots(req.params.id, 20);
+      // Strip heavy `data` from list view — only return summary metadata.
+      const summary = snapshots.map(s => ({
+        id: s.id,
+        title: s.title,
+        spreadCount: s.spreadCount,
+        contentScore: s.contentScore,
+        reason: s.reason,
+        createdAt: s.createdAt,
+      }));
+      res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Restore a project to a previous snapshot. Takes a snapshot of the
+  // CURRENT state first (reason: "pre-restore") so the restore itself
+  // is also reversible. Never destructive.
+  app.post("/api/projects/:id/snapshots/:snapId/restore", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const snap = await storage.getProjectSnapshot(req.params.snapId);
+      if (!snap || snap.projectId !== req.params.id) {
+        return res.status(404).json({ message: "Snapshot not found" });
+      }
+      // Snapshot the current state first so restore is reversible.
+      await snapshotProject({ id: project.id, userId: project.userId, title: project.title, data: project.data }, "pre-restore");
+      const updated = await storage.updateProject(req.params.id, { data: snap.data as any, title: snap.title });
+      res.json({ restored: true, project: updated });
+    } catch (error: any) {
+      console.error(`[snapshot-restore] error:`, error);
       res.status(500).json({ message: error.message });
     }
   });

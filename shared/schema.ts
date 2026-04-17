@@ -92,6 +92,29 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
 
+// Project snapshots — silent backups taken on every meaningful save.
+// Acts as a safety net so a buggy client or accidental overwrite can be
+// recovered. Keep the most recent N per project (rotated server-side).
+export const projectSnapshots = pgTable("project_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  data: jsonb("data").notNull(),
+  spreadCount: integer("spread_count").notNull().default(0),
+  contentScore: integer("content_score").notNull().default(0),
+  reason: text("reason").notNull().default("autosave"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProjectSnapshotSchema = createInsertSchema(projectSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertProjectSnapshot = z.infer<typeof insertProjectSnapshotSchema>;
+export type ProjectSnapshot = typeof projectSnapshots.$inferSelect;
+
 // Assets table - stores uploaded media (images, videos, audio)
 export const assets = pgTable("assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

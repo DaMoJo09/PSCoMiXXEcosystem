@@ -103,6 +103,7 @@ import {
   type EngagementEvent, type InsertEngagementEvent,
   type PrintQuoteRequest, type InsertPrintQuoteRequest,
   printProductReviews, type PrintProductReview,
+  projectSnapshots, type ProjectSnapshot, type InsertProjectSnapshot,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, count, sql, ilike, gt, gte, lte, isNull, inArray } from "drizzle-orm";
@@ -122,6 +123,10 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+  createProjectSnapshot(snap: InsertProjectSnapshot): Promise<ProjectSnapshot>;
+  getProjectSnapshots(projectId: string, limit?: number): Promise<ProjectSnapshot[]>;
+  getProjectSnapshot(id: string): Promise<ProjectSnapshot | undefined>;
+  pruneProjectSnapshots(projectId: string, keep: number): Promise<number>;
   getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number; type?: string }): Promise<{ comics: any[]; total: number }>;
   getCommunityComic(id: string): Promise<any | undefined>;
   incrementViewCount(projectId: string): Promise<void>;
@@ -596,6 +601,37 @@ export class DatabaseStorage implements IStorage {
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async createProjectSnapshot(snap: InsertProjectSnapshot): Promise<ProjectSnapshot> {
+    const [row] = await db.insert(projectSnapshots).values(snap).returning();
+    return row;
+  }
+
+  async getProjectSnapshots(projectId: string, limit: number = 20): Promise<ProjectSnapshot[]> {
+    return await db.select().from(projectSnapshots)
+      .where(eq(projectSnapshots.projectId, projectId))
+      .orderBy(desc(projectSnapshots.createdAt))
+      .limit(limit);
+  }
+
+  async getProjectSnapshot(id: string): Promise<ProjectSnapshot | undefined> {
+    const [row] = await db.select().from(projectSnapshots).where(eq(projectSnapshots.id, id));
+    return row || undefined;
+  }
+
+  async pruneProjectSnapshots(projectId: string, keep: number): Promise<number> {
+    const result = await db.execute(sql`
+      DELETE FROM project_snapshots
+      WHERE project_id = ${projectId}
+        AND id NOT IN (
+          SELECT id FROM project_snapshots
+          WHERE project_id = ${projectId}
+          ORDER BY created_at DESC
+          LIMIT ${keep}
+        )
+    `);
+    return result.rowCount ?? 0;
   }
 
   async getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number; type?: string }): Promise<{ comics: any[]; total: number }> {
