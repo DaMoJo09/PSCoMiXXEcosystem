@@ -1539,12 +1539,55 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const updated = await storage.updateProject(req.params.id, req.body);
+      // CRITICAL DATA-LOSS PROTECTION: mirror the autosave route's safety checks
+      // so a buggy client cannot wipe out a student's pages by sending an empty
+      // or partial spreads array. Without this, all pages except the first one
+      // can be deleted on save.
+      const updateBody: any = { ...req.body };
+      if (updateBody.data) {
+        const existingData = (project.data as any) || {};
+        const incomingData = { ...updateBody.data };
+
+        const existingSpreads = existingData.spreads || [];
+        const incomingSpreads = incomingData.spreads || [];
+        const hasContent = (sps: any[]) => sps.some((s: any) =>
+          (s.leftPage || []).some((p: any) => (p.contents || []).length > 0) ||
+          (s.rightPage || []).some((p: any) => (p.contents || []).length > 0)
+        );
+        const existingHasContent = hasContent(existingSpreads);
+        const incomingHasContent = hasContent(incomingSpreads);
+
+        // Block: incoming spreads is empty OR has fewer spreads than existing AND no content
+        if (existingHasContent && !incomingHasContent && incomingSpreads.length < existingSpreads.length) {
+          console.warn(`[put-project] BLOCKED data-loss overwrite for project ${req.params.id} — existing has ${existingSpreads.length} spreads with content, incoming has ${incomingSpreads.length} empty spreads`);
+          incomingData.spreads = existingSpreads;
+        }
+
+        // Preserve cover/comicMeta fields if missing from incoming
+        if (existingData.comicMeta) {
+          const merged = { ...existingData.comicMeta, ...(incomingData.comicMeta || {}) };
+          const coverFields = ['frontCover', 'backCover', 'coverProjectId'] as const;
+          for (const f of coverFields) {
+            if (!(incomingData.comicMeta || {})[f] && existingData.comicMeta[f]) {
+              merged[f] = existingData.comicMeta[f];
+            }
+          }
+          incomingData.comicMeta = merged;
+        }
+        if (!incomingData.coverDesign && existingData.coverDesign) {
+          incomingData.coverDesign = existingData.coverDesign;
+        }
+
+        updateBody.data = incomingData;
+      }
+
+      const updated = await storage.updateProject(req.params.id, updateBody);
       if (project.type === "hop") {
         processProgressionEvent(req.user!.id, "hop_saved", req.params.id, "project").catch(() => {});
       }
       res.json(updated);
     } catch (error: any) {
+      console.error(`[put-project] error saving project ${req.params.id}:`, error);
       res.status(500).json({ message: error.message });
     }
   });
