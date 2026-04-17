@@ -72,16 +72,38 @@ export async function runPublishPipeline(
 ): Promise<{ jobId: string; success: boolean; error?: string }> {
   const project = await storage.getProject(projectId);
   if (!project) {
+    console.error(`[publish-pipeline] project not found: id="${projectId}" userId="${userId}"`);
     return { jobId: "", success: false, error: "Project not found" };
-  }
-
-  if (project.status !== "approved") {
-    return { jobId: "", success: false, error: `Project must be approved before publishing. Current status: "${project.status}"` };
   }
 
   const user = await storage.getUser(userId);
   if (!user) {
     return { jobId: "", success: false, error: "User not found" };
+  }
+
+  // Status policy:
+  //   - "approved" / "published"   → proceed
+  //   - "draft" / null / unset     → auto-approve (this is the common student case
+  //     that was previously blocked, causing "nothing shows up in community library")
+  //   - "review"                   → still gated; awaiting moderator action
+  //   - "rejected"                 → blocked; moderator must explicitly re-approve
+  //   - anything else              → blocked with explicit message (no silent promote)
+  const status = (project.status || "draft").toLowerCase();
+  const autoApprovable = status === "draft" || status === "" || project.status == null;
+
+  if (status !== "approved" && status !== "published") {
+    if (status === "review") {
+      return { jobId: "", success: false, error: "This project is awaiting teacher review." };
+    }
+    if (status === "rejected") {
+      return { jobId: "", success: false, error: "This project was rejected. Ask your teacher to re-approve it." };
+    }
+    if (!autoApprovable) {
+      return { jobId: "", success: false, error: `Project cannot be published from status "${project.status}".` };
+    }
+    console.log(`[publish-pipeline] auto-approving draft project ${project.id} for ${user.email}`);
+    await storage.updateProject(project.id, { status: "approved" } as any);
+    project.status = "approved";
   }
 
   const latestVersion = await storage.getLatestProjectVersion(projectId);

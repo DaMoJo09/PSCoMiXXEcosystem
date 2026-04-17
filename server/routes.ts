@@ -6135,8 +6135,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.post("/api/projects/:id/publish", async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     try {
+      // Reject obviously invalid IDs early so we return a clear error instead of
+      // a misleading 404 from storage. This is the source of the "Project not
+      // found" message students saw when they tried to publish before saving.
+      if (!req.params.id || req.params.id === "null" || req.params.id === "undefined") {
+        console.warn(`[publish] called with missing/invalid project id by ${req.user!.email}`);
+        return res.status(400).json({ message: "Save your project first, then publish." });
+      }
       const project = await storage.getProject(req.params.id);
-      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (!project) {
+        console.warn(`[publish] project not found id="${req.params.id}" user=${req.user!.email}`);
+        return res.status(404).json({ message: "Project not found — try saving again, then publish." });
+      }
       if (project.userId !== req.user!.id && req.user!.role !== "admin" && req.user!.email !== "mojocreative1@gmail.com") {
         return res.status(403).json({ message: "Not authorized" });
       }

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Send, Sparkles, Wand2, Radio, GraduationCap, FolderOpen, X } from "lucide-react";
+import { Send, Sparkles, Wand2, Radio, GraduationCap, FolderOpen, Globe, X } from "lucide-react";
 import { useHandoff } from "@/hooks/useHandoff";
 import { toast } from "sonner";
 
@@ -58,14 +58,46 @@ export default function SendToMenu({ projectId, assetIds, contentType, layerMeta
       handler: () => handleSend("lms", () => launchLms(context)),
     },
     {
+      key: "community",
+      label: "Community Library",
+      icon: Globe,
+      description: "Publish so others can see your work",
+      handler: () => handleSend("community", async () => {
+        if (!projectId) {
+          toast.error("Save your project first, then publish");
+          return;
+        }
+        const res = await fetch(`/api/projects/${projectId}/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ visibility: "public" }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ message: "Publish failed" }));
+          toast.error(err.message || "Publish failed");
+          return;
+        }
+        const data = await res.json();
+        toast.success("Published to community library!", {
+          description: data.communityUrl ? `View it at ${data.communityUrl}` : undefined,
+        });
+        onClose?.();
+      }),
+    },
+    {
       key: "library",
       label: "Asset Library",
       icon: FolderOpen,
       description: "Save to shared asset library",
-      handler: () => {
+      handler: () => handleSend("library", async () => {
+        if (!projectId) {
+          toast.error("Save your project first");
+          return;
+        }
         toast.success("Saved to asset library");
         onClose?.();
-      },
+      }),
     },
   ];
 
