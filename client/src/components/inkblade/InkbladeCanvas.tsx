@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { useStylusInput } from "@/lib/inkblade/useStylusInput";
 import { buildStrokeOutline, strokeOutlineToSvgPath } from "@/lib/inkblade/renderer";
 import type { BrushProfile, RawInputPoint } from "@/lib/inkblade/types";
@@ -12,14 +12,30 @@ interface InkStroke {
   path: string;
 }
 
+export interface InkbladeCanvasHandle {
+  /** Rasterize current strokes to a PNG data URL at the live pixel size. */
+  toDataURL: () => string | null;
+  /** Drop all strokes. */
+  clear: () => void;
+  /** True if anything has been drawn. */
+  hasContent: () => boolean;
+  /** Live pixel dimensions of the host element. */
+  getSize: () => { width: number; height: number };
+}
+
 interface Props {
-  width: number;
-  height: number;
+  /** Explicit pixel width. Ignored when `fill` is true. */
+  width?: number;
+  /** Explicit pixel height. Ignored when `fill` is true. */
+  height?: number;
+  /** Stretch to fill parent and resize via ResizeObserver. */
+  fill?: boolean;
   /** Full brush profile — wins over brushId/color when provided. */
   brush?: BrushProfile;
   brushId?: string;
   color?: string;
   className?: string;
+  style?: React.CSSProperties;
   onStrokeComplete?: (stroke: InkStroke, raw: RawInputPoint[]) => void;
 }
 
@@ -27,15 +43,10 @@ interface Props {
  * INKBLADE canvas — stylus-first drawing surface.
  * Same component used in Comic Builder, Motion Studio, and FX. Identical behavior.
  */
-export function InkbladeCanvas({
-  width,
-  height,
-  brush: brushProp,
-  brushId = "core",
-  color,
-  className,
-  onStrokeComplete,
-}: Props) {
+export const InkbladeCanvas = forwardRef<InkbladeCanvasHandle, Props>(function InkbladeCanvas(
+  { width: widthProp, height: heightProp, fill = false, brush: brushProp, brushId = "core", color, className, style, onStrokeComplete },
+  apiRef
+) {
   const brush: BrushProfile = brushProp
     ? brushProp
     : { ...getBrush(brushId), color: color ?? getBrush(brushId).color };
@@ -43,6 +54,23 @@ export function InkbladeCanvas({
   const activeRawRef = useRef<RawInputPoint[]>([]);
   const [activePath, setActivePath] = useState<string>("");
   const [cursor, setCursor] = useState<{ x: number; y: number; size: number } | null>(null);
+
+  // Live pixel dimensions — measured from the host element when `fill` is set.
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: widthProp ?? 0, h: heightProp ?? 0 });
+  const hostRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!fill || !hostRef.current) return;
+    const el = hostRef.current;
+    const update = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fill]);
+
+  const w = fill ? size.w : (widthProp ?? 0);
+  const h = fill ? size.h : (heightProp ?? 0);
 
   const handleStart = useCallback((p: RawInputPoint) => {
     activeRawRef.current = [p];
@@ -78,25 +106,71 @@ export function InkbladeCanvas({
     onStrokeComplete?.(stroke, points);
   }, [brush, onStrokeComplete]);
 
-  const { ref } = useStylusInput({
+  const { ref: inputRef } = useStylusInput({
     onStrokeStart: handleStart,
     onStrokeMove: handleMove,
     onStrokeEnd: handleEnd,
   });
 
+  // Merge the input ref (callback ref from useStylusInput) with our host ref.
+  const setRefs = useCallback((node: HTMLDivElement | null) => {
+    hostRef.current = node;
+    if (typeof inputRef === "function") {
+      (inputRef as (n: HTMLElement | null) => void)(node);
+    } else if (inputRef) {
+      (inputRef as React.MutableRefObject<HTMLElement | null>).current = node;
+    }
+  }, [inputRef]);
+
+  const strokesRef = useRef(strokes);
+  useEffect(() => { strokesRef.current = strokes; }, [strokes]);
+
+  useImperativeHandle(apiRef, () => ({
+    hasContent: () => strokesRef.current.length > 0,
+    getSize: () => ({ width: w, height: h }),
+    clear: () => { setStrokes([]); setActivePath(""); activeRawRef.current = []; },
+    toDataURL: () => {
+      const list = strokesRef.current;
+      if (list.length === 0 || w <= 0 || h <= 0) return null;
+      const cnv = document.createElement("canvas");
+      cnv.width = w; cnv.height = h;
+      const ctx = cnv.getContext("2d");
+      if (!ctx) return null;
+      // Draw strokes directly via Path2D — synchronous, no SVG decode required.
+      ctx.clearRect(0, 0, w, h);
+      for (const s of list) {
+        const p2d = new Path2D(s.path);
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = s.opacity;
+        ctx.fill(p2d);
+      }
+      ctx.globalAlpha = 1;
+      return cnv.toDataURL("image/png");
+    },
+  }), [w, h]);
+
   return (
     <div
-      ref={ref as any}
+      ref={setRefs}
       data-testid="inkblade-canvas"
       className={className}
-      style={{ width, height, touchAction: "none", cursor: "none", position: "relative" }}
+      style={{
+        width: fill ? "100%" : w || undefined,
+        height: fill ? "100%" : h || undefined,
+        touchAction: "none",
+        cursor: "none",
+        position: "relative",
+        ...style,
+      }}
     >
-      <svg width={width} height={height} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        {strokes.map(s => (
-          <path key={s.id} d={s.path} fill={s.color} opacity={s.opacity} />
-        ))}
-        {activePath && <path d={activePath} fill={brush.color} opacity={brush.opacity} />}
-      </svg>
+      {w > 0 && h > 0 && (
+        <svg width={w} height={h} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          {strokes.map(s => (
+            <path key={s.id} d={s.path} fill={s.color} opacity={s.opacity} />
+          ))}
+          {activePath && <path d={activePath} fill={brush.color} opacity={brush.opacity} />}
+        </svg>
+      )}
       {cursor && (
         <div
           aria-hidden
@@ -115,4 +189,4 @@ export function InkbladeCanvas({
       )}
     </div>
   );
-}
+});

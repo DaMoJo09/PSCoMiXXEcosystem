@@ -2,7 +2,11 @@ import { Layout } from "@/components/layout/Layout";
 import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { VersionHistory } from "@/components/projects/VersionHistory";
 import { ModeSwitcher } from "@/components/comic/ModeSwitcher";
-import type { ModeId } from "@/lib/inkblade/types";
+import type { ModeId, BrushProfile } from "@/lib/inkblade/types";
+import { getBrush } from "@/lib/inkblade/brushes";
+import { BrushSettingsPanel } from "@/components/inkblade/BrushSettingsPanel";
+import { InkbladeCanvas, type InkbladeCanvasHandle } from "@/components/inkblade/InkbladeCanvas";
+import { Hexagon, Circle as CircleIcon, Square as SquareIcon } from "lucide-react";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
@@ -127,8 +131,15 @@ interface Panel {
   width: number;
   height: number;
   rotation: number;
-  type?: "rectangle" | "circle";
-  shape?: "rectangle" | "circle";
+  type?: "rectangle" | "circle" | "polygon";
+  shape?: "rectangle" | "circle" | "polygon";
+  /**
+   * Polygon vertices for vector-shape panels (Clip Studio-style).
+   * Coordinates are PERCENTAGES (0–100) relative to the panel's own bounds —
+   * so resizing the bounding box smoothly stretches the polygon, just like
+   * a real vector shape.
+   */
+  points?: { x: number; y: number }[];
   contents: PanelContent[];
   zIndex: number;
   locked?: boolean;
@@ -1716,7 +1727,7 @@ export default function ComicCreator() {
   // identical across modes (per the directive — no degradation).
   const MODE_DEFAULT_TOOL: Record<ModeId, string> = {
     layout: "panel",
-    ink: "draw",
+    ink: "draw", // legacy — kept for backward-compat with saved projects
     color: "select",
     motion: "select",
     fx: "select",
@@ -1865,8 +1876,11 @@ export default function ComicCreator() {
       }
     },
   });
+  // Legacy raster brush state — retained only to keep older keyboard handlers
+  // and any unmigrated draw paths working. New code should drive `inkbladeBrush`.
   const [brushSize, setBrushSize] = useState(4);
   const [brushColor, setBrushColor] = useState("#000000");
+  void brushColor;
   const [zoom, setZoom] = useState(100);
   const spreadAudioRef = useRef<HTMLAudioElement | null>(null);
   const spreadAudioInputRef = useRef<HTMLInputElement>(null);
@@ -1889,7 +1903,22 @@ export default function ComicCreator() {
   const [inlineDrawingPage, setInlineDrawingPage] = useState<"left" | "right">("left");
   const [isInlineDrawing, setIsInlineDrawing] = useState(false);
   const [inlineEraserMode, setInlineEraserMode] = useState(false);
-  const inlineCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Panel-shape sub-mode (rectangle drag, circle drag, polygon click-to-add).
+  const [panelShape, setPanelShape] = useState<"rectangle" | "circle" | "polygon">("rectangle");
+  const [polygonPoints, setPolygonPoints] = useState<{ x: number; y: number }[]>([]);
+  const [polygonHover, setPolygonHover] = useState<{ x: number; y: number } | null>(null);
+  const [polygonPage, setPolygonPage] = useState<"left" | "right" | null>(null);
+  // INKBLADE brush state — lifted so the popout panel can edit it and the
+  // existing inline drawing handlers read live values from it.
+  const [inkbladeBrush, setInkbladeBrush] = useState<BrushProfile>(() => getBrush("core"));
+  // Bridge: keep the legacy brushColor/brushSize state in sync with INKBLADE
+  // so the existing inline draw handlers honor the popout's settings.
+  useEffect(() => {
+    setBrushColor(inkbladeBrush.color);
+    setBrushSize(inkbladeBrush.size);
+  }, [inkbladeBrush.color, inkbladeBrush.size]);
+  // INKBLADE handle for the vector-based inline drawing surface.
+  const inkbladeHandleRef = useRef<InkbladeCanvasHandle>(null);
   const inlineDrawingRef = useRef<{ lastX: number; lastY: number } | null>(null);
 
   const leftPageRef = useRef<HTMLDivElement>(null);
@@ -2103,8 +2132,11 @@ export default function ComicCreator() {
         setShowCoverPrompt(true);
       }
       // Restore the unified-engine mode if previously saved.
-      if (data?.activeMode && ["layout","ink","color","motion","fx","text"].includes(data.activeMode)) {
+      // "ink" is no longer a top-level mode (Draw tool handles INKBLADE) — fall back to layout.
+      if (data?.activeMode && ["layout","color","motion","fx","text"].includes(data.activeMode)) {
         setActiveMode(data.activeMode as ModeId);
+      } else if (data?.activeMode === "ink") {
+        setActiveMode("layout");
       }
     }
   }, [project]);
@@ -2370,8 +2402,8 @@ export default function ComicCreator() {
         case 's': if (mod) { e.preventDefault(); handleSave(); } break;
         case 'f': if (mod) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
         case 'r': if (mod) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); refetchProject(); } break;
-        case '[': setBrushSize(s => Math.max(1, s - 2)); break;
-        case ']': setBrushSize(s => Math.min(100, s + 2)); break;
+        case '[': setInkbladeBrush(b => ({ ...b, size: Math.max(1, b.size - 2) })); break;
+        case ']': setInkbladeBrush(b => ({ ...b, size: Math.min(100, b.size + 2) })); break;
       }
     };
     
@@ -3728,6 +3760,18 @@ export default function ComicCreator() {
     
     if (activeTool === "panel") {
       const coords = getCoords(e, pageRef);
+      // Polygon mode: click adds a vertex; double-click closes (handled below).
+      if (panelShape === "polygon") {
+        if (polygonPage && polygonPage !== page) {
+          // switched pages mid-polygon → reset to avoid mixed-page polygons
+          setPolygonPoints([]);
+        }
+        setPolygonPage(page);
+        setPolygonPoints(prev => [...prev, coords]);
+        setSelectedPanelId(null);
+        setSelectedContentId(null);
+        return;
+      }
       setIsDrawingPanel(true);
       setDrawStart(coords);
       setDrawCurrent(coords);
@@ -3742,8 +3786,54 @@ export default function ComicCreator() {
   const handlePageMouseMove = (e: React.MouseEvent, pageRef: React.RefObject<HTMLDivElement | null>) => {
     if (isDrawingPanel) {
       setDrawCurrent(getCoords(e, pageRef));
+    } else if (activeTool === "panel" && panelShape === "polygon" && polygonPoints.length > 0) {
+      setPolygonHover(getCoords(e, pageRef));
     }
   };
+
+  const finalizePolygon = useCallback((page: "left" | "right") => {
+    if (polygonPoints.length < 3) {
+      setPolygonPoints([]);
+      setPolygonHover(null);
+      setPolygonPage(null);
+      return;
+    }
+    // Compute bounding box in page-percent space.
+    const minX = Math.min(...polygonPoints.map(p => p.x));
+    const minY = Math.min(...polygonPoints.map(p => p.y));
+    const maxX = Math.max(...polygonPoints.map(p => p.x));
+    const maxY = Math.max(...polygonPoints.map(p => p.y));
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width < 3 || height < 3) {
+      setPolygonPoints([]); setPolygonHover(null); setPolygonPage(null);
+      return;
+    }
+    // Re-express each vertex as % within the panel's own bounds (0..100).
+    const localPoints = polygonPoints.map(p => ({
+      x: ((p.x - minX) / width) * 100,
+      y: ((p.y - minY) / height) * 100,
+    }));
+    addPanel(page, { x: minX, y: minY, width, height, type: "polygon", points: localPoints });
+    setPolygonPoints([]); setPolygonHover(null); setPolygonPage(null);
+    // addPanel is intentionally omitted — it captures spread state via setSpreads
+    // updater fns and re-creating it each render does not change behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [polygonPoints]);
+
+  // Cancel polygon with Escape; close with Enter.
+  useEffect(() => {
+    if (activeTool !== "panel" || panelShape !== "polygon") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPolygonPoints([]); setPolygonHover(null); setPolygonPage(null);
+      } else if (e.key === "Enter" && polygonPage) {
+        finalizePolygon(polygonPage);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeTool, panelShape, polygonPage, finalizePolygon]);
 
   const handlePageMouseUp = (page: "left" | "right") => {
     if (isDrawingPanel) {
@@ -3751,15 +3841,15 @@ export default function ComicCreator() {
       const y = Math.min(drawStart.y, drawCurrent.y);
       const width = Math.abs(drawCurrent.x - drawStart.x);
       const height = Math.abs(drawCurrent.y - drawStart.y);
-      
+
       if (width > 5 && height > 5) {
-        addPanel(page, { x, y, width, height, type: "rectangle" });
+        addPanel(page, { x, y, width, height, type: panelShape === "circle" ? "circle" : "rectangle" });
       }
       setIsDrawingPanel(false);
     }
   };
 
-  const addPanel = (page: "left" | "right", panelData: { x: number; y: number; width: number; height: number; type: "rectangle" | "circle" }) => {
+  const addPanel = (page: "left" | "right", panelData: { x: number; y: number; width: number; height: number; type: "rectangle" | "circle" | "polygon"; points?: { x: number; y: number }[] }) => {
     const newPanel: Panel = {
       id: `panel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ...panelData,
@@ -4000,6 +4090,11 @@ export default function ComicCreator() {
   };
   
   const handlePageDoubleClick = (e: React.MouseEvent, page: "left" | "right") => {
+    // Polygon mode: double-click closes the in-progress polygon panel.
+    if (activeTool === "panel" && panelShape === "polygon" && polygonPage === page && polygonPoints.length >= 3) {
+      finalizePolygon(page);
+      return;
+    }
     // Only trigger if not clicking on a panel (clicking on empty page area)
     if ((e.target as HTMLElement).closest('[data-testid^="panel-"]')) return;
     // Switch to panel tool on double-click on empty page
@@ -4532,20 +4627,11 @@ export default function ComicCreator() {
   };
 
   const finishInlineDrawing = useCallback(() => {
-    const canvas = inlineCanvasRef.current;
-    if (!canvas || !inlineDrawingPanelId) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const hasContent = imageData.data.some((val, i) => i % 4 === 3 && val > 0);
-    
-    if (hasContent) {
-      const dataUrl = canvas.toDataURL('image/png');
-      const panelEl = canvas.parentElement;
-      const panelW = panelEl ? panelEl.clientWidth : canvas.width;
-      const panelH = panelEl ? panelEl.clientHeight : canvas.height;
+    if (!inlineDrawingPanelId) return;
+    const handle = inkbladeHandleRef.current;
+    const dataUrl = handle?.toDataURL() ?? null;
+    if (dataUrl && handle?.hasContent()) {
+      const { width: panelW, height: panelH } = handle.getSize();
       addContentToPanel(inlineDrawingPage, inlineDrawingPanelId, {
         type: "drawing",
         transform: { x: 0, y: 0, width: panelW, height: panelH, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -4554,7 +4640,6 @@ export default function ComicCreator() {
       });
       toast.success("Drawing saved to panel");
     }
-    
     setInlineDrawingPanelId(null);
     setIsInlineDrawing(false);
     inlineDrawingRef.current = null;
@@ -4562,105 +4647,7 @@ export default function ComicCreator() {
   }, [inlineDrawingPanelId, inlineDrawingPage]);
 
   const clearInlineDrawing = useCallback(() => {
-    const canvas = inlineCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, []);
-
-  const handleInlineDrawStart = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = inlineCanvasRef.current;
-    if (!canvas) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    setIsInlineDrawing(true);
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    let clientX: number, clientY: number;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-    inlineDrawingRef.current = { lastX: x, lastY: y };
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.beginPath();
-    ctx.arc(x, y, (inlineEraserMode ? brushSize * 3 : brushSize) / 2, 0, Math.PI * 2);
-    if (inlineEraserMode) {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = brushColor;
-    }
-    ctx.fill();
-  }, [brushSize, brushColor, inlineEraserMode]);
-
-  const handleInlineDrawMove = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isInlineDrawing || !inlineDrawingRef.current) return;
-    const canvas = inlineCanvasRef.current;
-    if (!canvas) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    let clientX: number, clientY: number;
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.lineWidth = inlineEraserMode ? brushSize * 3 : brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    if (inlineEraserMode) {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = brushColor;
-    }
-    
-    ctx.beginPath();
-    ctx.moveTo(inlineDrawingRef.current.lastX, inlineDrawingRef.current.lastY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    
-    inlineDrawingRef.current = { lastX: x, lastY: y };
-  }, [isInlineDrawing, brushSize, brushColor, inlineEraserMode]);
-
-  const handleInlineDrawEnd = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsInlineDrawing(false);
-    inlineDrawingRef.current = null;
+    inkbladeHandleRef.current?.clear();
   }, []);
 
   const updatePanelStyle = (page: "left" | "right", panelId: string, style: Partial<Panel>) => {
@@ -4853,17 +4840,42 @@ export default function ComicCreator() {
           transform: `rotate(${panel.rotation || 0}deg)`,
           transformOrigin: 'center center',
           backgroundColor: panel.backgroundColor || 'transparent',
-          borderWidth: `${panel.borderWidth || 2}px`,
+          // Polygon panels: border is drawn by the SVG outline below; suppress
+          // the outer rectangular border to keep the silhouette clean.
+          borderWidth: panel.type === "polygon" ? 0 : `${panel.borderWidth || 2}px`,
           borderStyle: 'solid',
           borderColor: panel.borderColor || 'black',
-          boxShadow: isSelected 
-            ? `0 0 0 3px white, 0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)` 
-            : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
+          // Vector clip — polygon contents are auto-masked to the shape.
+          clipPath: panel.type === "polygon" && panel.points && panel.points.length >= 3
+            ? `polygon(${panel.points.map(p => `${p.x}% ${p.y}%`).join(", ")})`
+            : undefined,
+          boxShadow: isSelected
+            ? `0 0 0 3px white, 0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)`
+            : panel.type === "polygon" ? 'none' : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
         }}
         onClick={(e) => handlePanelClick(e, panel.id, page)}
         onDoubleClick={(e) => handlePanelDoubleClick(e, panel.id, page)}
         data-testid={`panel-${panel.id}`}
       >
+        {/* Polygon outline — drawn at the clip boundary; stroke is doubled
+            because the outer half gets clipped away. */}
+        {panel.type === "polygon" && panel.points && panel.points.length >= 3 && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ zIndex: 25 }}
+            aria-hidden
+          >
+            <polygon
+              points={panel.points.map(p => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke={panel.borderColor || "#000"}
+              strokeWidth={(panel.borderWidth || 3) * 2}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
         {panel.coverRole && (
           <div className={`absolute top-0 left-0 z-10 px-0.5 py-px text-[8px] font-bold text-white ${panel.coverRole === "front-cover" ? "bg-cyan-600" : "bg-purple-600"}`}>
             {panel.coverRole === "front-cover" ? "FRONT COVER" : "BACK COVER"}
@@ -5395,20 +5407,11 @@ export default function ComicCreator() {
 
           {inlineDrawingPanelId === panel.id && (
             <>
-              <canvas
-                ref={inlineCanvasRef}
-                width={800}
-                height={800}
-                className="absolute inset-0 w-full h-full z-30"
-                style={{ cursor: inlineEraserMode ? 'cell' : 'crosshair', touchAction: 'none' }}
-                onMouseDown={handleInlineDrawStart}
-                onMouseMove={handleInlineDrawMove}
-                onMouseUp={handleInlineDrawEnd}
-                onMouseLeave={handleInlineDrawEnd}
-                onTouchStart={handleInlineDrawStart}
-                onTouchMove={handleInlineDrawMove}
-                onTouchEnd={handleInlineDrawEnd}
-                data-testid="inline-drawing-canvas"
+              <InkbladeCanvas
+                ref={inkbladeHandleRef}
+                fill
+                brush={inkbladeBrush}
+                className="absolute inset-0 z-30"
               />
               <div
                 className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-40 flex items-center gap-1 bg-zinc-900 border border-zinc-600 px-2 py-1 rounded-t shadow-lg"
@@ -5425,9 +5428,9 @@ export default function ComicCreator() {
                   <Pen className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setInlineEraserMode(true); }}
-                  className={`p-1.5 rounded ${inlineEraserMode ? 'bg-white text-black' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-                  title="Eraser"
+                  disabled
+                  className="p-1.5 rounded text-zinc-600 cursor-not-allowed"
+                  title="Eraser — coming with INKBLADE layer model"
                   data-testid="inline-draw-eraser"
                 >
                   <Eraser className="w-3.5 h-3.5" />
@@ -5435,8 +5438,8 @@ export default function ComicCreator() {
                 <div className="w-px h-5 bg-zinc-700 mx-0.5" />
                 <input
                   type="color"
-                  value={brushColor}
-                  onChange={(e) => { e.stopPropagation(); setBrushColor(e.target.value); }}
+                  value={inkbladeBrush.color}
+                  onChange={(e) => { e.stopPropagation(); setInkbladeBrush(b => ({ ...b, color: e.target.value })); }}
                   className="w-6 h-6 cursor-pointer bg-transparent border border-zinc-600 rounded"
                   title="Color"
                   data-testid="inline-draw-color"
@@ -5444,14 +5447,14 @@ export default function ComicCreator() {
                 <input
                   type="range"
                   min="1"
-                  max="30"
-                  value={brushSize}
-                  onChange={(e) => { e.stopPropagation(); setBrushSize(Number(e.target.value)); }}
+                  max="80"
+                  value={inkbladeBrush.size}
+                  onChange={(e) => { e.stopPropagation(); setInkbladeBrush(b => ({ ...b, size: Number(e.target.value) })); }}
                   className="w-16 h-2 accent-cyan-500"
-                  title={`Size: ${brushSize}px`}
+                  title={`Size: ${inkbladeBrush.size}px`}
                   data-testid="inline-draw-size"
                 />
-                <span className="text-[10px] text-zinc-400 w-6 text-center">{brushSize}px</span>
+                <span className="text-[10px] text-zinc-400 w-6 text-center">{inkbladeBrush.size}px</span>
                 <div className="w-px h-5 bg-zinc-700 mx-0.5" />
                 <button
                   onClick={(e) => { e.stopPropagation(); clearInlineDrawing(); }}
@@ -5696,6 +5699,46 @@ export default function ComicCreator() {
           }}
         />
       </div>
+    );
+  };
+
+  const renderPolygonOverlay = (page: "left" | "right") => {
+    if (activeTool !== "panel" || panelShape !== "polygon") return null;
+    if (polygonPage !== page || polygonPoints.length === 0) return null;
+    const pts = [...polygonPoints, ...(polygonHover ? [polygonHover] : [])];
+    return (
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none z-30"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden
+        data-testid={`polygon-overlay-${page}`}
+      >
+        <polyline
+          points={pts.map(p => `${p.x},${p.y}`).join(" ")}
+          fill="rgba(255,255,255,0.08)"
+          stroke="#fff"
+          strokeWidth={0.4}
+          strokeDasharray="1.5 1"
+          vectorEffect="non-scaling-stroke"
+        />
+        {polygonPoints.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={0.8} fill="#fff" stroke="#000" strokeWidth={0.2} vectorEffect="non-scaling-stroke" />
+        ))}
+        {polygonPoints.length >= 3 && (
+          <line
+            x1={polygonPoints[polygonPoints.length - 1].x}
+            y1={polygonPoints[polygonPoints.length - 1].y}
+            x2={polygonPoints[0].x}
+            y2={polygonPoints[0].y}
+            stroke="#fff"
+            strokeWidth={0.3}
+            strokeDasharray="0.6 0.8"
+            opacity={0.5}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
     );
   };
 
@@ -6032,7 +6075,52 @@ export default function ComicCreator() {
 
         <div className="flex-1 flex overflow-hidden">
           {!canvasOverview && (
-          <aside className="w-14 border-r border-zinc-800/50 flex flex-col items-center py-3 gap-0.5" style={{ background: '#252525' }}>
+          <aside className="w-14 border-r border-zinc-800/50 flex flex-col items-center py-3 gap-0.5 relative" style={{ background: '#252525' }}>
+            {/* PANEL-SHAPE popout — appears next to the toolbar when Panel tool is active. */}
+            {activeTool === "panel" && (
+              <div
+                className="absolute left-14 top-3 z-50 bg-zinc-900 border border-zinc-700 shadow-2xl p-2 flex flex-col gap-1 font-mono"
+                onClick={(e) => e.stopPropagation()}
+                data-testid="panel-shape-popout"
+              >
+                <div className="text-[9px] uppercase tracking-wider text-zinc-500 px-1 mb-0.5">Shape</div>
+                {([
+                  { id: "rectangle", label: "Rect", Icon: SquareIcon, hint: "Click & drag" },
+                  { id: "circle",    label: "Circle", Icon: CircleIcon, hint: "Click & drag" },
+                  { id: "polygon",   label: "Polygon", Icon: Hexagon, hint: "Click points · double-click to close · Esc cancels" },
+                ] as const).map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setPanelShape(s.id)}
+                    title={s.hint}
+                    data-testid={`panel-shape-${s.id}`}
+                    className={`flex items-center gap-2 px-2 py-1.5 text-[10px] uppercase border ${panelShape === s.id ? "bg-white text-black border-white" : "border-zinc-700 text-zinc-300 hover:border-zinc-500"}`}
+                  >
+                    <s.Icon className="w-3.5 h-3.5" /> {s.label}
+                  </button>
+                ))}
+                {panelShape === "polygon" && (
+                  <div className="text-[9px] text-zinc-500 px-1 mt-1 border-t border-zinc-800 pt-1.5 leading-tight">
+                    {polygonPoints.length === 0
+                      ? "Click on a page to start"
+                      : `${polygonPoints.length} pts · dbl-click or Enter to close · Esc cancels`}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* INKBLADE brush popout — appears next to the toolbar when Draw/Erase is active. */}
+            {(activeTool === "draw" || activeTool === "erase") && (
+              <div
+                className="absolute left-14 top-3 z-50"
+                onClick={(e) => e.stopPropagation()}
+                data-testid="brush-popout"
+              >
+                <BrushSettingsPanel brush={inkbladeBrush} onChange={setInkbladeBrush} />
+              </div>
+            )}
+
+
             {tools.map((tool) => (
               <Tooltip key={tool.id} delayDuration={100}>
                 <TooltipTrigger asChild>
@@ -6373,6 +6461,7 @@ export default function ComicCreator() {
                   >
                     {currentSpread.leftPage.map(panel => renderPanel(panel, "left"))}
                     {isDrawingPanel && selectedPage === "left" && renderDrawingPreview()}
+                    {renderPolygonOverlay("left")}
                     {renderNarratorOverlay(currentSpread.leftNarration)}
                     {currentSpread.leftPage.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">
@@ -6634,6 +6723,7 @@ export default function ComicCreator() {
                   >
                     {currentSpread.rightPage.map(panel => renderPanel(panel, "right"))}
                     {isDrawingPanel && selectedPage === "right" && renderDrawingPreview()}
+                    {renderPolygonOverlay("right")}
                     {renderNarratorOverlay(currentSpread.rightNarration)}
                     {currentSpread.rightPage.length === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-400 pointer-events-none">

@@ -1,13 +1,13 @@
-import { LayoutGrid, PenTool, Palette, Film, Sparkles, Type } from "lucide-react";
+import { LayoutGrid, Palette, Film, Sparkles, Type } from "lucide-react";
 import type { ModeId } from "@/lib/inkblade/types";
 
 /**
  * UNIFIED CREATION ENGINE — mode switcher.
  * Same canvas, same tools — different capabilities layered on top.
+ * NOTE: "Ink" is no longer a separate mode — the Draw tool itself uses INKBLADE.
  */
 const MODES: { id: ModeId; label: string; icon: typeof LayoutGrid; hint: string }[] = [
   { id: "layout", label: "Layout", icon: LayoutGrid, hint: "Panels, gutters, templates" },
-  { id: "ink",    label: "Ink",    icon: PenTool,    hint: "INKBLADE brushes & vector strokes" },
   { id: "color",  label: "Color",  icon: Palette,    hint: "Fill, gradients, palettes" },
   { id: "motion", label: "Motion", icon: Film,       hint: "Animate this panel or layer" },
   { id: "fx",     label: "FX",     icon: Sparkles,   hint: "Smears, overlays, motion accents" },
