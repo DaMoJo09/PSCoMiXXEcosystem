@@ -6,6 +6,7 @@ import type { ModeId, BrushProfile } from "@/lib/inkblade/types";
 import { getBrush } from "@/lib/inkblade/brushes";
 import { BrushSettingsPanel } from "@/components/inkblade/BrushSettingsPanel";
 import { InkbladeCanvas, type InkbladeCanvasHandle } from "@/components/inkblade/InkbladeCanvas";
+import { SortableLayerList, LayerDragHandle } from "@/components/comic/SortableLayerList";
 import { Hexagon, Circle as CircleIcon, Square as SquareIcon } from "lucide-react";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
@@ -3924,14 +3925,8 @@ export default function ComicCreator() {
     toast.success("Panel duplicated");
   };
 
-  const dragPanelRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
-  const dragContentRef = useRef<{ panelId: string; dragIdx: number; overIdx: number } | null>(null);
-  const dragCoverElRef = useRef<{ dragIdx: number; overIdx: number } | null>(null);
-  const [panelDragOverIdx, setPanelDragOverIdx] = useState<number | null>(null);
   const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [contentDragOverIdx, setContentDragOverIdx] = useState<number | null>(null);
-  const [coverElDragOverIdx, setCoverElDragOverIdx] = useState<number | null>(null);
 
   const reorderPanels = (page: "left" | "right", fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
@@ -7044,59 +7039,43 @@ export default function ComicCreator() {
                     `px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/row transition-colors ${
                       active ? 'bg-zinc-600 text-white' : dimmed ? 'bg-zinc-850 text-zinc-500' : 'hover:bg-zinc-800'
                     } ${dragOver ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`;
-                  return sortedPanels.map((panel, visualIdx) => {
-                  const isActive = selectedPanelId === panel.id;
-                  const originalIdx = pagePanels.findIndex(p => p.id === panel.id);
-                  const isCover = !!panel.coverRole;
+                  const reorderPanels = (fromVisual: number, toVisual: number) => {
+                    const fromPanel = sortedPanels[fromVisual];
+                    const toPanel = sortedPanels[toVisual];
+                    if (!fromPanel || !toPanel) return;
+                    const fromArrayIdx = pagePanels.findIndex(p => p.id === fromPanel.id);
+                    setSpreads(prev => prev.map((spread, si) => {
+                      if (si !== currentSpreadIndex) return spread;
+                      const key = selectedPage === "left" ? "leftPage" : "rightPage";
+                      const panels = [...spread[key]].map(p => ({ ...p }));
+                      const [moved] = panels.splice(fromArrayIdx, 1);
+                      const newToIdx = panels.findIndex(p => p.id === toPanel.id);
+                      panels.splice(fromVisual < toVisual ? newToIdx + 1 : newToIdx, 0, moved);
+                      panels.forEach((p, pi) => { p.zIndex = pi; });
+                      return { ...spread, [key]: panels };
+                    }));
+                  };
+                  const panelById = new Map(sortedPanels.map(p => [p.id, p] as const));
                   return (
+                    <SortableLayerList
+                      ids={sortedPanels.map(p => p.id)}
+                      onReorder={reorderPanels}
+                      className="space-y-0.5"
+                      renderRow={(panelId, { dragHandleProps }) => {
+                        const panel = panelById.get(panelId);
+                        if (!panel) return null;
+                        const isActive = selectedPanelId === panel.id;
+                        const originalIdx = pagePanels.findIndex(p => p.id === panel.id);
+                        const isCover = !!panel.coverRole;
+                        return (
                   <div key={panel.id} data-testid={`layer-group-${panel.id}`}>
                     <div
-                      draggable
-                      onDragStart={(e) => {
-                        dragPanelRef.current = { dragIdx: visualIdx, overIdx: visualIdx };
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", "panel");
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        if (dragPanelRef.current && dragPanelRef.current.overIdx !== visualIdx) {
-                          dragPanelRef.current.overIdx = visualIdx;
-                          setPanelDragOverIdx(visualIdx);
-                        }
-                      }}
-                      onDragLeave={() => { if (panelDragOverIdx === visualIdx) setPanelDragOverIdx(null); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (dragPanelRef.current) {
-                          const fromVisual = dragPanelRef.current.dragIdx;
-                          const toVisual = dragPanelRef.current.overIdx;
-                          const fromPanel = sortedPanels[fromVisual];
-                          const toPanel = sortedPanels[toVisual];
-                          if (fromPanel && toPanel) {
-                            const fromArrayIdx = pagePanels.findIndex(p => p.id === fromPanel.id);
-                            setSpreads(prev => prev.map((spread, si) => {
-                              if (si !== currentSpreadIndex) return spread;
-                              const key = selectedPage === "left" ? "leftPage" : "rightPage";
-                              const panels = [...spread[key]].map(p => ({ ...p }));
-                              const [moved] = panels.splice(fromArrayIdx, 1);
-                              const newToIdx = panels.findIndex(p => p.id === toPanel.id);
-                              panels.splice(fromVisual < toVisual ? newToIdx + 1 : newToIdx, 0, moved);
-                              panels.forEach((p, pi) => { p.zIndex = pi; });
-                              return { ...spread, [key]: panels };
-                            }));
-                          }
-                          dragPanelRef.current = null;
-                          setPanelDragOverIdx(null);
-                        }
-                      }}
-                      onDragEnd={() => { dragPanelRef.current = null; setPanelDragOverIdx(null); }}
                       className={`px-2 py-1.5 text-xs cursor-pointer flex items-center gap-1 group ${
                         isActive ? 'bg-white text-black' : panel.hidden ? 'bg-zinc-850 text-zinc-500' : 'bg-zinc-800 hover:bg-zinc-700'
-                      } ${panelDragOverIdx === visualIdx ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`}
+                      }`}
                       onClick={() => { setSelectedPanelId(panel.id); setSelectedContentId(null); }}
                     >
-                      <GripVertical className="w-3 h-3 flex-shrink-0 opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing" />
+                      <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePanelVisibility(selectedPage, panel.id); }}
                         className={`p-0.5 flex-shrink-0 ${isActive ? 'hover:bg-zinc-200' : 'hover:bg-zinc-600'} ${panel.hidden ? 'opacity-40' : ''}`}
@@ -7240,42 +7219,20 @@ export default function ComicCreator() {
                           currentOrder.forEach(id => { if (!newOrder.includes(id)) newOrder.push(id); });
                           updateCoverData({ elementZOrder: newOrder });
                         };
-                        const coverDragProps = (uIdx: number) => ({
-                          draggable: true,
-                          onDragStart: (e: React.DragEvent) => {
-                            e.stopPropagation();
-                            dragCoverElRef.current = { dragIdx: uIdx, overIdx: uIdx };
-                            e.dataTransfer.effectAllowed = "move";
-                            e.dataTransfer.setData("text/plain", "cover-el");
-                          },
-                          onDragOver: (e: React.DragEvent) => {
-                            e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move";
-                            if (dragCoverElRef.current && dragCoverElRef.current.overIdx !== uIdx) {
-                              dragCoverElRef.current.overIdx = uIdx; setCoverElDragOverIdx(uIdx);
-                            }
-                          },
-                          onDragLeave: () => { if (coverElDragOverIdx === uIdx) setCoverElDragOverIdx(null); },
-                          onDrop: (e: React.DragEvent) => {
-                            e.preventDefault(); e.stopPropagation();
-                            if (dragCoverElRef.current) {
-                              reorderCoverElements(dragCoverElRef.current.dragIdx, dragCoverElRef.current.overIdx);
-                              dragCoverElRef.current = null; setCoverElDragOverIdx(null);
-                            }
-                          },
-                          onDragEnd: () => { dragCoverElRef.current = null; setCoverElDragOverIdx(null); },
-                        });
                         return (
-                          <div className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5">
-                            {reversedUnified.map((zId, uIdx) => {
-                              const dragOverClass = coverElDragOverIdx === uIdx ? 'border-t border-cyan-400' : 'border-t border-transparent';
+                          <SortableLayerList
+                            ids={reversedUnified}
+                            onReorder={reorderCoverElements}
+                            className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5"
+                            renderRow={(zId, { dragHandleProps }) => {
                               const isHidden = hiddenSet.has(zId);
                               const masterEl = masterMap.get(zId);
                               if (masterEl) {
                                 return (
-                                  <div key={masterEl.id} {...coverDragProps(uIdx)}
-                                    className={layerRowClass(selectedContentId === masterEl.id, coverElDragOverIdx === uIdx, isHidden)}
+                                  <div
+                                    className={layerRowClass(selectedContentId === masterEl.id, false, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(masterEl.id); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
                                       {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
@@ -7291,10 +7248,10 @@ export default function ComicCreator() {
                               const il = imgMap.get(zId);
                               if (il) {
                                 return (
-                                  <div key={il.id} {...coverDragProps(uIdx)}
-                                    className={layerRowClass(selectedContentId === `cover-img-${il.id}`, coverElDragOverIdx === uIdx, isHidden)}
+                                  <div
+                                    className={layerRowClass(selectedContentId === `cover-img-${il.id}`, false, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-img-${il.id}`); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
                                       {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
@@ -7310,10 +7267,10 @@ export default function ComicCreator() {
                               const tl = txtMap.get(zId);
                               if (tl) {
                                 return (
-                                  <div key={tl.id} {...coverDragProps(uIdx)}
-                                    className={layerRowClass(selectedContentId === `cover-txt-${tl.id}`, coverElDragOverIdx === uIdx, isHidden)}
+                                  <div
+                                    className={layerRowClass(selectedContentId === `cover-txt-${tl.id}`, false, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-txt-${tl.id}`); }}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
                                       {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
@@ -7329,11 +7286,11 @@ export default function ComicCreator() {
                               if (zId === bgId && hasBgImage) {
                                 const bgViewKey = isFr ? "front" : "back";
                                 return (
-                                  <div key={bgId} {...coverDragProps(uIdx)}
-                                    className={layerRowClass(selectedContentId === `cover-bg-${bgViewKey}`, coverElDragOverIdx === uIdx, isHidden)}
+                                  <div
+                                    className={layerRowClass(selectedContentId === `cover-bg-${bgViewKey}`, false, isHidden)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedContentId(`cover-bg-${bgViewKey}`); }}
                                     data-testid={`layer-stack-item-${bgId}`}>
-                                    <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                    <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                                     <button onClick={(e) => { e.stopPropagation(); toggleVisibility(zId); }}
                                       className="p-0.5 flex-shrink-0 hover:bg-zinc-500" title={isHidden ? "Show" : "Hide"}>
                                       {isHidden ? <EyeOff className="w-2.5 h-2.5 opacity-40" /> : <Eye className="w-2.5 h-2.5" />}
@@ -7351,15 +7308,43 @@ export default function ComicCreator() {
                                 );
                               }
                               return null;
-                            })}
-                          </div>
+                            }}
+                          />
                         );
                       }
                       if (panel.contents.length > 0) {
                         const sortedContents = [...panel.contents].sort((a, b) => b.zIndex - a.zIndex);
+                        const contentById = new Map(sortedContents.map(c => [c.id, c] as const));
+                        const reorderContents = (fromVisual: number, toVisual: number) => {
+                          const fromContent = sortedContents[fromVisual];
+                          const toContent = sortedContents[toVisual];
+                          if (!fromContent || !toContent) return;
+                          const fromArrayIdx = panel.contents.findIndex(c => c.id === fromContent.id);
+                          setSpreads(prev => prev.map((spread, si) => {
+                            if (si !== currentSpreadIndex) return spread;
+                            const key = selectedPage === "left" ? "leftPage" : "rightPage";
+                            return {
+                              ...spread,
+                              [key]: spread[key].map(p => {
+                                if (p.id !== panel.id) return p;
+                                const contents = [...p.contents].map(c => ({ ...c }));
+                                const [moved] = contents.splice(fromArrayIdx, 1);
+                                const targetIdx = contents.findIndex(c => c.id === toContent.id);
+                                contents.splice(fromVisual < toVisual ? targetIdx + 1 : targetIdx, 0, moved);
+                                contents.forEach((c, ci) => { c.zIndex = ci; });
+                                return { ...p, contents };
+                              })
+                            };
+                          }));
+                        };
                         return (
-                          <div className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5">
-                            {sortedContents.map((content, visualIdx) => {
+                          <SortableLayerList
+                            ids={sortedContents.map(c => c.id)}
+                            onReorder={reorderContents}
+                            className="ml-4 border-l border-zinc-700 space-y-0.5 py-0.5"
+                            renderRow={(contentId, { dragHandleProps }) => {
+                              const content = contentById.get(contentId);
+                              if (!content) return null;
                               const isContentActive = selectedContentId === content.id;
                               const typeLabel = content.type === "image" ? "Image" : content.type === "text" ? (content.data?.textPanel ? "Text Page" : "Text") : content.type === "bubble" ? "Bubble" : content.type === "drawing" ? "Drawing" : content.type === "video" ? "Video" : content.type === "audio" ? "Audio" : content.type === "gif" ? "GIF" : content.type;
                               const typeIcon = content.type === "image" || content.type === "gif" ? <ImageIcon className="w-3 h-3 text-violet-400 opacity-60 shrink-0" /> :
@@ -7370,55 +7355,10 @@ export default function ComicCreator() {
                                 <Square className="w-3 h-3 text-zinc-400 opacity-60 shrink-0" />;
                               return (
                               <div
-                                key={content.id}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  dragContentRef.current = { panelId: panel.id, dragIdx: visualIdx, overIdx: visualIdx };
-                                  e.dataTransfer.effectAllowed = "move";
-                                  e.dataTransfer.setData("text/plain", "content");
-                                }}
-                                onDragOver={(e) => {
-                                  e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move";
-                                  if (dragContentRef.current && dragContentRef.current.panelId === panel.id && dragContentRef.current.overIdx !== visualIdx) {
-                                    dragContentRef.current.overIdx = visualIdx; setContentDragOverIdx(visualIdx);
-                                  }
-                                }}
-                                onDragLeave={() => { if (contentDragOverIdx === visualIdx) setContentDragOverIdx(null); }}
-                                onDrop={(e) => {
-                                  e.preventDefault(); e.stopPropagation();
-                                  if (dragContentRef.current && dragContentRef.current.panelId === panel.id) {
-                                    const fromVisual = dragContentRef.current.dragIdx;
-                                    const toVisual = dragContentRef.current.overIdx;
-                                    const fromContent = sortedContents[fromVisual];
-                                    const toContent = sortedContents[toVisual];
-                                    if (fromContent && toContent) {
-                                      const fromArrayIdx = panel.contents.findIndex(c => c.id === fromContent.id);
-                                      setSpreads(prev => prev.map((spread, si) => {
-                                        if (si !== currentSpreadIndex) return spread;
-                                        const key = selectedPage === "left" ? "leftPage" : "rightPage";
-                                        return {
-                                          ...spread,
-                                          [key]: spread[key].map(p => {
-                                            if (p.id !== panel.id) return p;
-                                            const contents = [...p.contents].map(c => ({ ...c }));
-                                            const [moved] = contents.splice(fromArrayIdx, 1);
-                                            const targetIdx = contents.findIndex(c => c.id === toContent.id);
-                                            contents.splice(fromVisual < toVisual ? targetIdx + 1 : targetIdx, 0, moved);
-                                            contents.forEach((c, ci) => { c.zIndex = ci; });
-                                            return { ...p, contents };
-                                          })
-                                        };
-                                      }));
-                                    }
-                                    dragContentRef.current = null; setContentDragOverIdx(null);
-                                  }
-                                }}
-                                onDragEnd={() => { dragContentRef.current = null; setContentDragOverIdx(null); }}
-                                className={layerRowClass(isContentActive, contentDragOverIdx === visualIdx && dragContentRef.current?.panelId === panel.id, content.hidden)}
+                                className={layerRowClass(isContentActive, false, content.hidden)}
                                 onClick={(e) => { e.stopPropagation(); setSelectedContentId(content.id); }}
                               >
-                                <GripVertical className="w-2.5 h-2.5 flex-shrink-0 opacity-40 group-hover/row:opacity-100 cursor-grab" />
+                                <LayerDragHandle dragHandleProps={dragHandleProps} className="flex-shrink-0" />
                                 <button
                                   onClick={(e) => { e.stopPropagation(); toggleContentVisibility(selectedPage, panel.id, content.id); }}
                                   className="p-0.5 flex-shrink-0 hover:bg-zinc-500"
@@ -7459,8 +7399,8 @@ export default function ComicCreator() {
                                 </button>
                               </div>
                               );
-                            })}
-                          </div>
+                            }}
+                          />
                         );
                       }
                       return null;
@@ -7484,8 +7424,10 @@ export default function ComicCreator() {
                       </div>
                     )}
                   </div>
+                        );
+                      }}
+                    />
                   );
-                });
                 })()}
               </div>
               
