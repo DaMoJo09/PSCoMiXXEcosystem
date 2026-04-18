@@ -3838,12 +3838,30 @@ export default function ComicCreator() {
 
   const handlePageMouseUp = (page: "left" | "right") => {
     if (isDrawingPanel) {
-      const x = Math.min(drawStart.x, drawCurrent.x);
-      const y = Math.min(drawStart.y, drawCurrent.y);
-      const width = Math.abs(drawCurrent.x - drawStart.x);
-      const height = Math.abs(drawCurrent.y - drawStart.y);
+      let x = Math.min(drawStart.x, drawCurrent.x);
+      let y = Math.min(drawStart.y, drawCurrent.y);
+      let width = Math.abs(drawCurrent.x - drawStart.x);
+      let height = Math.abs(drawCurrent.y - drawStart.y);
 
       if (width > 5 && height > 5) {
+        // Circles must be ACTUAL circles in pixel space — pages are 1:1.4
+        // aspect, so width% and height% are not equivalent on screen. Snap
+        // to the smaller pixel diameter and re-center inside the drawn box.
+        if (panelShape === "circle") {
+          const pageEl = getPageRef(page).current;
+          if (pageEl) {
+            const r = pageEl.getBoundingClientRect();
+            const pxW = (width / 100) * r.width;
+            const pxH = (height / 100) * r.height;
+            const diameterPx = Math.min(pxW, pxH);
+            const newWidthPct = (diameterPx / r.width) * 100;
+            const newHeightPct = (diameterPx / r.height) * 100;
+            x = x + (width - newWidthPct) / 2;
+            y = y + (height - newHeightPct) / 2;
+            width = newWidthPct;
+            height = newHeightPct;
+          }
+        }
         addPanel(page, { x, y, width, height, type: panelShape === "circle" ? "circle" : "rectangle" });
       }
       setIsDrawingPanel(false);
@@ -5532,7 +5550,24 @@ export default function ComicCreator() {
                         newY = startPanel.y + dy;
                       }
                     }
-                    
+
+                    // Lock circles to a true pixel-square so they stay
+                    // actual circles (pages are 1:1.4, so width% != height%
+                    // visually). Pick the larger pixel delta as the driver
+                    // so the cursor still feels like it's controlling size.
+                    if (panel.type === "circle") {
+                      const pxW = (newWidth / 100) * pageRect.width;
+                      const pxH = (newHeight / 100) * pageRect.height;
+                      const diameterPx = Math.max(pxW, pxH);
+                      const widthPct = (diameterPx / pageRect.width) * 100;
+                      const heightPct = (diameterPx / pageRect.height) * 100;
+                      // Re-anchor so the opposite corner stays fixed.
+                      if (handle.position.includes('w')) newX = (startPanel.x + startPanel.width) - widthPct;
+                      if (handle.position.includes('n')) newY = (startPanel.y + startPanel.height) - heightPct;
+                      newWidth = widthPct;
+                      newHeight = heightPct;
+                    }
+
                     updatePanelTransform(page, panel.id, {
                       x: newX,
                       y: newY,
@@ -5711,28 +5746,57 @@ export default function ComicCreator() {
       >
         <polyline
           points={pts.map(p => `${p.x},${p.y}`).join(" ")}
-          fill="rgba(255,255,255,0.08)"
-          stroke="#fff"
-          strokeWidth={0.4}
+          fill="rgba(0,229,255,0.10)"
+          stroke="#00e5ff"
+          strokeWidth={0.5}
           strokeDasharray="1.5 1"
           vectorEffect="non-scaling-stroke"
         />
-        {polygonPoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={0.8} fill="#fff" stroke="#000" strokeWidth={0.2} vectorEffect="non-scaling-stroke" />
-        ))}
         {polygonPoints.length >= 3 && (
           <line
             x1={polygonPoints[polygonPoints.length - 1].x}
             y1={polygonPoints[polygonPoints.length - 1].y}
             x2={polygonPoints[0].x}
             y2={polygonPoints[0].y}
-            stroke="#fff"
-            strokeWidth={0.3}
+            stroke="#00e5ff"
+            strokeWidth={0.4}
             strokeDasharray="0.6 0.8"
-            opacity={0.5}
+            opacity={0.6}
             vectorEffect="non-scaling-stroke"
           />
         )}
+        {polygonPoints.map((p, i) => {
+          const isFirst = i === 0;
+          const canClose = polygonPoints.length >= 3;
+          return (
+            <g key={i}>
+              {/* Outer halo so vertex pops against any background */}
+              <circle cx={p.x} cy={p.y} r={2.2} fill="rgba(0,0,0,0.55)" vectorEffect="non-scaling-stroke" />
+              {/* Vertex disc — first point glows green when closeable */}
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={1.6}
+                fill={isFirst && canClose ? "#22c55e" : "#fff"}
+                stroke={isFirst && canClose ? "#022c0f" : "#0a0a0a"}
+                strokeWidth={0.4}
+                vectorEffect="non-scaling-stroke"
+              />
+              {/* Vertex number badge */}
+              <text
+                x={p.x}
+                y={p.y + 0.7}
+                fontSize={1.6}
+                fontWeight={700}
+                textAnchor="middle"
+                fill={isFirst && canClose ? "#fff" : "#000"}
+                style={{ fontFamily: "system-ui, -apple-system, sans-serif", userSelect: "none" }}
+              >
+                {i + 1}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     );
   };
