@@ -34,6 +34,7 @@ const CYOABuilder = lazy(() => import("@/pages/CYOABuilder"));
 const HopCreator = lazy(() => import("@/pages/HopCreator"));
 const PromptFactory = lazy(() => import("@/pages/PromptFactory"));
 const StoryForge = lazy(() => import("@/pages/StoryForge"));
+const InkbladeSandboxLazy = lazy(() => import("@/pages/InkbladeSandbox"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
 const PortfolioPage = lazy(() => import("@/pages/PortfolioPage"));
@@ -185,6 +186,7 @@ function ProtectedRouter() {
         <Route path="/creator/hop" component={HopCreator} />
 
         <Route path="/fx-studio" component={FxStudioPage} />
+        <Route path="/inkblade" component={InkbladeSandboxLazy} />
         <Route path="/tools/prompt" component={PromptFactory} />
         <Route path="/tools/story" component={StoryForge} />
         <Route path="/tools/cyoa" component={CYOABuilder} />

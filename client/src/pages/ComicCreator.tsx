@@ -1711,6 +1711,21 @@ export default function ComicCreator() {
   const [activeTool, setActiveTool] = useState("select");
   // UNIFIED CREATION ENGINE — top-level mode. Persisted in project.data.activeMode.
   const [activeMode, setActiveMode] = useState<ModeId>("layout");
+  // Sensible default tool per mode. Switching modes auto-picks the right tool
+  // so the user feels the mode change immediately. Tools themselves remain
+  // identical across modes (per the directive — no degradation).
+  const MODE_DEFAULT_TOOL: Record<ModeId, string> = {
+    layout: "panel",
+    ink: "draw",
+    color: "select",
+    motion: "select",
+    fx: "select",
+    text: "text",
+  };
+  const handleModeChange = useCallback((next: ModeId) => {
+    setActiveMode(next);
+    setActiveTool(MODE_DEFAULT_TOOL[next]);
+  }, []);
   const [showAIGen, setShowAIGen] = useState(false);
 
   const openAIGen = useCallback(() => {
@@ -2087,6 +2102,10 @@ export default function ComicCreator() {
       if (!data?.comicMeta?.frontCover && !coverDismissed) {
         setShowCoverPrompt(true);
       }
+      // Restore the unified-engine mode if previously saved.
+      if (data?.activeMode && ["layout","ink","color","motion","fx","text"].includes(data.activeMode)) {
+        setActiveMode(data.activeMode as ModeId);
+      }
     }
   }, [project]);
 
@@ -2424,7 +2443,7 @@ export default function ComicCreator() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title, data: { spreads, comicMeta, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) } }),
+        body: JSON.stringify({ title, data: { spreads, comicMeta, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) } }),
       });
       if (!res.ok) throw new Error("Save failed");
       qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
@@ -5779,7 +5798,7 @@ export default function ComicCreator() {
               </TooltipContent>
             </Tooltip>
             <div className="w-px h-6 bg-zinc-700 mx-2" />
-            <ModeSwitcher active={activeMode} onChange={setActiveMode} />
+            <ModeSwitcher active={activeMode} onChange={handleModeChange} />
             <div className="w-px h-6 bg-zinc-700 mx-2" />
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>

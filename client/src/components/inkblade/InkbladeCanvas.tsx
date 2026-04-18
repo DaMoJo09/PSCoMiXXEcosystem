@@ -15,6 +15,8 @@ interface InkStroke {
 interface Props {
   width: number;
   height: number;
+  /** Full brush profile — wins over brushId/color when provided. */
+  brush?: BrushProfile;
   brushId?: string;
   color?: string;
   className?: string;
@@ -28,12 +30,15 @@ interface Props {
 export function InkbladeCanvas({
   width,
   height,
+  brush: brushProp,
   brushId = "core",
   color,
   className,
   onStrokeComplete,
 }: Props) {
-  const brush: BrushProfile = { ...getBrush(brushId), color: color ?? getBrush(brushId).color };
+  const brush: BrushProfile = brushProp
+    ? brushProp
+    : { ...getBrush(brushId), color: color ?? getBrush(brushId).color };
   const [strokes, setStrokes] = useState<InkStroke[]>([]);
   const activeRawRef = useRef<RawInputPoint[]>([]);
   const [activePath, setActivePath] = useState<string>("");
