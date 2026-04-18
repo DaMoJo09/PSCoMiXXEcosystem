@@ -1,0 +1,513 @@
+Alright, let’s package this so your devs don’t go “cool ideas” and then accidentally build three disconnected tools again. This is your **clear, unified build directive**—strategy + execution. No fluff.
+
+---
+
+# PRESS START CoMiXX + Motion Studio + FX
+
+## UNIFIED CREATION ENGINE — BUILD DIRECTIVE
+
+---
+
+# 1. CORE PHILOSOPHY (THIS IS NON-NEGOTIABLE)
+
+You are NOT building:
+
+* a comic editor
+* a motion tool
+* a drawing canvas
+
+You are building:
+
+> **ONE CREATION ENGINE where different modes unlock different capabilities**
+
+---
+
+## Golden Rule:
+
+> **Same canvas. Same tools. Different capabilities layered on top.**
+
+If anything feels like:
+
+* “this mode has worse drawing”
+* “this tool works differently over here”
+* “I have to relearn stuff”
+
+👉 It is WRONG. Fix it.
+
+---
+
+# 2. SYSTEM ARCHITECTURE
+
+## ONE SHARED ENGINE
+
+All modes MUST use:
+
+* INKBLADE Brush Engine
+* Vector Line System
+* Layer System
+* Transform System
+* Masking / Clipping
+* Rulers / Snapping
+* Asset Pipeline
+
+---
+
+## Modes are NOT separate apps
+
+They are **tool overlays**
+
+```plaintext
+Canvas Engine
+ ├── Layout Mode
+ ├── Ink Mode
+ ├── Color Mode
+ ├── Motion Mode
+ ├── FX Mode
+ ├── Text Mode
+```
+
+---
+
+# 3. USER EXPERIENCE GOAL
+
+User should feel:
+
+> “I never left the canvas… I just unlocked more power”
+
+---
+
+# 4. COMIC BUILDER — REQUIRED CHANGES
+
+---
+
+## 4.1 MODE SYSTEM (TOP PRIORITY)
+
+Add top-level mode switch:
+
+```plaintext
+[ Layout ] [ Ink ] [ Color ] [ Motion ] [ FX ] [ Text ]
+```
+
+---
+
+### Layout Mode
+
+* Panel creation
+* Panel splitting
+* Gutter control
+* Templates
+* Layout suggestions
+
+---
+
+### Ink Mode
+
+* INKBLADE brushes
+* Stabilization
+* Vector editing
+* Stroke control
+
+---
+
+### Motion Mode
+
+* Animate panel
+* Animate layer
+* Send to Motion Studio
+* Loop preview
+
+---
+
+### FX Mode
+
+* FX overlays
+* Smears
+* Motion accents
+
+---
+
+### Text Mode
+
+* Speech bubbles
+* Dialogue tools
+
+---
+
+## 4.2 PANEL SYSTEM (CORE FEATURE)
+
+Panels must be:
+
+> **Live vector containers (NOT raster shapes)**
+
+---
+
+### Panel capabilities:
+
+* Create (rect, angled, bezier)
+* Split / merge
+* Adjustable gutters
+* Border styling
+* Reshape AFTER content is added
+* Mask contents automatically
+* Optional overflow (break panel borders)
+
+---
+
+### Behavior rules:
+
+* Drawing inside panel = auto clipped
+* Dragging asset into panel = auto masked
+* Resizing panel = content stays intact
+
+---
+
+### ADD:
+
+#### Panel Templates
+
+* Manga layout
+* Action split
+* Webtoon strip
+* Cinematic layout
+
+#### Panel Flow Assistant (later phase)
+
+* Suggest layout improvements
+* Guide eye direction
+
+---
+
+## 4.3 ACTIVE CANVAS (NO DEAD SPACE)
+
+Replace passive canvas with:
+
+```plaintext
+START HERE:
+
+[ Draw Panels ]
+[ Use Template ]
+[ Drop Character ]
+[ Add Scene ]
+```
+
+Big. Clickable. Immediate.
+
+---
+
+## 4.4 LAYER SYSTEM (CRITICAL UPGRADE)
+
+Replace basic layers with structured types:
+
+```plaintext
+Panel 1
+ ├── Drawing Layer
+ ├── Vector Layer
+ ├── Text Layer
+ ├── FX Layer
+ ├── Motion Layer
+```
+
+---
+
+### Requirements:
+
+* Visual icons per layer type
+* Panel hierarchy
+* Expand/collapse groups
+* Clear ownership (which panel a layer belongs to)
+
+---
+
+## 4.5 DRAWING SYSTEM (INKBLADE)
+
+Default brush system:
+
+### INKBLADE family:
+
+* Core
+* Rough
+* Bold
+* Drift
+* Graff
+* Cutline
+
+---
+
+### Required controls:
+
+* Pressure → size
+* Stabilization
+* Taper start/end
+* Texture grain
+* Anti-alias toggle
+* Stroke smoothing
+
+---
+
+### IMPORTANT:
+
+Same behavior in:
+
+* Comic Mode
+* Motion Studio
+* FX App
+
+NO differences.
+
+---
+
+# 5. MOTION STUDIO — CORRECT IMPLEMENTATION
+
+---
+
+## 5.1 NOT A SEPARATE TOOL
+
+Motion Studio is:
+
+> **Canvas + Timeline Layer**
+
+---
+
+## DO NOT:
+
+* Build separate drawing system
+* Change brush behavior
+* Simplify tools
+
+---
+
+## 5.2 WHAT CHANGES IN MOTION MODE
+
+Add ONLY:
+
+### Timeline
+
+* Frame scrubber
+* Keyframes
+* Loop toggle
+* Onion skin
+
+---
+
+### Motion Features
+
+* Transform keyframes
+* Motion offsets
+* Smear/stretch
+* Loop preview
+
+---
+
+## 5.3 USER FLOW
+
+User should:
+
+1. Draw in panel
+2. Right-click → “Animate”
+3. Motion Studio opens
+4. Same drawing tools available
+5. Add motion
+6. Send back to:
+
+   * Panel
+   * Asset Library
+   * HOPs
+
+---
+
+## 5.4 REQUIRED FEATURES
+
+* Onion skin (ghost frames)
+* Frame interpolation (later)
+* Loop preview
+* Stroke-level animation (future phase)
+
+---
+
+# 6. FX APP (LOVABLE) — MADMORPH SYSTEM
+
+---
+
+## 6.1 PURPOSE
+
+FX is for:
+
+> **Deformation + Stylization + Advanced Motion Assets**
+
+---
+
+## 6.2 MADMORPH ENGINE
+
+Implement:
+
+* Puppet Warp (pin-based)
+* Mesh Warp
+* Bend
+* Squash & Stretch
+* Liquify
+* Perspective warp
+
+---
+
+## 6.3 CHARACTER BUILDER FLOW
+
+Tabs:
+
+```plaintext
+Build | Draw | Warp | Style | Animate | Export
+```
+
+---
+
+## Warp Mode:
+
+* Place pins (joints, cloth, etc.)
+* Drag to deform
+* Apply presets
+
+---
+
+## 6.4 PRESETS (IMPORTANT)
+
+* Action twist
+* Running lean
+* Punch windup
+* Dramatic reach
+* Floating hover
+* Villain slouch
+
+---
+
+## 6.5 OUTPUT TARGETS
+
+* CoMiXX panel asset
+* Motion Studio asset
+* HOPs loop
+* Sticker / FX asset
+
+---
+
+# 7. CROSS-APP PIPELINE (THIS IS YOUR SUPERPOWER)
+
+---
+
+## EVERYTHING MUST FLOW
+
+User should be able to:
+
+```plaintext
+Draw → Animate → Warp → Export → Publish
+```
+
+---
+
+### From ANY element:
+
+Right-click:
+
+* Animate this
+* Send to Motion Studio
+* Send to FX
+* Add to Asset Library
+* Export to HOPs
+
+---
+
+---
+
+# 8. UX PRINCIPLES
+
+---
+
+## 1. NO MODE CONFUSION
+
+User should never think:
+
+> “Where am I?”
+
+---
+
+## 2. NO TOOL DEGRADATION
+
+Tools must behave IDENTICALLY everywhere.
+
+---
+
+## 3. NO DEAD ENDS
+
+Every asset must:
+
+* be reusable
+* be movable
+* be exportable
+
+---
+
+## 4. MOMENTUM > FEATURES
+
+Every screen should answer:
+
+> “What should I do next?”
+
+---
+
+# 9. BUILD PRIORITY ORDER
+
+---
+
+## PHASE 1 (FOUNDATION)
+
+* Mode system
+* INKBLADE brush engine
+* Live panel system
+* Layer system upgrade
+
+---
+
+## PHASE 2 (CORE FLOW)
+
+* Motion Studio integration
+* Right-click workflows
+* Panel → Motion linking
+
+---
+
+## PHASE 3 (ADVANCED)
+
+* MADMORPH in FX
+* Asset pipeline
+* HOPs integration
+
+---
+
+## PHASE 4 (POLISH)
+
+* Panel flow assistant
+* Motion preview in panels
+* Template intelligence
+
+---
+
+# FINAL NOTE TO TEAM
+
+Do not build:
+
+> “Comic tool + Motion tool + FX tool”
+
+Build:
+
+> **ONE SYSTEM where ideas move freely between states**
+
+If the user feels like they are switching apps…
+
+You failed.
+
+If the user feels like:
+
+> “I’m just going deeper into the same idea”
+
+You nailed it.
+
+---
+
+There you go. This is the version that keeps your team from accidentally building three decent tools instead of one dangerous one.
