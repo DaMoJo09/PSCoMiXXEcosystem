@@ -30,6 +30,9 @@ import { useFxStudio } from "@/hooks/useFxStudio";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal, ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
 import { apiRequest } from "@/lib/queryClient";
+import { BrushSettingsPanel } from "@/components/inkblade/BrushSettingsPanel";
+import { getBrush } from "@/lib/inkblade/brushes";
+import type { BrushProfile } from "@/lib/inkblade/types";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
 
 // Easing presets
@@ -457,6 +460,23 @@ export default function MotionStudio() {
   const [brushColor, setBrushColor] = useState("#000000");
   const [fillColor, setFillColor] = useState("transparent");
   const [brushSize, setBrushSize] = useState(4);
+  // INKBLADE brush profile — drives the popout settings panel and stays
+  // in sync with the legacy brushSize/brushColor used by the existing
+  // raster paths until the canvas itself is migrated.
+  const [inkbladeBrush, setInkbladeBrush] = useState<BrushProfile>(() => ({ ...getBrush("core"), color: "#000000", size: 4 }));
+  const [showInkbladePopout, setShowInkbladePopout] = useState(false);
+  // Bidirectional sync — keep legacy brushColor/brushSize and the INKBLADE
+  // profile pointing at the same values so neither view can drift. Each
+  // effect short-circuits if the values are already equal to avoid loops.
+  useEffect(() => {
+    if (brushColor !== inkbladeBrush.color) setBrushColor(inkbladeBrush.color);
+    if (brushSize !== inkbladeBrush.size) setBrushSize(inkbladeBrush.size);
+  }, [inkbladeBrush.color, inkbladeBrush.size]);
+  useEffect(() => {
+    if (brushColor !== inkbladeBrush.color || brushSize !== inkbladeBrush.size) {
+      setInkbladeBrush(prev => ({ ...prev, color: brushColor, size: brushSize }));
+    }
+  }, [brushColor, brushSize]);
   
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPointRef = useRef<{x: number, y: number} | null>(null);
@@ -3357,7 +3377,22 @@ export default function MotionStudio() {
               
               {/* Brush Settings */}
               <div>
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-2">Brush</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-semibold text-zinc-500 uppercase">Brush</div>
+                  <button
+                    onClick={() => setShowInkbladePopout(v => !v)}
+                    className={`px-2 py-0.5 text-[9px] font-bold tracking-widest border ${showInkbladePopout ? "bg-cyan-500 text-black border-cyan-400" : "border-cyan-500/60 text-cyan-300 hover:bg-cyan-500/10"}`}
+                    title="Open INKBLADE brush settings — pressure curve, taper, stabilization"
+                    data-testid="button-inkblade-settings"
+                  >
+                    INKBLADE
+                  </button>
+                </div>
+                {showInkbladePopout && (
+                  <div className="mb-3" data-testid="motion-inkblade-popout">
+                    <BrushSettingsPanel brush={inkbladeBrush} onChange={setInkbladeBrush} />
+                  </div>
+                )}
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-zinc-400 block mb-1">Size: {brushSize}px</label>

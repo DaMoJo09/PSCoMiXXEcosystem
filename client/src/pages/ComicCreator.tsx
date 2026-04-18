@@ -6132,6 +6132,113 @@ export default function ComicCreator() {
           </div>
         )}
 
+        {/* MODE BANNER — explains the active mode and offers a real action.
+            Layout & Text already drive the side toolbar; Color/Motion/FX get
+            their first-class affordances right here so the buttons aren't
+            silent. */}
+        {(() => {
+          const allPanels = currentSpread ? [...currentSpread.leftPage, ...currentSpread.rightPage] : [];
+          const selectedPanel = allPanels.find(p => p.id === selectedPanelId) || null;
+          const panelPage: "left" | "right" | null = selectedPanel
+            ? (currentSpread?.leftPage.some(p => p.id === selectedPanel.id) ? "left" : "right")
+            : null;
+          const FX_PRESETS: { id: string; label: string; filter: string }[] = [
+            { id: "none", label: "None", filter: "none" },
+            { id: "noir", label: "Noir", filter: "grayscale(100%) contrast(1.2)" },
+            { id: "sepia", label: "Sepia", filter: "sepia(85%) saturate(1.1)" },
+            { id: "comic", label: "Comic", filter: "contrast(1.3) saturate(1.4)" },
+            { id: "dream", label: "Dream", filter: "blur(0.6px) brightness(1.1) saturate(1.2)" },
+            { id: "ghost", label: "Ghost", filter: "invert(100%) hue-rotate(180deg)" },
+          ];
+          const meta: Record<ModeId, { tag: string; tagColor: string; hint: string }> = {
+            layout: { tag: "LAYOUT", tagColor: "bg-cyan-500", hint: "Build & arrange panels. Pick a shape from the left toolbar." },
+            ink:    { tag: "LAYOUT", tagColor: "bg-cyan-500", hint: "Legacy mode — switched to Layout." },
+            color:  { tag: "COLOR",  tagColor: "bg-pink-500", hint: selectedPanel ? "Pick a color to fill the selected panel's background." : "Select a panel, then choose a fill color." },
+            motion: { tag: "MOTION", tagColor: "bg-amber-500", hint: selectedPanel ? "Send this panel into Motion Studio to animate it." : "Select a panel to send into Motion Studio." },
+            fx:     { tag: "FX",     tagColor: "bg-violet-500", hint: selectedPanel ? "Apply a visual effect to the selected panel." : "Select a panel to apply an effect." },
+            text:   { tag: "TEXT",   tagColor: "bg-emerald-500", hint: "Text & speech-bubble tools are active in the left toolbar." },
+          };
+          const m = meta[activeMode];
+          return (
+            <div
+              className="flex items-center gap-3 px-4 py-1.5 border-b border-zinc-800 text-xs"
+              style={{ background: '#1a1a1a' }}
+              data-testid={`mode-banner-${activeMode}`}
+            >
+              <span className={`px-2 py-0.5 text-[10px] font-bold tracking-widest text-white ${m.tagColor}`}>{m.tag}</span>
+              <span className="text-zinc-300 flex-1 truncate">{m.hint}</span>
+
+              {activeMode === "color" && selectedPanel && panelPage && (
+                <div className="flex items-center gap-1" data-testid="mode-color-actions">
+                  {["#000000","#ffffff","#ef4444","#f59e0b","#22c55e","#3b82f6","#a855f7","#ec4899"].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => updatePanelStyle(panelPage, selectedPanel.id, { backgroundColor: c })}
+                      className={`w-5 h-5 border ${selectedPanel.backgroundColor === c ? "border-white scale-110" : "border-zinc-700 hover:border-zinc-400"}`}
+                      style={{ backgroundColor: c }}
+                      title={`Fill with ${c}`}
+                      data-testid={`mode-color-swatch-${c}`}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={selectedPanel.backgroundColor && selectedPanel.backgroundColor !== "transparent" ? selectedPanel.backgroundColor : "#ffffff"}
+                    onChange={(e) => updatePanelStyle(panelPage, selectedPanel.id, { backgroundColor: e.target.value })}
+                    className="w-5 h-5 cursor-pointer border-0 bg-transparent"
+                    title="Custom color"
+                    data-testid="mode-color-custom"
+                  />
+                  <button
+                    onClick={() => updatePanelStyle(panelPage, selectedPanel.id, { backgroundColor: "transparent" })}
+                    className="px-2 py-0.5 text-[10px] border border-zinc-700 hover:border-zinc-400 text-zinc-300 ml-1"
+                    data-testid="mode-color-clear"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+
+              {activeMode === "motion" && selectedPanel && panelPage && (
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                      panelId: selectedPanel.id,
+                      contents: selectedPanel.contents,
+                      page: panelPage,
+                      spreadIndex: currentSpreadIndex,
+                      projectId: effectiveProjectId
+                    }));
+                    navigate(`/creator/motion?panel=${selectedPanel.id}&return=${encodeURIComponent(location)}`);
+                  }}
+                  className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400"
+                  data-testid="mode-motion-send"
+                >
+                  Send to Motion Studio →
+                </button>
+              )}
+
+              {activeMode === "fx" && selectedPanel && panelPage && (
+                <div className="flex items-center gap-1" data-testid="mode-fx-actions">
+                  {FX_PRESETS.map(p => {
+                    const active = (selectedPanel.filter || "none") === p.filter;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => updatePanelStyle(panelPage, selectedPanel.id, { filter: p.filter })}
+                        className={`px-2 py-1 text-[10px] uppercase font-bold tracking-wider border ${active ? "bg-violet-500 text-white border-violet-400" : "border-zinc-700 text-zinc-300 hover:border-violet-500 hover:text-white"}`}
+                        title={p.label}
+                        data-testid={`mode-fx-${p.id}`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="flex-1 flex overflow-hidden">
           {!canvasOverview && (
           <aside className="w-14 border-r border-zinc-800/50 flex flex-col items-center py-3 gap-0.5 relative" style={{ background: '#252525' }}>
