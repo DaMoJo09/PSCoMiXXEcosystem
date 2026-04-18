@@ -1,6 +1,8 @@
 import { Layout } from "@/components/layout/Layout";
 import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { VersionHistory } from "@/components/projects/VersionHistory";
+import { ModeSwitcher } from "@/components/comic/ModeSwitcher";
+import type { ModeId } from "@/lib/inkblade/types";
 import { 
   Save, Undo, Redo, MousePointer, Pen, Eraser, Type, Image as ImageIcon, 
   Square, Layers, Download, Film, Wand2, Plus, ArrowLeft, FileText,
@@ -1707,6 +1709,8 @@ export default function ComicCreator() {
   }, []);
 
   const [activeTool, setActiveTool] = useState("select");
+  // UNIFIED CREATION ENGINE — top-level mode. Persisted in project.data.activeMode.
+  const [activeMode, setActiveMode] = useState<ModeId>("layout");
   const [showAIGen, setShowAIGen] = useState(false);
 
   const openAIGen = useCallback(() => {
@@ -5774,6 +5778,8 @@ export default function ComicCreator() {
                 <p>Redo <span className="text-zinc-400 ml-1">(Ctrl+Shift+Z)</span></p>
               </TooltipContent>
             </Tooltip>
+            <div className="w-px h-6 bg-zinc-700 mx-2" />
+            <ModeSwitcher active={activeMode} onChange={setActiveMode} />
             <div className="w-px h-6 bg-zinc-700 mx-2" />
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
