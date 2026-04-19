@@ -2133,11 +2133,8 @@ export default function ComicCreator() {
         setShowCoverPrompt(true);
       }
       // Restore the unified-engine mode if previously saved.
-      // "ink" is no longer a top-level mode (Draw tool handles INKBLADE) — fall back to layout.
-      if (data?.activeMode && ["layout","color","motion","fx","text"].includes(data.activeMode)) {
+      if (data?.activeMode && ["layout","ink","color","motion","fx","text"].includes(data.activeMode)) {
         setActiveMode(data.activeMode as ModeId);
-      } else if (data?.activeMode === "ink") {
-        setActiveMode("layout");
       }
     }
   }, [project]);
@@ -6152,7 +6149,7 @@ export default function ComicCreator() {
           ];
           const meta: Record<ModeId, { tag: string; tagColor: string; hint: string }> = {
             layout: { tag: "LAYOUT", tagColor: "bg-cyan-500", hint: "Build & arrange panels. Pick a shape from the left toolbar." },
-            ink:    { tag: "LAYOUT", tagColor: "bg-cyan-500", hint: "Legacy mode — switched to Layout." },
+            ink:    { tag: "INK",    tagColor: "bg-cyan-500", hint: "INKBLADE pen — pressure & tilt active. Pick a brush from the side panel." },
             color:  { tag: "COLOR",  tagColor: "bg-pink-500", hint: selectedPanel ? "Pick a color to fill the selected panel's background." : "Select a panel, then choose a fill color." },
             motion: { tag: "MOTION", tagColor: "bg-amber-500", hint: selectedPanel ? "Send this panel into Motion Studio to animate it." : "Select a panel to send into Motion Studio." },
             fx:     { tag: "FX",     tagColor: "bg-violet-500", hint: selectedPanel ? "Apply a visual effect to the selected panel." : "Select a panel to apply an effect." },

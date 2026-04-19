@@ -3,6 +3,7 @@ import { useStylusInput } from "@/lib/inkblade/useStylusInput";
 import { buildStrokeOutline, strokeOutlineToSvgPath } from "@/lib/inkblade/renderer";
 import type { BrushProfile, RawInputPoint } from "@/lib/inkblade/types";
 import { getBrush } from "@/lib/inkblade/brushes";
+import { BrushCursor } from "./BrushCursor";
 
 interface InkStroke {
   id: string;
@@ -37,6 +38,8 @@ interface Props {
   className?: string;
   style?: React.CSSProperties;
   onStrokeComplete?: (stroke: InkStroke, raw: RawInputPoint[]) => void;
+  /** Show a live readout of raw pressure / tilt / pointer type — used to verify Wacom hookup. */
+  showDebugOverlay?: boolean;
 }
 
 /**
@@ -44,7 +47,7 @@ interface Props {
  * Same component used in Comic Builder, Motion Studio, and FX. Identical behavior.
  */
 export const InkbladeCanvas = forwardRef<InkbladeCanvasHandle, Props>(function InkbladeCanvas(
-  { width: widthProp, height: heightProp, fill = false, brush: brushProp, brushId = "core", color, className, style, onStrokeComplete },
+  { width: widthProp, height: heightProp, fill = false, brush: brushProp, brushId = "core", color, className, style, onStrokeComplete, showDebugOverlay = false },
   apiRef
 ) {
   const brush: BrushProfile = brushProp
@@ -53,7 +56,8 @@ export const InkbladeCanvas = forwardRef<InkbladeCanvasHandle, Props>(function I
   const [strokes, setStrokes] = useState<InkStroke[]>([]);
   const activeRawRef = useRef<RawInputPoint[]>([]);
   const [activePath, setActivePath] = useState<string>("");
-  const [cursor, setCursor] = useState<{ x: number; y: number; size: number } | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number; size: number; tiltX: number; tiltY: number } | null>(null);
+  const [lastRaw, setLastRaw] = useState<RawInputPoint | null>(null);
 
   // Live pixel dimensions — measured from the host element when `fill` is set.
   const [size, setSize] = useState<{ w: number; h: number }>({ w: widthProp ?? 0, h: heightProp ?? 0 });
@@ -78,7 +82,8 @@ export const InkbladeCanvas = forwardRef<InkbladeCanvasHandle, Props>(function I
   }, []);
 
   const handleMove = useCallback((p: RawInputPoint, batch: RawInputPoint[]) => {
-    setCursor({ x: p.x, y: p.y, size: brush.size * (0.5 + p.pressure) });
+    setCursor({ x: p.x, y: p.y, size: brush.size * (0.5 + p.pressure), tiltX: p.tiltX, tiltY: p.tiltY });
+    setLastRaw(p);
     if (activeRawRef.current.length === 0) return;
     activeRawRef.current.push(...batch);
     const outline = buildStrokeOutline(activeRawRef.current, brush);
@@ -172,20 +177,27 @@ export const InkbladeCanvas = forwardRef<InkbladeCanvasHandle, Props>(function I
         </svg>
       )}
       {cursor && (
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: cursor.x - cursor.size / 2,
-            top: cursor.y - cursor.size / 2,
-            width: cursor.size,
-            height: cursor.size,
-            borderRadius: "50%",
-            border: "1px solid #000",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.6)",
-            pointerEvents: "none",
-          }}
+        <BrushCursor
+          x={cursor.x}
+          y={cursor.y}
+          size={Math.max(4, cursor.size)}
+          tiltX={brush.tiltToEllipse ? cursor.tiltX : 0}
+          tiltY={brush.tiltToEllipse ? cursor.tiltY : 0}
+          color={brush.color}
         />
+      )}
+      {showDebugOverlay && (
+        <div
+          data-testid="inkblade-debug"
+          className="absolute top-1 right-1 px-2 py-1 text-[10px] font-mono bg-black/80 text-emerald-300 border border-emerald-700/40 pointer-events-none select-none"
+          style={{ lineHeight: 1.35 }}
+        >
+          <div>type: {lastRaw?.pointerType ?? "—"}</div>
+          <div>pressure: {(lastRaw?.pressure ?? 0).toFixed(3)} {lastRaw?.hasPressureData === false ? "(no sensor)" : ""}</div>
+          <div>tilt: {(lastRaw?.tiltX ?? 0).toFixed(0)}°, {(lastRaw?.tiltY ?? 0).toFixed(0)}°</div>
+          <div>twist: {(lastRaw?.twist ?? 0).toFixed(0)}°</div>
+          <div>strokes: {strokes.length}</div>
+        </div>
       )}
     </div>
   );
