@@ -32,12 +32,13 @@ interface Panel {
   width: number;
   height: number;
   rotation: number;
-  type: "rectangle" | "circle";
+  type: "rectangle" | "circle" | "polygon";
   contents: PanelContent[];
   zIndex: number;
   backgroundColor?: string;
   borderColor?: string;
   borderWidth?: number;
+  points?: { x: number; y: number }[];
 }
 
 interface Spread {
@@ -70,6 +71,8 @@ function PagePreview({ panels, width, height }: { panels: Panel[]; width: number
         const panelW = (panel.width / 100) * width;
         const panelH = (panel.height / 100) * height;
 
+        const isPolygon = panel.type === "polygon" && Array.isArray((panel as any).points) && (panel as any).points.length >= 3;
+        const polyPoints: Array<{ x: number; y: number }> | undefined = isPolygon ? (panel as any).points : undefined;
         return (
           <div
             key={panel.id}
@@ -80,11 +83,30 @@ function PagePreview({ panels, width, height }: { panels: Panel[]; width: number
               width: panelW,
               height: panelH,
               backgroundColor: panel.backgroundColor || "#ffffff",
-              border: `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000000"}`,
+              border: isPolygon ? "none" : `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000000"}`,
               borderRadius: panel.type === "circle" ? "50%" : 0,
               transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+              clipPath: isPolygon
+                ? `polygon(${polyPoints!.map(p => `${p.x}% ${p.y}%`).join(", ")})`
+                : undefined,
             }}
           >
+            {isPolygon && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden
+              >
+                <polygon
+                  points={polyPoints!.map(p => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke={panel.borderColor || "#000000"}
+                  strokeWidth={(panel.borderWidth || 2) * 2}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
             {panel.contents?.sort((a, b) => a.zIndex - b.zIndex).map((content) => {
               const { transform, data, type } = content;
               const cX = transform.x * scale;

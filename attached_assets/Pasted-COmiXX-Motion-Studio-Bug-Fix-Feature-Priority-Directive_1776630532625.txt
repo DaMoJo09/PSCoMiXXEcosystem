@@ -1,0 +1,173 @@
+COmiXX + Motion Studio — Bug Fix & Feature Priority Directive
+
+This list defines what must be fixed immediately vs what can follow. The goal is to stabilize core creation flow and ensure a consistent, real-time editing experience across Comic Builder and Motion Studio.
+
+---
+
+## P0 — CRITICAL (BLOCKING CORE EXPERIENCE)
+
+These issues break the fundamental workflow and must be fixed first.
+
+1. Motion Studio “Send to” is broken
+
+* Issue: “Send to Motion Studio” button and right-click action do not work correctly.
+* Expected:
+
+  * When triggered, the CURRENT PANEL CONTENT is sent to Motion Studio.
+  * The user sees exactly what was in the panel (not empty, not partial).
+  * The connection between panel ↔ Motion Studio session is preserved.
+* Done when:
+
+  * User selects panel → clicks “Send to Motion Studio” → Motion Studio opens with exact panel content loaded.
+  * No missing layers, assets, or layout.
+
+---
+
+2. Edits from Motion Studio are not applying back
+
+* Issue: Animations and edits are not saving or applying to the original panel.
+* Expected:
+
+  * Motion Studio always knows its source panel/project.
+  * Edits automatically apply back to that source unless explicitly changed.
+* Done when:
+
+  * User edits in Motion Studio → returns → panel updates correctly.
+  * No manual relinking required.
+
+---
+
+3. Vector shapes disappear in Motion Studio
+
+* Issue: Vector shapes vanish after creation (on mouse release).
+* Expected:
+
+  * Shapes persist after creation.
+  * Shapes remain selectable and editable.
+* Done when:
+
+  * Create shape → release → shape remains visible and editable.
+  * No disappearing or state reset.
+
+---
+
+4. Editor vs Preview mismatch (Rendering inconsistency)
+
+* Issue:
+
+  * Circles render incorrectly in editor but correct in preview.
+  * Panel color changes not visible in editor.
+* Expected:
+
+  * Editor = Preview = Final output
+  * All changes reflect immediately (real-time)
+* Done when:
+
+  * Any shape, color, or style change appears instantly and identically in editor and preview.
+
+---
+
+---
+
+## P1 — HIGH PRIORITY (CORE UX QUALITY)
+
+These don’t fully block use, but they degrade trust and usability.
+
+5. Polygon edit points (missing editing capability)
+
+* Issue: Cannot edit points after creating polygon.
+* Expected:
+
+  * Users can select and move individual points after creation.
+* Done when:
+
+  * Polygon → select → points appear → can drag/edit.
+
+---
+
+6. Polygon / vector point visuals are weak
+
+* Issue: Points are hard to see and interact with.
+* Expected:
+
+  * Points are visually clear and easier to grab.
+  * Improved UI (size, color, hover state, active state).
+* Done when:
+
+  * Points are clearly visible at normal zoom.
+  * Hover + active states provide feedback.
+
+---
+
+7. Motion Studio default target behavior unclear
+
+* Issue: Edits don’t clearly map to current project/panel.
+* Expected:
+
+  * Motion Studio always defaults to current working project/panel.
+  * UI shows what you are editing and where it will apply.
+* Done when:
+
+  * User always knows:
+    “I am editing Panel X from Project Y”
+  * No ambiguity.
+
+---
+
+---
+
+## P2 — FEATURE EXPANSION (NEXT WAVE)
+
+These improve capability after core stability is achieved.
+
+8. Expand vector shape toolset
+
+* Add:
+
+  * More shape types (ellipse variants, custom paths, rounded shapes, etc.)
+  * Better shape controls (corner radius, stroke styles, fill styles)
+* Done when:
+
+  * Users can create and customize multiple vector shapes easily.
+
+---
+
+9. Improve overall “live editing” feel
+
+* Goal:
+
+  * All tools feel immediate, responsive, and consistent.
+* Done when:
+
+  * No delay between action and visual feedback.
+  * No “preview looks different” issues.
+
+---
+
+---
+
+## GLOBAL SYSTEM RULE (APPLIES TO ALL TASKS)
+
+Everything in this ecosystem must follow:
+
+* Real-time updates (no delayed rendering differences)
+* Editor view must match preview and final output
+* No tool should behave differently between Comic Builder and Motion Studio
+* Panel → Motion Studio → Panel must be a seamless round-trip
+
+---
+
+---
+
+## SUCCESS CRITERIA
+
+We consider this phase complete when:
+
+* Users can create panels, send them to Motion Studio, animate/edit, and return without loss of data.
+* Vector tools are stable and persistent.
+* Editor and preview are visually consistent.
+* Basic shape editing (including polygons) is intuitive and reliable.
+
+---
+
+## END OF DIRECTIVE

@@ -14,7 +14,7 @@ import {
   Blend, Droplets, Zap, Move, RotateCcw, FlipHorizontal,
   Diamond, Clock, TrendingUp, Sliders, GitBranch, Aperture,
   Volume2, VolumeX, Grid3X3, Focus, Lightbulb, Wind, Flame,
-  Pipette, PaintBucket, Star, Pentagon, Lasso, SquareDashed, CircleDashed,
+  Pipette, PaintBucket, Star, Pentagon, Triangle, Hexagon, Lasso, SquareDashed, CircleDashed,
   Scissors, Clipboard, ClipboardPaste,
   FileVideo, Settings2, Loader2
 } from "lucide-react";
@@ -68,16 +68,20 @@ const BLEND_MODES = [
 // Drawing Types
 type DrawingMode = "raster" | "vector";
 type RasterTool = "pen" | "eraser" | "select" | "rect-select" | "ellipse-select" | "lasso-select" | "shape-rect" | "shape-ellipse" | "shape-line" | "shape-arrow" | "shape-polygon" | "shape-star" | "fill" | "eyedropper";
-type VectorTool = "pen" | "pencil" | "select" | "line" | "rectangle" | "ellipse" | "arrow";
+type VectorTool = "pen" | "pencil" | "select" | "line" | "rectangle" | "rounded-rectangle" | "ellipse" | "arrow" | "triangle" | "star" | "polygon";
 
 interface VectorPath {
   id: string;
-  type: "path" | "line" | "rectangle" | "ellipse" | "arrow";
+  type: "path" | "line" | "rectangle" | "rounded-rectangle" | "ellipse" | "arrow" | "triangle" | "star" | "polygon";
   points: { x: number; y: number }[];
   stroke: string;
   strokeWidth: number;
   fill: string;
   closed: boolean;
+  /** Number of sides (polygon) or points (star). */
+  sides?: number;
+  /** Corner radius in svg units for rounded-rectangle. */
+  cornerRadius?: number;
 }
 
 interface ImageLayer {
@@ -497,6 +501,7 @@ export default function MotionStudio() {
   const [selectionMoveStart, setSelectionMoveStart] = useState<{ x: number; y: number } | null>(null);
   const selectionCanvasRef = useRef<HTMLCanvasElement>(null);
   const marchingAntsRef = useRef<number>(0);
+  const saveCurrentFrameRef = useRef<((overrides?: { vectorPaths?: VectorPath[] }) => void) | null>(null);
   const marchingAntsAnimRef = useRef<number | null>(null);
 
   // Shape drawing state
@@ -674,40 +679,65 @@ export default function MotionStudio() {
         if (panelData.projectId) {
           setSelectedComicId(panelData.projectId);
           setSelectedPanelId(panelData.panelId);
+          // Always mark as panel-imported so the project loader doesn't
+          // overwrite our staged frame with empty defaults — this makes the
+          // round-trip target stay locked even when the panel was empty.
+          importedFromPanelRef.current = true;
         }
-        if (panelData.contents && panelData.contents.length > 0) {
-          const imageLayers: ImageLayer[] = [];
-          panelData.contents.forEach((content: any, idx: number) => {
-            const src = content.data?.url || content.data?.drawingData || content.data?.imageUrl || content.data?.src || null;
-            if (src && (content.type === "image" || content.type === "gif" || content.type === "ai_image" || content.type === "drawing" || content.type === "sticker")) {
-              imageLayers.push({
-                id: `imported_${Date.now()}_${idx}`,
-                src,
-                x: content.transform?.x || 0,
-                y: content.transform?.y || 0,
-                width: content.transform?.width || 400,
-                height: content.transform?.height || 400,
-                rotation: content.transform?.rotation || 0,
-                opacity: 100,
-                locked: false,
-                visible: true,
-                name: content.data?.name || `Layer ${idx + 1}`,
-              });
-            }
-          });
-          if (imageLayers.length > 0) {
-            importedFromPanelRef.current = true;
-            setFrames(prev => {
-              const updated = [...prev];
-              updated[0] = { ...updated[0], imageLayers };
-              return updated;
+        const allContents: any[] = Array.isArray(panelData.contents) ? panelData.contents : [];
+        const imageLayers: ImageLayer[] = [];
+        let skipped = 0;
+        // If a previous round-trip embedded motionFrames in the panel, restore
+        // them directly so the user keeps editing the same animation.
+        const prior = allContents.find(c => c?.data?.isMotion && Array.isArray(c?.data?.motionFrames));
+        const priorFrames: Frame[] | null = prior?.data?.motionFrames ?? null;
+
+        allContents.forEach((content: any, idx: number) => {
+          if (content?.data?.isMotion) return; // restored separately
+          const d = content?.data || {};
+          const src = d.url || d.drawingData || d.imageUrl || d.src || d.aiImage || d.thumbnail || null;
+          if (src) {
+            imageLayers.push({
+              id: `imported_${Date.now()}_${idx}`,
+              src,
+              x: content.transform?.x || 0,
+              y: content.transform?.y || 0,
+              width: content.transform?.width || 400,
+              height: content.transform?.height || 400,
+              rotation: content.transform?.rotation || 0,
+              opacity: 100,
+              locked: false,
+              visible: true,
+              name: d.name || content.type || `Layer ${idx + 1}`,
             });
-            toast.success(`Loaded ${imageLayers.length} layer(s) from comic panel`);
+          } else {
+            skipped += 1;
           }
+        });
+
+        if (priorFrames && priorFrames.length > 0) {
+          setFrames(priorFrames);
+          toast.success(`Resumed motion edit (${priorFrames.length} frame${priorFrames.length === 1 ? "" : "s"})`);
+        } else if (imageLayers.length > 0) {
+          setFrames(prev => {
+            const updated = [...prev];
+            updated[0] = { ...updated[0], imageLayers };
+            return updated;
+          });
+          toast.success(
+            skipped > 0
+              ? `Loaded ${imageLayers.length} layer(s) from panel (${skipped} text/effect layer${skipped === 1 ? "" : "s"} skipped)`
+              : `Loaded ${imageLayers.length} layer(s) from comic panel`
+          );
+        } else if (allContents.length === 0) {
+          toast.info("Empty panel loaded — start animating, then click Apply to send back.");
+        } else {
+          toast.warning(`Panel had ${allContents.length} item(s) but none could be imported as image layers.`);
         }
         sessionStorage.removeItem('panel_edit_data');
       } catch (e) {
         console.error('Failed to load panel data:', e);
+        toast.error("Could not parse panel data from comic builder.");
       }
     }
   }, []);
@@ -945,6 +975,7 @@ export default function MotionStudio() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setVectorPaths([]);
+    saveCurrentFrameRef.current?.({ vectorPaths: [] });
     saveToHistory();
     toast.success("Canvas cleared");
   }, [saveToHistory]);
@@ -1201,15 +1232,19 @@ export default function MotionStudio() {
     }
   }, []);
 
-  const saveCurrentFrame = useCallback(() => {
+  const saveCurrentFrame = useCallback((overrides?: { vectorPaths?: VectorPath[] }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const imageData = canvas.toDataURL('image/png');
     const frameId = frames[currentFrameIndex]?.id;
     const currentKeyframe = frameId ? keyframes[frameId] : undefined;
     const activeId = activeDrawingLayerRef.current;
-    
+    // Allow callers (e.g. handleVectorPointerUp) to pass the freshly updated
+    // paths array, since setVectorPaths is async and the closure value of
+    // `vectorPaths` here would otherwise be stale and lose the new shape.
+    const pathsToPersist = overrides?.vectorPaths ?? vectorPaths;
+
     setFrames(prev => prev.map((f, i) => {
       if (i !== currentFrameIndex) return f;
       const existingLayers = f.drawingLayers && f.drawingLayers.length > 0
@@ -1219,9 +1254,9 @@ export default function MotionStudio() {
         l.id === activeId ? { ...l, imageData } : l
       );
       return {
-        ...f, 
-        imageData, 
-        vectorPaths,
+        ...f,
+        imageData,
+        vectorPaths: pathsToPersist,
         drawingLayers: updatedLayers,
         effects: activeEffects,
         opacity: frameOpacity,
@@ -1231,6 +1266,10 @@ export default function MotionStudio() {
       };
     }));
   }, [currentFrameIndex, vectorPaths, activeEffects, frameOpacity, blendMode, selectedEasing, keyframes, frames]);
+
+  useEffect(() => {
+    saveCurrentFrameRef.current = saveCurrentFrame;
+  }, [saveCurrentFrame]);
 
   // Timeline NLE helpers
   const pixelsToFrames = useCallback((px: number, trackWidth: number) => {
@@ -2441,7 +2480,7 @@ export default function MotionStudio() {
       return;
     }
     
-    if (["line", "rectangle", "ellipse", "arrow"].includes(vectorTool)) {
+    if (["line", "rectangle", "rounded-rectangle", "ellipse", "arrow", "triangle", "star", "polygon"].includes(vectorTool)) {
       const newPath: VectorPath = {
         id: `path_${Date.now()}`,
         type: vectorTool as VectorPath["type"],
@@ -2449,7 +2488,10 @@ export default function MotionStudio() {
         stroke: brushColor,
         strokeWidth: brushSize,
         fill: fillColor,
-        closed: vectorTool === "rectangle" || vectorTool === "ellipse",
+        closed: vectorTool !== "line" && vectorTool !== "arrow",
+        ...(vectorTool === "polygon" ? { sides: 6 } : {}),
+        ...(vectorTool === "star" ? { sides: 5 } : {}),
+        ...(vectorTool === "rounded-rectangle" ? { cornerRadius: 16 } : {}),
       };
       setCurrentPath(newPath);
       setIsDrawing(true);
@@ -2466,7 +2508,7 @@ export default function MotionStudio() {
         ...currentPath,
         points: [...currentPath.points, { x, y }],
       });
-    } else if (["line", "rectangle", "ellipse", "arrow"].includes(vectorTool)) {
+    } else if (["line", "rectangle", "rounded-rectangle", "ellipse", "arrow", "triangle", "star", "polygon"].includes(vectorTool)) {
       const updatedPoints = [...currentPath.points];
       updatedPoints[1] = { x, y };
       setCurrentPath({
@@ -2477,30 +2519,33 @@ export default function MotionStudio() {
   };
 
   const handleVectorPointerUp = () => {
-    if ((vectorTool === "pencil" || ["line", "rectangle", "ellipse", "arrow"].includes(vectorTool)) && currentPath) {
-      setVectorPaths(prev => [...prev, currentPath]);
+    if ((vectorTool === "pencil" || ["line", "rectangle", "ellipse", "arrow", "triangle", "star", "polygon", "rounded-rectangle"].includes(vectorTool)) && currentPath) {
+      const nextPaths = [...vectorPaths, currentPath];
+      setVectorPaths(nextPaths);
       setCurrentPath(null);
-      saveCurrentFrame();
+      saveCurrentFrame({ vectorPaths: nextPaths });
     }
     setIsDrawing(false);
   };
 
   const finishPenPath = useCallback(() => {
     if (currentPath && isPenCreating) {
-      setVectorPaths(prev => [...prev, currentPath]);
+      const nextPaths = [...vectorPaths, currentPath];
+      setVectorPaths(nextPaths);
       setCurrentPath(null);
       setIsPenCreating(false);
-      saveCurrentFrame();
+      saveCurrentFrame({ vectorPaths: nextPaths });
     }
-  }, [currentPath, isPenCreating, saveCurrentFrame]);
+  }, [currentPath, isPenCreating, vectorPaths, saveCurrentFrame]);
 
   const deleteSelectedPath = useCallback(() => {
     if (selectedPathId) {
-      setVectorPaths(prev => prev.filter(p => p.id !== selectedPathId));
+      const nextPaths = vectorPaths.filter(p => p.id !== selectedPathId);
+      setVectorPaths(nextPaths);
       setSelectedPathId(null);
-      saveCurrentFrame();
+      saveCurrentFrame({ vectorPaths: nextPaths });
     }
-  }, [selectedPathId, saveCurrentFrame]);
+  }, [selectedPathId, vectorPaths, saveCurrentFrame]);
 
   // Combined pointer handlers
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -2624,13 +2669,51 @@ export default function MotionStudio() {
       );
     }
     
-    if (path.type === "rectangle") {
+    if (path.type === "rectangle" || path.type === "rounded-rectangle") {
       const [start, end] = path.points;
       if (!start || !end) return null;
+      const r = path.type === "rounded-rectangle" ? (path.cornerRadius ?? 16) : 0;
       return (
         <rect key={path.id}
           x={Math.min(start.x, end.x)} y={Math.min(start.y, end.y)}
           width={Math.abs(end.x - start.x)} height={Math.abs(end.y - start.y)}
+          rx={r} ry={r}
+          {...strokeStyle} onClick={() => !isPreview && setSelectedPathId(path.id)}
+          className={isSelected ? "stroke-violet-400" : ""} />
+      );
+    }
+
+    if (path.type === "triangle" || path.type === "polygon" || path.type === "star") {
+      const [start, end] = path.points;
+      if (!start || !end) return null;
+      const cx = (start.x + end.x) / 2;
+      const cy = (start.y + end.y) / 2;
+      const rx = Math.abs(end.x - start.x) / 2;
+      const ry = Math.abs(end.y - start.y) / 2;
+      let pts: string;
+      if (path.type === "triangle") {
+        pts = `${cx},${cy - ry} ${cx - rx},${cy + ry} ${cx + rx},${cy + ry}`;
+      } else if (path.type === "polygon") {
+        const n = Math.max(3, path.sides ?? 6);
+        const arr: string[] = [];
+        for (let i = 0; i < n; i++) {
+          const a = (-Math.PI / 2) + (i * 2 * Math.PI) / n;
+          arr.push(`${cx + rx * Math.cos(a)},${cy + ry * Math.sin(a)}`);
+        }
+        pts = arr.join(" ");
+      } else {
+        const n = Math.max(3, path.sides ?? 5);
+        const inner = 0.45;
+        const arr: string[] = [];
+        for (let i = 0; i < n * 2; i++) {
+          const a = (-Math.PI / 2) + (i * Math.PI) / n;
+          const r = i % 2 === 0 ? 1 : inner;
+          arr.push(`${cx + rx * r * Math.cos(a)},${cy + ry * r * Math.sin(a)}`);
+        }
+        pts = arr.join(" ");
+      }
+      return (
+        <polygon key={path.id} points={pts}
           {...strokeStyle} onClick={() => !isPreview && setSelectedPathId(path.id)}
           className={isSelected ? "stroke-violet-400" : ""} />
       );
@@ -2888,12 +2971,16 @@ export default function MotionStudio() {
         if (!panels || !Array.isArray(panels)) return panels;
         return panels.map((panel: any) => {
           if (panel.id === selectedPanelId) {
+            // Drop any existing motion content for this panel so repeated
+            // round-trips overwrite the previous result instead of stacking
+            // duplicate drawing layers on top.
+            const kept = (panel.contents || []).filter((c: any) => !c?.data?.isMotion);
             return {
               ...panel,
               contents: [
-                ...(panel.contents || []),
+                ...kept,
                 {
-                  id: `content_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                  id: `content_motion_${Date.now()}`,
                   type: "drawing",
                   transform: { x: 0, y: 0, width: panel.width || 400, height: panel.height || 400, rotation: 0, scaleX: 1, scaleY: 1 },
                   data: {
@@ -2902,7 +2989,7 @@ export default function MotionStudio() {
                     motionFrames: frames,
                     isMotion: true
                   },
-                  zIndex: (panel.contents || []).length,
+                  zIndex: kept.length,
                   locked: false
                 }
               ]
@@ -2927,8 +3014,8 @@ export default function MotionStudio() {
 
       toast.success("Applied to panel!");
       setShowApplyPanel(false);
-      setSelectedComicId(null);
-      setSelectedPanelId(null);
+      // Keep the target panel locked so subsequent edits round-trip back to the same panel.
+      // User can detach explicitly via the header banner X button.
     } catch (err) {
       console.error("Apply to panel failed:", err);
       toast.error("Failed to apply to panel. Please try again.");
@@ -3034,6 +3121,26 @@ export default function MotionStudio() {
             className="bg-transparent text-sm font-medium outline-none hover:bg-[#1a1a1a] px-2 py-1 rounded transition-colors min-w-[200px]"
             data-testid="input-project-title"
           />
+          {selectedComicId && selectedPanelId && (
+            <div
+              className="ml-1 flex items-center gap-2 px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10"
+              title="Edits made here will apply back to this panel when you click Apply to Panel."
+              data-testid="ms-target-banner"
+            >
+              <span className="text-[9px] font-bold uppercase tracking-widest text-amber-300">Editing</span>
+              <span className="text-xs font-mono text-amber-100">
+                Panel <span className="opacity-70">·</span> {selectedComic?.title || "Comic"}
+              </span>
+              <button
+                onClick={() => { setSelectedComicId(null); setSelectedPanelId(null); }}
+                className="ml-1 text-amber-300/70 hover:text-amber-100"
+                title="Detach from this panel (motion will save as a standalone project instead)"
+                data-testid="ms-target-detach"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-1">
@@ -3359,15 +3466,38 @@ export default function MotionStudio() {
                         <Minus className="w-4 h-4 mx-auto" />
                       </button>
                       <button onClick={() => setVectorTool("rectangle")} title="Rectangle"
-                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "rectangle" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "rectangle" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-rectangle">
                         <Square className="w-4 h-4 mx-auto" />
                       </button>
+                      <button onClick={() => setVectorTool("rounded-rectangle")} title="Rounded Rectangle"
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "rounded-rectangle" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-rounded-rect">
+                        <Square className="w-4 h-4 mx-auto" style={{ borderRadius: 4 }} />
+                      </button>
                       <button onClick={() => setVectorTool("ellipse")} title="Ellipse"
-                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "ellipse" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "ellipse" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-ellipse">
                         <Circle className="w-4 h-4 mx-auto" />
                       </button>
+                      <button onClick={() => setVectorTool("triangle")} title="Triangle"
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "triangle" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-triangle">
+                        <Triangle className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setVectorTool("polygon")} title="Polygon (hexagon)"
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "polygon" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-polygon">
+                        <Hexagon className="w-4 h-4 mx-auto" />
+                      </button>
+                      <button onClick={() => setVectorTool("star")} title="Star"
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "star" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-star">
+                        <Star className="w-4 h-4 mx-auto" />
+                      </button>
                       <button onClick={() => setVectorTool("arrow")} title="Arrow"
-                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "arrow" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}>
+                        className={`p-2.5 rounded-lg transition-colors ${vectorTool === "arrow" ? 'bg-white text-black' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                        data-testid="vec-tool-arrow">
                         <ArrowRight className="w-4 h-4 mx-auto" />
                       </button>
                     </>
@@ -4416,7 +4546,12 @@ export default function MotionStudio() {
                           selectedPathId === path.id ? 'bg-white/20 border border-white/50' : 'bg-zinc-900 hover:bg-zinc-800'
                         }`}>
                         <span className="text-zinc-300 capitalize">{path.type} {idx + 1}</span>
-                        <button onClick={(e) => { e.stopPropagation(); setVectorPaths(prev => prev.filter(p => p.id !== path.id)); }}
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          const next = vectorPaths.filter(p => p.id !== path.id);
+                          setVectorPaths(next);
+                          saveCurrentFrame({ vectorPaths: next });
+                        }}
                           className="p-1 hover:bg-red-900/50 rounded">
                           <Trash2 className="w-3 h-3 text-zinc-500" />
                         </button>

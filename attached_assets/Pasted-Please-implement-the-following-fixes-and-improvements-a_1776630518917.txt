@@ -1,0 +1,53 @@
+Please implement the following fixes and improvements across the CoMiXX ecosystem. The main goal is to make editing feel fully live, reliable, and consistent between Comic Builder and Motion Studio.
+
+1. Polygon mode point editing
+
+* In Polygon mode, users need to be able to edit existing points after creating the shape.
+* Please add full edit-point support for polygon shapes.
+* Also improve the point handles visually. The current points feel too plain and hard to work with. Make them more polished, visible, and easier to grab.
+
+2. Live view / real-time rendering consistency
+
+* In Comic Builder, some elements display incorrectly on the working canvas but appear correctly in preview.
+* Example: circle shapes do not render correctly in the comic editor, even though they look correct in preview.
+* Example: adding color to panels is not displaying correctly in the live editing view.
+* Everything in this ecosystem needs to behave as live view / real-time updates. What the user sees while editing should match the preview as closely as possible.
+* Please audit the rendering pipeline so the editor view, preview, and final output stay in sync.
+
+3. Send to Motion Studio button and right-click action
+
+* The “Send to Motion Studio” button is not working correctly.
+* The same applies to the right-click menu option.
+* Expected behavior: when a user sends a panel to Motion Studio, whatever is currently inside that panel should be transferred exactly as-is into Motion Studio for editing.
+* It should preserve the current visible state of that panel, including assets, layout, and editable elements where possible.
+
+4. Motion Studio default target behavior
+
+* When editing inside Motion Studio, the project or panel currently being worked on should be the default target when applying edits back.
+* Users should not have to guess where changes are being sent.
+* Motion Studio should always know which active panel/project it came from and apply updates back to that source by default unless the user explicitly changes the target.
+
+5. Animation application is failing
+
+* Animations currently do not apply correctly.
+* Please review the animation application flow end-to-end and make sure edits made in Motion Studio actually save and apply back to the active project/panel.
+
+6. Vector shapes disappearing in Motion Studio
+
+* In Motion Studio, vector shapes still disappear when the user releases them.
+* This needs to be fixed immediately.
+* Expected behavior: vector shapes should persist after creation and remain fully editable after placement.
+
+7. Expand vector shape options
+
+* Please add more vector shape options in Motion Studio.
+* We need a stronger vector shape toolset, not just the current limited options.
+
+Summary of expected system behavior
+
+* Editing should be live and visually accurate in real time.
+* Preview should match the editor.
+* Sending a panel to Motion Studio should carry over exactly what is in that panel.
+* Motion Studio should default edits back to the currently active source project/panel.
+* Vector tools should be stable, persistent, and expanded.
+* Polygon editing should include better-looking, easier-to-use point controls.

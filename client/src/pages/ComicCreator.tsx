@@ -15,7 +15,7 @@ import {
   Trash2, GripVertical, X, Upload, Move, ZoomIn, ZoomOut, Eye, EyeOff,
   Lock, Unlock, Copy, RotateCcw, Palette, Grid, Scissors, ClipboardPaste, PenTool, Share2, Volume2, FolderOpen, Sparkles, BookOpen, ExternalLink, Music, Play, MessageSquareText, Map as MapIcon
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/components/InfiniteCanvas";
 import { AIGenerator } from "@/components/tools/AIGenerator";
@@ -4835,9 +4835,106 @@ export default function ComicCreator() {
       { position: 'se', cursor: 'nwse-resize', x: `calc(100% - ${HANDLE_SIZE/2}px)`, y: `calc(100% - ${HANDLE_SIZE/2}px)` },
     ];
     
+    const polygonOverlay = panel.type === "polygon" && panel.points && panel.points.length >= 3 && isSelected ? (
+      <svg
+        key={`${panel.id}-edit`}
+        className="absolute"
+        style={{
+          left: `${panel.x}%`,
+          top: `${panel.y}%`,
+          width: `${panel.width}%`,
+          height: `${panel.height}%`,
+          zIndex: (panel.zIndex || 0) + 1000,
+          overflow: "visible",
+          pointerEvents: "none",
+          transform: `rotate(${panel.rotation || 0}deg)`,
+          transformOrigin: "center center",
+        }}
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        data-testid={`polygon-edit-${panel.id}`}
+      >
+        {/* Edge midpoint affordance — click to insert a new point */}
+        {panel.points.map((p, i) => {
+          const next = panel.points![(i + 1) % panel.points!.length];
+          const mx = (p.x + next.x) / 2;
+          const my = (p.y + next.y) / 2;
+          return (
+            <circle
+              key={`edge-${i}`}
+              cx={mx} cy={my} r={1.4}
+              fill="#06b6d4" fillOpacity={0.35}
+              stroke="#06b6d4" strokeWidth={0.4}
+              vectorEffect="non-scaling-stroke"
+              style={{ cursor: "copy", pointerEvents: "auto" }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                const newPoints = [
+                  ...panel.points!.slice(0, i + 1),
+                  { x: mx, y: my },
+                  ...panel.points!.slice(i + 1),
+                ];
+                updatePanelStyle(page, panel.id, { points: newPoints });
+              }}
+            >
+              <title>Click to add a point on this edge</title>
+            </circle>
+          );
+        })}
+        {/* Vertex handles — drag to move, right-click to delete (min 3 pts) */}
+        {panel.points.map((p, i) => (
+          <g key={`pt-${i}`} style={{ pointerEvents: "auto" }}>
+            <circle
+              cx={p.x} cy={p.y} r={3.2}
+              fill="rgba(255,255,255,0.0)"
+              data-testid={`polygon-handle-hit-${panel.id}-${i}`}
+              style={{ cursor: "grab" }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const svg = e.currentTarget.ownerSVGElement as SVGSVGElement | null;
+                if (!svg) return;
+                const rect = svg.getBoundingClientRect();
+                try { (e.target as Element).setPointerCapture(e.pointerId); } catch {}
+                const onMove = (mv: PointerEvent) => {
+                  const nx = Math.max(0, Math.min(100, ((mv.clientX - rect.left) / rect.width) * 100));
+                  const ny = Math.max(0, Math.min(100, ((mv.clientY - rect.top) / rect.height) * 100));
+                  updatePanelStyle(page, panel.id, {
+                    points: panel.points!.map((pp, j) => j === i ? { x: nx, y: ny } : pp),
+                  });
+                };
+                const onUp = () => {
+                  window.removeEventListener("pointermove", onMove);
+                  window.removeEventListener("pointerup", onUp);
+                };
+                window.addEventListener("pointermove", onMove);
+                window.addEventListener("pointerup", onUp);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!panel.points || panel.points.length <= 3) return;
+                updatePanelStyle(page, panel.id, {
+                  points: panel.points.filter((_, j) => j !== i),
+                });
+              }}
+            />
+            <circle
+              cx={p.x} cy={p.y} r={2.0}
+              fill="#ffffff"
+              stroke="#0a0a0a" strokeWidth={0.7}
+              vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "none" }}
+            />
+          </g>
+        ))}
+      </svg>
+    ) : null;
+
     return (
+      <React.Fragment key={panel.id}>
+      {polygonOverlay}
       <div
-        key={panel.id}
         className={`absolute cursor-pointer overflow-visible ${
           isSelected ? 'ring-2 ring-white/50 z-20' : 'hover:border-gray-600'
         } ${panel.type === "circle" ? "rounded-full" : ""}`}
@@ -4891,7 +4988,19 @@ export default function ComicCreator() {
             {panel.coverRole === "front-cover" ? "FRONT COVER" : "BACK COVER"}
           </div>
         )}
-        <div className="absolute inset-0 overflow-hidden bg-white" style={{ filter: panel.filter || 'none' }}>
+        <div
+          className={`absolute inset-0 overflow-hidden ${panel.type === "circle" ? "rounded-full" : ""}`}
+          style={{
+            // Use the panel's chosen background color in the editor (was
+            // previously hard-coded to white, which hid panel.backgroundColor
+            // and made the circle/polygon interior appear square).
+            backgroundColor: panel.backgroundColor || '#ffffff',
+            filter: panel.filter || 'none',
+            clipPath: panel.type === "polygon" && panel.points && panel.points.length >= 3
+              ? `polygon(${panel.points.map(p => `${p.x}% ${p.y}%`).join(", ")})`
+              : undefined,
+          }}
+        >
           {panel.coverRole && coverDesignData && (() => {
             const cd = { ...defaultCover, ...coverDesignData } as CoverData;
             const isFront = panel.coverRole === "front-cover";
@@ -5726,6 +5835,7 @@ export default function ComicCreator() {
           }}
         />
       </div>
+      </React.Fragment>
     );
   };
 
