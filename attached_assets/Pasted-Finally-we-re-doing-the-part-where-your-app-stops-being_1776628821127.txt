@@ -1,0 +1,248 @@
+Finally, we’re doing the part where your app stops being “cool” and starts being financially survivable. Took long enough.
+
+I’m giving you a clean, dev-ready build spec for Replit (CoMiXX + backend) and Lovable (FX app), based on everything we aligned:
+
+AI credits (not unlimited chaos)
+Hybrid AI routing (free + paid)
+Storage that won’t quietly bankrupt you
+Tiers that actually make sense
+
+No philosophy. This is implementation.
+
+🚀 MASTER PRICING SYSTEM — BUILD SPEC
+🔐 CORE MODEL
+User
+ ├── Subscription Tier
+ ├── AI Credits (monthly + purchased)
+ ├── Storage Usage
+ ├── XP / Progression
+ └── Projects (local + cloud)
+💰 TIERS (FINAL — LOCK THIS)
+FREE
+$0
+3 projects
+Basic tools
+30 AI credits/month
+PNG export only
+Community access
+CREATOR — $9/mo
+20 projects
+Full FX tools
+GIF export
+Asset library access
+500 AI credits/month
+1GB cloud storage
+PRO — $19/mo (MOST POPULAR)
+100 projects
+Motion Studio access
+Batch export
+Templates
+Commercial use
+1500 AI credits/month
+5GB storage
+STUDIO — $39/mo
+Unlimited projects
+Collaboration (future)
+Advanced tools
+API access (future)
+5000 AI credits/month
+20GB storage
+FOUNDERS PASS — $199 (ONE-TIME)
+
+⚠️ IMPORTANT FIX:
+
+Lifetime Pro features
+1000 AI credits/month (NOT unlimited)
+Badge + perks
+💸 AI CREDIT SYSTEM (BACKEND LOGIC)
+Database fields
+User {
+  id
+  tier
+  credits_balance
+  credits_monthly_limit
+  credits_reset_date
+}
+Credit costs
+COSTS = {
+  basic_image: 1,
+  styled_image: 2,
+  fx_generation: 3,
+  complex_fx: 5
+}
+Deduction flow
+User action →
+  Check credits →
+    If enough:
+      Deduct
+      Route AI request
+    If not:
+      Show “Buy Credits”
+Monthly reset job (CRON)
+resets credits to tier amount
+DOES NOT stack infinitely
+optional: carry over small %
+🤖 AI ROUTING SYSTEM (CRITICAL)
+Goal:
+
+Keep costs low without users noticing
+
+Logic
+IF user tier == FREE:
+    Try Pollinations
+    IF fail → fallback Replicate (limited)
+
+IF user tier == CREATOR:
+    Pollinations (70%)
+    Replicate (30%)
+
+IF user tier == PRO:
+    Replicate default
+    Optional premium model
+
+IF user tier == STUDIO:
+    Replicate + priority queue
+API abstraction (VERY IMPORTANT)
+generateImage({
+  prompt,
+  style,
+  priority,
+  tier
+})
+
+DO NOT let frontend call providers directly
+Everything goes through your API
+
+💾 STORAGE SYSTEM
+Cloud (R2 or Supabase)
+Project {
+  id
+  user_id
+  size_mb
+  storage_location (cloud | local)
+}
+Rules
+Enforce tier limits
+Show usage bar
+Warn at 80%
+Smart feature (DO THIS)
+
+👉 “Download Project”
+
+exports full project locally
+frees cloud storage
+required for desktop later
+🖥️ DESKTOP FUTURE-PROOFING (IMPORTANT)
+
+Even before Tauri:
+
+Add:
+
+storage_mode = "cloud" | "local-first"
+
+Later:
+
+desktop uses local-first
+web uses cloud-first
+🛒 CREDIT TOP-UPS (MONEY MACHINE)
+Stripe products
+500 credits → $5
+1500 credits → $12
+5000 credits → $30
+Backend
+purchaseCredits(userId, amount) {
+  user.credits_balance += amount
+}
+🧠 FRONTEND UX RULES
+DO NOT show:
+
+“credits remaining”
+
+SHOW:
+
+👉 “You have 120 AI generations left”
+
+Humans understand actions, not tokens.
+
+🔗 REPLIT TASKS (CoMiXX + Backend)
+1. Pricing + tier system
+implement tier logic
+assign limits
+2. Credit system
+balance tracking
+deduction
+reset job
+3. AI router
+Pollinations integration
+Replicate integration
+fallback logic
+4. Storage tracking
+per user quota
+project size tracking
+5. Stripe integration
+subscriptions
+credit purchases
+🎨 LOVABLE TASKS (FX APP)
+1. Hook into same credit system
+
+👉 NO separate logic
+
+2. AI calls must go through backend
+
+NOT:
+frontend → API
+
+BUT:
+frontend → your server → AI provider
+
+3. FX generation cost mapping
+FX_COSTS = {
+  graffiti: 2,
+  fx_overlay: 3,
+  character_style: 4
+}
+4. Sync with CoMiXX
+same user
+same credits
+shared asset library
+⚠️ RULES YOU DO NOT BREAK
+1. NO UNLIMITED AI ANYWHERE
+
+Not even for founders
+
+2. NO DIRECT AI CALLS FROM CLIENT
+
+Always through backend
+
+3. SAME CREDIT SYSTEM EVERYWHERE
+
+CoMiXX + FX must match
+
+4. TRACK EVERYTHING
+
+You need:
+
+cost per user
+credits used
+API usage
+🧨 FINAL REALITY CHECK
+
+Right now you are:
+
+👉 1 good decision away from a scalable product
+👉 or 1 bad decision away from subsidizing every user
+
+This system:
+
+protects your margins
+scales clean
+feels generous
+upsells naturally
+
+If you want next step, I’ll:
+
+map your Stripe products EXACTLY (copy-paste ready)
+design the pricing page UI to convert harder
+or build your backend endpoints spec clean
+
+Just don’t go rogue and add “unlimited AI” because it “feels nice.” That’s how companies die politely.
