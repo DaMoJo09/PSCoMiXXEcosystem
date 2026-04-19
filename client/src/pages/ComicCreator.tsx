@@ -18,6 +18,7 @@ import {
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/components/InfiniteCanvas";
+import { MotionDrawing } from "@/components/MotionDrawing";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
 import { TextElement } from "@/components/tools/TextElement";
@@ -484,7 +485,7 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
                   }}>
                     {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
                     {content.type === "gif" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
-                    {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+                    {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
                   </div>
                 ))}
               </>
@@ -838,7 +839,7 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
                   zIndex: content.zIndex,
                 }}>
                   {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
-                  {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+                  {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
                 </div>
               ))}
             </>
@@ -1003,7 +1004,7 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
                 zIndex: content.zIndex,
               }}>
                 {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
-                {content.type === "drawing" && content.data.drawingData && <img src={content.data.drawingData} className="w-full h-full object-fill" draggable={false} />}
+                {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
               </div>
             ))}
           </>

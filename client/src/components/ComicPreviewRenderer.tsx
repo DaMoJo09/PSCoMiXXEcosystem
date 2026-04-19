@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { MotionDrawing, type MotionFrame } from "./MotionDrawing";
 
 interface PanelContent {
   id: string;
@@ -21,6 +22,8 @@ interface PanelContent {
     fontFamily?: string;
     backgroundColor?: string;
     drawingData?: string;
+    isMotion?: boolean;
+    motionFrames?: MotionFrame[];
   };
   zIndex: number;
 }
@@ -134,10 +137,11 @@ function PagePreview({ panels, width, height }: { panels: Panel[]; width: number
                       crossOrigin="anonymous"
                     />
                   )}
-                  {type === "drawing" && data.drawingData && (
-                    <img
-                      src={data.drawingData}
-                      alt=""
+                  {type === "drawing" && (data.drawingData || data.isMotion) && (
+                    <MotionDrawing
+                      drawingData={data.drawingData}
+                      motionFrames={data.motionFrames}
+                      isMotion={data.isMotion}
                       className="w-full h-full object-contain"
                     />
                   )}

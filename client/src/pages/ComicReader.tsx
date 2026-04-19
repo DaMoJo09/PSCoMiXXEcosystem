@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { MotionDrawing } from "@/components/MotionDrawing";
 import { useRoute, useSearch, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -898,15 +899,15 @@ function ContentRenderer({ item, panelWidth, panelHeight }: { item: PanelContent
     );
   }
 
-  if (item.type === "drawing" && drawingData) {
+  if (item.type === "drawing" && (drawingData || (item.data as any)?.isMotion)) {
     return (
-      <img
-        src={drawingData}
-        alt=""
+      <MotionDrawing
+        drawingData={drawingData}
+        motionFrames={(item.data as any)?.motionFrames}
+        isMotion={(item.data as any)?.isMotion}
         className="object-contain"
         style={{ ...positionStyle, objectFit: "contain" }}
-        draggable={false}
-        data-testid={`drawing-content-${item.id}`}
+        testId={`drawing-content-${item.id}`}
       />
     );
   }

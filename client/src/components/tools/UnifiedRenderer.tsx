@@ -1,5 +1,6 @@
 import { useRef, forwardRef, useImperativeHandle } from "react";
 import { TextElement } from "./TextElement";
+import { MotionDrawing } from "@/components/MotionDrawing";
 
 export interface TransformState {
   x: number;
@@ -277,14 +278,14 @@ export const UnifiedRenderer = forwardRef<UnifiedRendererRef, UnifiedRendererPro
       );
     }
 
-    if (type === "drawing" && data.drawingData) {
+    if (type === "drawing" && (data.drawingData || (data as any).isMotion)) {
       return (
         <div key={id} style={style} onClick={handleClick} className="overflow-hidden">
-          <img 
-            src={data.drawingData} 
-            alt="" 
+          <MotionDrawing
+            drawingData={data.drawingData}
+            motionFrames={(data as any).motionFrames}
+            isMotion={(data as any).isMotion}
             className="w-full h-full object-contain"
-            draggable={false}
           />
         </div>
       );
