@@ -179,7 +179,7 @@ export function BugReportButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-50 w-10 h-10 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 transition flex items-center justify-center group"
+        className="fixed left-4 bottom-20 md:bottom-4 z-50 w-10 h-10 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 transition flex items-center justify-center group rounded"
         title="Report Issue"
         data-testid="button-report-issue"
       >
