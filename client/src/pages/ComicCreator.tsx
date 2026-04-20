@@ -8443,6 +8443,28 @@ export default function ComicCreator() {
                               className="absolute inset-0 w-full h-full pointer-events-none"
                               viewBox="0 0 100 100"
                               preserveAspectRatio="none"
+                              style={{ zIndex: 40 }}
+                              aria-hidden
+                            >
+                              {/* White matte: paints page bg over content that
+                                  spills outside the polygon BUT remains inside
+                                  the rectangular bounding box, so the panel
+                                  reads as a polygon shape in preview. Content
+                                  that extends BELOW/PAST the bounding box is
+                                  unaffected — preserving the signature
+                                  overflow look from the editor. */}
+                              <path
+                                d={`M0,0 L100,0 L100,100 L0,100 Z M${polyPtsStr} Z`}
+                                fill="#ffffff"
+                                fillRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                          {isPolyPanel && (
+                            <svg
+                              className="absolute inset-0 w-full h-full pointer-events-none"
+                              viewBox="0 0 100 100"
+                              preserveAspectRatio="none"
                               style={{ zIndex: 50, overflow: 'visible' }}
                               aria-hidden
                             >
