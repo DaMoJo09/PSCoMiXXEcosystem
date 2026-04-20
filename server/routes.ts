@@ -425,7 +425,27 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       res.json({ 
         ipDisclosureAccepted: user.ipDisclosureAccepted,
-        userAgreementAccepted: user.userAgreementAccepted 
+        userAgreementAccepted: user.userAgreementAccepted,
+        aiConsentAcceptedAt: user.aiConsentAcceptedAt,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // AI consent — required by Apple Guideline 5.1.2(i) before any AI use.
+  // Recorded server-side for audit. Client also caches in localStorage so
+  // the modal doesn't re-prompt on every AI tool open.
+  app.post("/api/auth/accept-ai-consent", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.acceptAiConsent(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({
+        ipDisclosureAccepted: user.ipDisclosureAccepted,
+        userAgreementAccepted: user.userAgreementAccepted,
+        aiConsentAcceptedAt: user.aiConsentAcceptedAt,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

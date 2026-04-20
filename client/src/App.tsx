@@ -9,6 +9,7 @@ import { AssetLibraryProvider } from "@/contexts/AssetLibraryContext";
 import { CrossModeAssetProvider } from "@/contexts/CrossModeAssetContext";
 import { EcosystemProvider } from "@/contexts/EcosystemContext";
 import { PostActionProvider } from "@/contexts/PostActionContext";
+import { AiConsentProvider } from "@/contexts/AiConsentContext";
 import { LegalGate } from "@/components/LegalGate";
 import NotFound from "@/pages/not-found";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -285,6 +286,7 @@ function App() {
             <CrossModeAssetProvider>
               <EcosystemProvider>
                 <PostActionProvider>
+                  <AiConsentProvider>
                   <TooltipProvider>
                     <SonnerToaster theme="dark" position="bottom-right" />
                     <KeyboardShortcutsDialog />
@@ -293,6 +295,7 @@ function App() {
                     <UpdatePrompt />
                     <ProtectedRouter />
                   </TooltipProvider>
+                  </AiConsentProvider>
                 </PostActionProvider>
               </EcosystemProvider>
             </CrossModeAssetProvider>

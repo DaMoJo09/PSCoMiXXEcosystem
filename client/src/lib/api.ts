@@ -72,7 +72,7 @@ export const authApi = {
     const response = await fetch(`${API_BASE}/auth/legal-status`, {
       credentials: "include",
     });
-    return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null }>(response);
+    return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null; aiConsentAcceptedAt?: Date | null }>(response);
   },
   
   acceptIpDisclosure: async () => {
@@ -89,6 +89,14 @@ export const authApi = {
       credentials: "include",
     });
     return handleResponse<{ ipDisclosureAccepted: Date | null; userAgreementAccepted: Date | null }>(response);
+  },
+
+  acceptAiConsent: async () => {
+    const response = await fetch(`${API_BASE}/auth/accept-ai-consent`, {
+      method: "POST",
+      credentials: "include",
+    });
+    return handleResponse<{ aiConsentAcceptedAt: Date | null }>(response);
   },
 };
 

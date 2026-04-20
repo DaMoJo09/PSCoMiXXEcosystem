@@ -178,7 +178,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     };
   }, [isOpen, sendPing, clearPoll, clearPing]);
 
-  const openFxStudio = useCallback(({
+  const openFxStudio = useCallback(async ({
     mode,
     effectId,
     panelId,
@@ -189,6 +189,21 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   } = {}) => {
     if (studioWindowRef.current && !studioWindowRef.current.closed) {
       studioWindowRef.current.focus();
+      return;
+    }
+
+    // AI Transparency / consent gate (Apple Guideline 5.1.2(i)). We call
+    // the exported bridge which, if consent is not already recorded, opens
+    // the global AiConsentModal and resolves only after the user accepts
+    // or declines. Blocks FX Studio from opening when gating fails.
+    try {
+      const { ensureAiConsent } = await import("@/contexts/AiConsentContext");
+      const ok = await ensureAiConsent();
+      if (!ok) return;
+    } catch (err) {
+      // If the gate itself errors out, fail closed rather than open —
+      // compliance requirement: no AI invocation without verified consent.
+      toast.error("Unable to verify AI consent. Please refresh and try again.");
       return;
     }
 

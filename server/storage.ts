@@ -116,6 +116,7 @@ export interface IStorage {
   updateUserRole(id: string, role: string): Promise<User | undefined>;
   acceptIpDisclosure(id: string): Promise<User | undefined>;
   acceptUserAgreement(id: string): Promise<User | undefined>;
+  acceptAiConsent(id: string): Promise<User | undefined>;
   
   // Project operations
   getProject(id: string): Promise<Project | undefined>;
@@ -544,6 +545,14 @@ export class DatabaseStorage implements IStorage {
   async acceptUserAgreement(id: string): Promise<User | undefined> {
     const [user] = await db.update(users)
       .set({ userAgreementAccepted: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async acceptAiConsent(id: string): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({ aiConsentAcceptedAt: new Date() })
       .where(eq(users.id, id))
       .returning();
     return user || undefined;

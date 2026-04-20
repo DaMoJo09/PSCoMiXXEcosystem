@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   parentalConsentAt: timestamp("parental_consent_at"),
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
+  aiConsentAcceptedAt: timestamp("ai_consent_accepted_at"),
   loginCount: integer("login_count").default(0),
   lastLoginAt: timestamp("last_login_at"),
   signupSource: text("signup_source"),
