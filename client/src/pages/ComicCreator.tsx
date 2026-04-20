@@ -8395,7 +8395,15 @@ export default function ComicCreator() {
                   const isLeftPage = (previewPage - 1) % 2 === 0;
                   const spread = spreads[spreadIndex];
                   const panels = isLeftPage ? spread?.leftPage : spread?.rightPage;
-                  const editorDims = { w: isFullscreen ? 800 : 650, h: isFullscreen ? 1130 : 920 };
+                  // CRITICAL: Use the SAME dimensions the editor used when the
+                  // user placed/sized content. Content positions are stored in
+                  // editor-pixels; if preview computes percentages with a
+                  // different page size, content drifts and gets cropped
+                  // (e.g. legs of a figure clipped because the image is
+                  // mis-scaled inside the panel bbox). The editor page refs
+                  // remain mounted while preview is open (just hidden via CSS),
+                  // so getEditorPageDimensions() returns the live measurements.
+                  const editorDims = getEditorPageDimensions();
                   const PREVIEW_W = 500;
                   const PREVIEW_H = 750;
                   
@@ -8449,7 +8457,7 @@ export default function ComicCreator() {
                                 points={polyPtsStr}
                                 fill="none"
                                 stroke={panel.borderColor || "#000"}
-                                strokeWidth={(panel.borderWidth || 2) * 2}
+                                strokeWidth={(panel.borderWidth || 3) * 2}
                                 vectorEffect="non-scaling-stroke"
                               />
                             </svg>

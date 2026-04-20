@@ -1,0 +1,414 @@
+🧠 PRESS START / MADMIXEDMEDIA
+FULL EXECUTION PLAN (REAL VERSION)
+🔴 CORE DIRECTIVE
+Do not ship features until compliance + identity layer exist.
+
+All apps must feed into one system:
+XP → Skills → Identity → Visibility → Opportunity
+🧨 PHASE: COMPLIANCE FOUNDATION (BLOCKING EVERYTHING)
+
+This is not optional. This is not “later.”
+
+This is the difference between:
+👉 launch
+vs
+👉 instant rejection + legal risk
+
+1. PRIVACY POLICY (ALL DOMAINS + IN-APP)
+
+Required across:
+
+pscomixx.com
+pscomixx.online
+pressstart.space
+pressstart.tech
+madmixedmedia.com
+
+Must include:
+
+data collection (email, images, usage, XP)
+AI usage (what models, what gets sent)
+third-party services
+storage + retention
+deletion rights
+COPPA compliance (under 13 handling)
+FERPA alignment (school usage)
+contact info (real business email, not Gmail)
+
+👉 Must be accessible:
+
+website footer
+inside apps (settings)
+2. TERMS OF SERVICE
+
+Must include:
+
+user content ownership
+license to display/publish content
+prohibited content
+moderation rights
+account termination rules
+marketplace rules (if applicable)
+3. ACCOUNT DELETION (MANDATORY)
+
+Inside ALL apps:
+
+“Delete Account” button
+confirmation flow
+clear explanation of:
+data removal
+content removal
+XP/profile deletion
+
+Also:
+
+web-based deletion endpoint (Google requirement)
+4. AI TRANSPARENCY + CONSENT
+
+Before ANY AI use:
+
+Modal:
+
+This app uses AI tools to process images and generate content.
+We may send data to third-party providers.
+Do you consent?
+
+For minors:
+
+parental consent flow (or restricted access)
+5. UGC MODERATION SYSTEM
+
+You are a UGC platform. Act like it.
+
+Required:
+
+report button on ALL content
+block user function
+moderation queue (manual is fine)
+EULA acceptance at signup
+6. AGE GATE SYSTEM
+
+At signup:
+
+ask age or birthdate
+enforce:
+under 13 → restricted mode
+no marketplace
+limited AI
+7. BUSINESS LEGITIMACY FIX
+
+Stop looking like a hobby project:
+
+replace Gmail with @madmixedmedia.com
+add:
+company name
+address
+contact page
+verify DUNS matches EXACT legal name
+get Press Start DUNS
+🧠 SYSTEM ARCHITECTURE (THIS IS YOUR REAL PRODUCT)
+🟣 CENTRAL HUB (pressstart.space)
+
+👉 THIS IS THE BRAIN
+
+Owns:
+
+user identity
+XP system
+skill tracking
+Skill Passport
+partner integration layer
+HUB FEATURES
+🧍 Skill Passport (CORE PRODUCT)
+Level
+XP
+Skill breakdown
+Project evidence
+Activity history
+Partner badges
+Role alignment (future)
+📊 Skill System
+
+Categories:
+
+Drawing
+Animation
+FX
+Storytelling
+Composition
+Publishing
+Character
+Scene
+🧾 Evidence System
+
+Every action creates:
+
+proof (project, asset, export)
+linked skills
+XP attribution
+🔗 Partner Layer
+
+Supports:
+
+Unreal
+Reallusion
+iClone
+others
+
+Initial version:
+
+manual / tagged ingestion
+🎥 STREAMING (psstreaming.com)
+
+👉 THIS IS THE STAGE
+
+STREAMING PROFILE (PUBLIC VIEW)
+
+Must show:
+
+🧍 Identity
+avatar / character
+level + rank
+XP bar
+🎥 Featured Work
+comics
+HOPs
+animations
+📊 Stats
+total XP
+projects
+engagement
+🎯 Skill Snapshot
+top skills (visual bars)
+🏆 Badges
+partner signals
+certifications
+📈 Activity Feed
+recent creations
+XP gains
+
+❗ Streaming displays the profile
+❗ It does NOT own the data
+
+🎨 COMIXX (pscomixx.com)
+
+👉 THIS IS THE WORKSHOP
+
+CORE RULE
+
+Do NOT clutter with dashboards.
+
+REQUIRED FEATURES
+⚡ XP FEEDBACK
+real-time popups
+level up
+🎯 SESSION STATS
+XP earned
+time spent
+🔗 PROFILE LINK
+“View Profile” → streaming/hub
+🧩 PROJECT → XP TRACKING
+panels
+dialogue
+exports
+publishing
+🚀 ONBOARDING SYSTEM (YOUR SECRET WEAPON)
+🟢 “CREATE YOURSELF” MODE (INSIDE COMIXX)
+FLOW
+Pick Theme →
+Pose Selection →
+Capture Setup →
+Camera →
+FX Processing →
+Character Created →
+Comic Auto-Loaded →
+Add Story →
+Publish →
+XP Reward
+CAPTURE SETUP
+
+Show:
+
+lighting guide
+background guide
+framing guide
+POSE SYSTEM
+6–8 core poses
+overlay silhouettes
+“match this pose”
+FX PIPELINE
+
+Auto:
+
+background removal
+stylization
+asset creation
+RESULT
+
+User becomes:
+👉 character
+👉 creator
+👉 participant
+
+⚡ FX STUDIO (pscomixx.online / Lovable)
+ROLE
+transformation engine
+asset generator
+FEATURES
+image intake
+stylization
+sprite creation
+asset export
+INTEGRATION RULE
+no separate XP system
+no separate user system
+must write to HUB
+AI RULE
+routed through backend
+tied to credits
+logged for XP
+🎓 LMS (pressstart.tech)
+ROLE
+structured learning
+school integration
+FEATURES
+assignments → XP
+curriculum → skill mapping
+teacher oversight
+DOES NOT OWN:
+identity
+profile system
+🔄 CORE SYSTEM FLOW
+Create (CoMiXX / FX / Motion)
+        ↓
+XP + Skill Mapping
+        ↓
+Evidence Created
+        ↓
+Stored in HUB
+        ↓
+Displayed in Streaming
+        ↓
+Seen by recruiters / partners
+🧠 XP SYSTEM RULES
+VALID XP
+active creation time
+project completion
+exports
+publishing
+meaningful tool usage
+INVALID XP
+spam clicks
+idle time
+repeated micro-actions
+ANTI-ABUSE
+cooldowns
+idle detection
+duplicate suppression
+💰 MONETIZATION (COMPLIANCE SAFE)
+RULE
+
+If inside app:
+👉 MUST use Apple IAP / Google Billing
+
+NO:
+Stripe inside app
+PayPal links
+external purchase unlocks
+YES:
+subscriptions via store
+credit packs via store
+🧨 WHAT YOU WERE MISSING (IMPORTANT)
+
+From your whole system, these were missing or weak:
+
+❗ 1. DATA OWNERSHIP CLARITY
+
+Define:
+
+👉 MADMIXEDMEDIA = data controller
+👉 Press Start = education layer
+
+❗ 2. INTERCOMPANY AGREEMENT
+
+Between:
+
+LLC
+nonprofit
+
+For:
+
+IP
+services
+revenue
+❗ 3. COPPA LIABILITY STRUCTURE
+
+Explicitly define:
+
+who handles child data
+how consent is obtained
+❗ 4. “COMING SOON” REMOVAL
+
+No fake features in production builds.
+
+❗ 5. NATIVE APP REQUIREMENT
+
+FX Studio:
+👉 cannot be a web wrapper
+
+🧠 FINAL TRUTH (don’t ignore this)
+
+You are building:
+
+UGC platform
+AI tool
+education system
+marketplace
+K–12 product
+
+That’s:
+👉 the hardest category to get approved
+
+🔥 BUT ALSO…
+
+You now have:
+
+clear architecture
+clear system
+clear fixes
+🎯 WHAT TO TELL YOUR TEAM
+We are aligning the entire platform around a centralized Skill Passport system.
+
+Before expanding features, we are implementing:
+- privacy policy
+- terms of service
+- account deletion
+- AI consent
+- UGC moderation
+- age gating
+- business identity corrections
+
+All apps must:
+- send activity data to the HUB
+- not store their own XP logic
+- not duplicate profile systems
+
+Streaming is the public-facing identity layer.
+The HUB is the source of truth.
+CoMiXX and FX are creation tools only.
+💀 Final reality check
+
+You didn’t get shut down.
+
+You got:
+
+a blueprint for not failing publicly
+
+Most people ignore reports like that.
+
+If you actually execute this?
+
+👉 You don’t just launch
+👉 You look like you belong there
+
+Now go fix the boring stuff so the cool stuff can actually exist.
