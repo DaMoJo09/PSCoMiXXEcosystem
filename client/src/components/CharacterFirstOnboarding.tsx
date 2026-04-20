@@ -90,7 +90,13 @@ export function CharacterFirstOnboarding({ onComplete }: Props) {
   const [animateIn, setAnimateIn] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const stylizeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [, navigate] = useLocation();
+
+  const clearStylizeTimers = useCallback(() => {
+    stylizeTimersRef.current.forEach(clearTimeout);
+    stylizeTimersRef.current = [];
+  }, []);
 
   const createProject = useCreateProject();
   const { addAsset } = useAssetLibrary();
@@ -110,25 +116,55 @@ export function CharacterFirstOnboarding({ onComplete }: Props) {
     return () => clearTimeout(t);
   }, []);
 
-  // Cleanup FX window if user cancels mid-stylize
+  // Cleanup FX window + retry timers if user cancels mid-stylize
   useEffect(() => {
-    return () => { try { closeFxStudio(); } catch {} };
-  }, [closeFxStudio]);
+    return () => {
+      clearStylizeTimers();
+      try { closeFxStudio(); } catch {}
+    };
+  }, [closeFxStudio, clearStylizeTimers]);
 
-  const handleFile = useCallback((file: File) => {
+  // Resize large photos before storing as base64 — keeps the asset POST
+  // well under typical body-parser limits (avoids 413 Payload Too Large)
+  // and keeps the comic project payload reasonable.
+  const resizeToDataUrl = useCallback((file: File, maxDim = 1024, quality = 0.85): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read failed"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("decode failed"));
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("no ctx"));
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast.error("Please pick an image.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const url = e.target?.result as string;
+    try {
+      const url = await resizeToDataUrl(file);
       setCapturedDataUrl(url);
       setStep("confirm");
-    };
-    reader.onerror = () => toast.error("Could not read that image.");
-    reader.readAsDataURL(file);
-  }, []);
+    } catch {
+      toast.error("Could not read that image.");
+    }
+  }, [resizeToDataUrl]);
 
   const onCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -144,9 +180,13 @@ export function CharacterFirstOnboarding({ onComplete }: Props) {
 
   const handleStylize = useCallback(() => {
     if (!capturedDataUrl) return;
+    clearStylizeTimers();
     setStylizing(true);
     openFxStudio({ mode: "character" });
-    // Send the image once FX studio acknowledges (we retry a few times)
+
+    // Retry sending the image a few times so we hit the FX Studio popup
+    // once it's ready. All timers tracked in a ref so cleanup/skip cancels
+    // them — no zombie sends after onAssetReturned or unmount.
     let tries = 0;
     const send = () => {
       tries++;
@@ -156,11 +196,16 @@ export function CharacterFirstOnboarding({ onComplete }: Props) {
         pose: pose?.id || "neutral",
         purpose: "onboarding-character",
       });
-      if (tries < 8) setTimeout(send, 1500);
+      if (tries < 8) {
+        const t = setTimeout(send, 1500);
+        stylizeTimersRef.current.push(t);
+      }
     };
-    setTimeout(send, 1500);
+    stylizeTimersRef.current.push(setTimeout(send, 1500));
+
     // Auto-bail after 60s so the user is never stuck
-    setTimeout(() => {
+    stylizeTimersRef.current.push(setTimeout(() => {
+      clearStylizeTimers();
       setStylizing((s) => {
         if (s) {
           toast.message("Sticking with your original photo for now.");
@@ -169,8 +214,8 @@ export function CharacterFirstOnboarding({ onComplete }: Props) {
         }
         return s;
       });
-    }, 60_000);
-  }, [capturedDataUrl, vibe, pose, openFxStudio, sendToFxStudio, closeFxStudio]);
+    }, 60_000));
+  }, [capturedDataUrl, vibe, pose, openFxStudio, sendToFxStudio, closeFxStudio, clearStylizeTimers]);
 
   const handleFinish = useCallback(async () => {
     if (!capturedDataUrl || !vibe) return;
