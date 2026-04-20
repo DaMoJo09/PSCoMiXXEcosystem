@@ -96,8 +96,8 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md space-y-6 sm:space-y-8">
+    <div className="min-h-screen bg-black flex items-start justify-center p-4 sm:p-6 sm:items-center overflow-y-auto">
+      <div className="w-full max-w-md space-y-6 sm:space-y-8 py-6 sm:py-10">
         <div className="text-center space-y-3 sm:space-y-4">
           <img 
             src="/logo.png" 
