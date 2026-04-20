@@ -50,6 +50,7 @@ import {
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuCheckboxItem,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubTrigger,
