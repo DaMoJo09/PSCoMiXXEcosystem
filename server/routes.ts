@@ -9536,9 +9536,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
             await recordXpEvent({
               userId: localUserId,
               action: payload.action || "external_sync",
-              category: "sync",
+              category: payload.category || "sync",
               xpAmount: payload.xp_awarded || payload.xpAmount || 0,
               source: sourceApp || "external",
+              sourceApp: sourceApp || "external",
+              toolUsed: payload.toolUsed || payload.tool_used || null,
               eventKey: `sync-${syncId || queueId}`,
               metadata: payload,
             });
@@ -9789,6 +9791,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
   });
   app.get("/api/public/passport/:username", publicPassportLimiter, async (req, res) => {
     try {
+      const { aggregateBySkill } = await import("@shared/skillTaxonomy");
       const user = await storage.getUserByUsername(req.params.username);
       if (!user) return res.status(404).json({ message: "Passport not found" });
 
@@ -9800,6 +9803,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         categoryAgg,
         sourceAgg,
         recentEvents,
+        allEventsForSkillMap,
         publishedProjects,
         certs,
         productionCredits,
@@ -9840,6 +9844,13 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           .where(eq(xpEventsTable.userId, userId))
           .orderBy(desc(xpEventsTable.createdAt))
           .limit(10),
+        db.execute(sql`
+          SELECT action, tool_used AS "toolUsed", source_app AS "sourceApp", category,
+                 SUM(xp_amount)::int AS "xpAmount", COUNT(*)::int AS "eventCount"
+          FROM xp_events
+          WHERE user_id = ${userId}
+          GROUP BY action, tool_used, source_app, category
+        `),
         storage.getUserProjectsMeta(userId),
         (async () => {
           const earned = await db.select().from(userCertifications).where(eq(userCertifications.userId, userId));
@@ -9896,6 +9907,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           collaboration: (user as any).statCollaboration || 10,
         },
         skillsByCategory: (categoryAgg as any).rows || [],
+        skillsByTaxonomy: aggregateBySkill(((allEventsForSkillMap as any).rows || []) as any),
         toolsUsed: (toolAgg as any).rows || [],
         sources: (sourceAgg as any).rows || [],
         balancesBySource: balances.map((b: any) => ({

@@ -28,6 +28,7 @@ interface PassportPayload {
   };
   stats: { creativity: number; storytelling: number; artistry: number; collaboration: number };
   skillsByCategory: { category: string; totalXp: number; eventCount: number }[];
+  skillsByTaxonomy: { skill: string; label: string; totalXp: number; eventCount: number }[];
   toolsUsed: { toolUsed: string; totalXp: number; eventCount: number; lastUsed: string }[];
   sources: { sourceApp: string; totalXp: number; eventCount: number }[];
   recentActivity: any[];
@@ -50,16 +51,6 @@ const ROLE_LABELS: Record<string, string> = {
   contributor: "Contributor",
   specialist: "Specialist",
   lead: "Lead",
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  creation: "Creation",
-  publishing: "Publishing",
-  learning: "Learning",
-  achievement: "Achievement",
-  validation: "Mentor-Validated",
-  engagement: "Engagement",
-  workforce: "Workforce",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -131,13 +122,13 @@ export default function PublicPassport() {
     );
   }
 
-  const { identity, progression, stats, skillsByCategory, toolsUsed, sources,
+  const { identity, progression, stats, skillsByTaxonomy, toolsUsed, sources,
           publishedWorks, certifications, productionCredits, social, recentActivity } = data;
 
   const xpPerLevel = 500;
   const xpInLevel = progression.xp % xpPerLevel;
   const xpPercent = Math.min(100, (xpInLevel / xpPerLevel) * 100);
-  const maxSkillXp = Math.max(1, ...skillsByCategory.map((s) => s.totalXp));
+  const maxSkillXp = Math.max(1, ...skillsByTaxonomy.map((s) => s.totalXp));
   const maxToolXp = Math.max(1, ...toolsUsed.map((t) => t.totalXp));
 
   return (
@@ -224,19 +215,19 @@ export default function PublicPassport() {
 
         {/* Skills + tools side-by-side */}
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Card title="Skills by Category" icon={<Layers className="w-4 h-4" />} testId="section-skills">
-            {skillsByCategory.length === 0 ? (
+          <Card title="Skills" icon={<Layers className="w-4 h-4" />} testId="section-skills">
+            {skillsByTaxonomy.length === 0 ? (
               <Empty text="No skill activity yet." />
             ) : (
               <div className="space-y-3">
-                {skillsByCategory.map((s) => (
-                  <div key={s.category} data-testid={`row-skill-${s.category}`}>
+                {skillsByTaxonomy.map((s) => (
+                  <div key={s.skill} data-testid={`row-skill-${s.skill}`}>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-zinc-300 font-medium">{CATEGORY_LABELS[s.category] || s.category}</span>
+                      <span className="text-zinc-300 font-medium">{s.label}</span>
                       <span className="text-zinc-500 font-mono">{fmt(s.totalXp)} XP · {s.eventCount}</span>
                     </div>
                     <div className="h-1.5 bg-zinc-900 rounded">
-                      <div className="h-full bg-gradient-to-r from-zinc-400 to-white rounded transition-all" style={{ width: `${(s.totalXp / maxSkillXp) * 100}%` }} />
+                      <div className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 rounded transition-all" style={{ width: `${(s.totalXp / maxSkillXp) * 100}%` }} />
                     </div>
                   </div>
                 ))}

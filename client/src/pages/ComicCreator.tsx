@@ -4863,9 +4863,9 @@ export default function ComicCreator() {
           return (
             <circle
               key={`edge-${i}`}
-              cx={mx} cy={my} r={1.4}
-              fill="#06b6d4" fillOpacity={0.35}
-              stroke="#06b6d4" strokeWidth={0.4}
+              cx={mx} cy={my} r={2.2}
+              fill="#06b6d4" fillOpacity={0.5}
+              stroke="#0a0a0a" strokeWidth={0.8}
               vectorEffect="non-scaling-stroke"
               style={{ cursor: "copy", pointerEvents: "auto" }}
               onPointerDown={(e) => {
@@ -4921,11 +4921,11 @@ export default function ComicCreator() {
               }}
             />
             <circle
-              cx={p.x} cy={p.y} r={2.0}
+              cx={p.x} cy={p.y} r={3.2}
               fill="#ffffff"
-              stroke="#0a0a0a" strokeWidth={0.7}
+              stroke="#0a0a0a" strokeWidth={1.2}
               vectorEffect="non-scaling-stroke"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))" }}
             />
           </g>
         ))}
@@ -4992,10 +4992,17 @@ export default function ComicCreator() {
         <div
           className={`absolute inset-0 overflow-hidden ${panel.type === "circle" ? "rounded-full" : ""}`}
           style={{
-            // Use the panel's chosen background color in the editor (was
-            // previously hard-coded to white, which hid panel.backgroundColor
-            // and made the circle/polygon interior appear square).
-            backgroundColor: panel.backgroundColor || '#ffffff',
+            // Bg painting strategy:
+            //  - rectangle / circle: outer container already paints
+            //    panel.backgroundColor and is clipped by border-radius
+            //    (rounded-full for circles), so inner stays transparent.
+            //  - polygon: outer container is rectangular (no border-radius
+            //    can describe the shape), so the bg must be painted on the
+            //    inner layer where the SVG mask-image clips it to the
+            //    polygon silhouette. Otherwise polygons would have no fill.
+            backgroundColor: panel.type === "polygon"
+              ? (panel.backgroundColor || 'transparent')
+              : 'transparent',
             filter: panel.filter || 'none',
             // Visual mask only — mask-image clips rendering but does NOT
             // mask pointer events, so transform handles on child images

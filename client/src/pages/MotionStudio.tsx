@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { usePostAction } from "@/contexts/PostActionContext";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import { useProject, useUpdateProject, useCreateProject, useProjects } from "@/hooks/useProjects";
+import { useQueryClient } from "@tanstack/react-query";
 import { AssetBrowser } from "@/components/tools/AssetBrowser";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
@@ -692,23 +693,56 @@ export default function MotionStudio() {
         const prior = allContents.find(c => c?.data?.isMotion && Array.isArray(c?.data?.motionFrames));
         const priorFrames: Frame[] | null = prior?.data?.motionFrames ?? null;
 
+        const textToSvgDataUrl = (
+          text: string,
+          w: number,
+          h: number,
+          opts: { color?: string; fontFamily?: string; fontSize?: number; bubbleStyle?: string; backgroundColor?: string }
+        ) => {
+          const safe = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const color = opts.color || "#000";
+          const family = opts.fontFamily || "sans-serif";
+          const fs = Math.max(10, opts.fontSize || 18);
+          const hasBubble = opts.bubbleStyle && opts.bubbleStyle !== "none";
+          const bubbleBg = hasBubble ? (opts.backgroundColor || "#ffffff") : "transparent";
+          const bubbleStroke = hasBubble ? "#000" : "none";
+          const rx = opts.bubbleStyle === "thought" ? Math.min(w, h) / 2 : 12;
+          const bubble = hasBubble
+            ? `<rect x="2" y="2" width="${w - 4}" height="${h - 4}" rx="${rx}" ry="${rx}" fill="${bubbleBg}" stroke="${bubbleStroke}" stroke-width="2"/>`
+            : "";
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${bubble}<foreignObject x="6" y="6" width="${w - 12}" height="${h - 12}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:${family};font-size:${fs}px;color:${color};line-height:1.2;word-break:break-word;">${safe}</div></foreignObject></svg>`;
+          return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+        };
+
         allContents.forEach((content: any, idx: number) => {
           if (content?.data?.isMotion) return; // restored separately
           const d = content?.data || {};
-          const src = d.url || d.drawingData || d.imageUrl || d.src || d.aiImage || d.thumbnail || null;
+          const t = (content?.type || "").toLowerCase();
+          let src: string | null = d.url || d.drawingData || d.imageUrl || d.src || d.aiImage || d.thumbnail || null;
+          const w = content.transform?.width || 400;
+          const h = content.transform?.height || 200;
+          if (!src && (t === "text" || t === "bubble") && d.text) {
+            src = textToSvgDataUrl(d.text, Math.max(80, Math.round(w)), Math.max(40, Math.round(h)), {
+              color: d.color,
+              fontFamily: d.fontFamily,
+              fontSize: d.fontSize,
+              bubbleStyle: d.bubbleStyle,
+              backgroundColor: d.backgroundColor,
+            });
+          }
           if (src) {
             imageLayers.push({
               id: `imported_${Date.now()}_${idx}`,
               src,
               x: content.transform?.x || 0,
               y: content.transform?.y || 0,
-              width: content.transform?.width || 400,
-              height: content.transform?.height || 400,
+              width: w,
+              height: h,
               rotation: content.transform?.rotation || 0,
               opacity: 100,
               locked: false,
               visible: true,
-              name: d.name || content.type || `Layer ${idx + 1}`,
+              name: d.name || (t === "text" || t === "bubble" ? `Text: ${String(d.text || "").slice(0, 16)}` : content.type || `Layer ${idx + 1}`),
             });
           } else {
             skipped += 1;
@@ -2910,6 +2944,7 @@ export default function MotionStudio() {
   }, [isPlaying, audioMuted, currentFrameIndex, audioClips, audioVolume]);
 
   const [isApplying, setIsApplying] = useState(false);
+  const queryClient = useQueryClient();
 
   const applyToPanel = async () => {
     if (!selectedComicId || !selectedPanelId) {
@@ -3014,6 +3049,10 @@ export default function MotionStudio() {
 
       toast.success("Applied to panel!");
       setShowApplyPanel(false);
+      // Make sure ComicCreator (and any other listeners) re-fetch the latest
+      // project data so the new motion content shows up immediately on return.
+      queryClient.invalidateQueries({ queryKey: ["project", selectedComicId] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       // Keep the target panel locked so subsequent edits round-trip back to the same panel.
       // User can detach explicitly via the header banner X button.
     } catch (err) {
@@ -3129,11 +3168,22 @@ export default function MotionStudio() {
             >
               <span className="text-[9px] font-bold uppercase tracking-widest text-amber-300">Editing</span>
               <span className="text-xs font-mono text-amber-100">
-                Panel <span className="opacity-70">·</span> {selectedComic?.title || "Comic"}
+                Panel <span className="opacity-60">{(selectedPanelId || "").slice(-4)}</span>
+                <span className="opacity-70 mx-1">·</span>
+                {selectedComic?.title || "Comic"}
               </span>
               <button
+                onClick={applyToPanel}
+                disabled={isApplying}
+                className="ml-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black rounded hover:bg-amber-400 disabled:opacity-50"
+                title="Push current frame back to this comic panel"
+                data-testid="ms-target-apply"
+              >
+                {isApplying ? "Applying…" : "Apply"}
+              </button>
+              <button
                 onClick={() => { setSelectedComicId(null); setSelectedPanelId(null); }}
-                className="ml-1 text-amber-300/70 hover:text-amber-100"
+                className="ml-0.5 text-amber-300/70 hover:text-amber-100"
                 title="Detach from this panel (motion will save as a standalone project instead)"
                 data-testid="ms-target-detach"
               >
