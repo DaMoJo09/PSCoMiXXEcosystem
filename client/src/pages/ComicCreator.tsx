@@ -8305,42 +8305,38 @@ export default function ComicCreator() {
                         const editorPanelW = (panel.width / 100) * editorDims.w;
                         const editorPanelH = (panel.height / 100) * editorDims.h;
                         const isPolyPanel = panel.type === "polygon" && Array.isArray(panel.points) && panel.points.length >= 3;
+                        const polyPtsStr = isPolyPanel ? panel.points!.map(p => `${p.x},${p.y}`).join(" ") : "";
                         return (
                         <div 
                           key={panel.id}
-                          className="absolute bg-white overflow-hidden"
+                          className={`absolute bg-white ${isPolyPanel ? 'overflow-visible' : 'overflow-hidden'}`}
                           style={{
                             left: `${panel.x}%`,
                             top: `${panel.y}%`,
                             width: `${panel.width}%`,
                             height: `${panel.height}%`,
-                            backgroundColor: panel.backgroundColor || 'white',
+                            backgroundColor: isPolyPanel ? 'transparent' : (panel.backgroundColor || 'white'),
                             borderWidth: isPolyPanel ? 0 : `${panel.borderWidth || 2}px`,
                             borderColor: panel.borderColor || 'black',
                             borderStyle: 'solid',
                             borderRadius: panel.type === 'circle' ? '50%' : undefined,
                             transform: `rotate(${panel.rotation || 0}deg)`,
-                            clipPath: isPolyPanel
-                              ? `polygon(${panel.points!.map(p => `${p.x}% ${p.y}%`).join(", ")})`
-                              : undefined,
                           }}
                         >
                           {isPolyPanel && (
-                            <svg
-                              className="absolute inset-0 w-full h-full pointer-events-none"
-                              viewBox="0 0 100 100"
-                              preserveAspectRatio="none"
-                              style={{ zIndex: 50 }}
-                              aria-hidden
-                            >
-                              <polygon
-                                points={panel.points!.map(p => `${p.x},${p.y}`).join(" ")}
-                                fill="none"
-                                stroke={panel.borderColor || "#000"}
-                                strokeWidth={(panel.borderWidth || 2) * 2}
-                                vectorEffect="non-scaling-stroke"
-                              />
-                            </svg>
+                            <div
+                              className="absolute inset-0 pointer-events-none"
+                              style={{
+                                backgroundColor: panel.backgroundColor || 'white',
+                                WebkitMaskImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><polygon points='${polyPtsStr}' fill='white'/></svg>`)}")`,
+                                maskImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><polygon points='${polyPtsStr}' fill='white'/></svg>`)}")`,
+                                WebkitMaskSize: '100% 100%',
+                                maskSize: '100% 100%',
+                                WebkitMaskRepeat: 'no-repeat',
+                                maskRepeat: 'no-repeat',
+                                zIndex: 0,
+                              }}
+                            />
                           )}
                           {panel.coverRole && coverDesignData && (() => {
                             const cd = { ...defaultCover, ...coverDesignData } as CoverData;
