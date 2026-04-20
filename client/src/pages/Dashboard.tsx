@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useState, useCallback } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
+import { CharacterFirstOnboarding, useCharacterFirstOnboarding } from "@/components/CharacterFirstOnboarding";
 import { XPWidget } from "@/components/XPWidget";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -174,6 +175,7 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const { completed: onboardingComplete, markComplete: markOnboardingComplete } = useOnboarding(user?.id);
+  const { completed: charOnboardingComplete, markComplete: markCharOnboardingComplete } = useCharacterFirstOnboarding(user?.id);
   const { getMaxProjects, tier, getTierName } = useSubscription();
   const maxProjects = getMaxProjects();
   const projectCount = projects?.length || 0;
@@ -294,7 +296,12 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      {!onboardingComplete && <OnboardingWizard onComplete={markOnboardingComplete} />}
+      {!charOnboardingComplete && (
+        <CharacterFirstOnboarding onComplete={() => { markCharOnboardingComplete(); markOnboardingComplete(); }} />
+      )}
+      {charOnboardingComplete && !onboardingComplete && (
+        <OnboardingWizard onComplete={markOnboardingComplete} />
+      )}
       <div className="p-8 max-w-7xl mx-auto space-y-12">
         <EventCarousel className="mb-4" variant="dark" />
 
