@@ -5428,6 +5428,27 @@ export default function ComicCreator() {
               </div>
             );
           })()}
+        </div>
+        {/*
+          Unmasked content layer — sibling of the polygon-masked bg layer above.
+          We deliberately render panel contents OUTSIDE any mask-image / clip-path
+          container because both of those break pointer-event hit-testing for
+          children inside polygon panels in Chrome/Safari, leaving images/text
+          inside polygon panels impossible to click, drag, or resize.
+          For polygon panels, a separate visual matte (below) covers anything
+          rendered outside the polygon silhouette so the visual silhouette is
+          preserved while keeping every TransformableElement fully interactive.
+        */}
+        <div
+          className={`absolute inset-0 ${
+            panel.type === "polygon"
+              ? "overflow-visible"
+              : panel.type === "circle"
+                ? "overflow-hidden rounded-full"
+                : "overflow-hidden"
+          }`}
+          style={{ filter: panel.filter || 'none' }}
+        >
           {[...panel.contents].filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex).map(content => (
             <TransformableElement
               key={content.id}
@@ -5632,6 +5653,31 @@ export default function ComicCreator() {
               </div>
             </>
           )}
+          {/*
+            Polygon visual matte — paints the page background color over any
+            content rendered outside the polygon silhouette, so the panel still
+            APPEARS as a polygon shape even though contents render in a
+            rectangular bounding box. pointer-events: none so it never blocks
+            interaction with the contents below.
+          */}
+          {panel.type === "polygon" && panel.points && panel.points.length >= 3 && (() => {
+            const polyPts = panel.points.map(p => `${p.x},${p.y}`).join(" ");
+            return (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{ zIndex: 24 }}
+                aria-hidden
+              >
+                <path
+                  d={`M0,0 L100,0 L100,100 L0,100 Z M${polyPts} Z`}
+                  fill="#ffffff"
+                  fillRule="evenodd"
+                />
+              </svg>
+            );
+          })()}
         </div>
         
         {isSelected && !panel.locked && (
