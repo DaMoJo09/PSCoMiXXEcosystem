@@ -1375,6 +1375,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         id: user.id,
         name: user.name,
         email: user.email,
+        username: (user as any).username || null,
         avatar: (user as any).avatar || null,
         coverImage: (user as any).coverImage || null,
         tagline: (user as any).tagline || null,
@@ -9773,6 +9774,171 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       });
     } catch (err) {
       res.status(500).json({ message: "Error fetching creator profile" });
+    }
+  });
+
+  // ==========================================
+  // PUBLIC SKILL PASSPORT (recruiter / partner facing, no auth)
+  // ==========================================
+  const publicPassportLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: false,
+    legacyHeaders: false,
+    message: { message: "Too many requests, please try again shortly" },
+  });
+  app.get("/api/public/passport/:username", publicPassportLimiter, async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) return res.status(404).json({ message: "Passport not found" });
+
+      const userId = user.id;
+
+      const [
+        balances,
+        toolAgg,
+        categoryAgg,
+        sourceAgg,
+        recentEvents,
+        publishedProjects,
+        certs,
+        productionCredits,
+        followerCount,
+        followingCount,
+      ] = await Promise.all([
+        db.select().from(xpBalancesTable).where(eq(xpBalancesTable.userId, userId)),
+        db.execute(sql`
+          SELECT tool_used AS "toolUsed",
+                 SUM(xp_amount)::int AS "totalXp",
+                 COUNT(*)::int AS "eventCount",
+                 MAX(created_at) AS "lastUsed"
+          FROM xp_events
+          WHERE user_id = ${userId} AND tool_used IS NOT NULL
+          GROUP BY tool_used
+          ORDER BY SUM(xp_amount) DESC
+          LIMIT 20
+        `),
+        db.execute(sql`
+          SELECT category,
+                 SUM(xp_amount)::int AS "totalXp",
+                 COUNT(*)::int AS "eventCount"
+          FROM xp_events
+          WHERE user_id = ${userId} AND category IS NOT NULL
+          GROUP BY category
+          ORDER BY SUM(xp_amount) DESC
+        `),
+        db.execute(sql`
+          SELECT source_app AS "sourceApp",
+                 SUM(xp_amount)::int AS "totalXp",
+                 COUNT(*)::int AS "eventCount"
+          FROM xp_events
+          WHERE user_id = ${userId} AND source_app IS NOT NULL
+          GROUP BY source_app
+          ORDER BY SUM(xp_amount) DESC
+        `),
+        db.select().from(xpEventsTable)
+          .where(eq(xpEventsTable.userId, userId))
+          .orderBy(desc(xpEventsTable.createdAt))
+          .limit(10),
+        storage.getUserProjectsMeta(userId),
+        (async () => {
+          const earned = await db.select().from(userCertifications).where(eq(userCertifications.userId, userId));
+          if (earned.length === 0) return [] as any[];
+          const allCerts = await db.select().from(certifications);
+          const certMap = new Map(allCerts.map(c => [c.id, c]));
+          // Recruiter-safe DTO: do not expose verificationCode, portfolioSnapshot, internal ids.
+          return earned.map(e => {
+            const c: any = certMap.get(e.certificationId) || {};
+            return {
+              id: e.id,
+              earnedAt: e.earnedAt,
+              certification: { name: c.name, issuer: c.issuer, description: c.description },
+            };
+          });
+        })(),
+        db.select().from(productionRolesTable).where(eq(productionRolesTable.userId, userId)),
+        storage.getFollowerCount(userId),
+        storage.getFollowingCount(userId),
+      ]);
+
+      const published = (publishedProjects as any[]).filter(p => p.status === "published");
+      const totalMinutes = (user as any).totalMinutes || 0;
+
+      const ecosystemVerified =
+        ((user as any).ecosystemRole && (user as any).ecosystemRole !== "learner") ||
+        (certs as any[]).length > 0;
+
+      res.json({
+        identity: {
+          id: user.id,
+          name: user.name,
+          username: (user as any).username,
+          avatar: user.avatar,
+          coverImage: (user as any).coverImage,
+          tagline: (user as any).tagline,
+          bio: user.bio,
+          joinedAt: user.createdAt,
+          socialLinks: (user as any).socialLinks,
+        },
+        progression: {
+          xp: user.xp || 0,
+          level: user.level || 1,
+          creatorClass: user.creatorClass || "Novice",
+          ecosystemRole: (user as any).ecosystemRole || "learner",
+          totalMinutes,
+          totalHours: Math.round((totalMinutes / 60) * 10) / 10,
+          ecosystemVerified,
+        },
+        stats: {
+          creativity: (user as any).statCreativity || 10,
+          storytelling: (user as any).statStorytelling || 10,
+          artistry: (user as any).statArtistry || 10,
+          collaboration: (user as any).statCollaboration || 10,
+        },
+        skillsByCategory: (categoryAgg as any).rows || [],
+        toolsUsed: (toolAgg as any).rows || [],
+        sources: (sourceAgg as any).rows || [],
+        balancesBySource: balances.map((b: any) => ({
+          source: b.source,
+          toolUsed: b.toolUsed,
+          totalXp: b.totalXp,
+          eventCount: b.eventCount,
+        })),
+        recentActivity: (recentEvents as any[]).map((e) => ({
+          id: e.id,
+          action: e.action,
+          category: e.category,
+          xpAmount: e.xpAmount,
+          source: e.source,
+          sourceApp: e.sourceApp,
+          toolUsed: e.toolUsed,
+          createdAt: e.createdAt,
+        })),
+        publishedWorks: published.slice(0, 12).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          thumbnail: p.thumbnail,
+          createdAt: p.createdAt,
+        })),
+        publishedCount: published.length,
+        certifications: certs,
+        productionCredits: (productionCredits as any[]).map((c) => ({
+          id: c.id,
+          roleName: c.roleName,
+          projectName: c.projectName,
+          department: c.department,
+          status: c.status,
+        })),
+        social: {
+          followers: followerCount,
+          following: followingCount,
+          publishedCount: published.length,
+        },
+      });
+    } catch (err: any) {
+      console.error("Public passport error:", err);
+      res.status(500).json({ message: "Error fetching passport" });
     }
   });
 

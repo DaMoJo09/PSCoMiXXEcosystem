@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
-import { Shield, Award, Star, TrendingUp, Briefcase, BookOpen, Zap, ChevronRight, ExternalLink, CheckCircle, AlertCircle, Clock, Users } from "lucide-react";
+import { Shield, Award, Star, TrendingUp, Briefcase, BookOpen, Zap, ChevronRight, ExternalLink, CheckCircle, AlertCircle, Clock, Users, Share2, Copy } from "lucide-react";
 
 interface PassportData {
   user: {
@@ -39,19 +40,36 @@ export default function SkillPassportPage() {
   const [eligibility, setEligibility] = useState<EligibilityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "entries" | "competencies" | "xp" | "ladder" | "workforce">("overview");
+  const [username, setUsername] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [passportRes, eligRes] = await Promise.all([
+      const [passportRes, eligRes, profRes] = await Promise.all([
         fetch("/api/ecosystem/passport", { credentials: "include" }),
         fetch("/api/ecosystem/roles/eligibility", { credentials: "include" }),
+        fetch("/api/profile", { credentials: "include" }),
       ]);
       if (passportRes.ok) setPassport(await passportRes.json());
       if (eligRes.ok) setEligibility(await eligRes.json());
+      if (profRes.ok) {
+        const p = await profRes.json();
+        setUsername(p.username || null);
+      }
     } catch {}
     setLoading(false);
   }, []);
+
+  const publicUrl = username ? `${window.location.origin}/passport/${username}` : null;
+  const copyShareLink = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {}
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -74,10 +92,28 @@ export default function SkillPassportPage() {
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="flex items-center gap-3 mb-8">
             <Shield className="w-8 h-8 text-white" />
-            <div>
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-white tracking-wide" data-testid="text-passport-title">SKILL PASSPORT</h1>
               <p className="text-zinc-500 text-sm">Press Start Creative Tech Apprenticeship Program</p>
             </div>
+            {publicUrl && (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/passport/${username}`}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded transition flex items-center gap-1.5"
+                  data-testid="link-view-public-passport"
+                >
+                  <ExternalLink className="w-3 h-3" /> View Public
+                </Link>
+                <button
+                  onClick={copyShareLink}
+                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded transition flex items-center gap-1.5"
+                  data-testid="button-share-passport"
+                >
+                  {shareCopied ? <><CheckCircle className="w-3 h-3" /> Copied</> : <><Share2 className="w-3 h-3" /> Share Public Passport</>}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-4 gap-4 mb-8">

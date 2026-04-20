@@ -99,6 +99,7 @@ const SSOCallbackPage = lazy(() => import("@/pages/SSOCallbackPage"));
 const CoverCreator = lazy(() => import("@/pages/CoverCreator"));
 const FxStudioPage = lazy(() => import("@/pages/FxStudioPage"));
 const SkillPassportPage = lazy(() => import("@/pages/SkillPassportPage"));
+const PublicPassport = lazy(() => import("@/pages/PublicPassport"));
 const ApprenticeshipPage = lazy(() => import("@/pages/ApprenticeshipPage"));
 const ExternalToolSubmissions = lazy(() => import("@/pages/ExternalToolSubmissions"));
 const EcosystemPathways = lazy(() => import("@/pages/EcosystemPathways"));
@@ -143,7 +144,7 @@ function ProtectedRouter() {
     return <Suspense fallback={<LazyFallback />}><SSOCallbackPage /></Suspense>;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
@@ -152,6 +153,7 @@ function ProtectedRouter() {
         <Switch>
           <Route path="/portfolio/:userId" component={PortfolioPage} />
           <Route path="/creator/:username" component={CreatorProfilePage} />
+          <Route path="/passport/:username" component={PublicPassport} />
           <Route path="/verify/:code">{(params: any) => <VerifyPageLazy code={params.code} />}</Route>
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
@@ -223,6 +225,7 @@ function ProtectedRouter() {
         <Route path="/ecosystem/events/:id" component={EventsModule} />
         <Route path="/ecosystem/publish" component={PublishModule} />
         <Route path="/ecosystem/passport" component={SkillPassportPage} />
+        <Route path="/passport/:username" component={PublicPassport} />
         <Route path="/ecosystem/apprenticeship" component={ApprenticeshipPage} />
         <Route path="/ecosystem/external-tools" component={ExternalToolSubmissions} />
         <Route path="/ecosystem/pathways" component={EcosystemPathways} />
