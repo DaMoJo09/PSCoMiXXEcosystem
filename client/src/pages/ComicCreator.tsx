@@ -4836,7 +4836,15 @@ export default function ComicCreator() {
       { position: 'se', cursor: 'nwse-resize', x: `calc(100% - ${HANDLE_SIZE/2}px)`, y: `calc(100% - ${HANDLE_SIZE/2}px)` },
     ];
     
-    const polygonOverlay = panel.type === "polygon" && panel.points && panel.points.length >= 3 && isSelected ? (
+    // Hide the polygon edit overlay (vertex / edge handles) whenever a content
+    // inside this polygon panel is currently selected. Otherwise the overlay's
+    // hit-circles + stacking (z 1000+) compete with the content's transform
+    // handles (z 999), making images inside polygons impossible to drag/resize
+    // — unlike circles, which have no competing overlay. Re-shows when the
+    // user clicks empty panel area to deselect content.
+    const hasSelectedContentInside =
+      !!selectedContentId && panel.contents.some(c => c.id === selectedContentId);
+    const polygonOverlay = panel.type === "polygon" && panel.points && panel.points.length >= 3 && isSelected && !hasSelectedContentInside ? (
       <svg
         key={`${panel.id}-edit`}
         className="absolute"
