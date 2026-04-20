@@ -4953,10 +4953,10 @@ export default function ComicCreator() {
           borderWidth: panel.type === "polygon" ? 0 : `${panel.borderWidth || 2}px`,
           borderStyle: 'solid',
           borderColor: panel.borderColor || 'black',
-          // Vector clip — polygon contents are auto-masked to the shape.
-          clipPath: panel.type === "polygon" && panel.points && panel.points.length >= 3
-            ? `polygon(${panel.points.map(p => `${p.x}% ${p.y}%`).join(", ")})`
-            : undefined,
+          // NOTE: do NOT apply clip-path on the outer container — clip-path
+          // also masks pointer-event hit regions, which made transform
+          // handles for child images unreachable outside the polygon shape.
+          // Visual masking is done by the inner content layer via mask-image.
           boxShadow: isSelected
             ? `0 0 0 3px white, 0 0 20px rgba(255,255,255,0.4), 0 8px 32px rgba(0,0,0,0.8)`
             : panel.type === "polygon" ? 'none' : '0 4px 16px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
@@ -4997,9 +4997,23 @@ export default function ComicCreator() {
             // and made the circle/polygon interior appear square).
             backgroundColor: panel.backgroundColor || '#ffffff',
             filter: panel.filter || 'none',
-            clipPath: panel.type === "polygon" && panel.points && panel.points.length >= 3
-              ? `polygon(${panel.points.map(p => `${p.x}% ${p.y}%`).join(", ")})`
-              : undefined,
+            // Visual mask only — mask-image clips rendering but does NOT
+            // mask pointer events, so transform handles on child images
+            // remain reachable even when they sit outside the polygon
+            // silhouette.
+            ...(panel.type === "polygon" && panel.points && panel.points.length >= 3 ? (() => {
+              const pts = panel.points.map(p => `${p.x},${p.y}`).join(" ");
+              const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><polygon points='${pts}' fill='white'/></svg>`;
+              const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+              return {
+                WebkitMaskImage: url,
+                maskImage: url,
+                WebkitMaskSize: '100% 100%',
+                maskSize: '100% 100%',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+              } as React.CSSProperties;
+            })() : {}),
           }}
         >
           {panel.coverRole && coverDesignData && (() => {
