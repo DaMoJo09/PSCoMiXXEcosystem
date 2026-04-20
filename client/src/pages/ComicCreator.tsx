@@ -3775,7 +3775,11 @@ export default function ComicCreator() {
           setPolygonPoints([]);
         }
         setPolygonPage(page);
-        setPolygonPoints(prev => [...prev, coords]);
+        // Hold Shift to snap each vertex to a 2.5% grid AND lock onto the
+        // previous vertex's x/y axis when within 1.5% — yields clean
+        // horizontal/vertical/diagonal edges for technical layouts.
+        const snapped = e.shiftKey ? snapPolygonPoint(coords, polygonPoints) : coords;
+        setPolygonPoints(prev => [...prev, snapped]);
         setSelectedPanelId(null);
         setSelectedContentId(null);
         return;
@@ -3795,8 +3799,33 @@ export default function ComicCreator() {
     if (isDrawingPanel) {
       setDrawCurrent(getCoords(e, pageRef));
     } else if (activeTool === "panel" && panelShape === "polygon" && polygonPoints.length > 0) {
-      setPolygonHover(getCoords(e, pageRef));
+      const raw = getCoords(e, pageRef);
+      setPolygonHover(e.shiftKey ? snapPolygonPoint(raw, polygonPoints) : raw);
     }
+  };
+
+  /**
+   * Polygon vertex snap helper: snaps to a 2.5% grid AND, when within 1.5%,
+   * locks onto the previous vertex's x or y coordinate so users can draw
+   * perfectly horizontal / vertical edges by holding Shift.
+   */
+  const snapPolygonPoint = (
+    pt: { x: number; y: number },
+    prior: { x: number; y: number }[],
+  ): { x: number; y: number } => {
+    const GRID = 2.5;
+    const AXIS_TOL = 1.5;
+    const last = prior.length > 0 ? prior[prior.length - 1] : null;
+    let x = Math.round(pt.x / GRID) * GRID;
+    let y = Math.round(pt.y / GRID) * GRID;
+    if (last) {
+      if (Math.abs(pt.x - last.x) < AXIS_TOL) x = last.x;
+      if (Math.abs(pt.y - last.y) < AXIS_TOL) y = last.y;
+    }
+    return {
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    };
   };
 
   const finalizePolygon = useCallback((page: "left" | "right") => {
