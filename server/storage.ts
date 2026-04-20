@@ -8,7 +8,7 @@ import {
   publishChannels, publishedContent,
   revenueEvents, payouts, tipJars,
   festivals, festivalWorkshops, workshopRegistrations, festivalSubmissions, festivalVotes, festivalAwards,
-  socialPosts, socialPostLikes, socialPostComments, userFollows,
+  socialPosts, socialPostLikes, socialPostComments, userFollows, userBlocks,
   dmThreads, dmParticipants, dmMessages, notifications,
   collabSessions, collabMembers, collabPresence,
   communityChains, chainContributions, chainLikes,
@@ -65,6 +65,7 @@ import {
   type SocialPostLike, type InsertSocialPostLike,
   type SocialPostComment, type InsertSocialPostComment,
   type UserFollow, type InsertUserFollow,
+  type UserBlock, type InsertUserBlock,
   type DmThread, type InsertDmThread,
   type DmParticipant, type InsertDmParticipant,
   type DmMessage, type InsertDmMessage,
@@ -229,7 +230,7 @@ export interface IStorage {
   unlikePost(postId: string, userId: string): Promise<boolean>;
   isPostLiked(postId: string, userId: string): Promise<boolean>;
   addComment(comment: InsertSocialPostComment): Promise<SocialPostComment>;
-  getPostComments(postId: string): Promise<any[]>;
+  getPostComments(postId: string, viewerId?: string): Promise<any[]>;
   followUser(followerId: string, followingId: string): Promise<UserFollow>;
   unfollowUser(followerId: string, followingId: string): Promise<boolean>;
   isFollowing(followerId: string, followingId: string): Promise<boolean>;
@@ -237,6 +238,15 @@ export interface IStorage {
   getFollowing(userId: string): Promise<any[]>;
   getFollowCounts(userId: string): Promise<{ followers: number; following: number }>;
   getUserProfile(userId: string): Promise<any>;
+
+  // User-to-user blocking (required for UGC compliance)
+  blockUser(blockerId: string, blockedId: string, reason?: string): Promise<UserBlock>;
+  unblockUser(blockerId: string, blockedId: string): Promise<boolean>;
+  isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+  isBlockedEitherWay(userA: string, userB: string): Promise<boolean>;
+  getBlockedUserIds(blockerId: string): Promise<string[]>;
+  getBlockedUsers(blockerId: string): Promise<any[]>;
+
   
   // DM operations
   createDmThread(isGroup: boolean, name?: string): Promise<DmThread>;
@@ -1210,6 +1220,16 @@ export class DatabaseStorage implements IStorage {
     const followingIds = following.map(f => f.followingId);
     followingIds.push(userId);
 
+    // Exclude posts authored by users this viewer has blocked, OR users who
+    // have blocked this viewer (bi-directional invisibility).
+    const blockedIds = await this.getBlockedUserIds(userId);
+    const blockedByRows = await db.select({ blockerId: userBlocks.blockerId })
+      .from(userBlocks)
+      .where(eq(userBlocks.blockedId, userId));
+    const excludeIds = Array.from(new Set([...blockedIds, ...blockedByRows.map(r => r.blockerId)]));
+    const visibleIds = followingIds.filter(id => !excludeIds.includes(id));
+    if (visibleIds.length === 0) return [];
+
     const posts = await db.select({
       post: socialPosts,
       author: {
@@ -1223,7 +1243,7 @@ export class DatabaseStorage implements IStorage {
     .from(socialPosts)
     .leftJoin(users, eq(socialPosts.authorId, users.id))
     .leftJoin(projects, eq(socialPosts.projectId, projects.id))
-    .where(sql`${socialPosts.authorId} = ANY(${followingIds})`)
+    .where(sql`${socialPosts.authorId} = ANY(${visibleIds})`)
     .orderBy(desc(socialPosts.createdAt))
     .limit(limit)
     .offset(offset);
@@ -1235,7 +1255,23 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getExplorePosts(limit = 20, offset = 0): Promise<any[]> {
+  async getExplorePosts(limit = 20, offset = 0, viewerId?: string): Promise<any[]> {
+    // When a viewer is authenticated, hide posts from users they've blocked
+    // or who've blocked them.
+    const excludeIds = viewerId
+      ? await (async () => {
+          const blocked = await this.getBlockedUserIds(viewerId);
+          const blockedBy = await db.select({ blockerId: userBlocks.blockerId })
+            .from(userBlocks)
+            .where(eq(userBlocks.blockedId, viewerId));
+          return Array.from(new Set([...blocked, ...blockedBy.map(r => r.blockerId)]));
+        })()
+      : [];
+
+    const whereClause = excludeIds.length > 0
+      ? and(eq(socialPosts.visibility, "public"), sql`${socialPosts.authorId} <> ALL(${excludeIds})`)
+      : eq(socialPosts.visibility, "public");
+
     const posts = await db.select({
       post: socialPosts,
       author: {
@@ -1249,7 +1285,7 @@ export class DatabaseStorage implements IStorage {
     .from(socialPosts)
     .leftJoin(users, eq(socialPosts.authorId, users.id))
     .leftJoin(projects, eq(socialPosts.projectId, projects.id))
-    .where(eq(socialPosts.visibility, "public"))
+    .where(whereClause)
     .orderBy(desc(socialPosts.createdAt))
     .limit(limit)
     .offset(offset);
@@ -1308,6 +1344,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addComment(comment: InsertSocialPostComment): Promise<SocialPostComment> {
+    // Block-aware: prevent comment creation if either party has blocked the other
+    const post = await db.select({ authorId: socialPosts.authorId })
+      .from(socialPosts)
+      .where(eq(socialPosts.id, comment.postId))
+      .limit(1);
+    if (post[0] && post[0].authorId && post[0].authorId !== comment.authorId) {
+      const blocked = await this.isBlockedEitherWay(comment.authorId, post[0].authorId);
+      if (blocked) {
+        throw new Error("You cannot comment on this post.");
+      }
+    }
+
     const [created] = await db.insert(socialPostComments)
       .values(comment)
       .returning();
@@ -1319,7 +1367,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getPostComments(postId: string): Promise<any[]> {
+  async getPostComments(postId: string, viewerId?: string): Promise<any[]> {
     const comments = await db.select({
       comment: socialPostComments,
       author: {
@@ -1333,10 +1381,30 @@ export class DatabaseStorage implements IStorage {
     .where(eq(socialPostComments.postId, postId))
     .orderBy(socialPostComments.createdAt);
 
-    return comments.map(c => ({
-      ...c.comment,
-      author: c.author,
-    }));
+    // If viewer is signed in, filter out comments authored by blocked users
+    // (in either direction) so the feed stays clean post-block.
+    let hiddenIds = new Set<string>();
+    if (viewerId) {
+      const blocks = await db.select({
+        blockerId: userBlocks.blockerId,
+        blockedId: userBlocks.blockedId,
+      })
+      .from(userBlocks)
+      .where(or(
+        eq(userBlocks.blockerId, viewerId),
+        eq(userBlocks.blockedId, viewerId),
+      ));
+      hiddenIds = new Set(
+        blocks.map(b => (b.blockerId === viewerId ? b.blockedId : b.blockerId))
+      );
+    }
+
+    return comments
+      .filter(c => !c.comment.authorId || !hiddenIds.has(c.comment.authorId))
+      .map(c => ({
+        ...c.comment,
+        author: c.author,
+      }));
   }
 
   async followUser(followerId: string, followingId: string): Promise<any> {
@@ -1395,6 +1463,75 @@ export class DatabaseStorage implements IStorage {
       ...f.follow,
       user: f.user,
     }));
+  }
+
+  // ============================================
+  // USER BLOCKING (UGC compliance — Apple Guideline 1.2)
+  // ============================================
+
+  async blockUser(blockerId: string, blockedId: string, reason?: string): Promise<UserBlock> {
+    if (blockerId === blockedId) {
+      throw new Error("Cannot block yourself");
+    }
+    const [row] = await db.insert(userBlocks)
+      .values({ blockerId, blockedId, reason: reason ?? null })
+      .onConflictDoNothing({ target: [userBlocks.blockerId, userBlocks.blockedId] })
+      .returning();
+    if (row) return row;
+    // Already blocked — return the existing record for idempotent API behavior.
+    const [existing] = await db.select().from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    return existing;
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<boolean> {
+    const result = await db.delete(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const [row] = await db.select({ id: userBlocks.id }).from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)))
+      .limit(1);
+    return !!row;
+  }
+
+  async isBlockedEitherWay(userA: string, userB: string): Promise<boolean> {
+    const [row] = await db.select({ id: userBlocks.id }).from(userBlocks)
+      .where(or(
+        and(eq(userBlocks.blockerId, userA), eq(userBlocks.blockedId, userB)),
+        and(eq(userBlocks.blockerId, userB), eq(userBlocks.blockedId, userA)),
+      ))
+      .limit(1);
+    return !!row;
+  }
+
+  async getBlockedUserIds(blockerId: string): Promise<string[]> {
+    const rows = await db.select({ blockedId: userBlocks.blockedId })
+      .from(userBlocks)
+      .where(eq(userBlocks.blockerId, blockerId));
+    return rows.map(r => r.blockedId);
+  }
+
+  async getBlockedUsers(blockerId: string): Promise<any[]> {
+    const rows = await db.select({
+      id: userBlocks.id,
+      blockedId: userBlocks.blockedId,
+      reason: userBlocks.reason,
+      createdAt: userBlocks.createdAt,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        avatar: users.avatar,
+      },
+    })
+      .from(userBlocks)
+      .leftJoin(users, eq(userBlocks.blockedId, users.id))
+      .where(eq(userBlocks.blockerId, blockerId))
+      .orderBy(desc(userBlocks.createdAt));
+    return rows;
   }
 
   async getFollowCounts(userId: string): Promise<{ followers: number; following: number }> {

@@ -145,7 +145,7 @@ function ProtectedRouter() {
     return <Suspense fallback={<LazyFallback />}><SSOCallbackPage /></Suspense>;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/", "/contact"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
@@ -163,6 +163,7 @@ function ProtectedRouter() {
           <Route path="/compliance" component={CompliancePage} />
           <Route path="/accessibility-statement" component={AccessibilityPage} />
           <Route path="/security" component={SecurityPage} />
+          <Route path="/contact" component={ContactPage} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>

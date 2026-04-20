@@ -561,12 +561,16 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="relative z-10 border-t border-white/10 py-12 px-4 sm:px-8 bg-black" data-testid="footer">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 border-2 border-white flex items-center justify-center font-black text-sm">PS</div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 border-2 border-white flex items-center justify-center font-black text-sm shrink-0">PS</div>
               <div>
                 <span className="text-xs text-zinc-400 uppercase tracking-widest font-mono block">Press Start CoMiXX</span>
                 <span className="text-[10px] text-zinc-700 font-mono block">A Press Start Gaming Inc. Platform</span>
+                <span className="text-[10px] text-zinc-600 font-mono block mt-1" data-testid="text-business-contact">
+                  Support:{" "}
+                  <a href="mailto:support@pscomixx.com" className="hover:text-zinc-400 underline">support@pscomixx.com</a>
+                </span>
               </div>
             </div>
 
@@ -578,6 +582,7 @@ export default function LandingPage() {
                 { label: "Disclaimer", href: "/disclaimer" },
                 { label: "DMCA", href: "/dmca" },
                 { label: "Compliance", href: "/compliance" },
+                { label: "Contact", href: "/contact" },
               ].map((link) => (
                 <a key={link.label} data-testid={`link-${link.label.toLowerCase()}`} href={link.href}
                   className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors cursor-pointer">
@@ -587,8 +592,15 @@ export default function LandingPage() {
             </nav>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-white/5 text-center">
-            <p className="text-xs text-zinc-700 font-mono uppercase tracking-wider">
+          {/* Business identity block — Apple/App Store & consumer-protection
+              transparency: developer name, legal entity type, contact. */}
+          <div className="mt-8 pt-8 border-t border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-testid="business-identity">
+            <div className="text-[10px] text-zinc-600 font-mono leading-relaxed">
+              <span className="text-zinc-400 font-bold">Press Start Gaming Inc.</span>
+              {" · "}A Delaware C-Corporation
+              {" · "}Operator of Press Start CoMiXX
+            </div>
+            <p className="text-[10px] text-zinc-700 font-mono uppercase tracking-wider">
               &copy; {new Date().getFullYear()} Press Start Gaming Inc. All rights reserved.
             </p>
           </div>

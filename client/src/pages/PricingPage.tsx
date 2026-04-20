@@ -101,7 +101,7 @@ const TIERS = [
       "Unlimited projects",
       "Unlimited AI generations",
       "20 GB storage",
-      "Collaboration tools (coming soon)",
+      "Collaboration tools",
       "Early access features",
       "API / plugin access",
       "Advanced workflow tools",
@@ -399,7 +399,7 @@ export default function PricingPage() {
                         ) : isCurrentPlan ? (
                           "Current Plan"
                         ) : !productPrice ? (
-                          "Coming Soon"
+                          "Not Available"
                         ) : (
                           "Get Started"
                         )}
@@ -450,7 +450,7 @@ export default function PricingPage() {
                 className="px-8 py-3 bg-amber-500 text-black font-black uppercase text-sm hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 data-testid="button-founders-plan"
               >
-                {getCurrentTier() === "lifetime" ? "You're a Founder" : !foundersProduct ? "Coming Soon" : "Claim Founders Pass"}
+                {getCurrentTier() === "lifetime" ? "You're a Founder" : !foundersProduct ? "Temporarily Unavailable" : "Claim Founders Pass"}
               </button>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { 
   GraduationCap, Rocket, Users, Trophy, DollarSign, Calendar, 
-  School, Building2, Sparkles, TrendingUp, Award, Star,
+  Sparkles, TrendingUp, Award, Star,
   BookOpen, Palette, Film, Gamepad2, PenTool, ChevronRight,
   Zap, Target, Crown, Heart
 } from "lucide-react";
@@ -315,42 +315,6 @@ export default function EcosystemHub() {
                   </Link>
                 );
               })}
-            </div>
-          </section>
-
-          <section className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-zinc-900 border-4 border-zinc-800 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <School className="w-6 h-6" />
-                <h3 className="text-xl font-black">SCHOOL STATIONS</h3>
-              </div>
-              <p className="text-zinc-400 text-sm mb-4">
-                Connect your school, upload student projects, and participate in challenges.
-              </p>
-              <button 
-                onClick={() => toast.info("School Stations coming soon!")}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-zinc-300 font-bold text-sm cursor-not-allowed"
-                data-testid="link-school-stations"
-              >
-                Coming Soon <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="bg-zinc-900 border-4 border-zinc-800 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Building2 className="w-6 h-6" />
-                <h3 className="text-xl font-black">CREATOR HUBS</h3>
-              </div>
-              <p className="text-zinc-400 text-sm mb-4">
-                Access local studios, equipment, and collaborate with nearby creators.
-              </p>
-              <button 
-                onClick={() => toast.info("Creator Hubs coming soon!")}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-zinc-300 font-bold text-sm cursor-not-allowed"
-                data-testid="link-creator-hubs"
-              >
-                Coming Soon <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
           </section>
 

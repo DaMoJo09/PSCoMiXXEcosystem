@@ -24,6 +24,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { BlockedUsersSection } from "@/components/BlockedUsersSection";
 
 interface ApiKey {
   id: string;
@@ -703,6 +704,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+
+          <BlockedUsersSection />
 
           <section className="p-4 bg-zinc-900 border-4 border-zinc-700 text-sm text-zinc-400">
             <p><strong className="text-white">Note:</strong> Settings are stored locally in your browser. To sync settings across devices, sign in with your Press Start CoMixx account.</p>

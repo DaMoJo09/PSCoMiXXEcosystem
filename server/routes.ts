@@ -3132,7 +3132,8 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
-      const posts = await storage.getExplorePosts(limit, offset);
+      const viewerId = req.isAuthenticated() ? req.user!.id : undefined;
+      const posts = await storage.getExplorePosts(limit, offset, viewerId);
       
       if (req.isAuthenticated()) {
         const postsWithLikeStatus = await Promise.all(
@@ -3145,6 +3146,58 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       
       res.json(posts.map(p => ({ ...p, isLiked: false })));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // USER BLOCKING (Apple Guideline 1.2 compliance)
+  // ============================================
+
+  app.post("/api/users/:id/block", isAuthenticated, async (req, res) => {
+    try {
+      const blockerId = req.user!.id;
+      const blockedId = req.params.id;
+      if (blockerId === blockedId) {
+        return res.status(400).json({ message: "Cannot block yourself" });
+      }
+      const target = await storage.getUser(blockedId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      const reason = typeof req.body?.reason === "string" ? req.body.reason.slice(0, 280) : undefined;
+      const block = await storage.blockUser(blockerId, blockedId, reason);
+      // Auto-unfollow in both directions so the block is immediately effective
+      // across follow-based surfaces (feed, suggestions).
+      try { await storage.unfollowUser(blockerId, blockedId); } catch {}
+      try { await storage.unfollowUser(blockedId, blockerId); } catch {}
+      res.json({ success: true, block });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/users/:id/block", isAuthenticated, async (req, res) => {
+    try {
+      const ok = await storage.unblockUser(req.user!.id, req.params.id);
+      res.json({ success: ok });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/me/blocks", isAuthenticated, async (req, res) => {
+    try {
+      const rows = await storage.getBlockedUsers(req.user!.id);
+      res.json(rows);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/users/:id/block-status", isAuthenticated, async (req, res) => {
+    try {
+      const blocked = await storage.isBlocked(req.user!.id, req.params.id);
+      res.json({ blocked });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -3241,6 +3294,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       
       res.json(comment);
     } catch (error: any) {
+      if (error?.message?.includes("cannot comment")) {
+        return res.status(403).json({ message: error.message });
+      }
       res.status(500).json({ message: error.message });
     }
   });
@@ -3248,7 +3304,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Get comments for a post
   app.get("/api/social/posts/:id/comments", async (req, res) => {
     try {
-      const comments = await storage.getPostComments(req.params.id);
+      const comments = await storage.getPostComments(req.params.id, req.user?.id);
       res.json(comments);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -4511,6 +4567,9 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       
       res.json(comment);
     } catch (error: any) {
+      if (error?.message?.includes("cannot comment")) {
+        return res.status(403).json({ message: error.message });
+      }
       res.status(500).json({ message: error.message });
     }
   });
@@ -4518,7 +4577,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Get comments
   app.get("/api/posts/:postId/comments", async (req, res) => {
     try {
-      const comments = await storage.getPostComments(req.params.postId);
+      const comments = await storage.getPostComments(req.params.postId, req.user?.id);
       res.json(comments);
     } catch (error: any) {
       res.status(500).json({ message: error.message });

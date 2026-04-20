@@ -14,8 +14,11 @@ import {
   User, MessageSquare, Users, Zap, ArrowLeft, Image, Video, Link2, Search, MoreHorizontal
 } from "lucide-react";
 import { ReportButton } from "@/components/ReportButton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { blocksApi } from "@/lib/api";
+import { Ban } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 
 interface Post {
   id: string;
@@ -57,16 +60,34 @@ interface Comment {
   };
 }
 
-function PostCard({ post, onLike, onUnlike, onComment }: { 
+function PostCard({ post, onLike, onUnlike, onComment, viewerId }: { 
   post: Post; 
   onLike: (id: string) => void; 
   onUnlike: (id: string) => void;
   onComment: (id: string, body: string) => void;
+  viewerId?: string;
 }) {
   const [, navigate] = useLocation();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const queryClient = useQueryClient();
+
+  const handleBlockAuthor = async () => {
+    if (!viewerId || viewerId === post.author.id) return;
+    const confirmed = window.confirm(
+      `Block ${post.author.name}?\n\nYou won't see their posts or comments. You can unblock them from Settings.`
+    );
+    if (!confirmed) return;
+    try {
+      await blocksApi.blockUser(post.author.id);
+      sonnerToast.success(`Blocked ${post.author.name}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/social/feed"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/social/explore"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/me/blocks"] });
+    } catch (e: any) {
+      sonnerToast.error(e?.message || "Failed to block user");
+    }
+  };
 
   const { data: comments = [] } = useQuery<Comment[]>({
     queryKey: ["/api/social/posts", post.id, "comments"],
@@ -127,6 +148,18 @@ function PostCard({ post, onLike, onUnlike, onComment }: {
                 <ReportButton contentType="post" contentId={post.id} variant="text" />
               </div>
             </DropdownMenuItem>
+            {viewerId && viewerId !== post.author.id && (
+              <>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={handleBlockAuthor}
+                  className="cursor-pointer text-red-400 focus:text-red-300 focus:bg-red-950/40"
+                  data-testid={`post-block-${post.id}`}
+                >
+                  <Ban className="w-4 h-4 mr-2" /> Block @{post.author.name}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -462,6 +495,7 @@ export default function SocialFeed() {
                   onLike={(id) => likeMutation.mutate(id)}
                   onUnlike={(id) => unlikeMutation.mutate(id)}
                   onComment={(id, body) => commentMutation.mutate({ postId: id, body })}
+                  viewerId={user?.id}
                 />
               ))
             )}
@@ -486,6 +520,7 @@ export default function SocialFeed() {
                   onLike={(id) => likeMutation.mutate(id)}
                   onUnlike={(id) => unlikeMutation.mutate(id)}
                   onComment={(id, body) => commentMutation.mutate({ postId: id, body })}
+                  viewerId={user?.id}
                 />
               ))
             )}

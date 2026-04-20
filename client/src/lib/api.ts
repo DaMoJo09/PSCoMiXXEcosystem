@@ -100,6 +100,43 @@ export const authApi = {
   },
 };
 
+export const blocksApi = {
+  blockUser: async (userId: string, reason?: string) => {
+    const response = await fetch(`${API_BASE}/users/${userId}/block`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reason ? { reason } : {}),
+      credentials: "include",
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+  unblockUser: async (userId: string) => {
+    const response = await fetch(`${API_BASE}/users/${userId}/block`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    return handleResponse<{ success: boolean }>(response);
+  },
+  getBlocks: async () => {
+    const response = await fetch(`${API_BASE}/users/me/blocks`, {
+      credentials: "include",
+    });
+    return handleResponse<Array<{
+      id: string;
+      blockedId: string;
+      reason: string | null;
+      createdAt: string;
+      user: { id: string; name: string; email: string; avatar: string | null };
+    }>>(response);
+  },
+  getBlockStatus: async (userId: string) => {
+    const response = await fetch(`${API_BASE}/users/${userId}/block-status`, {
+      credentials: "include",
+    });
+    return handleResponse<{ blocked: boolean }>(response);
+  },
+};
+
 export const projectsApi = {
   getAll: async (lightweight = false) => {
     const url = lightweight ? `${API_BASE}/projects?fields=meta` : `${API_BASE}/projects`;

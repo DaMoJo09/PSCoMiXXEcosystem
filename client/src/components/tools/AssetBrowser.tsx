@@ -751,7 +751,7 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    toast.success("Custom asset upload coming soon");
+                    toast.info("Upload custom assets from the Asset Library page to use them across all projects.");
                   }
                 }} />
               </label>

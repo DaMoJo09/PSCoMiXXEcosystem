@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -2521,6 +2521,23 @@ export const blockedHashes = pgTable("blocked_hashes", {
 });
 
 export type BlockedHash = typeof blockedHashes.$inferSelect;
+
+// User-to-user blocking (Apple App Store Guideline 1.2 — ability to block
+// abusive users in UGC apps). Separate from `blockedHashes` which is admin
+// hash-blocking for prohibited imagery.
+export const userBlocks = pgTable("user_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  blockerId: varchar("blocker_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  blockedId: varchar("blocked_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniqPair: uniqueIndex("user_blocks_blocker_blocked_uniq").on(t.blockerId, t.blockedId),
+}));
+
+export type UserBlock = typeof userBlocks.$inferSelect;
+export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({ id: true, createdAt: true });
+export type InsertUserBlock = z.infer<typeof insertUserBlockSchema>;
 
 // ============================================
 // PROGRESSION SYSTEM

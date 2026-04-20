@@ -4873,7 +4873,7 @@ export default function MotionStudio() {
               {/* AI Generate */}
               <div>
                 <div className="text-[10px] font-semibold text-zinc-500 uppercase mb-3">AI Generate</div>
-                <button onClick={() => toast.success("AI generation coming soon")}
+                <button onClick={() => toast.info("Open FX Studio from the main menu to generate AI motion assets.")}
                   className="w-full p-3 bg-white text-black hover:bg-zinc-200 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-all">
                   <Wand2 className="w-4 h-4" />
                   Generate with AI
