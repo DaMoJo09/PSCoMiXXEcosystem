@@ -86,6 +86,15 @@ interface PanelContent {
   name?: string;
   type: "image" | "text" | "bubble" | "drawing" | "shape" | "video" | "gif" | "audio";
   hidden?: boolean;
+  /**
+   * When true, this content is visually clipped to the parent panel's polygon
+   * silhouette (parts that extend outside the polygon shape are hidden).
+   * When false (default), the content can overflow beyond the polygon — a
+   * signature feature of the polygon panel tool that lets artwork extend
+   * past the frame for dramatic compositions. Only meaningful for contents
+   * inside polygon panels.
+   */
+  clipToPanel?: boolean;
   transform: TransformState;
   data: {
     url?: string;
@@ -5449,7 +5458,47 @@ export default function ComicCreator() {
           }`}
           style={{ filter: panel.filter || 'none' }}
         >
-          {[...panel.contents].filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex).map(content => (
+          {(() => {
+            const _editorDims = getEditorPageDimensions();
+            const _panelPxW = (panel.width / 100) * _editorDims.w;
+            const _panelPxH = (panel.height / 100) * _editorDims.h;
+            const _isPoly = panel.type === "polygon" && Array.isArray(panel.points) && panel.points.length >= 3;
+            const _polyMaskUrl = _isPoly
+              ? `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><polygon points='${panel.points!.map(p => `${p.x},${p.y}`).join(" ")}' fill='white'/></svg>`)}")`
+              : "";
+            const buildClipStyle = (c: PanelContent): React.CSSProperties => {
+              if (!_isPoly || !c.clipToPanel) return {};
+              return {
+                WebkitMaskImage: _polyMaskUrl,
+                maskImage: _polyMaskUrl,
+                WebkitMaskSize: `${_panelPxW}px ${_panelPxH}px`,
+                maskSize: `${_panelPxW}px ${_panelPxH}px`,
+                WebkitMaskPosition: `${-c.transform.x}px ${-c.transform.y}px`,
+                maskPosition: `${-c.transform.x}px ${-c.transform.y}px`,
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+              };
+            };
+            const toggleClipToPanel = (contentId: string) => {
+              setSpreads(prev => prev.map((spread, i) => {
+                if (i !== currentSpreadIndex) return spread;
+                const key = page === "left" ? "leftPage" : "rightPage";
+                return {
+                  ...spread,
+                  [key]: spread[key].map(p => {
+                    if (p.id !== panel.id) return p;
+                    return {
+                      ...p,
+                      contents: p.contents.map(c =>
+                        c.id === contentId ? { ...c, clipToPanel: !c.clipToPanel } : c
+                      ),
+                    };
+                  }),
+                };
+              }));
+            };
+            const sortedContents = [...panel.contents].filter(c => !c.hidden).sort((a, b) => a.zIndex - b.zIndex);
+            const renderTE = (content: PanelContent) => (
             <TransformableElement
               key={content.id}
               id={content.id}
@@ -5468,7 +5517,7 @@ export default function ComicCreator() {
                 }
               }}
               locked={content.locked}
-              style={{ zIndex: content.zIndex }}
+              style={{ zIndex: content.zIndex, ...buildClipStyle(content) }}
             >
               {(content.type === "image" || content.type === "gif") && content.data.url && (
                 <div className="w-full h-full relative">
@@ -5564,7 +5613,28 @@ export default function ComicCreator() {
                 />
               )}
             </TransformableElement>
-          ))}
+            );
+            return sortedContents.map(content => {
+              if (!_isPoly) return renderTE(content);
+              return (
+                <ContextMenu key={content.id}>
+                  <ContextMenuTrigger asChild>
+                    <div className="contents">{renderTE(content)}</div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-56 bg-zinc-900 border-zinc-700 text-white">
+                    <ContextMenuCheckboxItem
+                      checked={!!content.clipToPanel}
+                      onCheckedChange={() => toggleClipToPanel(content.id)}
+                      className="hover:bg-zinc-800 cursor-pointer"
+                      data-testid={`toggle-clip-to-panel-${content.id}`}
+                    >
+                      Clip to panel shape
+                    </ContextMenuCheckboxItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            });
+          })()}
 
           {isSelected && panel.contents.length === 0 && !inlineDrawingPanelId && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
@@ -8370,6 +8440,21 @@ export default function ComicCreator() {
                           const topPct = editorPanelH > 0 ? (content.transform.y / editorPanelH) * 100 : 0;
                           const widthPct = editorPanelW > 0 ? (content.transform.width / editorPanelW) * 100 : 100;
                           const heightPct = editorPanelH > 0 ? (content.transform.height / editorPanelH) * 100 : 100;
+                          const clipMaskStyle: React.CSSProperties = (isPolyPanel && content.clipToPanel)
+                            ? (() => {
+                                const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><polygon points='${polyPtsStr}' fill='white'/></svg>`)}")`;
+                                return {
+                                  WebkitMaskImage: url,
+                                  maskImage: url,
+                                  WebkitMaskSize: `${editorPanelW}px ${editorPanelH}px`,
+                                  maskSize: `${editorPanelW}px ${editorPanelH}px`,
+                                  WebkitMaskPosition: `${-content.transform.x}px ${-content.transform.y}px`,
+                                  maskPosition: `${-content.transform.x}px ${-content.transform.y}px`,
+                                  WebkitMaskRepeat: "no-repeat",
+                                  maskRepeat: "no-repeat",
+                                };
+                              })()
+                            : {};
                           return (
                             <div
                               key={content.id}
@@ -8381,6 +8466,7 @@ export default function ComicCreator() {
                                 height: `${heightPct}%`,
                                 transform: `rotate(${content.transform.rotation}deg)`,
                                 zIndex: content.zIndex,
+                                ...clipMaskStyle,
                               }}
                             >
                               {content.type === "image" && content.data.url && (
