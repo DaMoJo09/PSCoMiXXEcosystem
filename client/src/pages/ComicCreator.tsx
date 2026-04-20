@@ -8304,6 +8304,7 @@ export default function ComicCreator() {
                       {panels?.filter(p => !p.hidden).map(panel => {
                         const editorPanelW = (panel.width / 100) * editorDims.w;
                         const editorPanelH = (panel.height / 100) * editorDims.h;
+                        const isPolyPanel = panel.type === "polygon" && Array.isArray(panel.points) && panel.points.length >= 3;
                         return (
                         <div 
                           key={panel.id}
@@ -8314,13 +8315,33 @@ export default function ComicCreator() {
                             width: `${panel.width}%`,
                             height: `${panel.height}%`,
                             backgroundColor: panel.backgroundColor || 'white',
-                            borderWidth: `${panel.borderWidth || 2}px`,
+                            borderWidth: isPolyPanel ? 0 : `${panel.borderWidth || 2}px`,
                             borderColor: panel.borderColor || 'black',
                             borderStyle: 'solid',
                             borderRadius: panel.type === 'circle' ? '50%' : undefined,
                             transform: `rotate(${panel.rotation || 0}deg)`,
+                            clipPath: isPolyPanel
+                              ? `polygon(${panel.points!.map(p => `${p.x}% ${p.y}%`).join(", ")})`
+                              : undefined,
                           }}
                         >
+                          {isPolyPanel && (
+                            <svg
+                              className="absolute inset-0 w-full h-full pointer-events-none"
+                              viewBox="0 0 100 100"
+                              preserveAspectRatio="none"
+                              style={{ zIndex: 50 }}
+                              aria-hidden
+                            >
+                              <polygon
+                                points={panel.points!.map(p => `${p.x},${p.y}`).join(" ")}
+                                fill="none"
+                                stroke={panel.borderColor || "#000"}
+                                strokeWidth={(panel.borderWidth || 2) * 2}
+                                vectorEffect="non-scaling-stroke"
+                              />
+                            </svg>
+                          )}
                           {panel.coverRole && coverDesignData && (() => {
                             const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                             const isFr = panel.coverRole === "front-cover";
