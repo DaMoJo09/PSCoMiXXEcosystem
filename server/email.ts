@@ -106,6 +106,121 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
   console.log("[email] Password reset email sent, id:", result.data?.id);
 }
 
+// Recipient for internal bug-report notifications. Override with BUG_REPORT_NOTIFY_EMAIL.
+const BUG_REPORT_NOTIFY_EMAIL = process.env.BUG_REPORT_NOTIFY_EMAIL || "mojocreative1@gmail.com";
+
+export async function sendBugReportNotification(report: {
+  id: string;
+  title: string;
+  description: string;
+  category?: string;
+  severity?: string;
+  app?: string;
+  stepsToReproduce?: string | null;
+  screenshotUrls?: string[] | null;
+  contextData?: any;
+  reporterEmail?: string | null;
+  reporterName?: string | null;
+}, baseUrl: string) {
+  try {
+    const { client, fromEmail } = await getResendClient();
+
+    const sevColor: Record<string, string> = {
+      low: "#22c55e",
+      medium: "#eab308",
+      high: "#f97316",
+      critical: "#ef4444",
+    };
+    const sev = (report.severity || "medium").toLowerCase();
+    const sevHex = sevColor[sev] || "#a1a1aa";
+
+    const safeText = (s?: string | null) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    const shotsHtml = (report.screenshotUrls && report.screenshotUrls.length > 0)
+      ? `
+        <h3 style="color:#fff;font-size:13px;margin:20px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Screenshots (${report.screenshotUrls.length})</h3>
+        <div>
+          ${report.screenshotUrls
+            .map((u) => {
+              const abs = u.startsWith("http") ? u : `${baseUrl}${u.startsWith("/") ? "" : "/"}${u}`;
+              return `<div style="margin:8px 0;"><a href="${abs}" style="color:${BRAND.color};font-size:12px;word-break:break-all;">${abs}</a></div>`;
+            })
+            .join("")}
+        </div>`
+      : "";
+
+    const ctxUrl = report.contextData?.url ? safeText(String(report.contextData.url)) : "";
+    const ctxPage = report.contextData?.currentPage ? safeText(String(report.contextData.currentPage)) : "";
+    const ctxUA = report.contextData?.userAgent ? safeText(String(report.contextData.userAgent)) : "";
+
+    const subject = `[CoMiXX Bug] [${sev.toUpperCase()}] ${report.title}`;
+
+    const html = emailWrapper(`New Bug Report — ${safeText(report.title)}`, `
+      <table style="width:100%;border-collapse:collapse;margin:0 0 16px 0;">
+        <tr>
+          <td style="padding:6px 0;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;width:120px;">Severity</td>
+          <td style="padding:6px 0;color:${sevHex};font-weight:bold;font-size:13px;">${sev.toUpperCase()}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Category</td>
+          <td style="padding:6px 0;color:#e4e4e7;font-size:13px;">${safeText(report.category || "bug")}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">App</td>
+          <td style="padding:6px 0;color:#e4e4e7;font-size:13px;">${safeText(report.app || "comixx")}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Reporter</td>
+          <td style="padding:6px 0;color:#e4e4e7;font-size:13px;">${safeText(report.reporterName || "—")} ${report.reporterEmail ? `&lt;${safeText(report.reporterEmail)}&gt;` : ""}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#71717a;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Report ID</td>
+          <td style="padding:6px 0;color:#a1a1aa;font-size:12px;font-family:monospace;">${safeText(report.id)}</td>
+        </tr>
+      </table>
+
+      <h3 style="color:#fff;font-size:13px;margin:20px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Description</h3>
+      <p style="color:#d4d4d8;line-height:1.6;white-space:pre-wrap;font-size:13px;">${safeText(report.description)}</p>
+
+      ${report.stepsToReproduce
+        ? `<h3 style="color:#fff;font-size:13px;margin:20px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Steps to Reproduce</h3>
+           <p style="color:#d4d4d8;line-height:1.6;white-space:pre-wrap;font-size:13px;">${safeText(report.stepsToReproduce)}</p>`
+        : ""}
+
+      ${shotsHtml}
+
+      <h3 style="color:#fff;font-size:13px;margin:20px 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;">Context</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        ${ctxUrl ? `<tr><td style="padding:4px 0;color:#71717a;width:90px;vertical-align:top;">URL</td><td style="padding:4px 0;color:#a1a1aa;word-break:break-all;">${ctxUrl}</td></tr>` : ""}
+        ${ctxPage ? `<tr><td style="padding:4px 0;color:#71717a;vertical-align:top;">Page</td><td style="padding:4px 0;color:#a1a1aa;word-break:break-all;">${ctxPage}</td></tr>` : ""}
+        ${ctxUA ? `<tr><td style="padding:4px 0;color:#71717a;vertical-align:top;">User Agent</td><td style="padding:4px 0;color:#71717a;word-break:break-all;font-size:11px;">${ctxUA}</td></tr>` : ""}
+      </table>
+
+      ${buttonHtml("Open Admin Queue", `${baseUrl}/admin/moderation`)}
+    `);
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: BUG_REPORT_NOTIFY_EMAIL,
+      replyTo: report.reporterEmail || undefined,
+      subject,
+      html,
+    });
+
+    if (result.error) {
+      console.error("[email] Bug report notify failed:", result.error);
+      return;
+    }
+    console.log("[email] Bug report notification sent, id:", result.data?.id);
+  } catch (e: any) {
+    console.error("[email] sendBugReportNotification error:", e?.message || e);
+  }
+}
+
 export async function sendWelcomeEmail(email: string, name: string, baseUrl: string) {
   try {
     const { client, fromEmail } = await getResendClient();

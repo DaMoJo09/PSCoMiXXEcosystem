@@ -32,7 +32,7 @@ import { validateApiKey, isAllowedWebhookUrl } from "./integrationAuth";
 import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
-import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification } from "./email";
+import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification, sendBugReportNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
 import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications, badges, userBadges } from "@shared/schema";
 
@@ -11118,6 +11118,26 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         userRole: req.user!.role,
         ...req.body,
       }).returning();
+
+      // Fire-and-forget: notify ops mailbox. Never block the API response on email.
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      sendBugReportNotification(
+        {
+          id: report.id,
+          title: report.title,
+          description: report.description,
+          category: report.category || undefined,
+          severity: report.severity || undefined,
+          app: report.app || undefined,
+          stepsToReproduce: report.stepsToReproduce,
+          screenshotUrls: (report.screenshotUrls as string[] | null) || null,
+          contextData: report.contextData,
+          reporterEmail: req.user?.email || null,
+          reporterName: req.user?.name || null,
+        },
+        baseUrl,
+      ).catch((e) => console.error("[bug-report-email]", e?.message || e));
+
       res.json(report);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
