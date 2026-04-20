@@ -8438,6 +8438,23 @@ export default function ComicCreator() {
                               }}
                             />
                           )}
+                          {isPolyPanel && (
+                            <svg
+                              className="absolute inset-0 w-full h-full pointer-events-none"
+                              viewBox="0 0 100 100"
+                              preserveAspectRatio="none"
+                              style={{ zIndex: 50, overflow: 'visible' }}
+                              aria-hidden
+                            >
+                              <polygon
+                                points={polyPtsStr}
+                                fill="none"
+                                stroke={panel.borderColor || "#000"}
+                                strokeWidth={(panel.borderWidth || 2) * 2}
+                                vectorEffect="non-scaling-stroke"
+                              />
+                            </svg>
+                          )}
                           {panel.coverRole && coverDesignData && (() => {
                             const cd = { ...defaultCover, ...coverDesignData } as CoverData;
                             const isFr = panel.coverRole === "front-cover";
