@@ -6238,22 +6238,6 @@ export default function ComicCreator() {
     );
   };
 
-  if (isCreating) {
-    return (
-      <Layout>
-        <div className="h-screen flex items-center justify-center bg-black">
-          <div className="text-center text-white">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-zinc-400">Creating comic project...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Manual rescue path used by the recovery banner. Creates a brand-new
-  // project containing the current in-memory state so the student can keep
-  // working without losing anything.
   const handleRescueToNewProject = useCallback(async () => {
     try {
       const { frontCover: _f, backCover: _b, coverProjectId: _c, ...cmSafe } = comicMeta as any;
@@ -6280,6 +6264,19 @@ export default function ComicCreator() {
       toast.error(`Couldn't create new project: ${e?.message || "unknown error"}. Your work is still safe in this tab.`);
     }
   }, [comicMeta, spreads, coverDesignData, title, createProject, navigate]);
+
+  if (isCreating) {
+    return (
+      <Layout>
+        <div className="h-screen flex items-center justify-center bg-black">
+          <div className="text-center text-white">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-zinc-400">Creating comic project...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
