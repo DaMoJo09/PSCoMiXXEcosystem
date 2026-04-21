@@ -78,6 +78,22 @@ export function DrawingWorkspace({
   const [brushSize, setBrushSize] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
+
+  // Custom on-canvas cursor (bullseye/target) so the artist can always see
+  // exactly where the brush will land and how big the stroke will be.
+  // Native CSS cursors don't scale with brush size, which makes large brushes
+  // and erasers feel imprecise.
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const showCustomCursor =
+    cursorPos !== null &&
+    ((mode === "raster" && rasterTool !== "select") ||
+      (mode === "vector" && vectorTool !== "select"));
+  // Effective brush diameter in CSS pixels — matches the actual stroke width
+  // (eraser uses 5x like the draw handler does).
+  const cursorDiameter = Math.max(
+    6,
+    rasterTool === "eraser" && mode === "raster" ? brushSize * 5 : brushSize,
+  );
   
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -780,17 +796,30 @@ export function DrawingWorkspace({
       </div>
       
       <div className="flex-1 flex items-center justify-center p-4 bg-zinc-800 overflow-auto">
-        <div className="relative bg-white shadow-2xl" style={{ width, height }}>
+        <div
+          className="relative bg-white shadow-2xl"
+          style={{ width, height, cursor: showCustomCursor ? "none" : undefined }}
+          onPointerEnter={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setCursorPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+          }}
+          onPointerMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setCursorPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+          }}
+          onPointerLeave={() => setCursorPos(null)}
+        >
           <canvas
             ref={canvasRef}
             width={width}
             height={height}
-            className={`absolute inset-0 touch-none ${mode === "raster" && rasterTool !== "select" ? "cursor-crosshair" : "cursor-default"}`}
-            style={{ 
-              width: "100%", 
+            className="absolute inset-0 touch-none"
+            style={{
+              width: "100%",
               height: "100%",
               display: mode === "raster" ? "block" : "block",
               opacity: mode === "raster" ? 1 : 0.3,
+              cursor: showCustomCursor ? "none" : (mode === "raster" && rasterTool !== "select" ? "crosshair" : "default"),
             }}
             onPointerDown={mode === "raster" ? handlePointerDown : undefined}
             onPointerMove={mode === "raster" ? handlePointerMove : undefined}
@@ -803,8 +832,12 @@ export function DrawingWorkspace({
               ref={svgRef}
               width={width}
               height={height}
-              className={`absolute inset-0 touch-none ${vectorTool !== "select" ? "cursor-crosshair" : "cursor-default"}`}
-              style={{ width: "100%", height: "100%" }}
+              className="absolute inset-0 touch-none"
+              style={{
+                width: "100%",
+                height: "100%",
+                cursor: showCustomCursor ? "none" : (vectorTool !== "select" ? "crosshair" : "default"),
+              }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -829,6 +862,56 @@ export function DrawingWorkspace({
                 </g>
               )}
             </svg>
+          )}
+
+          {/* Bullseye / target cursor — sized to brush, tinted to current color
+              for pen, neutral for eraser. Sits above the canvas but ignores
+              pointer events so it never blocks strokes. */}
+          {showCustomCursor && cursorPos && (
+            <div
+              data-testid="brush-target-cursor"
+              className="absolute pointer-events-none"
+              style={{
+                left: cursorPos.x,
+                top: cursorPos.y,
+                transform: "translate(-50%, -50%)",
+                width: cursorDiameter,
+                height: cursorDiameter,
+                zIndex: 10,
+              }}
+              aria-hidden="true"
+            >
+              {/* Outer ring — brush footprint */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border: `1.5px solid ${rasterTool === "eraser" && mode === "raster" ? "#ef4444" : color}`,
+                  boxShadow:
+                    "0 0 0 1px rgba(255,255,255,0.85), inset 0 0 0 1px rgba(255,255,255,0.85)",
+                }}
+              />
+              {/* Crosshair */}
+              <div
+                className="absolute left-1/2 top-0 bottom-0"
+                style={{ width: 1, marginLeft: -0.5, background: "rgba(0,0,0,0.55)", boxShadow: "0 0 0 0.5px rgba(255,255,255,0.85)" }}
+              />
+              <div
+                className="absolute top-1/2 left-0 right-0"
+                style={{ height: 1, marginTop: -0.5, background: "rgba(0,0,0,0.55)", boxShadow: "0 0 0 0.5px rgba(255,255,255,0.85)" }}
+              />
+              {/* Center dot — exact pixel where the stroke lands */}
+              <div
+                className="absolute left-1/2 top-1/2 rounded-full"
+                style={{
+                  width: 3,
+                  height: 3,
+                  marginLeft: -1.5,
+                  marginTop: -1.5,
+                  background: rasterTool === "eraser" && mode === "raster" ? "#ef4444" : color,
+                  boxShadow: "0 0 0 1px rgba(255,255,255,0.95)",
+                }}
+              />
+            </div>
           )}
         </div>
       </div>
