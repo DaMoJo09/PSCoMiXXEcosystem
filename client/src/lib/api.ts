@@ -3,10 +3,25 @@ import type { AssetTag, SyncPayload } from "@/types/asset-tags";
 
 const API_BASE = "/api";
 
+// Custom error so callers can distinguish 404 (truly missing) from 5xx /
+// network blips. Critical: ComicCreator (and other creators) use this to
+// decide whether to show "project not found" — without the status, every
+// transient server hiccup wiped students' in-memory work.
+export class ApiError extends Error {
+  status: number;
+  body?: any;
+  constructor(message: string, status: number, body?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Network error" }));
-    throw new Error(error.message || "Request failed");
+    throw new ApiError(error.message || "Request failed", response.status, error);
   }
   return response.json();
 }

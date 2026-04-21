@@ -1701,7 +1701,7 @@ export default function ComicCreator() {
   const projectId = searchParams.get('id');
   
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
-  const { data: project, isError: projectFetchError, refetch: refetchProject } = useProject(projectId || createdProjectId || '');
+  const { data: project, isError: projectFetchError, error: projectFetchErrorObj, refetch: refetchProject } = useProject(projectId || createdProjectId || '');
   const updateProject = useUpdateProject();
   const createProject = useCreateProject();
   const { importFromFile, importFromFiles, assets, folders, getAssetsInFolder, isLoading: isAssetLibraryLoading, reorderAssets } = useAssetLibrary();
@@ -2023,16 +2023,42 @@ export default function ComicCreator() {
     } catch { toast.error("Failed to sync comic"); }
   };
 
-  const projectNotFound = projectId && projectFetchError && !createdProjectId;
+  // Distinguish a real 404 (project genuinely deleted) from any other error
+  // (network blip, 5xx, auth hiccup). Only the former should ever cause a
+  // recovery flow — and even then, NEVER navigate away while there is unsaved
+  // in-memory work, because that wipes the student's progress.
+  const projectErrorStatus = (projectFetchErrorObj as any)?.status as number | undefined;
+  const projectTrulyMissing = !!projectId && projectFetchError && projectErrorStatus === 404 && !createdProjectId;
+  const projectFetchTransientError = !!projectId && projectFetchError && projectErrorStatus !== 404 && !createdProjectId;
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState(false);
+  const recoveryAttemptedRef = useRef(false);
+
+  // Reset the recovery flags whenever the URL id changes — a different project
+  // means we should give the new fetch a fresh chance to recover.
+  useEffect(() => {
+    recoveryAttemptedRef.current = false;
+    setShowRecoveryBanner(false);
+  }, [projectId]);
 
   useEffect(() => {
-    if (projectNotFound) {
-      toast.error("Project not found — loading your most recent comic...");
-      creationAttempted.current = false;
-      navigate("/creator/comic", { replace: true });
-      return;
+    // Real 404: the project this URL references no longer exists on the server.
+    // Show a non-destructive banner offering to "Save current work as a new
+    // project". DO NOT auto-navigate — the student's edits are still in memory
+    // and a navigate("...") replace would erase them.
+    if (projectTrulyMissing && !recoveryAttemptedRef.current) {
+      recoveryAttemptedRef.current = true;
+      setShowRecoveryBanner(true);
+      toast.error("This project couldn't be found. Your current work is safe — choose how to recover below.");
     }
-  }, [projectNotFound]);
+  }, [projectTrulyMissing]);
+
+  useEffect(() => {
+    // Transient error: surface a soft warning but keep the editor fully usable
+    // and let React Query keep retrying in the background.
+    if (projectFetchTransientError) {
+      console.warn(`[ComicCreator] transient project fetch error (status=${projectErrorStatus}) — staying on page, retrying.`);
+    }
+  }, [projectFetchTransientError, projectErrorStatus]);
 
   const findOrCreateProject = useCallback(() => {
     if (createdProjectId || creationAttempted.current) return;
@@ -2105,8 +2131,36 @@ export default function ComicCreator() {
 
   useEffect(() => {
     if (project) {
-      setTitle(project.title);
-      const data = project.data as any;
+      // SEATBELT: prefer the local backup if it's newer than the server copy.
+      // This protects against silent autosave failures — if the last save
+      // didn't actually land on the server, the student opens their project
+      // and gets the older state, then a fresh save overwrites their good
+      // work with that stale data. Comparing local-vs-server timestamps and
+      // restoring the newer one prevents that data loss.
+      let dataSource: any = project.data;
+      let titleSource: string = project.title;
+      try {
+        const raw = localStorage.getItem(`pscomixx_local_backup_v1_${project.id}`);
+        if (raw) {
+          const local = JSON.parse(raw);
+          const serverTs = project.updatedAt ? new Date(project.updatedAt as any).getTime() : 0;
+          // Only restore if local is meaningfully newer (>5s) AND has content,
+          // to avoid bouncing on clock skew or empty backups.
+          const localHasContent = Array.isArray(local?.data?.spreads) &&
+            local.data.spreads.some((s: any) =>
+              (s?.leftPage || []).some((p: any) => (p?.contents || []).length > 0) ||
+              (s?.rightPage || []).some((p: any) => (p?.contents || []).length > 0));
+          if (localHasContent && local.savedAt && local.savedAt > serverTs + 5000) {
+            console.warn(`[ComicCreator] restoring newer local backup for project ${project.id} (local=${local.savedAt}, server=${serverTs})`);
+            dataSource = local.data;
+            titleSource = local.title || project.title;
+            toast.success("Restored your most recent unsaved changes from this device.");
+          }
+        }
+      } catch { /* ignore */ }
+
+      setTitle(titleSource);
+      const data = dataSource as any;
       if (data?.spreads?.length > 0) {
         setSpreadsRaw(data.spreads);
         undoStackRef.current = [];
@@ -2286,14 +2340,47 @@ export default function ComicCreator() {
       autoSaveTimerRef.current = null;
     }
     const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
-    const result = await saveProjectWithOfflineFallback(projectId, { title: t, data: { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) } }, 'comic');
+    const payload = { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) };
+    // Always write a local snapshot first so the work is recoverable no matter
+    // what the server does. This is the seatbelt — every other failure mode
+    // below is allowed to fail without losing student work.
+    try {
+      localStorage.setItem(
+        `pscomixx_local_backup_v1_${projectId}`,
+        JSON.stringify({ savedAt: Date.now(), title: t, data: payload }),
+      );
+    } catch { /* quota / private mode — non-fatal */ }
+    const result = await saveProjectWithOfflineFallback(projectId, { title: t, data: payload }, 'comic');
     if (result === 'not_found') {
+      // CRITICAL: do NOT navigate away. The student's edits are still in memory.
+      // Silently rescue them into a brand new project so nothing is lost. We
+      // only do this once per editor mount to avoid loops.
+      if (recoveryAttemptedRef.current) return;
+      recoveryAttemptedRef.current = true;
       saveDisabledRef.current = true;
-      toast.error("Project no longer exists. Redirecting to a new project...");
-      creationAttempted.current = false;
-      navigate("/creator/comic", { replace: true });
+      try {
+        const newProject = await createProject.mutateAsync({
+          title: t || "Recovered Comic",
+          type: "comic",
+          status: "draft",
+          data: payload,
+          forceNew: true,
+        } as any);
+        setCreatedProjectId(newProject.id);
+        // Update the URL to the new id without unmounting the editor —
+        // `replace` preserves all in-memory React state because the page
+        // component (ComicCreator) stays mounted.
+        navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
+        // Re-enable autosave against the new id.
+        saveDisabledRef.current = false;
+        projectConfirmedRef.current = true;
+        dataLoadedFromServerRef.current = true;
+        toast.success("Your work was rescued into a new project — nothing was lost.");
+      } catch (e: any) {
+        toast.error(`Save failed and rescue failed: ${e?.message || "unknown error"}. Your work is backed up locally — please don't close this tab.`);
+      }
     }
-  }, []);
+  }, [createProject, navigate]);
 
   useEffect(() => {
     if (project && !initialLoadDoneRef.current) {
@@ -2315,6 +2402,29 @@ export default function ComicCreator() {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [spreads, title, coverDesignData, effectiveProjectId, flushSave]);
+
+  // SEATBELT: continuous local backup. Every state change writes a snapshot to
+  // localStorage independently of the server save. If save fails, the network
+  // dies, the tab crashes, or the project is deleted out from under the user,
+  // their work can be recovered from this local copy on next load.
+  useEffect(() => {
+    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
+    const handle = setTimeout(() => {
+      try {
+        const { frontCover: _f, backCover: _b, coverProjectId: _c, ...cmSafe } = comicMeta as any;
+        const payload = {
+          spreads,
+          comicMeta: cmSafe,
+          ...(coverDesignData ? { coverDesign: coverDesignData } : {}),
+        };
+        localStorage.setItem(
+          `pscomixx_local_backup_v1_${effectiveProjectId}`,
+          JSON.stringify({ savedAt: Date.now(), title, data: payload }),
+        );
+      } catch { /* quota — non-fatal, server save is still attempted */ }
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [spreads, title, comicMeta, coverDesignData, effectiveProjectId]);
 
   useEffect(() => {
     return () => {
@@ -6141,9 +6251,69 @@ export default function ComicCreator() {
     );
   }
 
+  // Manual rescue path used by the recovery banner. Creates a brand-new
+  // project containing the current in-memory state so the student can keep
+  // working without losing anything.
+  const handleRescueToNewProject = useCallback(async () => {
+    try {
+      const { frontCover: _f, backCover: _b, coverProjectId: _c, ...cmSafe } = comicMeta as any;
+      const payload = {
+        spreads,
+        comicMeta: cmSafe,
+        ...(coverDesignData ? { coverDesign: coverDesignData } : {}),
+      };
+      const newProject = await createProject.mutateAsync({
+        title: title || "Recovered Comic",
+        type: "comic",
+        status: "draft",
+        data: payload,
+        forceNew: true,
+      } as any);
+      setCreatedProjectId(newProject.id);
+      saveDisabledRef.current = false;
+      projectConfirmedRef.current = true;
+      dataLoadedFromServerRef.current = true;
+      setShowRecoveryBanner(false);
+      navigate(`/creator/comic?id=${newProject.id}`, { replace: true });
+      toast.success("Saved! Your work is now in a fresh project.");
+    } catch (e: any) {
+      toast.error(`Couldn't create new project: ${e?.message || "unknown error"}. Your work is still safe in this tab.`);
+    }
+  }, [comicMeta, spreads, coverDesignData, title, createProject, navigate]);
+
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
+        {showRecoveryBanner && (
+          <div
+            className="bg-amber-600 text-black px-4 py-2 flex items-center justify-between gap-3 text-sm"
+            data-testid="banner-project-recovery"
+            role="alert"
+          >
+            <div className="flex-1 font-semibold">
+              This project couldn't be loaded from the server, but your current work is still here.
+              Click "Save as new project" to keep everything safe.
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRescueToNewProject}
+                disabled={createProject.isPending}
+                className="px-3 py-1 bg-black text-white font-bold hover:bg-zinc-800 disabled:opacity-60"
+                data-testid="button-rescue-to-new-project"
+              >
+                {createProject.isPending ? "Saving…" : "Save as new project"}
+              </button>
+              <button
+                onClick={() => setShowRecoveryBanner(false)}
+                className="px-2 py-1 hover:bg-amber-700 hover:text-white"
+                data-testid="button-dismiss-recovery-banner"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
         <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/">
