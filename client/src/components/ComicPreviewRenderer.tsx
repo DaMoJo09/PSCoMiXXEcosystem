@@ -76,24 +76,41 @@ function PagePreview({ panels, width, height }: { panels: Panel[]; width: number
 
         const isPolygon = panel.type === "polygon" && Array.isArray((panel as any).points) && (panel as any).points.length >= 3;
         const polyPoints: Array<{ x: number; y: number }> | undefined = isPolygon ? (panel as any).points : undefined;
+        // Bleed-out: rectangular and circular panels let content extend beyond
+        // the frame. Polygon panels keep clip-path because the shape IS the clip.
+        const allowBleed = !isPolygon;
         return (
           <div
             key={panel.id}
-            className="absolute overflow-hidden"
+            className="absolute"
             style={{
               left: panelX,
               top: panelY,
               width: panelW,
               height: panelH,
-              backgroundColor: panel.backgroundColor || "#ffffff",
+              // Background lives on a clipped inner layer when bleed is allowed,
+              // so the panel fill itself never leaks onto the page.
+              backgroundColor: allowBleed ? "transparent" : (panel.backgroundColor || "#ffffff"),
               border: isPolygon ? "none" : `${panel.borderWidth || 2}px solid ${panel.borderColor || "#000000"}`,
               borderRadius: panel.type === "circle" ? "50%" : 0,
               transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+              overflow: allowBleed ? "visible" : "hidden",
               clipPath: isPolygon
                 ? `polygon(${polyPoints!.map(p => `${p.x}% ${p.y}%`).join(", ")})`
                 : undefined,
             }}
           >
+            {allowBleed && (
+              <div
+                className="absolute inset-0 overflow-hidden"
+                style={{
+                  backgroundColor: panel.backgroundColor || "#ffffff",
+                  borderRadius: panel.type === "circle" ? "50%" : 0,
+                  zIndex: 0,
+                }}
+                aria-hidden="true"
+              />
+            )}
             {isPolygon && (
               <svg
                 className="absolute inset-0 w-full h-full pointer-events-none"

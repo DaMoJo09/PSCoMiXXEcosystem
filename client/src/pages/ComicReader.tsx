@@ -794,9 +794,13 @@ function PanelRenderer({ panel }: { panel: Panel }) {
   const panelPixelW = (panel.width / 100) * EDITOR_W;
   const panelPixelH = (panel.height / 100) * EDITOR_H;
 
+  // Bleed-out behavior: panel wrapper is overflow-visible so artwork can extend
+  // beyond the frame. The background fill stays clipped inside the panel via a
+  // separate inner layer, so it doesn't leak onto the page. Circle panels keep
+  // a round bg fill via border-radius on the bg layer.
   return (
     <div
-      className={`absolute overflow-hidden ${isCircle ? "rounded-full" : ""}`}
+      className={`absolute ${isCircle ? "rounded-full" : ""}`}
       style={{
         left: `${panel.x}%`,
         top: `${panel.y}%`,
@@ -809,10 +813,18 @@ function PanelRenderer({ panel }: { panel: Panel }) {
         transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
         transformOrigin: "center center",
         zIndex: panel.zIndex || 0,
+        overflow: "visible",
       }}
       data-testid={`panel-${panel.id}`}
     >
-      <div className="absolute inset-0 overflow-hidden" style={{ backgroundColor: panel.backgroundColor || "white", filter: panel.filter || "none" }}>
+      {/* Clipped background fill — stays inside the panel border. */}
+      <div
+        className={`absolute inset-0 overflow-hidden ${isCircle ? "rounded-full" : ""}`}
+        style={{ backgroundColor: panel.backgroundColor || "white", filter: panel.filter || "none", zIndex: 0 }}
+        aria-hidden="true"
+      />
+      {/* Content layer — allowed to bleed out beyond the panel frame. */}
+      <div className="absolute inset-0" style={{ overflow: "visible", zIndex: 1 }}>
         {contentItems.map((item, idx) => (
           <ContentRenderer key={item.id || idx} item={item} panelWidth={panelPixelW} panelHeight={panelPixelH} />
         ))}
