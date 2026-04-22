@@ -1694,6 +1694,50 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   );
 }
 
+// Strips heavy fields (base64 dataURLs, large image blobs) so the local
+// backup stays small. The server save still sends the full payload — this
+// only affects the local seatbelt copy.
+function stripHeavyFields(value: any): any {
+  if (value == null) return value;
+  if (typeof value === "string") {
+    if (value.length > 50_000 && (value.startsWith("data:") || value.startsWith("blob:"))) {
+      return "__omitted_for_local_backup__";
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(stripHeavyFields);
+  if (typeof value === "object") {
+    const out: any = {};
+    for (const k of Object.keys(value)) out[k] = stripHeavyFields(value[k]);
+    return out;
+  }
+  return value;
+}
+
+const LOCAL_BACKUP_MAX_BYTES = 3_500_000; // ~3.5MB UTF-16
+
+function safeWriteLocalBackup(projectId: string, title: string, payload: any) {
+  if (!projectId) return;
+  const key = `pscomixx_local_backup_v1_${projectId}`;
+  const write = (data: any) => {
+    try {
+      const serialized = JSON.stringify({ savedAt: Date.now(), title, data });
+      if (serialized.length * 2 > LOCAL_BACKUP_MAX_BYTES) return false;
+      localStorage.setItem(key, serialized);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // First try a full backup. If it's too big or storage is full, fall back to
+  // a stripped version (no embedded image bytes). If even that fails, drop the
+  // local backup silently — server autosave still runs.
+  if (write(payload)) return;
+  const stripped = stripHeavyFields(payload);
+  if (write(stripped)) return;
+  try { localStorage.removeItem(key); } catch {}
+}
+
 export default function ComicCreator() {
   const [location, navigate] = useLocation();
   const search = useSearch();
@@ -2343,13 +2387,10 @@ export default function ComicCreator() {
     const payload = { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) };
     // Always write a local snapshot first so the work is recoverable no matter
     // what the server does. This is the seatbelt — every other failure mode
-    // below is allowed to fail without losing student work.
-    try {
-      localStorage.setItem(
-        `pscomixx_local_backup_v1_${projectId}`,
-        JSON.stringify({ savedAt: Date.now(), title: t, data: payload }),
-      );
-    } catch { /* quota / private mode — non-fatal */ }
+    // below is allowed to fail without losing student work. Size-guarded so a
+    // big project with embedded images can never OOM the tab or blow the
+    // localStorage quota.
+    safeWriteLocalBackup(projectId, t, payload);
     const result = await saveProjectWithOfflineFallback(projectId, { title: t, data: payload }, 'comic');
     if (result === 'not_found') {
       // CRITICAL: do NOT navigate away. The student's edits are still in memory.
@@ -2403,28 +2444,10 @@ export default function ComicCreator() {
     };
   }, [spreads, title, coverDesignData, effectiveProjectId, flushSave]);
 
-  // SEATBELT: continuous local backup. Every state change writes a snapshot to
-  // localStorage independently of the server save. If save fails, the network
-  // dies, the tab crashes, or the project is deleted out from under the user,
-  // their work can be recovered from this local copy on next load.
-  useEffect(() => {
-    if (!effectiveProjectId || !initialLoadDoneRef.current) return;
-    const handle = setTimeout(() => {
-      try {
-        const { frontCover: _f, backCover: _b, coverProjectId: _c, ...cmSafe } = comicMeta as any;
-        const payload = {
-          spreads,
-          comicMeta: cmSafe,
-          ...(coverDesignData ? { coverDesign: coverDesignData } : {}),
-        };
-        localStorage.setItem(
-          `pscomixx_local_backup_v1_${effectiveProjectId}`,
-          JSON.stringify({ savedAt: Date.now(), title, data: payload }),
-        );
-      } catch { /* quota — non-fatal, server save is still attempted */ }
-    }, 800);
-    return () => clearTimeout(handle);
-  }, [spreads, title, comicMeta, coverDesignData, effectiveProjectId]);
+  // Local backup is now written once, inside flushSave (same cadence as the
+  // server autosave). The previous "every keystroke" approach was serializing
+  // multi-megabyte image payloads on the main thread and was the cause of the
+  // random tab crashes reported in production.
 
   useEffect(() => {
     return () => {
