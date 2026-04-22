@@ -83,6 +83,7 @@ const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
 const TermsPage = lazy(() => import("@/pages/TermsPage"));
 const TeacherDashboard = lazy(() => import("@/pages/TeacherDashboard"));
 const CreatorProfilePage = lazy(() => import("@/pages/CreatorProfilePage"));
+const GetStartedGuide = lazy(() => import("@/pages/GetStartedGuide"));
 const CompliancePage = lazy(() => import("@/pages/CompliancePage"));
 const AccessibilityPage = lazy(() => import("@/pages/AccessibilityPage"));
 const SecurityPage = lazy(() => import("@/pages/SecurityPage"));
@@ -180,6 +181,7 @@ function ProtectedRouter() {
       <Suspense fallback={<LazyFallback />}>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/get-started" component={GetStartedGuide} />
         <Route path="/comic" component={ComicCreator} />
         <Route path="/creator/comic" component={ComicCreator} />
         <Route path="/creator/motion" component={MotionStudio} />

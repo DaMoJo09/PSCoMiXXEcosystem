@@ -1,5 +1,46 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "sTy1fwtpEOP3UGDH2JCGp"
+uri = "file://client/public/guide/hero-backyard.png"
+type = "image"
+title = "guide hero backyard"
+
+[[generated]]
+id = "Sr4Dyylv7AXZXYmOKI4mb"
+uri = "file://client/public/guide/01-capture.png"
+type = "image"
+title = "guide capture"
+
+[[generated]]
+id = "KUYMhxr3xLCTS4bEjSbRA"
+uri = "file://client/public/guide/02-character.png"
+type = "image"
+title = "guide character"
+
+[[generated]]
+id = "yLuJmfJrXliKmg27ETw15"
+uri = "file://client/public/guide/03-fx.png"
+type = "image"
+title = "guide fx studio"
+
+[[generated]]
+id = "FR9pDI-8GgMuv50bAJZw9"
+uri = "file://client/public/guide/04-transform.png"
+type = "image"
+title = "guide transform"
+
+[[generated]]
+id = "RJchpitctWud3d29QoEJh"
+uri = "file://client/public/guide/05-story.png"
+type = "image"
+title = "guide comic story"
+
+[[generated]]
+id = "xR5jd3SdYeNBD0UEe9hJf"
+uri = "file://client/public/guide/06-export.png"
+type = "image"
+title = "guide export"
 
 [[outputs]]
 id = "SCxjgwINvNTVVXEozAJAg"

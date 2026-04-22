@@ -72,6 +72,7 @@ interface AppSidebarProps {
 
 const creatorTools = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: Sparkles, label: "Get Started", href: "/get-started" },
   { icon: PenTool, label: "Comic Builder", href: "/creator/comic" },
   { icon: Film, label: "Motion Studio", href: "/creator/motion" },
   { icon: CreditCard, label: "Card Creator", href: "/creator/card" },
