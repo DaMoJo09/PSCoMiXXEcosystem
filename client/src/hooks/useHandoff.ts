@@ -46,14 +46,20 @@ export function useHandoff() {
   }, []);
 
   const launchFxStudio = useCallback(async (context: HandoffContext) => {
+    // FX Studio lives inside this same app at /fx-studio — navigate in-app
+    // instead of opening an external URL that 404s.
     const result = await prepareHandoff("fxstudio", context);
-    if (!result) return;
-    const url = result.targetUrl || `https://www.pscomixx.online/handoff?ticket=${result.ticketToken}`;
-    window.open(url, "_blank");
-    if (result.schoolSafeActive) {
+    const params = new URLSearchParams();
+    if (result?.ticketToken) params.set("ticket", result.ticketToken);
+    if (context.projectId) params.set("projectId", context.projectId);
+    if (context.contentType) params.set("contentType", context.contentType);
+    if (context.assetIds?.length) params.set("assetIds", context.assetIds.join(","));
+    const qs = params.toString();
+    window.location.assign(qs ? `/fx-studio?${qs}` : "/fx-studio");
+    if (result?.schoolSafeActive) {
       toast.info("School-safe mode active for this session");
     }
-    return result;
+    return result || undefined;
   }, [prepareHandoff]);
 
   const launchStreaming = useCallback(async (context: HandoffContext) => {
@@ -62,8 +68,11 @@ export function useHandoff() {
       portfolioFlag: true,
     });
     if (!result) return;
-    const url = result.targetUrl || `https://psstreaming.com/handoff?ticket=${result.ticketToken}`;
-    window.open(url, "_blank");
+    if (!result.targetUrl) {
+      toast.error("PS Streaming isn't connected yet. Please try again later.");
+      return;
+    }
+    window.open(result.targetUrl, "_blank", "noopener");
     toast.success("Content sent to PS Streaming");
     return result;
   }, [prepareHandoff]);
@@ -71,8 +80,11 @@ export function useHandoff() {
   const launchLms = useCallback(async (context: HandoffContext) => {
     const result = await prepareHandoff("lms", context);
     if (!result) return;
-    const url = result.targetUrl || `https://pressstart.tech/handoff?ticket=${result.ticketToken}`;
-    window.open(url, "_blank");
+    if (!result.targetUrl) {
+      toast.error("Press Start LMS isn't connected yet. Please try again later.");
+      return;
+    }
+    window.open(result.targetUrl, "_blank", "noopener");
     return result;
   }, [prepareHandoff]);
 
