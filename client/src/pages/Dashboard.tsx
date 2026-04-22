@@ -592,6 +592,28 @@ export default function Dashboard() {
             <Star className="w-5 h-5" /> Start Creating
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={() => navigate("/get-started")}
+              className="group relative p-6 border-2 border-white bg-white text-black hover:bg-black hover:text-white hover:border-white transition-all text-left rounded-xl overflow-hidden"
+              data-testid="button-quick-get-started"
+            >
+              <span className="absolute top-3 right-3 text-[10px] font-black tracking-[0.2em] uppercase border border-current px-2 py-0.5">
+                Start Here
+              </span>
+              <Star className="w-8 h-8 mb-3" strokeWidth={2.5} />
+              <h3
+                className="text-lg font-black uppercase tracking-tight group-hover:underline decoration-2 underline-offset-4"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                Turn Your World Into A Scene
+              </h3>
+              <p className="text-xs mt-2 leading-relaxed opacity-80">
+                First-time creator guide — phone + CoMiXX + FX. Go from your backyard to a finished scene in 10 minutes.
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+                Open Guide <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
             {primaryModes.map((mode) => {
               const Icon = mode.icon;
               return (
