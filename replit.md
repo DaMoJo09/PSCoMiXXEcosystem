@@ -164,3 +164,10 @@ Three-platform connected creative education + publishing + workforce operating s
 - **Stripe:** Payment processing (Stripe Checkout). Uses Replit Connector with env var fallback (`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`). Admin endpoint `POST /api/admin/seed-stripe-products` creates subscription products/prices. Product-to-tier mapping uses metadata `tier` key or product name matching.
 - **Mad Mixed Media:** Streaming platform for content and creator profile synchronization.
 - **Ecosystem Integration Points:** `pscomixx.com`, `comixx.website`, `www.pscomixx.online`, `psstreaming.online`.
+### App Store Readiness Progress (Apr 2026)
+- **Batch A (shipped)**: Global footer with Terms/Privacy/Contact/Get Started links on all non-creator pages. First-time-visitor redirect to `/get-started` for new users (gated on onboarding completion + projects fetch success, key scoped per `user.id`). Export reminder banner in ComicCreator (shows after 24h since last export, dismissed per project, reset on project switch). All 4 export handlers (PNG single/all, PDF, JSON) call `markProjectExported()`.
+- **Batch B (next)**: Mobile touch gesture audit, image upload pipeline pass, crash telemetry to surface real errors hitting users.
+- **Batch C (later)**: Apple-friendly first-run flow (theme → 3 photos → 3 panels → bubble → export), App Store-safe copy, splash/icons.
+- **Batch D**: Capacitor wrap + iOS/iPad test builds.
+- **Batch E**: Lovable/FX side + handshake completion (CoMiXX side already wired).
+- Out of scope for agent: App Store listing copy, screenshots, preview video, legal page actual text, App Store Connect submission.

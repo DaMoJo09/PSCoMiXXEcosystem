@@ -19,6 +19,9 @@ const CREATOR_TOOL_PATHS = [
   "/creator/card",
   "/creator/vn",
   "/creator/cyoa",
+  "/creator/cover",
+  "/creator/hop",
+  "/fx-studio",
 
   "/tools/prompt",
   "/tools/story",
@@ -221,6 +224,42 @@ export function Layout({ children }: LayoutProps) {
         style={!isMobile ? { paddingLeft: isExpanded ? "16rem" : "3rem" } : undefined}
       >
         {children}
+        {!isCreatorTool && (
+          <footer
+            className="border-t border-border/40 mt-8 px-4 py-4 text-[11px] text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+            data-testid="footer-legal"
+          >
+            <span className="opacity-70">© Press Start CoMiXX</span>
+            <Link
+              href="/terms"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-terms"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-privacy"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/contact"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-contact"
+            >
+              Contact
+            </Link>
+            <Link
+              href="/get-started"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-getstarted"
+            >
+              Get Started
+            </Link>
+          </footer>
+        )}
       </main>
       <BugReportButton />
     </div>

@@ -1716,6 +1716,27 @@ function stripHeavyFields(value: any): any {
 
 const LOCAL_BACKUP_MAX_BYTES = 3_500_000; // ~3.5MB UTF-16
 
+const EXPORT_REMIND_AFTER_MS = 24 * 60 * 60 * 1000; // 24h
+
+function markProjectExported(projectId: string | null | undefined) {
+  if (!projectId) return;
+  try {
+    localStorage.setItem(`pscomixx_last_export_v1_${projectId}`, String(Date.now()));
+  } catch {}
+}
+
+function getLastExportAt(projectId: string | null | undefined): number | null {
+  if (!projectId) return null;
+  try {
+    const v = localStorage.getItem(`pscomixx_last_export_v1_${projectId}`);
+    if (!v) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 function safeWriteLocalBackup(projectId: string, title: string, payload: any) {
   if (!projectId) return;
   const key = `pscomixx_local_backup_v1_${projectId}`;
@@ -2075,6 +2096,20 @@ export default function ComicCreator() {
   const projectTrulyMissing = !!projectId && projectFetchError && projectErrorStatus === 404 && !createdProjectId;
   const projectFetchTransientError = !!projectId && projectFetchError && projectErrorStatus !== 404 && !createdProjectId;
   const [showRecoveryBanner, setShowRecoveryBanner] = useState(false);
+  const [exportReminderDismissed, setExportReminderDismissed] = useState(false);
+  const [exportReminderTick, setExportReminderTick] = useState(0);
+  // Re-evaluate the export reminder every 2 minutes so the banner appears
+  // even during a long uninterrupted editing session.
+  useEffect(() => {
+    const id = setInterval(() => setExportReminderTick((t) => t + 1), 120_000);
+    return () => clearInterval(id);
+  }, []);
+  // Dismissal is per-project: switching to a different project restores the
+  // reminder so the user gets nudged for each project's first export.
+  const _activeProjectId = projectId || createdProjectId;
+  useEffect(() => {
+    setExportReminderDismissed(false);
+  }, [_activeProjectId]);
   const recoveryAttemptedRef = useRef(false);
 
   // Reset the recovery flags whenever the URL id changes — a different project
@@ -3389,6 +3424,8 @@ export default function ComicCreator() {
         setShowWatermarkBanner(true);
       }
       fireXpAction("export");
+      markProjectExported(projectId || createdProjectId);
+      setExportReminderDismissed(true);
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export page");
@@ -3460,6 +3497,8 @@ export default function ComicCreator() {
       
       toast.success(`Full comic exported! ${pageNum} pages at print-ready 300 DPI`);
       fireXpAction("export");
+      markProjectExported(projectId || createdProjectId);
+      setExportReminderDismissed(true);
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export pages");
@@ -3766,6 +3805,8 @@ export default function ComicCreator() {
         + (effectiveBackCover ? 1 : 0);
       toast.success(`PDF exported! ${totalPages} pages at ${pageWidthIn}"×${pageHeightIn}" (300 DPI print-ready)`);
       fireXpAction("export");
+      markProjectExported(projectId || createdProjectId);
+      setExportReminderDismissed(true);
       showWhatsNext();
     } catch (error) {
       console.error("PDF export error:", error);
@@ -3791,6 +3832,8 @@ export default function ComicCreator() {
       
       toast.success("Project data exported!");
       fireXpAction("export");
+      markProjectExported(projectId || createdProjectId);
+      setExportReminderDismissed(true);
       showWhatsNext();
     } catch (error) {
       toast.error("Failed to export project data");
@@ -6304,6 +6347,36 @@ export default function ComicCreator() {
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
+        {(() => {
+          const _tickRef = exportReminderTick;
+          const _pid = projectId || createdProjectId;
+          if (!_pid || exportReminderDismissed) return null;
+          const last = getLastExportAt(_pid);
+          const hasContent = spreads.some((s) => (s.leftPage?.length || 0) + (s.rightPage?.length || 0) > 0);
+          if (!hasContent) return null;
+          const stale = !last || (Date.now() - last) > EXPORT_REMIND_AFTER_MS;
+          if (!stale) return null;
+          return (
+            <div
+              className="bg-cyan-500 text-black px-4 py-2 flex items-center justify-between gap-3 text-sm"
+              data-testid="banner-export-reminder"
+              role="status"
+            >
+              <div className="flex-1 font-semibold">
+                Heads up — back up your work. Use Export → PDF or PNG to save a copy you control. Autosave is on, but a local file is your safety net.
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setExportReminderDismissed(true)}
+                  className="px-3 py-1 bg-black text-white font-bold hover:bg-zinc-800"
+                  data-testid="button-dismiss-export-reminder"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          );
+        })()}
         {showRecoveryBanner && (
           <div
             className="bg-amber-600 text-black px-4 py-2 flex items-center justify-between gap-3 text-sm"

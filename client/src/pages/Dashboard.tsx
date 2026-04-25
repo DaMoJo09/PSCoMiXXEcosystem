@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { EventCarousel } from "@/components/EventCarousel";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 import { CharacterFirstOnboarding, useCharacterFirstOnboarding } from "@/components/CharacterFirstOnboarding";
@@ -168,7 +168,7 @@ function FeaturedOnStage() {
 }
 
 export default function Dashboard() {
-  const { data: projects, isLoading } = useProjects();
+  const { data: projects, isLoading, isError: projectsError } = useProjects();
   const deleteProject = useDeleteProject();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -195,6 +195,29 @@ export default function Dashboard() {
   const [newProjectType, setNewProjectType] = useState("comic");
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // First-time visitors get sent to the Get Started guide once, AFTER they
+  // finish (or skip past) the in-product onboarding wizards. We only fire for
+  // brand-new users (zero projects), only when the projects fetch actually
+  // succeeded (don't redirect on transient API failures), and the flag is
+  // scoped per user id so account switches on a shared device behave correctly.
+  useEffect(() => {
+    if (!user) return;
+    if (isLoading || projectsError) return;
+    if ((projects?.length ?? 0) > 0) return;
+    // Don't preempt the interactive onboarding wizards — they're more useful
+    // for first-time product orientation than the static guide page.
+    if (!onboardingComplete || !charOnboardingComplete) return;
+    try {
+      const key = `pscomixx_seen_get_started_v1_${user.id}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, String(Date.now()));
+      navigate("/get-started?from=first-run");
+    } catch {
+      // localStorage unavailable (private mode etc.) — skip the redirect
+      // rather than spam it on every load.
+    }
+  }, [user, isLoading, projectsError, projects, navigate, onboardingComplete, charOnboardingComplete]);
 
   const checkProjectLimit = useCallback(() => {
     if (projectCount >= maxProjects && maxProjects > 0) {
