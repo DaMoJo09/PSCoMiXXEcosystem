@@ -1,0 +1,167 @@
+Absolutely. Here’s the build order, so Replit and Lovable don’t start “helping” by rearranging reality with a fork.
+
+Build Order: Replit + Lovable
+
+Phase 1: Stabilize First, Pretty Later
+
+Replit: PSCoMiXX.com / CoMiXX Core
+
+1. Run full mobile QA audit.
+2. Fix crashes in comic builder.
+3. Fix touch gestures:
+    * drag
+    * pinch zoom
+    * rotate
+    * resize
+4. Fix image upload/import.
+5. Fix save/load project flow.
+6. Fix export:
+    * PNG
+    * PDF
+    * ZIP/JSON backup
+7. Add autosave every 30–60 seconds.
+8. Add “Export Your Work” warning in key steps.
+9. Add Terms, Privacy, Contact links.
+10. Add simple mobile-safe onboarding.
+
+Lovable: pscomixx.online / FX Studio
+
+1. Run full mobile QA audit.
+2. Fix crashes or broken FX modes.
+3. Fix image import/export.
+4. Fix “send to CoMiXX” and “receive from CoMiXX.”
+5. Add local backup/export prompts.
+6. Add Terms, Privacy, Contact links.
+7. Add beta/stability warning without sounding amateur.
+8. Hide or lock unfinished tools.
+
+⸻
+
+Phase 2: App Store Readiness Layer
+
+Replit First
+
+1. Make PSCoMiXX.com the primary public app.
+2. Add first-run onboarding:
+    * choose theme
+    * upload/take photos
+    * create 3-panel comic
+    * add speech bubble
+    * export/share
+3. Add App Store-safe landing copy.
+4. Add app icons, splash screen assets, and screenshots.
+5. Prepare Capacitor wrap.
+6. Test iPhone + iPad layouts.
+7. Test offline fallback.
+
+Lovable Second
+
+1. Make FX Studio feel like a companion app, not a random side portal.
+2. Add “Start from CoMiXX” and “Send back to CoMiXX” buttons.
+3. Add FX export presets:
+    * PNG
+    * transparent PNG
+    * GIF/WebM if supported
+4. Add mobile-safe tool modes.
+5. Prepare as either:
+    * separate FX app later, or
+    * embedded webview/module inside CoMiXX first.
+
+⸻
+
+Phase 3: Submission Strategy
+
+Submit First
+
+CoMiXX / Replit app first.
+
+Reason: it has the clearest App Store identity.
+
+“Create comics from photos, panels, text, and effects.”
+
+That’s clean. Apple can understand it without needing a conspiracy board.
+
+Hold FX Studio
+
+Do not submit FX Studio first unless it is very stable.
+
+FX should either be:
+
+1. A companion web tool linked from CoMiXX, or
+2. A second app after CoMiXX is approved.
+
+⸻
+
+Best Practical Build Order
+
+1. Replit: Core CoMiXX Stabilization
+
+Fix the builder before adding anything else. No crashy comic builder. Humanity has suffered enough.
+
+2. Replit: Onboarding + Legal + Export
+
+Make the first user journey clean and App Store safe.
+
+3. Replit: Capacitor/App Store Package
+
+Wrap only after the web app works cleanly on mobile.
+
+4. Lovable: FX Studio Stabilization
+
+Fix import, export, and mobile usability.
+
+5. Lovable: CoMiXX ↔ FX Handshake
+
+Make the two apps pass assets back and forth cleanly.
+
+6. Lovable: App Store Decision
+
+Only submit FX after CoMiXX is live and stable.
+
+⸻
+
+What To Tell Replit
+
+Priority build order for PSCoMiXX App Store readiness:
+1. Stabilize the mobile comic builder first.
+2. Fix all image import, panel editing, touch gesture, save/load, and export issues.
+3. Add autosave and local backup/export warnings.
+4. Add visible Terms of Service, Privacy Policy, and Contact links.
+5. Add first-run onboarding focused on creating a first comic in a few steps.
+6. Optimize mobile performance for canvas editing and image-heavy projects.
+7. Prepare Capacitor wrapping only after the browser version passes mobile QA.
+8. Add splash screen, app icon, offline fallback, and App Store-safe metadata.
+9. Hide or disable unfinished/broken features from the mobile app build.
+10. Prepare final iOS/Android test builds.
+
+⸻
+
+What To Tell Lovable
+
+Priority build order for PSCoMiXX.online / FX Studio launch readiness:
+1. Stabilize all core FX modes on mobile.
+2. Fix image upload, editing, export, and project save/load.
+3. Add autosave or local backup where possible.
+4. Add clear export-your-work warnings because the platform is still evolving.
+5. Add Terms of Service, Privacy Policy, and Contact links.
+6. Hide or disable unfinished tools from the launch build.
+7. Strengthen the CoMiXX ↔ FX workflow:
+   - receive image/assets from CoMiXX
+   - edit in FX
+   - export back to CoMiXX
+8. Add mobile-safe UI states and loading indicators.
+9. Treat FX Studio as a companion tool first, not the first App Store submission.
+10. Prepare FX for second-stage app submission only after CoMiXX is stable and approved.
+
+⸻
+
+Final Build Priority
+
+Launch order:
+
+1. PSCoMiXX.com / Replit
+2. FX Studio / Lovable
+3. Streaming + LMS sync later
+4. Full ecosystem pitch after the apps stop tripping over their own shoelaces
+
+CoMiXX is the front door. FX is the power-up room. Don’t submit the power-up room before the front door has hinges.
