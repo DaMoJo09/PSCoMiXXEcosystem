@@ -431,7 +431,7 @@ interface OverviewNodeMeta {
 
 type OverviewMode = "design" | "prototype";
 type Side = "left" | "right" | "top" | "bottom";
-interface FlowConnection { fromId: string; toId: string; fromSide: Side; toSide: Side; }
+interface FlowConnection { fromId: string; toId: string; fromSide: Side; toSide: Side; label?: string; }
 
 function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
   panels: Panel[]; narration?: NarrationBox;
@@ -1212,6 +1212,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       toId: fc.toId,
       fromSide: fc.fromSide,
       toSide: fc.toSide,
+      label: fc.label,
     })), [flowConnections]);
 
   const handleNodeMove = useCallback((id: string, x: number, y: number) => {
@@ -1236,6 +1237,22 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
 
   const handleDeleteConnection = useCallback((fromId: string, toId: string) => {
     setFlowConnections(prev => prev.filter(c => !(c.fromId === fromId && c.toId === toId)));
+  }, []);
+
+  const handleLabelConnection = useCallback((fromId: string, toId: string) => {
+    setFlowConnections(prev => {
+      const existing = prev.find(c => c.fromId === fromId && c.toId === toId);
+      const current = existing?.label || "";
+      const next = window.prompt(
+        "Label for this branch (shown to the reader as the choice button text). Leave blank to clear.",
+        current,
+      );
+      if (next === null) return prev; // user cancelled
+      const trimmed = next.trim().slice(0, 60); // hard cap so labels stay readable
+      return prev.map(c =>
+        c.fromId === fromId && c.toId === toId ? { ...c, label: trimmed || undefined } : c,
+      );
+    });
   }, []);
 
   const addSpreadAtEnd = useCallback(() => {
@@ -1499,6 +1516,9 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
             {flowConnections.length > 0 && (
               <span className="text-[10px] text-blue-400/60 font-mono">{flowConnections.length} connections</span>
             )}
+            <span className="text-[10px] text-zinc-500 font-mono ml-auto" data-testid="text-connection-hint">
+              click line = delete · shift+click = label
+            </span>
           </div>
         )}
 
@@ -1521,6 +1541,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
           prototypeMode={mode === "prototype"}
           onCreateConnection={handleCreateConnection}
           onDeleteConnection={handleDeleteConnection}
+          onLabelConnection={handleLabelConnection}
         />
       </div>
 
@@ -2308,8 +2329,20 @@ export default function ComicCreator() {
         for (const sp of restoredSpreads) {
           if (sp?.id) {
             validIds.add(sp.id);
-            validIds.add(`cover_${sp.id}`);
-            validIds.add(`backcover_${sp.id}`);
+            // Cover/back-cover pseudo-nodes are keyed off the *panel* id (see
+            // canvasNodes/nodeMeta), not the spread id. Earlier code keyed
+            // them off sp.id which dropped every real cover connection on
+            // hydration. Walk panels on both pages so labelled cover→spread
+            // wires survive a project reload.
+            for (const page of ["leftPage", "rightPage"] as const) {
+              const panels = (sp as any)?.[page];
+              if (!Array.isArray(panels)) continue;
+              for (const panel of panels) {
+                if (!panel?.id) continue;
+                if (panel.coverRole === "front-cover") validIds.add(`cover_${panel.id}`);
+                if (panel.coverRole === "back-cover") validIds.add(`backcover_${panel.id}`);
+              }
+            }
           }
         }
         const cleaned: FlowConnection[] = restoredSpreads.length === 0 ? [] : data.flowConnections
@@ -2320,6 +2353,9 @@ export default function ComicCreator() {
             toId: c.toId,
             fromSide: (c.fromSide === "left" || c.fromSide === "right" || c.fromSide === "top" || c.fromSide === "bottom") ? c.fromSide : "right",
             toSide: (c.toSide === "left" || c.toSide === "right" || c.toSide === "top" || c.toSide === "bottom") ? c.toSide : "left",
+            // Restore author-supplied branch label (trimmed + length-capped to
+            // mirror the create path so we never bake in unbounded strings).
+            label: typeof c.label === "string" && c.label.trim() ? c.label.trim().slice(0, 60) : undefined,
           }));
         setFlowConnections(cleaned);
       }
@@ -2531,7 +2567,10 @@ export default function ComicCreator() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [spreads, title, coverDesignData, effectiveProjectId, flushSave]);
+    // flowConnections is included so connection create/delete/label edits
+    // schedule autosave + arm the unload-beacon path. Without this dep, label
+    // edits could be lost on tab close until another tracked field changed.
+  }, [spreads, title, coverDesignData, flowConnections, effectiveProjectId, flushSave]);
 
   // Local backup is now written once, inside flushSave (same cadence as the
   // server autosave). The previous "every keystroke" approach was serializing

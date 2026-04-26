@@ -310,10 +310,18 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
   // mapping mode) we fall back to natural left-to-right spread order.
   const flowConnections = useMemo(() => {
     const raw = comic?.data?.flowConnections;
-    if (!Array.isArray(raw)) return [] as { fromId: string; toId: string }[];
+    if (!Array.isArray(raw)) return [] as { fromId: string; toId: string; label?: string }[];
     return raw
       .filter((c: any) => c && typeof c.fromId === "string" && typeof c.toId === "string")
-      .map((c: any) => ({ fromId: c.fromId as string, toId: c.toId as string }));
+      .map((c: any) => ({
+        fromId: c.fromId as string,
+        toId: c.toId as string,
+        // Author-supplied branch label (forwarded so the choice button can
+        // render custom text like "Open the door" instead of "Spread 7").
+        // Mirror creator's normalization (trim + 60-char cap) so labels render
+        // identically end-to-end no matter when they were saved.
+        label: typeof c.label === "string" && c.label.trim() ? c.label.trim().slice(0, 60) : undefined,
+      }));
   }, [comic]);
 
   const orderedSpreads = useMemo(() => {
@@ -384,7 +392,7 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
   // Per-spread outgoing connection map for rendering branching choice buttons
   // at the end of any spread the author wired up with multiple paths.
   const outgoingBySpread = useMemo(() => {
-    const m = new Map<string, { fromId: string; toId: string }[]>();
+    const m = new Map<string, { fromId: string; toId: string; label?: string }[]>();
     if (flowConnections.length === 0) return m;
     const validIds = new Set(spreads.map(s => s.id));
     for (const c of flowConnections) {
@@ -398,6 +406,52 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
   const currentPage = allPages[currentSpreadIndex];
   const currentOutgoing = currentPage ? (outgoingBySpread.get(currentPage.spreadId) || []) : [];
   const showBranchingChoices = !!currentPage && currentPage.isLastPageOfSpread && currentOutgoing.length >= 2;
+
+  // Visited-spread breadcrumb for branching stories. We track the order in
+  // which the reader has actually entered each unique spread (Next/Prev or
+  // a choice button), so they can see where they came from and tap back.
+  const isBranching = flowConnections.length > 0;
+  const [visitedSpreadIds, setVisitedSpreadIds] = useState<string[]>([]);
+  // Reset breadcrumb on comic change AND seed it with the current spread.
+  // Without seeding, two comics that happen to share their first spread id
+  // (e.g. deterministic ids like "spread_0") would skip the push effect after
+  // reset and leave the breadcrumb empty until the reader navigates.
+  useEffect(() => {
+    setVisitedSpreadIds(currentPage?.spreadId ? [currentPage.spreadId] : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comicId]);
+  useEffect(() => {
+    if (!isBranching || !currentPage) return;
+    setVisitedSpreadIds(prev => {
+      const last = prev[prev.length - 1];
+      if (last === currentPage.spreadId) return prev;
+      return [...prev, currentPage.spreadId];
+    });
+  }, [currentPage?.spreadId, isBranching]);
+
+  const spreadLabelById = useMemo(() => {
+    const m = new Map<string, string>();
+    orderedSpreads.forEach((s, i) => {
+      const tag = (s as any)?.tag as string | undefined;
+      if (tag === "back-cover") m.set(s.id, "Back Cover");
+      else if (tag === "cover") m.set(s.id, "Cover");
+      else m.set(s.id, `Spread ${i + 1}`);
+    });
+    return m;
+  }, [orderedSpreads]);
+
+  // End-of-story card: shown when the reader hits a leaf spread on a
+  // branching story (no outgoing connections, last page of spread). Linear
+  // comics are unaffected because isBranching gates this entirely.
+  const showEndOfStory = isBranching
+    && !!currentPage
+    && currentPage.isLastPageOfSpread
+    && currentOutgoing.length === 0;
+
+  const restartStory = () => {
+    setVisitedSpreadIds([]);
+    goToSpread(0);
+  };
 
   // Map a spread id to the index of that spread's first page in allPages, so
   // tapping a choice button jumps the reader to the start of the target.
@@ -610,6 +664,38 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
             ))
           ) : (
             <>
+              {/* Path breadcrumb: only surfaces on branching stories so that
+                  linear comics keep their existing chrome unchanged. Each pill
+                  jumps the reader back to a previously visited spread. */}
+              {isBranching && visitedSpreadIds.length > 1 && (
+                <div className="max-w-2xl mx-auto mb-3" data-testid="path-breadcrumb">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/70 mb-1">Your path</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {visitedSpreadIds.map((sid, vi) => {
+                      const isCurrent = sid === currentPage?.spreadId;
+                      const label = spreadLabelById.get(sid) || `Spread ${vi + 1}`;
+                      const targetIdx = firstPageIndexBySpread.get(sid);
+                      return (
+                        <button
+                          key={`crumb-${vi}-${sid}`}
+                          onClick={() => {
+                            if (isCurrent || targetIdx === undefined) return;
+                            // Trim history forward of the chosen pill so the
+                            // breadcrumb stays a true history of where they've been.
+                            setVisitedSpreadIds(prev => prev.slice(0, vi + 1));
+                            goToSpread(targetIdx);
+                          }}
+                          disabled={isCurrent || targetIdx === undefined}
+                          className={`px-2 py-1 text-[11px] font-mono border ${isCurrent ? "bg-cyan-500/20 border-cyan-400 text-cyan-200" : "border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-300"} transition-colors`}
+                          data-testid={`button-breadcrumb-${vi}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {allPages.length > 0 && (
                 <div className="max-w-2xl mx-auto">
                   <PageRenderer panels={allPages[currentSpreadIndex].panels} side={`${currentSpreadIndex}`} />
@@ -640,6 +726,46 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                   Preview: when the current spread has 2+ outgoing connections
                   the reader exposes them as labelled branches the reader can
                   pick. Single connections fall through to plain Next. */}
+              {/* End-of-story card: leaf spread with no further branches.
+                  Linear comics never see this — gated by isBranching. */}
+              {showEndOfStory && !showBranchingChoices && (
+                <div className="mt-6 max-w-2xl mx-auto p-6 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-2 border-cyan-500/40 text-center" data-testid="end-of-story">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 mb-2">The End</div>
+                  <h3 className="text-white font-bold text-lg mb-1">You reached an ending</h3>
+                  <p className="text-zinc-400 text-sm mb-4">
+                    {visitedSpreadIds.length > 1
+                      ? `You explored ${visitedSpreadIds.length} spread${visitedSpreadIds.length === 1 ? "" : "s"} on this path.`
+                      : "Try a different path next time."}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      onClick={restartStory}
+                      className="px-4 py-2 bg-cyan-500 text-zinc-950 hover:bg-cyan-400 font-bold text-sm transition-colors"
+                      data-testid="button-restart-story"
+                    >
+                      Restart from beginning
+                    </button>
+                    {visitedSpreadIds.length > 1 && (
+                      <button
+                        onClick={() => {
+                          // Pop the current leaf and bounce back to the prior
+                          // spread so the reader can pick a different choice.
+                          const prev = visitedSpreadIds[visitedSpreadIds.length - 2];
+                          const prevIdx = prev !== undefined ? firstPageIndexBySpread.get(prev) : undefined;
+                          if (prevIdx !== undefined) {
+                            setVisitedSpreadIds(p => p.slice(0, -1));
+                            goToSpread(prevIdx);
+                          }
+                        }}
+                        className="px-4 py-2 border-2 border-cyan-500/40 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/10 font-bold text-sm transition-colors"
+                        data-testid="button-go-back-choice"
+                      >
+                        ← Go back & try another choice
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               {showBranchingChoices && (
                 <div className="mt-6 max-w-2xl mx-auto p-4 bg-cyan-500/5 border-2 border-cyan-500/40" data-testid="branching-choices">
                   <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 mb-3">
@@ -649,11 +775,11 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                     {currentOutgoing.map((conn, ci) => {
                       const targetIdx = firstPageIndexBySpread.get(conn.toId);
                       if (targetIdx === undefined) return null;
-                      const targetSpread = orderedSpreads.find(s => s.id === conn.toId);
-                      const targetTag = (targetSpread as any)?.tag as string | undefined;
-                      const targetLabel = targetTag === "back-cover"
-                        ? "Back Cover"
-                        : `Spread ${targetIdx + 1}`;
+                      // Author-supplied label wins; fall back to the spread
+                      // tag (Back Cover) or generic "Spread N" so unlabelled
+                      // branches still ship a usable button.
+                      const fallback = spreadLabelById.get(conn.toId) || `Spread ${targetIdx + 1}`;
+                      const targetLabel = (conn.label && conn.label.trim()) || fallback;
                       return (
                         <button
                           key={`${conn.toId}-${ci}`}

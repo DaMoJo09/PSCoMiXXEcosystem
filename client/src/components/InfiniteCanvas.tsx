@@ -41,6 +41,7 @@ interface InfiniteCanvasProps {
   prototypeMode?: boolean;
   onCreateConnection?: (fromId: string, toId: string, fromSide: Side, toSide: Side) => void;
   onDeleteConnection?: (fromId: string, toId: string) => void;
+  onLabelConnection?: (fromId: string, toId: string) => void;
 }
 
 const ZOOM_STEP = 0.1;
@@ -117,6 +118,7 @@ export function InfiniteCanvas({
   prototypeMode = false,
   onCreateConnection,
   onDeleteConnection,
+  onLabelConnection,
 }: InfiniteCanvasProps) {
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 0.6 });
   const [isPanning, setIsPanning] = useState(false);
@@ -459,10 +461,17 @@ export function InfiniteCanvas({
                   strokeWidth={isSelected || isProtoConn ? 2.5 : 1.5}
                   strokeDasharray={conn.dashed ? "6 4" : undefined}
                   markerEnd={isProtoConn ? "url(#canvas-arrow-blue)" : isSelected ? "url(#canvas-arrow-accent)" : "url(#canvas-arrow)"}
-                  style={prototypeMode && onDeleteConnection ? { cursor: "pointer", pointerEvents: "stroke" } : undefined}
-                  onClick={prototypeMode && onDeleteConnection ? (e) => {
+                  style={prototypeMode && (onDeleteConnection || onLabelConnection) ? { cursor: "pointer", pointerEvents: "stroke" } : undefined}
+                  onClick={prototypeMode && (onDeleteConnection || onLabelConnection) ? (e) => {
                     e.stopPropagation();
-                    onDeleteConnection(conn.fromId, conn.toId);
+                    // Shift-click = label this connection (so it can show
+                    // up as a custom branch button in the published reader).
+                    // Plain click stays as the existing delete shortcut.
+                    if (e.shiftKey && onLabelConnection) {
+                      onLabelConnection(conn.fromId, conn.toId);
+                    } else if (onDeleteConnection) {
+                      onDeleteConnection(conn.fromId, conn.toId);
+                    }
                   } : undefined}
                 />
                 {(isSelected || isProtoConn) && !conn.dashed && (
