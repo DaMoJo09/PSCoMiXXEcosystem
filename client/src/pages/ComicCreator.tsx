@@ -2211,6 +2211,18 @@ export default function ComicCreator() {
 
   useEffect(() => {
     if (project) {
+      // GUARD: only hydrate ONCE per projectId. Any later refetch (manual
+      // Save invalidation, Quick Preview, window-focus refetch, etc) must
+      // never overwrite the user's in-memory state — pending unsaved
+      // deletions would silently come back from the stale server copy.
+      // Initial mount is allowed; everything after is the user's truth.
+      if (hydratedForProjectRef.current === project.id) {
+        return;
+      }
+      // Note: ref is set AFTER successful state application below, so a
+      // mid-hydrate exception leaves the project hydratable on the next render
+      // instead of permanently locking it out for the session.
+
       // SEATBELT: prefer the local backup if it's newer than the server copy.
       // This protects against silent autosave failures — if the last save
       // didn't actually land on the server, the student opens their project
@@ -2281,6 +2293,10 @@ export default function ComicCreator() {
       if (data?.activeMode && ["layout","ink","color","motion","fx","text"].includes(data.activeMode)) {
         setActiveMode(data.activeMode as ModeId);
       }
+      // Mark this project as hydrated ONLY after all state has been applied.
+      // If anything above threw, we leave the ref unset so the next render
+      // can retry hydration instead of permanently locking the project out.
+      hydratedForProjectRef.current = project.id;
     }
   }, [project]);
 
@@ -2390,6 +2406,13 @@ export default function ComicCreator() {
   const userEditCountRef = useRef(0);
   const initialLoadDoneRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  // Track whether hydration has already happened for the current projectId.
+  // The hydration useEffect is allowed to run exactly ONCE per project — any
+  // further server refetches (manual Save invalidation, Preview, etc) must
+  // never overwrite the user's in-memory state, or pending unsaved deletions
+  // get silently resurrected from the stale server copy. (Critical student
+  // data-loss bug fix.)
+  const hydratedForProjectRef = useRef<string | null>(null);
   const latestDataRef = useRef({ title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId });
   latestDataRef.current = { title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId };
 
@@ -2579,7 +2602,7 @@ export default function ComicCreator() {
         case 'y': if (mod) { e.preventDefault(); handleRedo(); } break;
         case 's': if (mod) { e.preventDefault(); handleSave(); } break;
         case 'f': if (mod) { e.preventDefault(); setIsFullscreen(!isFullscreen); } break;
-        case 'r': if (mod) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); refetchProject(); } break;
+        case 'r': if (mod) { e.preventDefault(); setPreviewPage(0); setShowPreview(true); } break;
         case '[': setInkbladeBrush(b => ({ ...b, size: Math.max(1, b.size - 2) })); break;
         case ']': setInkbladeBrush(b => ({ ...b, size: Math.min(100, b.size + 2) })); break;
       }
@@ -2631,6 +2654,33 @@ export default function ComicCreator() {
 
   const publishProject = useMutation({
     mutationFn: async () => {
+      // CRITICAL: publish takes whatever is on the server right now. If the
+      // user has unsaved edits (e.g. deleted pages still in the autosave
+      // debounce window), those edits would be missing from the published
+      // version. Flush the latest in-memory state to the server first so what
+      // gets published is exactly what the student sees. If the preflush
+      // fails, ABORT publish — better to surface the error than to publish
+      // stale work without telling the user.
+      if (effectiveProjectId) {
+        const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
+        const payload = { spreads, comicMeta: comicMetaSafe, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+        safeWriteLocalBackup(effectiveProjectId, title, payload);
+        const flushRes = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ title, data: payload }),
+        });
+        if (!flushRes.ok) {
+          throw new Error("Couldn't save your latest changes — publish cancelled. Please try again.");
+        }
+        // Cancel any debounced autosave so it doesn't race the publish.
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = null;
+        }
+        pendingSaveRef.current = false;
+      }
       const res = await apiRequest("POST", `/api/projects/${effectiveProjectId}/publish`, { visibility: "public" });
       return res.json();
     },
@@ -2648,15 +2698,30 @@ export default function ComicCreator() {
   const handleSave = async () => {
     if (!effectiveProjectId) return;
     setIsSaving(true);
+    // Cancel any in-flight debounced autosave so it can't overwrite this
+    // manual save with a stale snapshot, and clear the pending flag so the
+    // beforeunload/unmount beacons don't fire a duplicate.
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    pendingSaveRef.current = false;
     try {
+      const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
+      const payload = { spreads, comicMeta: comicMetaSafe, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+      // Mirror the autosave seatbelt: write a local backup before the network
+      // call so a flaky connection can't lose the student's manual save.
+      safeWriteLocalBackup(effectiveProjectId, title, payload);
       const res = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title, data: { spreads, comicMeta, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) } }),
+        body: JSON.stringify({ title, data: payload }),
       });
       if (!res.ok) throw new Error("Save failed");
-      qc.invalidateQueries({ queryKey: ["project", effectiveProjectId] });
+      // Don't invalidate the project query — the in-memory state IS the
+      // source of truth right now, and the hydration guard would skip a
+      // refetch anyway. Invalidating just costs a wasteful round trip.
       toast.success("Comic saved");
       fireXpAction("save");
     } catch (error: any) {
@@ -6501,7 +6566,7 @@ export default function ComicCreator() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
-                <DropdownMenuItem onClick={() => { setPreviewPage(0); setShowPreview(true); refetchProject(); }} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-inline">
+                <DropdownMenuItem onClick={() => { setPreviewPage(0); setShowPreview(true); }} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-inline">
                   <Eye className="w-4 h-4 mr-2" /> Quick Preview (Ctrl+R)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleOpenReaderPreview} className="hover:bg-zinc-800 cursor-pointer" data-testid="button-preview-reader">
