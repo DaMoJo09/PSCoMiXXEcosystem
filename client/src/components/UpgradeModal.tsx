@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Crown, Zap, Star, Rocket, X, Sparkles, Film, Package, Shield, Check } from "lucide-react";
 import { Link } from "wouter";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -52,6 +53,11 @@ const FEATURE_DETAILS: Record<string, { headline: string; description: string; b
 export function UpgradeModal({ isOpen, onClose, feature, requiredTier = "creator", usageInfo }: UpgradeModalProps) {
   if (!isOpen) return null;
 
+  // App Store compliance: in the native iOS/Android shell we can't show
+  // prices or link out to web checkout for digital goods. Render a quieter
+  // version that explains the limit without the upgrade CTA.
+  const blockPayments = shouldBlockDirectPayments();
+
   const tierInfo = {
     creator: { name: "Creator", price: "$9.99/month", icon: Star },
     pro: { name: "Pro", price: "$19.99/month", icon: Rocket },
@@ -98,48 +104,60 @@ export function UpgradeModal({ isOpen, onClose, feature, requiredTier = "creator
 
           <p className="text-center text-zinc-300 text-sm">
             {details?.description || (
-              <><span className="font-bold text-white">{feature}</span> is available on {info.name} and above.</>
+              <><span className="font-bold text-white">{feature}</span> is available on a higher plan.</>
             )}
           </p>
 
-          <div className="p-4 border-2 border-white bg-zinc-900">
-            <div className="flex items-center gap-3 mb-3">
-              <Icon className="w-5 h-5" />
-              <span className="font-black uppercase">{info.name}</span>
-              <span className="ml-auto text-sm text-zinc-400">{info.price}</span>
+          {!blockPayments && (
+            <div className="p-4 border-2 border-white bg-zinc-900">
+              <div className="flex items-center gap-3 mb-3">
+                <Icon className="w-5 h-5" />
+                <span className="font-black uppercase">{info.name}</span>
+                <span className="ml-auto text-sm text-zinc-400">{info.price}</span>
+              </div>
+              {details?.benefits && (
+                <ul className="space-y-1.5">
+                  {details.benefits.map((b, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-zinc-300">
+                      <Check className="w-3 h-3 text-green-400 shrink-0" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {details?.benefits && (
-              <ul className="space-y-1.5">
-                {details.benefits.map((b, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-zinc-300">
-                    <Check className="w-3 h-3 text-green-400 shrink-0" />
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          )}
         </div>
 
-        <div className="flex gap-3">
+        {blockPayments ? (
           <button
             onClick={onClose}
-            className="flex-1 py-3 border-2 border-white font-black uppercase text-sm hover:bg-zinc-800 transition-colors"
-            data-testid="button-cancel-upgrade"
+            className="w-full py-3 bg-white text-black border-2 border-white font-black uppercase text-sm hover:bg-zinc-200 transition-colors"
+            data-testid="button-close-upgrade-native"
           >
-            Maybe Later
+            Got It
           </button>
-          <Link href="/pricing" className="flex-1">
+        ) : (
+          <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="w-full py-3 bg-white text-black border-2 border-white font-black uppercase text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-              data-testid="button-view-pricing"
+              className="flex-1 py-3 border-2 border-white font-black uppercase text-sm hover:bg-zinc-800 transition-colors"
+              data-testid="button-cancel-upgrade"
             >
-              <Zap className="w-4 h-4" />
-              View Plans
+              Maybe Later
             </button>
-          </Link>
-        </div>
+            <Link href="/pricing" className="flex-1">
+              <button
+                onClick={onClose}
+                className="w-full py-3 bg-white text-black border-2 border-white font-black uppercase text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+                data-testid="button-view-pricing"
+              >
+                <Zap className="w-4 h-4" />
+                View Plans
+              </button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -209,6 +227,9 @@ export function ProFeatureDiscovery({ isOpen, onClose, featureKey }: ProFeatureD
   const feat = DISCOVERY_FEATURES[featureKey];
   if (!feat) return null;
 
+  // App Store compliance: same payment-link/price suppression as UpgradeModal.
+  const blockPayments = shouldBlockDirectPayments();
+
   const FeatureIcon = feat.icon;
   const tierInfo = {
     creator: { name: "Creator", price: "$9.99/mo" },
@@ -267,25 +288,35 @@ export function ProFeatureDiscovery({ isOpen, onClose, featureKey }: ProFeatureD
           </ul>
         </div>
 
-        <div className="flex gap-3">
+        {blockPayments ? (
           <button
             onClick={handleDismiss}
-            className="flex-1 py-3 border-2 border-white font-black uppercase text-sm hover:bg-zinc-800 transition-colors"
-            data-testid="button-dismiss-discovery"
+            className="w-full py-3 bg-cyan-500 text-black border-2 border-cyan-500 font-black uppercase text-sm hover:bg-cyan-400 transition-colors"
+            data-testid="button-dismiss-discovery-native"
           >
             Got It
           </button>
-          <Link href="/pricing" className="flex-1">
+        ) : (
+          <div className="flex gap-3">
             <button
               onClick={handleDismiss}
-              className="w-full py-3 bg-cyan-500 text-black border-2 border-cyan-500 font-black uppercase text-sm hover:bg-cyan-400 transition-colors flex items-center justify-center gap-2"
-              data-testid="button-discovery-upgrade"
+              className="flex-1 py-3 border-2 border-white font-black uppercase text-sm hover:bg-zinc-800 transition-colors"
+              data-testid="button-dismiss-discovery"
             >
-              <Zap className="w-4 h-4" />
-              {tier.name} {tier.price}
+              Got It
             </button>
-          </Link>
-        </div>
+            <Link href="/pricing" className="flex-1">
+              <button
+                onClick={handleDismiss}
+                className="w-full py-3 bg-cyan-500 text-black border-2 border-cyan-500 font-black uppercase text-sm hover:bg-cyan-400 transition-colors flex items-center justify-center gap-2"
+                data-testid="button-discovery-upgrade"
+              >
+                <Zap className="w-4 h-4" />
+                {tier.name} {tier.price}
+              </button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
