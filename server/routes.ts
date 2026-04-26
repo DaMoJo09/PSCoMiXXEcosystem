@@ -4946,10 +4946,28 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  app.post("/api/client-error", rateLimit({ windowMs: 60000, max: 10 }), (req, res) => {
-    const { message, stack, componentStack, url, userAgent } = req.body || {};
-    console.error(`[CLIENT ERROR] ${message}\n  URL: ${url}\n  Stack: ${stack}\n  Component: ${componentStack}\n  UA: ${userAgent}`);
+  app.post("/api/client-error", rateLimit({ windowMs: 60000, max: 30 }), (req, res) => {
+    // Reply fast and don't block on disk I/O. Client-side errors arrive in
+    // bursts and are best-effort — the workflow log capture covers them
+    // without contending for the synchronous file appender used by API errors.
     res.json({ ok: true });
+    try {
+      const body = req.body || {};
+      const truncate = (v: any, max: number) =>
+        typeof v === "string" ? v.slice(0, max) : undefined;
+      const message = truncate(body.message, 500) || "(no message)";
+      const stack = truncate(body.stack, 4000);
+      const componentStack = truncate(body.componentStack, 2000);
+      const url = truncate(body.url, 500);
+      const userAgent = truncate(body.userAgent, 300);
+      const source = truncate(body.source, 50) || "react-boundary";
+      const userId = (req.user as any)?.id || null;
+      console.error(
+        `[CLIENT ERROR] source=${source} user=${userId || "anon"} msg=${message}\n  url=${url}\n  ua=${userAgent}\n  stack=${stack || "(none)"}\n  componentStack=${componentStack || "(none)"}`
+      );
+    } catch (e: any) {
+      console.error("[client-error] Failed to log:", e?.message);
+    }
   });
 
   const ALLOWED_EVENT_CATEGORIES = ["navigation", "engagement", "creator_tools", "ai", "social", "marketplace"];

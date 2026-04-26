@@ -27,6 +27,7 @@ import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, t
 import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package, Crown, X as XIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { validateImageFile } from "@/lib/imageValidation";
 import { useAssetLibrary } from "@/contexts/AssetLibraryContext";
 import { usePostAction } from "@/contexts/PostActionContext";
 import { toast } from "sonner";
@@ -2876,14 +2877,7 @@ export default function ComicCreator() {
   const handleUploadThumbnail = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!effectiveProjectId || !e.target.files?.[0]) return;
     const file = e.target.files[0];
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5MB");
-      return;
-    }
+    if (!validateImageFile(file).ok) return;
     try {
       const reader = new FileReader();
       const dataUrl = await new Promise<string>((resolve, reject) => {

@@ -281,6 +281,66 @@ function App() {
     }
   }, []);
 
+  // Catch errors that escape React (window-level + unhandled promise rejections)
+  // and report them to the same backend the ErrorBoundary uses. Lightweight
+  // throttling: max 5 reports per 60s per source to avoid log storms.
+  useEffect(() => {
+    const counts: Record<string, { n: number; firstAt: number }> = {};
+    const shouldReport = (source: string) => {
+      const now = Date.now();
+      const c = counts[source] || { n: 0, firstAt: now };
+      if (now - c.firstAt > 60_000) {
+        counts[source] = { n: 1, firstAt: now };
+        return true;
+      }
+      c.n += 1;
+      counts[source] = c;
+      return c.n <= 5;
+    };
+    const post = (payload: Record<string, any>) => {
+      try {
+        fetch("/api/client-error", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+          }),
+          credentials: "include",
+          keepalive: true,
+        }).catch(() => {});
+      } catch {}
+    };
+    const onError = (e: ErrorEvent) => {
+      if (!shouldReport("window-error")) return;
+      post({
+        source: "window-error",
+        message: e.message || "(no message)",
+        stack: e.error?.stack,
+      });
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      if (!shouldReport("unhandled-rejection")) return;
+      const reason: any = e.reason;
+      const message =
+        typeof reason === "string"
+          ? reason
+          : reason?.message || "Unhandled promise rejection";
+      post({
+        source: "unhandled-rejection",
+        message,
+        stack: reason?.stack,
+      });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { validateImageFile } from "@/lib/imageValidation";
 
 interface ImageUploadProps {
   value?: string;
@@ -15,24 +16,19 @@ export function ImageUpload({ value, onChange, className = "", label }: ImageUpl
 
   const handleFileChange = (file: File | null) => {
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5MB");
-      return;
-    }
+    if (!validateImageFile(file).ok) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
+      if (!result) {
+        toast.error("Couldn't read that image. Try a different file.");
+        return;
+      }
       onChange(result);
     };
     reader.onerror = () => {
-      toast.error("Failed to read file");
+      toast.error("Failed to read file. The image may be corrupt or too large.");
     };
     reader.readAsDataURL(file);
   };
@@ -106,7 +102,7 @@ export function ImageUpload({ value, onChange, className = "", label }: ImageUpl
           <div className="text-center">
             <Upload className="w-8 h-8 mx-auto mb-2 text-zinc-500" />
             <span className="text-sm text-zinc-400">Click or drag to upload</span>
-            <span className="text-xs text-zinc-600 block mt-1">PNG, JPG up to 5MB</span>
+            <span className="text-xs text-zinc-600 block mt-1">PNG, JPG, WebP, or HEIC — up to 12MB</span>
           </div>
         )}
       </div>

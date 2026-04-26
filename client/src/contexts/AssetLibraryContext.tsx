@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { apiRequest } from "@/lib/queryClient";
+import { validateImageFile } from "@/lib/imageValidation";
 
 export interface BubbleAssetData {
   shape?: string;
@@ -245,6 +246,11 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
   }, [assets]);
 
   const importFromFile = useCallback(async (file: File, folderId?: string): Promise<Asset | null> => {
+    // Allow video/audio through the asset library; size + HEIC checks still
+    // apply to image-typed files so iPhone photos don't silently die.
+    if (!validateImageFile(file, { allowVideo: true, allowAudio: true }).ok) {
+      return null;
+    }
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -268,7 +274,10 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
   }, [addAsset]);
 
   const importFromFiles = useCallback(async (files: File[], folderId?: string): Promise<Asset[]> => {
-    const fileDataPromises = files.map((file) => {
+    // Pre-filter so a single bad file (oversized, HEIC on Chrome, etc) doesn't
+    // silently drop from a multi-import. Bad files toast individually.
+    const validFiles = files.filter((f) => validateImageFile(f, { allowVideo: true, allowAudio: true }).ok);
+    const fileDataPromises = validFiles.map((file) => {
       return new Promise<Omit<Asset, "id" | "createdAt"> | null>((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {

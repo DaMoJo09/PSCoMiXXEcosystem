@@ -166,7 +166,7 @@ Three-platform connected creative education + publishing + workforce operating s
 - **Ecosystem Integration Points:** `pscomixx.com`, `comixx.website`, `www.pscomixx.online`, `psstreaming.online`.
 ### App Store Readiness Progress (Apr 2026)
 - **Batch A (shipped)**: Global footer with Terms/Privacy/Contact/Get Started links on all non-creator pages. First-time-visitor redirect to `/get-started` for new users (gated on onboarding completion + projects fetch success, key scoped per `user.id`). Export reminder banner in ComicCreator (shows after 24h since last export, dismissed per project, reset on project switch). All 4 export handlers (PNG single/all, PDF, JSON) call `markProjectExported()`.
-- **Batch B (next)**: Mobile touch gesture audit, image upload pipeline pass, crash telemetry to surface real errors hitting users.
+- **Batch B (shipped)**: Crash telemetry — `window.error` + `unhandledrejection` handlers in App.tsx (throttled 5/min/source) post to `/api/client-error`; server endpoint logs via `console.error` (no blocking I/O), rate-limited 30/min, payloads truncated. Image upload pipeline hardening — shared `client/src/lib/imageValidation.ts` with HEIC detection (Safari OK, Chrome/Android shows "share as JPEG" guidance) and per-media caps (12MB image / 50MB video / 20MB audio). Refactored `ImageUpload`, `ComicCreator` thumbnail upload, and `AssetLibraryContext.importFromFile/importFromFiles` to use the shared validator.
 - **Batch C (later)**: Apple-friendly first-run flow (theme → 3 photos → 3 panels → bubble → export), App Store-safe copy, splash/icons.
 - **Batch D**: Capacitor wrap + iOS/iPad test builds.
 - **Batch E**: Lovable/FX side + handshake completion (CoMiXX side already wired).
