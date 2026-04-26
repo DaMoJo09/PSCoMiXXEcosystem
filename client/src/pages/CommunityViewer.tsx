@@ -57,21 +57,50 @@ interface CardItem {
 function VNReader({ data }: { data: VNData }) {
   const [sceneIdx, setSceneIdx] = useState(0);
   const [lineIdx, setLineIdx] = useState(0);
+  // Linear navigation history so "back" undoes choice jumps too instead of
+  // silently losing the reader's place when the author wired a non-linear
+  // path. Each entry is [sceneIdx, lineIdx].
+  const [history, setHistory] = useState<Array<[number, number]>>([]);
   const scene = data.scenes[sceneIdx];
   const line = scene?.dialogue?.[lineIdx];
   const charMap = Object.fromEntries(data.characters.map(c => [c.id, c]));
 
+  // Mapping (prototype) parity: when a dialogue line carries author-defined
+  // choices we suppress auto-advance and let the reader pick a target scene.
+  // Targets reference scene IDs (the same model the editor's flow canvas
+  // uses), so we resolve them through data.scenes here.
+  const lineChoices = (line as any)?.choices as { label: string; target: string }[] | undefined;
+  const hasChoices = !!lineChoices && lineChoices.length > 0;
+
+  const jumpToScene = useCallback((targetSceneId: string) => {
+    const idx = data.scenes.findIndex(s => s.id === targetSceneId);
+    if (idx < 0) return;
+    setHistory(h => [...h, [sceneIdx, lineIdx]]);
+    setSceneIdx(idx);
+    setLineIdx(0);
+  }, [data.scenes, sceneIdx, lineIdx]);
+
   const advance = useCallback(() => {
     if (!scene?.dialogue) return;
+    if (hasChoices) return; // wait for the reader to pick a branch
     if (lineIdx < scene.dialogue.length - 1) {
+      setHistory(h => [...h, [sceneIdx, lineIdx]]);
       setLineIdx(l => l + 1);
     } else if (sceneIdx < data.scenes.length - 1) {
+      setHistory(h => [...h, [sceneIdx, lineIdx]]);
       setSceneIdx(s => s + 1);
       setLineIdx(0);
     }
-  }, [lineIdx, sceneIdx, scene, data.scenes.length]);
+  }, [lineIdx, sceneIdx, scene, data.scenes.length, hasChoices]);
 
   const goBack = useCallback(() => {
+    if (history.length > 0) {
+      const prev = history[history.length - 1];
+      setHistory(h => h.slice(0, -1));
+      setSceneIdx(prev[0]);
+      setLineIdx(prev[1]);
+      return;
+    }
     if (lineIdx > 0) {
       setLineIdx(l => l - 1);
     } else if (sceneIdx > 0) {
@@ -79,7 +108,7 @@ function VNReader({ data }: { data: VNData }) {
       const prevScene = data.scenes[sceneIdx - 1];
       setLineIdx(Math.max(0, (prevScene?.dialogue?.length || 1) - 1));
     }
-  }, [lineIdx, sceneIdx, data.scenes]);
+  }, [history, lineIdx, sceneIdx, data.scenes]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -123,9 +152,23 @@ function VNReader({ data }: { data: VNData }) {
           <p className={`text-white text-sm sm:text-base leading-relaxed ${line.speaker === "Narrator" ? "italic text-zinc-300" : ""}`} data-testid="vn-dialogue-text">
             {line.text}
           </p>
+          {hasChoices && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2" data-testid="vn-choices">
+              {lineChoices!.map((choice, ci) => (
+                <button
+                  key={`${choice.target}-${ci}`}
+                  onClick={(e) => { e.stopPropagation(); jumpToScene(choice.target); }}
+                  className="text-left px-3 py-2 border-2 border-cyan-500/40 bg-zinc-900 hover:border-cyan-400 hover:bg-cyan-500/10 transition-colors text-sm text-white font-medium"
+                  data-testid={`btn-vn-choice-${ci}`}
+                >
+                  <span className="text-cyan-400 mr-2">→</span>{choice.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-2 flex justify-between items-center text-zinc-500 text-xs">
             <span>Scene {sceneIdx + 1}/{data.scenes.length}</span>
-            <span>Tap to continue</span>
+            <span>{hasChoices ? "Pick a path" : "Tap to continue"}</span>
           </div>
         </div>
       )}

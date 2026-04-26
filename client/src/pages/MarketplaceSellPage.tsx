@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/use-subscription";
 import { ProFeatureDiscovery, useProFeatureDiscovery } from "@/components/UpgradeModal";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 import { ArrowLeft, DollarSign, Package, Tag, Image, FileText, Upload, X, Gift } from "lucide-react";
 import { toast } from "sonner";
 
@@ -103,7 +104,13 @@ export default function MarketplaceSellPage() {
     if (!hasFeature("commercial") && !isAdmin) {
       const shown = showDiscovery("commercial_license");
       if (!shown) {
-        window.location.href = "/pricing";
+        // Apple guideline 3.1.1: never push iOS users to a payment page —
+        // tell them where the upgrade lives instead.
+        if (shouldBlockDirectPayments()) {
+          toast.info("A commercial license is required to sell. Upgrade your plan at pscomixx.com on the web.");
+        } else {
+          window.location.href = "/pricing";
+        }
       }
       return;
     }

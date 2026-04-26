@@ -16,6 +16,7 @@ import { CharacterFirstOnboarding, useCharacterFirstOnboarding } from "@/compone
 import { XPWidget } from "@/components/XPWidget";
 import { useSubscription } from "@/hooks/use-subscription";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 import {
   Dialog,
   DialogContent,
@@ -441,16 +442,23 @@ export default function Dashboard() {
                 <p className="text-sm font-black uppercase text-white">
                   You've used {usageData.ai.used}/{usageData.ai.limit} AI generations today
                 </p>
-                <p className="text-xs text-zinc-400 mt-0.5">Upgrade for more daily AI generations</p>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {shouldBlockDirectPayments()
+                    ? "Daily limit resets tomorrow"
+                    : "Upgrade for more daily AI generations"}
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/pricing")}
-              className="px-4 py-2 bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-colors shrink-0 rounded-lg"
-              data-testid="button-ai-limit-upgrade"
-            >
-              Upgrade Now
-            </button>
+            {/* Apple guideline 3.1.1: no upgrade CTA inside the iOS app. */}
+            {!shouldBlockDirectPayments() && (
+              <button
+                onClick={() => navigate("/pricing")}
+                className="px-4 py-2 bg-white text-black font-black uppercase text-xs hover:bg-zinc-200 transition-colors shrink-0 rounded-lg"
+                data-testid="button-ai-limit-upgrade"
+              >
+                Upgrade Now
+              </button>
+            )}
           </div>
         )}
 
@@ -471,7 +479,7 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            {(usageData.ai.used / usageData.ai.limit) >= 0.75 && (
+            {(usageData.ai.used / usageData.ai.limit) >= 0.75 && !shouldBlockDirectPayments() && (
               <button
                 onClick={() => navigate("/pricing")}
                 className="text-xs text-cyan-400 hover:text-cyan-300 font-bold uppercase"
@@ -951,17 +959,21 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              <div
-                onClick={() => navigate("/pricing")}
-                className="w-24 h-24 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors group rounded-xl"
-                data-testid="slot-upgrade"
-              >
-                <Lock className="w-4 h-4 text-amber-500 mb-1" />
-                <span className="text-[8px] font-bold text-amber-500 uppercase">
-                  {tier === "free" ? "Creator: 20" : tier === "creator" ? "Pro: 100" : "Studio: Unlimited"}
-                </span>
-                <span className="text-[7px] text-amber-500/60 font-mono mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Upgrade</span>
-              </div>
+              {/* Apple guideline 3.1.1: hide "upgrade for more slots" CTA in
+                  the iOS app — subscriptions live on pscomixx.com. */}
+              {!shouldBlockDirectPayments() && (
+                <div
+                  onClick={() => navigate("/pricing")}
+                  className="w-24 h-24 border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 transition-colors group rounded-xl"
+                  data-testid="slot-upgrade"
+                >
+                  <Lock className="w-4 h-4 text-amber-500 mb-1" />
+                  <span className="text-[8px] font-bold text-amber-500 uppercase">
+                    {tier === "free" ? "Creator: 20" : tier === "creator" ? "Pro: 100" : "Studio: Unlimited"}
+                  </span>
+                  <span className="text-[7px] text-amber-500/60 font-mono mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Upgrade</span>
+                </div>
+              )}
             </div>
           </section>
         )}

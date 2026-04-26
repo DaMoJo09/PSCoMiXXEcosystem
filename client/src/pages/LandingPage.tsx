@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 import {
   Sparkles, Film, Wand2, GraduationCap, Palette, ArrowRight, Trophy, Eye, Rocket,
   BookOpen, Users, School, CheckCircle2, Layers, Gamepad2, Zap, Monitor,
@@ -159,6 +160,9 @@ export default function LandingPage() {
   const [, navigate] = useLocation();
   const [glitchText, setGlitchText] = useState(false);
   const [glitchOffset, setGlitchOffset] = useState({ x: 0, y: 0 });
+  // Apple guideline 3.1.1: hide subscription pricing and "view plans" CTAs
+  // when running inside the iOS app. Pricing lives at pscomixx.com on the web.
+  const hideSubscriptionUi = shouldBlockDirectPayments();
 
   useEffect(() => {
     const glitchInterval = setInterval(() => {
@@ -180,9 +184,11 @@ export default function LandingPage() {
       </div>
 
       <div className="absolute top-6 right-4 sm:right-6 z-20 flex gap-4 items-center">
-        <button data-testid="button-teacher-landing" onClick={() => navigate("/pricing")} className="text-xs text-green-400 hover:text-green-300 uppercase tracking-wider font-mono transition-colors bg-transparent border border-green-500/30 px-3 py-1.5 cursor-pointer hidden sm:block">
-          I'm a Teacher
-        </button>
+        {!hideSubscriptionUi && (
+          <button data-testid="button-teacher-landing" onClick={() => navigate("/pricing")} className="text-xs text-green-400 hover:text-green-300 uppercase tracking-wider font-mono transition-colors bg-transparent border border-green-500/30 px-3 py-1.5 cursor-pointer hidden sm:block">
+            I'm a Teacher
+          </button>
+        )}
         <button data-testid="button-login" onClick={() => navigate("/login")} className="text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-mono transition-colors bg-transparent border-none cursor-pointer">
           Login
         </button>
@@ -426,7 +432,10 @@ export default function LandingPage() {
 
       <FeaturedSeriesSection />
 
-      {/* PRICING PREVIEW */}
+      {/* PRICING PREVIEW — hidden inside the iOS app (Apple guideline 3.1.1).
+          On native, prices and "view plans" CTAs aren't allowed; subscriptions
+          are managed at pscomixx.com on the web. */}
+      {!hideSubscriptionUi && (
       <section className="relative z-10 py-20 sm:py-28 px-4 sm:px-8 bg-black border-t-2 border-zinc-800" data-testid="section-pricing-preview">
         <div className="max-w-6xl mx-auto">
           <div className="mb-14 text-center">
@@ -477,6 +486,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ECOSYSTEM */}
       <section className="relative z-10 py-20 sm:py-28 px-4 sm:px-8 bg-zinc-950 border-t-2 border-zinc-800" data-testid="section-ecosystem">

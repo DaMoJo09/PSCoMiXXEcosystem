@@ -303,20 +303,109 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
     return (url.startsWith("data:image") || url.startsWith("http") || url.startsWith("blob:") || url.startsWith("/")) || !!coverDesign;
   }, [comic, coverDesign]);
 
+  // Mapping (prototype-mode) playback parity with the editor's Flow Preview.
+  // If the author wired connections between spreads we honor them so the
+  // published reader walks the same path the author saw in the editor. When
+  // there are no saved connections (older projects, or authors who never used
+  // mapping mode) we fall back to natural left-to-right spread order.
+  const flowConnections = useMemo(() => {
+    const raw = comic?.data?.flowConnections;
+    if (!Array.isArray(raw)) return [] as { fromId: string; toId: string }[];
+    return raw
+      .filter((c: any) => c && typeof c.fromId === "string" && typeof c.toId === "string")
+      .map((c: any) => ({ fromId: c.fromId as string, toId: c.toId as string }));
+  }, [comic]);
+
+  const orderedSpreads = useMemo(() => {
+    if (spreads.length === 0) return spreads;
+    if (flowConnections.length === 0) return spreads;
+    // Ignore connections that touch cover-only spreads / cover panel pseudo
+    // nodes — covers are rendered above and below the page sequence by this
+    // reader, not as inline pages, so we restrict the walk to real content
+    // spreads to avoid orphan or duplicate placement.
+    const validIds = new Set(spreads.map(s => s.id));
+    const filteredConns = flowConnections.filter(c => validIds.has(c.fromId) && validIds.has(c.toId));
+    if (filteredConns.length === 0) return spreads;
+    const outMap = new Map<string, string[]>();
+    const incoming = new Set<string>();
+    for (const c of filteredConns) {
+      if (!outMap.has(c.fromId)) outMap.set(c.fromId, []);
+      outMap.get(c.fromId)!.push(c.toId);
+      incoming.add(c.toId);
+    }
+    // Pick the same root the editor uses: a tagged "cover" spread first,
+    // then the first spread with no incoming edge, then the first spread.
+    const coverSpread = spreads.find(s => (s as any).tag === "cover");
+    let rootId: string;
+    if (coverSpread && !incoming.has(coverSpread.id)) {
+      rootId = coverSpread.id;
+    } else {
+      const root = spreads.find(s => !incoming.has(s.id) && outMap.has(s.id));
+      rootId = root ? root.id : spreads[0].id;
+    }
+    const ordered: typeof spreads = [];
+    const visited = new Set<string>();
+    const byId = new Map(spreads.map(s => [s.id, s]));
+    const walk = (id: string) => {
+      if (visited.has(id) || !byId.has(id)) return;
+      visited.add(id);
+      ordered.push(byId.get(id)!);
+      for (const nid of outMap.get(id) || []) walk(nid);
+    };
+    walk(rootId);
+    // Append any spreads the author never wired up so nothing is lost.
+    for (const s of spreads) if (!visited.has(s.id)) ordered.push(s);
+    // Force any back-cover-tagged spread to the very end for correct framing.
+    const backIdx = ordered.findIndex(s => (s as any).tag === "back-cover");
+    if (backIdx >= 0 && backIdx !== ordered.length - 1) {
+      const [bc] = ordered.splice(backIdx, 1);
+      ordered.push(bc);
+    }
+    return ordered;
+  }, [spreads, flowConnections]);
+
   const contentPages = useMemo(() => {
-    const pages: { panels: Panel[]; spreadIndex: number }[] = [];
-    spreads.forEach((spread, si) => {
-      if (spread.leftPage && spread.leftPage.length > 0) {
-        pages.push({ panels: spread.leftPage, spreadIndex: si });
+    const pages: { panels: Panel[]; spreadIndex: number; spreadId: string; isLastPageOfSpread: boolean }[] = [];
+    orderedSpreads.forEach((spread, si) => {
+      const hasLeft = spread.leftPage && spread.leftPage.length > 0;
+      const hasRight = spread.rightPage && spread.rightPage.length > 0;
+      if (hasLeft) {
+        pages.push({ panels: spread.leftPage, spreadIndex: si, spreadId: spread.id, isLastPageOfSpread: !hasRight });
       }
-      if (spread.rightPage && spread.rightPage.length > 0) {
-        pages.push({ panels: spread.rightPage, spreadIndex: si });
+      if (hasRight) {
+        pages.push({ panels: spread.rightPage, spreadIndex: si, spreadId: spread.id, isLastPageOfSpread: true });
       }
     });
     return pages;
-  }, [spreads]);
+  }, [orderedSpreads]);
   const allPages = contentPages;
   const totalPageCount = (hasFrontCover ? 1 : 0) + contentPages.length + (hasBackCover ? 1 : 0);
+
+  // Per-spread outgoing connection map for rendering branching choice buttons
+  // at the end of any spread the author wired up with multiple paths.
+  const outgoingBySpread = useMemo(() => {
+    const m = new Map<string, { fromId: string; toId: string }[]>();
+    if (flowConnections.length === 0) return m;
+    const validIds = new Set(spreads.map(s => s.id));
+    for (const c of flowConnections) {
+      if (!validIds.has(c.fromId) || !validIds.has(c.toId)) continue;
+      if (!m.has(c.fromId)) m.set(c.fromId, []);
+      m.get(c.fromId)!.push(c);
+    }
+    return m;
+  }, [flowConnections, spreads]);
+
+  const currentPage = allPages[currentSpreadIndex];
+  const currentOutgoing = currentPage ? (outgoingBySpread.get(currentPage.spreadId) || []) : [];
+  const showBranchingChoices = !!currentPage && currentPage.isLastPageOfSpread && currentOutgoing.length >= 2;
+
+  // Map a spread id to the index of that spread's first page in allPages, so
+  // tapping a choice button jumps the reader to the start of the target.
+  const firstPageIndexBySpread = useMemo(() => {
+    const m = new Map<string, number>();
+    allPages.forEach((p, i) => { if (!m.has(p.spreadId)) m.set(p.spreadId, i); });
+    return m;
+  }, [allPages]);
 
   const goToSpread = (index: number) => {
     if (index >= 0 && index < allPages.length) {
@@ -547,6 +636,38 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
+              {/* Mapping-mode branching choice UI. Mirrors the editor's Flow
+                  Preview: when the current spread has 2+ outgoing connections
+                  the reader exposes them as labelled branches the reader can
+                  pick. Single connections fall through to plain Next. */}
+              {showBranchingChoices && (
+                <div className="mt-6 max-w-2xl mx-auto p-4 bg-cyan-500/5 border-2 border-cyan-500/40" data-testid="branching-choices">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 mb-3">
+                    Choose your path
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {currentOutgoing.map((conn, ci) => {
+                      const targetIdx = firstPageIndexBySpread.get(conn.toId);
+                      if (targetIdx === undefined) return null;
+                      const targetSpread = orderedSpreads.find(s => s.id === conn.toId);
+                      const targetTag = (targetSpread as any)?.tag as string | undefined;
+                      const targetLabel = targetTag === "back-cover"
+                        ? "Back Cover"
+                        : `Spread ${targetIdx + 1}`;
+                      return (
+                        <button
+                          key={`${conn.toId}-${ci}`}
+                          onClick={() => goToSpread(targetIdx)}
+                          className="text-left px-4 py-3 border-2 border-zinc-700 bg-zinc-900 hover:border-cyan-500 hover:bg-cyan-500/10 transition-colors text-sm font-bold text-zinc-200"
+                          data-testid={`button-branch-choice-${ci}`}
+                        >
+                          <span className="text-cyan-400 mr-2">→</span>{targetLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

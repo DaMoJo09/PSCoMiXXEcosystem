@@ -259,7 +259,9 @@ export default function PricingPage() {
                       <TierIcon className="w-5 h-5" />
                       <div>
                         <span className="font-black uppercase text-sm">{tier.name}</span>
-                        <span className="text-zinc-400 text-sm ml-2">{tier.price}/{tier.interval}</span>
+                        {/* Apple guideline 3.1.3 / 3.1.1: don't display
+                            external subscription prices inside the iOS app.
+                            Pricing is shown on the web at pscomixx.com. */}
                       </div>
                     </div>
                     {isCurrentPlan && (

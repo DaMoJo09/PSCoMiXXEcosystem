@@ -61,6 +61,7 @@ import { AppIconInline } from "@/components/ui/app-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount, getLastSyncTime, startBackgroundSync, subscribeSyncStatus, type SyncStatus, type ConflictInfo, resolveConflict } from "@/lib/offlineStorage";
 
 interface AppSidebarProps {
@@ -532,7 +533,12 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           <>
             {renderSectionLabel("Community", "community-nav-label")}
             {communityTools.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
-            {ecosystemToolsBase.filter(item => !isStudent || item.studentOk).map((item) => renderNavLink(item, true))}
+            {ecosystemToolsBase
+              .filter(item => !isStudent || item.studentOk)
+              // Apple guideline 3.1.1: hide Pricing nav inside the iOS app —
+              // subscriptions are managed externally on pscomixx.com.
+              .filter(item => !(shouldBlockDirectPayments() && item.href === "/pricing"))
+              .map((item) => renderNavLink(item, true))}
           </>
         )}
 
@@ -655,9 +661,12 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               <div className="pt-2 mt-1 border-t border-zinc-800 space-y-1.5" data-testid="sidebar-usage-counters">
                 <UsageBar label="AI" used={usageStatus.ai.used} limit={usageStatus.ai.limit} unit="/day" />
                 <UsageBar label="Exports" used={usageStatus.export.used} limit={usageStatus.export.limit} unit="/mo" />
-                <Link href="/pricing" className="block text-[9px] text-cyan-400 hover:text-cyan-300 font-bold uppercase mt-1" data-testid="link-sidebar-upgrade">
-                  View plans
-                </Link>
+                {/* Hide the upgrade CTA inside the iOS app — Apple guideline 3.1.1. */}
+                {!shouldBlockDirectPayments() && (
+                  <Link href="/pricing" className="block text-[9px] text-cyan-400 hover:text-cyan-300 font-bold uppercase mt-1" data-testid="link-sidebar-upgrade">
+                    View plans
+                  </Link>
+                )}
               </div>
             )}
           </div>

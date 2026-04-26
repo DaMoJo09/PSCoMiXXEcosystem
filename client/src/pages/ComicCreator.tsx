@@ -35,6 +35,7 @@ import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
 import { saveProjectWithOfflineFallback, type SaveResult } from "@/lib/offlineStorage";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
+import { shouldBlockDirectPayments } from "@/lib/platform";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
 import SendToMenu from "@/components/ecosystem/SendToMenu";
 import type { AssetTag } from "@/types/asset-tags";
@@ -2293,6 +2294,35 @@ export default function ComicCreator() {
       if (data?.activeMode && ["layout","ink","color","motion","fx","text"].includes(data.activeMode)) {
         setActiveMode(data.activeMode as ModeId);
       }
+      // Restore Mapping (prototype-mode) connections. We only honor connections
+      // whose endpoints still exist in the spreads we just hydrated — stale
+      // edges left over from deleted pages would otherwise produce orphan
+      // branches in the published reader. If nothing was previously saved we
+      // intentionally leave the linear default that the state initializer set.
+      if (Array.isArray(data?.flowConnections)) {
+        const restoredSpreads: any[] = data?.spreads?.length > 0 ? data.spreads : [];
+        // If we have no spreads to anchor the connections to we just drop them
+        // — there's nothing meaningful to connect, and saving them back would
+        // permanently bake in orphan IDs from a foreign project state.
+        const validIds = new Set<string>();
+        for (const sp of restoredSpreads) {
+          if (sp?.id) {
+            validIds.add(sp.id);
+            validIds.add(`cover_${sp.id}`);
+            validIds.add(`backcover_${sp.id}`);
+          }
+        }
+        const cleaned: FlowConnection[] = restoredSpreads.length === 0 ? [] : data.flowConnections
+          .filter((c: any) => c && typeof c.fromId === "string" && typeof c.toId === "string")
+          .filter((c: any) => validIds.has(c.fromId) && validIds.has(c.toId))
+          .map((c: any) => ({
+            fromId: c.fromId,
+            toId: c.toId,
+            fromSide: (c.fromSide === "left" || c.fromSide === "right" || c.fromSide === "top" || c.fromSide === "bottom") ? c.fromSide : "right",
+            toSide: (c.toSide === "left" || c.toSide === "right" || c.toSide === "top" || c.toSide === "bottom") ? c.toSide : "left",
+          }));
+        setFlowConnections(cleaned);
+      }
       // Mark this project as hydrated ONLY after all state has been applied.
       // If anything above threw, we leave the ref unset so the next render
       // can retry hydration instead of permanently locking the project out.
@@ -2413,8 +2443,8 @@ export default function ComicCreator() {
   // get silently resurrected from the stale server copy. (Critical student
   // data-loss bug fix.)
   const hydratedForProjectRef = useRef<string | null>(null);
-  const latestDataRef = useRef({ title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId });
-  latestDataRef.current = { title, spreads, comicMeta, coverDesignData, projectId: effectiveProjectId };
+  const latestDataRef = useRef({ title, spreads, comicMeta, coverDesignData, flowConnections, projectId: effectiveProjectId });
+  latestDataRef.current = { title, spreads, comicMeta, coverDesignData, flowConnections, projectId: effectiveProjectId };
 
   const projectConfirmedRef = useRef(false);
   const saveDisabledRef = useRef(false);
@@ -2443,7 +2473,7 @@ export default function ComicCreator() {
       autoSaveTimerRef.current = null;
     }
     const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
-    const payload = { spreads: s, comicMeta: comicMetaSafe, ...(cd ? { coverDesign: cd } : {}) };
+    const payload = { spreads: s, comicMeta: comicMetaSafe, flowConnections: latestDataRef.current.flowConnections || [], ...(cd ? { coverDesign: cd } : {}) };
     // Always write a local snapshot first so the work is recoverable no matter
     // what the server does. This is the seatbelt — every other failure mode
     // below is allowed to fail without losing student work. Size-guarded so a
@@ -2511,12 +2541,12 @@ export default function ComicCreator() {
   useEffect(() => {
     return () => {
       if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current && dataLoadedFromServerRef.current) {
-        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
+        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd, flowConnections: fc } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
           );
         }
       }
@@ -2526,12 +2556,12 @@ export default function ComicCreator() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (pendingSaveRef.current && projectConfirmedRef.current && !saveDisabledRef.current && dataLoadedFromServerRef.current) {
-        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd } = latestDataRef.current;
+        const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd, flowConnections: fc } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
           );
         }
         e.preventDefault();
@@ -2663,7 +2693,7 @@ export default function ComicCreator() {
       // stale work without telling the user.
       if (effectiveProjectId) {
         const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
-        const payload = { spreads, comicMeta: comicMetaSafe, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+        const payload = { spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
         safeWriteLocalBackup(effectiveProjectId, title, payload);
         const flushRes = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
           method: "POST",
@@ -2708,7 +2738,7 @@ export default function ComicCreator() {
     pendingSaveRef.current = false;
     try {
       const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
-      const payload = { spreads, comicMeta: comicMetaSafe, activeMode, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+      const payload = { spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
       // Mirror the autosave seatbelt: write a local backup before the network
       // call so a flaky connection can't lose the student's manual save.
       safeWriteLocalBackup(effectiveProjectId, title, payload);
@@ -3694,6 +3724,7 @@ export default function ComicCreator() {
               title,
               coverDesign: coverDesignData,
               comicMeta: updatedMeta,
+              flowConnections,
             },
             thumbnail: compiledFrontCover || undefined,
           }),
@@ -3880,6 +3911,7 @@ export default function ComicCreator() {
         type: "comic",
         spreads,
         comicMeta,
+        flowConnections,
         exportedAt: new Date().toISOString(),
       };
       
@@ -6612,7 +6644,7 @@ export default function ComicCreator() {
                     <p className="text-[10px] text-zinc-500 mt-0.5">Print-ready 300 DPI with covers</p>
                   </div>
                 </DropdownMenuItem>
-                {tier === "free" || tier === "creator" ? (
+                {(tier === "free" || tier === "creator") && !shouldBlockDirectPayments() ? (
                   <>
                     <DropdownMenuSeparator className="bg-zinc-700" />
                     <DropdownMenuItem
@@ -9294,13 +9326,17 @@ export default function ComicCreator() {
             <span className="text-sm font-black">Your export includes a watermark</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/pricing")}
-              className="px-4 py-1.5 bg-black text-white font-black text-xs uppercase hover:bg-zinc-800 transition-colors"
-              data-testid="button-watermark-upgrade"
-            >
-              Upgrade to Pro — Remove watermark
-            </button>
+            {/* Apple guideline 3.1.1: hide upgrade CTA inside the iOS app —
+                managed externally on pscomixx.com. */}
+            {!shouldBlockDirectPayments() && (
+              <button
+                onClick={() => navigate("/pricing")}
+                className="px-4 py-1.5 bg-black text-white font-black text-xs uppercase hover:bg-zinc-800 transition-colors"
+                data-testid="button-watermark-upgrade"
+              >
+                Upgrade to Pro — Remove watermark
+              </button>
+            )}
             <button
               onClick={() => setShowWatermarkBanner(false)}
               className="p-1 hover:bg-amber-600 transition-colors"
