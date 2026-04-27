@@ -1047,7 +1047,7 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
   );
 }
 
-function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads, coverDesignData, effectiveFrontCover, effectiveBackCover }: {
+function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEditSpread, onClose, setSpreads, coverDesignData, effectiveFrontCover, effectiveBackCover, flowConnections, setFlowConnections }: {
   spreads: Spread[];
   currentSpreadIndex: number;
   onSelectSpread: (index: number) => void;
@@ -1057,6 +1057,10 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   coverDesignData?: Partial<CoverData>;
   effectiveFrontCover: string;
   effectiveBackCover: string;
+  // Lifted state: ComicCreator owns flowConnections so save/hydration paths
+  // can read and write the same source of truth as the editor UI here.
+  flowConnections: FlowConnection[];
+  setFlowConnections: React.Dispatch<React.SetStateAction<FlowConnection[]>>;
 }) {
   const [mode, setMode] = useState<OverviewMode>("design");
   const [showLayersPanel, setShowLayersPanel] = useState(true);
@@ -1088,14 +1092,8 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     });
     return m;
   });
-  const [flowConnections, setFlowConnections] = useState<FlowConnection[]>(() =>
-    spreads.slice(0, -1).map((s, idx) => ({
-      fromId: s.id,
-      toId: spreads[idx + 1].id,
-      fromSide: "right" as Side,
-      toSide: "left" as Side,
-    }))
-  );
+  // flowConnections + setFlowConnections come in as props from ComicCreator
+  // (lifted state) so persistence and editor UI share one source of truth.
   const [showFlowPreview, setShowFlowPreview] = useState(false);
   const [layerPage, setLayerPage] = useState<"left" | "right">("left");
 
@@ -1900,6 +1898,11 @@ export default function ComicCreator() {
   }, []);
 
   const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0);
+  // Mapping-mode flow connections live at the ComicCreator level so they can
+  // be persisted (autosave/handleSave/sendBeacon/JSON export) and restored on
+  // hydration. ComicCanvasOverview reads/writes them via props. Initialized
+  // empty — hydration replaces them when a saved project is loaded.
+  const [flowConnections, setFlowConnections] = useState<FlowConnection[]>([]);
   const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState<"left" | "right">("left");
@@ -7036,6 +7039,8 @@ export default function ComicCreator() {
                 coverDesignData={coverDesignData}
                 effectiveFrontCover={effectiveFrontCover}
                 effectiveBackCover={effectiveBackCover}
+                flowConnections={flowConnections}
+                setFlowConnections={setFlowConnections}
               />
             ) : (
             <>
