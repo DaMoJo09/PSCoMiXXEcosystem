@@ -404,11 +404,33 @@ const FONT_OPTIONS = [
 ];
 
 
+// Custom Caption (T) icon. The lucide Type glyph sits flush against the top
+// of its 24x24 viewBox, which makes the crossbar visually clip against the
+// button's rounded corner on small toolbar buttons. This version inset the
+// crossbar to y=7 and the descender base to y=18 so the T has comfortable
+// padding inside the button and never appears cut off.
+const CaptionIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M6 7h12" />
+    <path d="M12 7v11" />
+    <path d="M9.5 18h5" />
+  </svg>
+);
+
 const tools = [
   { id: "select", icon: MousePointer, label: "Select/Move", shortcut: "V" },
   { id: "panel", icon: Square, label: "Panel", shortcut: "P" },
   { id: "draw", icon: Pen, label: "Draw", shortcut: "B" },
-  { id: "text", icon: Type, label: "Caption", shortcut: "T" },
+  { id: "text", icon: CaptionIcon, label: "Caption", shortcut: "T" },
   { id: "ai", icon: Wand2, label: "AI Gen", shortcut: "G" },
 ];
 
