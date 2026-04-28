@@ -12091,6 +12091,10 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           createdBy: null as any,
         },
         // ---- Vintage comic-ad styles (modeled on classic mid-century back-of-book ads) ----
+        // Image URLs use https://images.unsplash.com which is in the
+        // PROMO_IMAGE_ALLOWED_HOSTS allowlist. They're real stock photos so
+        // users see a populated, realistic vintage ad as soon as the template
+        // loads (instead of a blank illustration slot).
         {
           title: "Vintage Mail-Order — How To...",
           type: "platform",
@@ -12105,7 +12109,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
               "Want the thrill of bringing your own characters to life? PSCoMiXX gives you everything you need: stylus-powered drawing, smart panels, FX, and instant publishing. Perfect for schools, creators, and stay-up-late dreamers.\n\nStart for FREE today — no credit card required.",
             ctaText: "Mail Coupon Today",
             qrUrl: "pscomixx.com/start",
-            imageUrl: "",
+            imageUrl: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=600&q=80&auto=format&fit=crop",
           },
           isSchoolSafe: true,
           isActive: true,
@@ -12125,7 +12129,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
               "WHAT WE PROMISED: A creator studio that turns your wild ideas into a finished comic in minutes.\n\nWHAT YOU GET: Stylus-powered drawing tools, AI-assisted panels, instant export to PDF/PNG/JSON, and one-click publishing to PSStreaming.\n\nBEHIND THE MAGIC: Built on years of comic-making craft, PSCoMiXX combines the joy of paper-and-pen with the power of modern devices.\n\nGUARANTEED to make a creator out of you — or your money back. (Just kidding, the free tier is actually free.)",
             ctaText: "Send No Money!",
             qrUrl: "pscomixx.com",
-            imageUrl: "",
+            imageUrl: "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80&auto=format&fit=crop",
             logoUrl: "",
           },
           isSchoolSafe: true,
@@ -12142,9 +12146,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           templateJson: {
             headline: "",
             strips: [
-              { title: "INKBLADE STYLUS",   subtitle: "The all-new pressure-sensitive pen!", badge: "NEW!",          imageUrl: "" },
-              { title: "PSSTREAMING",       subtitle: "Watch and publish comics worldwide.", badge: "ON AIR",        imageUrl: "" },
-              { title: "FX STUDIO",         subtitle: "Effects that bring your panels alive.", badge: "FREE TRIAL",  imageUrl: "" },
+              { title: "INKBLADE STYLUS",   subtitle: "The all-new pressure-sensitive pen!", badge: "NEW!",          imageUrl: "https://images.unsplash.com/photo-1583394293214-28ded15ee548?w=400&q=80&auto=format&fit=crop" },
+              { title: "PSSTREAMING",       subtitle: "Watch and publish comics worldwide.", badge: "ON AIR",        imageUrl: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&q=80&auto=format&fit=crop" },
+              { title: "FX STUDIO",         subtitle: "Effects that bring your panels alive.", badge: "FREE TRIAL",  imageUrl: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=400&q=80&auto=format&fit=crop" },
             ],
           },
           isSchoolSafe: true,
@@ -12152,12 +12156,49 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           createdBy: null as any,
         },
       ];
-      const toInsert = seeds.filter(s => !existingStyles.has(String(s.layoutStyle || "")));
-      for (const s of toInsert) {
-        await storage.createPromoTemplate(s);
+
+      // Upsert pass: insert brand-new layoutStyles, and for existing
+      // platform-managed templates, BACKFILL empty image fields from the latest
+      // seed values. We never overwrite non-empty fields — if an admin already
+      // edited the template, their edits win.
+      const existingByStyle = new Map(
+        existing.map(t => [String(t.layoutStyle || ""), t] as const)
+      );
+      let insertedCount = 0;
+      let backfilledCount = 0;
+      for (const seed of seeds) {
+        const style = String(seed.layoutStyle || "");
+        const found = existingByStyle.get(style);
+        if (!found) {
+          await storage.createPromoTemplate(seed);
+          insertedCount++;
+          continue;
+        }
+        // Only auto-backfill platform templates with no human author. Avoids
+        // clobbering anything an admin/creator has touched.
+        if (found.createdBy !== null || found.type !== "platform") continue;
+        const cur: any = (found.templateJson as any) || {};
+        const next: any = (seed.templateJson as any) || {};
+        const merged: any = { ...cur };
+        let changed = false;
+        for (const key of ["imageUrl", "logoUrl"] as const) {
+          if (next[key] && !cur[key]) { merged[key] = next[key]; changed = true; }
+        }
+        if (Array.isArray(next.strips) && Array.isArray(cur.strips)) {
+          const mergedStrips = cur.strips.map((s: any, i: number) => {
+            const ns = next.strips?.[i];
+            if (ns?.imageUrl && !s?.imageUrl) { changed = true; return { ...s, imageUrl: ns.imageUrl }; }
+            return s;
+          });
+          if (changed) merged.strips = mergedStrips;
+        }
+        if (changed) {
+          await storage.updatePromoTemplate(found.id, { templateJson: merged });
+          backfilledCount++;
+        }
       }
-      if (toInsert.length > 0) {
-        console.log(`[promo] Seeded ${toInsert.length} new platform promo template(s): ${toInsert.map(t => t.layoutStyle).join(", ")}`);
+      if (insertedCount > 0 || backfilledCount > 0) {
+        console.log(`[promo] Seed pass: inserted=${insertedCount}, backfilled=${backfilledCount}`);
       }
     }
   } catch (err: any) {

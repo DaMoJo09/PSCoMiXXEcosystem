@@ -2052,6 +2052,20 @@ export default function ComicCreator() {
   const [brushColor, setBrushColor] = useState("#000000");
   void brushColor;
   const [zoom, setZoom] = useState(100);
+  // Tracks whether the user has touched the zoom controls. Once true, auto-fit
+  // never overrides them (until they explicitly click the % readout to re-fit).
+  const hasAutoFittedRef = useRef(false);
+  // Bumping this state forces the auto-fit effect to re-run even though
+  // hasAutoFittedRef has been flipped to true. The user clicks the % readout
+  // to re-fit, which (a) clears the ref and (b) bumps this nonce, ensuring the
+  // effect sees a dep change and recomputes.
+  const [refitNonce, setRefitNonce] = useState(0);
+  // Wraps setZoom for the +/- buttons so manual user zoom disables auto-fit
+  // forever (otherwise next remount could reset their pick).
+  const setZoomManual = useCallback((updater: number | ((z: number) => number)) => {
+    hasAutoFittedRef.current = true;
+    setZoom(prev => typeof updater === "function" ? (updater as (z: number) => number)(prev) : updater);
+  }, []);
   const spreadAudioRef = useRef<HTMLAudioElement | null>(null);
   const spreadAudioInputRef = useRef<HTMLInputElement>(null);
   
@@ -2099,6 +2113,40 @@ export default function ComicCreator() {
 
   const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
+
+  // Auto-fit zoom on first render: pick a zoom level that fits the natural
+  // spread (or single promo page) inside the available canvas viewport.
+  // Runs once per session — after the user manually zooms, hasAutoFittedRef
+  // sticks at true and we never override their pick. We re-fit when the user
+  // toggles fullscreen mode because the available area changes.
+  useEffect(() => {
+    if (hasAutoFittedRef.current) return;
+    const compute = () => {
+      const isPromo = !!currentSpread?.isPromoPage;
+      // Natural sizes: a regular spread = 2 pages (650 each) + 24px gap.
+      // Fullscreen = 800 each + 8px gap. Promo page = single 650 page.
+      const nW = isPromo ? 650 : (isFullscreen ? 1608 : 1324);
+      const nH = isFullscreen ? 1130 : 920;
+      // Available canvas area: subtract sidebar (~64px), optional layers
+      // panel (256px), and main paddings (~80px). Vertically: header +
+      // toolbar + breadcrumbs + bottom controls add up to ~280px.
+      const sidebar = 64;
+      const layersPanel = showLayers ? 256 : 0;
+      const hPad = 80;
+      const vPad = 280;
+      const availW = Math.max(320, window.innerWidth - sidebar - layersPanel - hPad);
+      const availH = Math.max(320, window.innerHeight - vPad);
+      const fit = Math.min(availW / nW, availH / nH, 1);
+      const pct = Math.max(25, Math.min(100, Math.floor(fit * 100)));
+      setZoom(pct);
+    };
+    // Defer one frame so the layout settles after spread switches.
+    const raf = requestAnimationFrame(() => {
+      compute();
+      hasAutoFittedRef.current = true;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [currentSpread?.isPromoPage, isFullscreen, showLayers, refitNonce]);
 
   useEffect(() => {
     if (!fxStudio.isOpen) return;
@@ -7254,11 +7302,16 @@ export default function ComicCreator() {
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-center gap-1 ml-4 bg-zinc-800/50 rounded-lg px-1 py-0.5">
-                <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1 hover:bg-white/10 rounded">
+                <button onClick={() => setZoomManual(z => Math.max(25, z - 10))} className="p-1 hover:bg-white/10 rounded" data-testid="button-zoom-out">
                   <ZoomOut className="w-4 h-4" />
                 </button>
-                <span className="w-12 text-center text-[11px] text-zinc-400">{zoom}%</span>
-                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="p-1 hover:bg-white/10 rounded">
+                <button
+                  onClick={() => { hasAutoFittedRef.current = false; setRefitNonce(n => n + 1); }}
+                  className="w-12 text-center text-[11px] text-zinc-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                  title="Click to refit page to screen"
+                  data-testid="button-zoom-fit"
+                >{zoom}%</button>
+                <button onClick={() => setZoomManual(z => Math.min(200, z + 10))} className="p-1 hover:bg-white/10 rounded" data-testid="button-zoom-in">
                   <ZoomIn className="w-4 h-4" />
                 </button>
                 <div className="w-px h-4 bg-zinc-700 mx-0.5" />
@@ -7465,7 +7518,7 @@ export default function ComicCreator() {
               </div>
             ) : (
             <div 
-              className={`flex ${isFullscreen ? "gap-1" : "gap-6"} ${showPreview ? 'hidden' : ''}`}
+              className={`flex justify-center ${isFullscreen ? "gap-1" : "gap-6"} ${showPreview ? 'hidden' : ''}`}
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.5))' }}
             >
               <ContextMenu>
@@ -7514,6 +7567,14 @@ export default function ComicCreator() {
                     <ContextMenuItem onClick={() => addTextPanelToPanel("left", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer" data-testid="menu-add-text-page-left">
                       <AlignJustify className="w-4 h-4 mr-2" /> Add Text Page
                     </ContextMenuItem>
+                  )}
+                  {promoPagesEnabled && (
+                    <>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem onClick={() => setPromoStudioOpen(true)} className="hover:bg-amber-900/30 hover:text-amber-300 cursor-pointer" data-testid="menu-insert-promo-left">
+                        <Megaphone className="w-4 h-4 mr-2" /> Insert Promo / Vintage Ad…
+                      </ContextMenuItem>
+                    </>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
@@ -7776,6 +7837,14 @@ export default function ComicCreator() {
                     <ContextMenuItem onClick={() => addTextPanelToPanel("right", selectedPanelId)} className="hover:bg-zinc-800 cursor-pointer" data-testid="menu-add-text-page-right">
                       <AlignJustify className="w-4 h-4 mr-2" /> Add Text Page
                     </ContextMenuItem>
+                  )}
+                  {promoPagesEnabled && (
+                    <>
+                      <ContextMenuSeparator className="bg-zinc-700" />
+                      <ContextMenuItem onClick={() => setPromoStudioOpen(true)} className="hover:bg-amber-900/30 hover:text-amber-300 cursor-pointer" data-testid="menu-insert-promo-right">
+                        <Megaphone className="w-4 h-4 mr-2" /> Insert Promo / Vintage Ad…
+                      </ContextMenuItem>
+                    </>
                   )}
                   <ContextMenuSeparator className="bg-zinc-700" />
                   <ContextMenuSub>
