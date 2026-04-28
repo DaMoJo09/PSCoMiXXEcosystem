@@ -141,9 +141,15 @@ export interface PromoTemplateData {
   // dragged, resized, rotated, and (for text) edited inline. Rendered on top
   // of whichever layout body the template uses.
   freeElements?: PromoElement[];
+  // When true the renderer skips the structured template body (ModernBody,
+  // VintageMailOrderBody, etc.) and only paints the page background plus the
+  // freeElements on top. Used by "Edit Freely" mode where the template is
+  // exploded into editable elements instead of fixed slots.
+  hideTemplateBody?: boolean;
 }
 
-export type PromoElementKind = "text" | "image";
+export type PromoElementKind = "text" | "image" | "shape";
+export type PromoShapeType = "rect" | "circle" | "line";
 export interface PromoElement {
   id: string;
   kind: PromoElementKind;
@@ -167,6 +173,12 @@ export interface PromoElement {
   src?: string;
   alt?: string;
   fit?: "contain" | "cover";
+  // shape-only
+  shapeType?: PromoShapeType;
+  fillColor?: string;           // hex, "transparent" not allowed — use opacity 0 via alpha hex
+  strokeColor?: string;         // hex
+  strokeWidth?: number;         // px
+  borderRadius?: number;        // px (rect only)
 }
 
 export interface PromoStrip {
