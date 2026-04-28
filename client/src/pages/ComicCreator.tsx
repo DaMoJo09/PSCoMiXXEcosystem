@@ -1954,6 +1954,24 @@ export default function ComicCreator() {
       const target = payload.target;
       if (!target || !payload.previewUrl) return;
 
+      // Defensive XP credit: even if FX Studio's external webhook to our
+      // /api/ecosystem/ingest/xp endpoint doesn't fire (network drop, repo
+      // out of sync, etc.), fire a same-session "generate" XP action so the
+      // kid always sees credit for completing FX work. The server enforces
+      // a 10s cooldown per (user, action) so this is safe to fire on every
+      // return without double-crediting. Fire-and-forget; never block the
+      // asset application on this.
+      fetch("/api/xp/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "generate",
+          referenceId: payload.effectId || payload.assetTag,
+          referenceType: "fx_asset_returned",
+        }),
+      }).catch(() => { /* swallow — XP credit is best-effort */ });
+
       if (target.type === "cover") {
         setCoverDesignData(prev => ({
           ...prev,

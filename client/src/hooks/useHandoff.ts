@@ -1,6 +1,11 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 
+// FX Studio is hosted externally at pscomixx.online (separate Lovable repo).
+// Mirror the constant from useFxStudio so the two launch paths agree on
+// where FX Studio actually lives.
+const FX_STUDIO_BASE = "https://www.pscomixx.online";
+
 export interface HandoffContext {
   projectId?: string;
   assetIds?: string[];
@@ -46,16 +51,37 @@ export function useHandoff() {
   }, []);
 
   const launchFxStudio = useCallback(async (context: HandoffContext) => {
-    // FX Studio lives inside this same app at /fx-studio — navigate in-app
-    // instead of opening an external URL that 404s.
+    // FX Studio is hosted at FX_STUDIO_BASE (separate app). Open it in a
+    // NEW TAB so the current page (e.g. ComicCreator) stays mounted —
+    // otherwise the parent's `useFxStudio` message listener is destroyed
+    // and any "panel-fx-return" postMessage from FX Studio has nowhere to
+    // land, which is why effects/covers/price-tags weren't coming back
+    // and XP wasn't crediting. If popups are blocked, fall back to the
+    // in-app launcher page so the user is never stranded.
     const result = await prepareHandoff("fxstudio", context);
     const params = new URLSearchParams();
     if (result?.ticketToken) params.set("ticket", result.ticketToken);
-    if (context.projectId) params.set("projectId", context.projectId);
+    if (context.projectId) params.set("returnProject", context.projectId);
     if (context.contentType) params.set("contentType", context.contentType);
-    if (context.assetIds?.length) params.set("assetIds", context.assetIds.join(","));
+    if (context.assetIds?.length) params.set("import", context.assetIds.join(","));
     const qs = params.toString();
-    window.location.assign(qs ? `/fx-studio?${qs}` : "/fx-studio");
+    const externalUrl = `${FX_STUDIO_BASE}${qs ? `?${qs}` : ""}`;
+
+    // Try popup first. We use a named target so a second click reuses the
+    // same FX tab instead of stacking up windows.
+    const win = window.open(externalUrl, "fx-studio");
+    if (!win) {
+      // Popup blocked. We deliberately do NOT navigate the comic away to
+      // /fx-studio — that would unmount ComicCreator and re-create the
+      // exact bug this fix addresses (return messages have nowhere to land,
+      // kid loses their place). Instead, prompt the user to enable popups
+      // and re-click. The browser remembers the user gesture for the retry.
+      toast.error(
+        "Popup blocked. Allow popups for this site, then click Send to FX again.",
+        { duration: 8000 }
+      );
+    }
+
     if (result?.schoolSafeActive) {
       toast.info("School-safe mode active for this session");
     }

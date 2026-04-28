@@ -92,10 +92,31 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
         case "fx-studio-ready":
         case "fx-studio-pong":
           studioOriginRef.current = event.origin;
+          // ADOPT-ON-HANDSHAKE: only adopt the source window when FX Studio
+          // explicitly identifies itself with the "ready" / "pong" handshake.
+          // Adopting on any inbound message would let any allowed-origin
+          // page spoof itself as FX Studio and inject panel-fx-return /
+          // asset-export payloads into the comic. The handshake messages are
+          // produced only by the actual FX Studio app boot/ping handler.
+          if (!studioWindowRef.current && event.source) {
+            try {
+              studioWindowRef.current = event.source as Window;
+              setIsOpen(true);
+            } catch {}
+          }
           setConnected(true);
           break;
 
         case "panel-fx-return": {
+          // Defense-in-depth: require an established handshake (a tracked
+          // studio window) before accepting any return payload. Without
+          // this, any allowed-origin page could forge a panel-fx-return
+          // and inject an image into the comic. Adoption only happens on
+          // the explicit fx-studio-ready / fx-studio-pong handshake.
+          if (!studioWindowRef.current || event.source !== studioWindowRef.current) {
+            console.warn("[FX] Dropped panel-fx-return — no established FX session");
+            break;
+          }
           const enriched = { ...payload, target: payload?.target || activeTargetRef.current };
           if (enriched && optionsRef.current.onAssetReturned) {
             optionsRef.current.onAssetReturned(enriched);
@@ -112,6 +133,10 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
         }
 
         case "asset-export": {
+          if (!studioWindowRef.current || event.source !== studioWindowRef.current) {
+            console.warn("[FX] Dropped asset-export — no established FX session");
+            break;
+          }
           const enrichedExport = { ...payload, target: payload?.target || activeTargetRef.current };
           if (enrichedExport && optionsRef.current.onAssetExported) {
             optionsRef.current.onAssetExported(enrichedExport);
