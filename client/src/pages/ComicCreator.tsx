@@ -47,6 +47,9 @@ import { FxStudioStatusBar } from "@/components/EmbeddedFxStudio";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
 import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
+import { PromoPageStudio, PromoPageRenderer, type PromoTemplate, type PromoCustomData, type PromoInsertPayload } from "@/components/promo/PromoPageStudio";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { Megaphone } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -204,6 +207,10 @@ interface Spread {
   rightNarration?: NarrationBox;
   isLastPage?: boolean;
   tag?: SpreadTag;
+  isPromoPage?: boolean;
+  promoTemplateId?: string;
+  promoTemplateSnapshot?: PromoTemplate;
+  promoCustomData?: PromoCustomData;
 }
 
 const COMIC_IMAGE_FILTERS = [
@@ -1280,6 +1287,26 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     setSpreads(prev => [...prev, { id: newId, leftPage: [], rightPage: [] }]);
   }, [setSpreads]);
 
+  const insertPromoSpread = useCallback((payload: PromoInsertPayload) => {
+    const newId = `promo_${Date.now()}`;
+    const newSpread: Spread = {
+      id: newId,
+      leftPage: [],
+      rightPage: [],
+      isPromoPage: true,
+      promoTemplateId: payload.templateId,
+      promoTemplateSnapshot: payload.templateSnapshot,
+      promoCustomData: payload.customData,
+    };
+    setSpreads(prev => {
+      const next = [...prev];
+      const insertAt = Math.min(Math.max(payload.pageIndex, 0), next.length);
+      next.splice(insertAt, 0, newSpread);
+      return next;
+    });
+    onSelectSpread(Math.min(payload.pageIndex, spreads.length));
+  }, [setSpreads, onSelectSpread, spreads.length]);
+
   const duplicateSpread = useCallback((idx: number) => {
     const src = spreads[idx];
     if (!src) return;
@@ -2135,6 +2162,12 @@ export default function ComicCreator() {
       }
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
+        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
+          pageNum++;
+          const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, 1988, 3075);
+          await syncAsset({ name: `${title} - Page ${pageNum} (Promo)`, dataUrl: promoCanvas.toDataURL("image/png"), tag: "promo-page", targetPage: pageNum });
+          continue;
+        }
         if (spread.leftPage.length > 0) {
           pageNum++;
           const leftCanvas = await exportPageToCanvas(spread.leftPage, 1988, 3075, spread.leftNarration);
@@ -3099,6 +3132,50 @@ export default function ComicCreator() {
     return { w: isFullscreen ? 800 : 650, h: isFullscreen ? 1130 : 920 };
   };
 
+  /**
+   * Renders a promo page (template + custom data) to an offscreen canvas at
+   * the requested print size. Used by both the all-PNG sync and the
+   * full-PDF export so promo pages flow inline with comic spreads.
+   * The mandatory promo label inside PromoPageRenderer is preserved.
+   */
+  const exportPromoToCanvas = async (
+    template: PromoTemplate,
+    customData: PromoCustomData | undefined,
+    pageWidth: number,
+    pageHeight: number,
+  ): Promise<HTMLCanvasElement> => {
+    const html2canvas = (await import("html2canvas")).default;
+    const ReactDOM = await import("react-dom/client");
+    const stage = document.createElement("div");
+    stage.style.cssText = `position:fixed;left:-99999px;top:0;width:${pageWidth}px;height:${pageHeight}px;background:#fff;`;
+    document.body.appendChild(stage);
+    const root = ReactDOM.createRoot(stage);
+    try {
+      await new Promise<void>((resolve) => {
+        root.render(
+          <div style={{ width: pageWidth, height: pageHeight }}>
+            <PromoPageRenderer template={template} customData={customData} />
+          </div>
+        );
+        // Two RAF ticks ensure layout + fonts settle before capture.
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      await document.fonts.ready;
+      const snap = await html2canvas(stage, {
+        backgroundColor: "#ffffff",
+        width: pageWidth,
+        height: pageHeight,
+        scale: 1,
+        useCORS: true,
+        logging: false,
+      });
+      return snap;
+    } finally {
+      root.unmount();
+      stage.remove();
+    }
+  };
+
   const exportPageToCanvas = async (panels: Panel[], pageWidth: number, pageHeight: number, narration?: NarrationBox): Promise<HTMLCanvasElement> => {
     await document.fonts.ready;
 
@@ -3947,13 +4024,18 @@ export default function ComicCreator() {
 
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
-        if (spread.leftPage.length > 0) {
-          const canvas = await exportPageToCanvas(spread.leftPage, canvasW, canvasH, spread.leftNarration);
-          addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
-        }
-        if (spread.rightPage.length > 0) {
-          const canvas = await exportPageToCanvas(spread.rightPage, canvasW, canvasH, spread.rightNarration);
-          addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
+        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
+          const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, canvasW, canvasH);
+          addImageToPDF(promoCanvas.toDataURL("image/jpeg", 0.92));
+        } else {
+          if (spread.leftPage.length > 0) {
+            const canvas = await exportPageToCanvas(spread.leftPage, canvasW, canvasH, spread.leftNarration);
+            addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
+          }
+          if (spread.rightPage.length > 0) {
+            const canvas = await exportPageToCanvas(spread.rightPage, canvasW, canvasH, spread.rightNarration);
+            addImageToPDF(canvas.toDataURL("image/jpeg", 0.92));
+          }
         }
         if (spreads.length > 3) {
           toast.info(`Processing spread ${i + 1} of ${spreads.length}...`);
@@ -4017,6 +4099,28 @@ export default function ComicCreator() {
     setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);
     setCurrentSpreadIndex(spreads.length);
   };
+
+  const { enabled: promoPagesEnabled } = useFeatureFlag("promo_pages_enabled");
+  const [promoStudioOpen, setPromoStudioOpen] = useState(false);
+
+  const insertPromoPageAtCurrent = useCallback((payload: PromoInsertPayload) => {
+    const newSpread: Spread = {
+      id: `promo_${Date.now()}`,
+      leftPage: [],
+      rightPage: [],
+      isPromoPage: true,
+      promoTemplateId: payload.templateId,
+      promoTemplateSnapshot: payload.templateSnapshot,
+      promoCustomData: payload.customData,
+    };
+    setSpreads(prev => {
+      const insertAt = Math.min(Math.max(payload.pageIndex, 0), prev.length);
+      const next = [...prev];
+      next.splice(insertAt, 0, newSpread);
+      return next;
+    });
+    setCurrentSpreadIndex(payload.pageIndex);
+  }, [setSpreads, setCurrentSpreadIndex]);
 
   const handleDeleteCurrentSpread = useCallback(() => {
     if (spreads.length <= 1) { toast.error("Cannot delete the only spread"); return; }
@@ -7327,6 +7431,39 @@ export default function ComicCreator() {
                 <span className="text-zinc-600">{currentSpread?.leftPage.length || 0}L / {currentSpread?.rightPage.length || 0}R panels</span>
               </div>
             </div>
+            {currentSpread?.isPromoPage && currentSpread.promoTemplateSnapshot ? (
+              <div
+                className={`flex justify-center ${showPreview ? 'hidden' : ''}`}
+                style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.5))' }}
+                data-testid="promo-spread-canvas"
+              >
+                <div
+                  className={`bg-white border-4 border-black relative shadow-2xl overflow-hidden ${isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"}`}
+                  style={{ maxHeight: 'calc(100vh - 180px)' }}
+                >
+                  <PromoPageRenderer
+                    template={currentSpread.promoTemplateSnapshot}
+                    customData={currentSpread.promoCustomData}
+                  />
+                  <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                    <button
+                      onClick={() => setPromoStudioOpen(true)}
+                      className="px-2 py-1 bg-black/80 text-white text-[10px] uppercase tracking-wider hover:bg-amber-600"
+                      data-testid="button-edit-promo"
+                    >
+                      Replace promo
+                    </button>
+                    <button
+                      onClick={handleDeleteCurrentSpread}
+                      className="px-2 py-1 bg-black/80 text-white text-[10px] uppercase tracking-wider hover:bg-red-700"
+                      data-testid="button-remove-promo"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div 
               className={`flex ${isFullscreen ? "gap-1" : "gap-6"} ${showPreview ? 'hidden' : ''}`}
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.5))' }}
@@ -7874,6 +8011,7 @@ export default function ComicCreator() {
                 </ContextMenuContent>
               </ContextMenu>
             </div>
+            )}
 
             <div className="flex gap-4 mt-6">
               <button 
@@ -7883,6 +8021,16 @@ export default function ComicCreator() {
               >
                 <Plus className="w-4 h-4" /> Add Spread
               </button>
+              {promoPagesEnabled && (
+                <button
+                  onClick={() => setPromoStudioOpen(true)}
+                  className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-amber-900/40 hover:text-amber-300 whitespace-nowrap"
+                  data-testid="button-add-promo-page"
+                  title="Insert a promo page after the current spread"
+                >
+                  <Megaphone className="w-4 h-4" /> + Promo Page
+                </button>
+              )}
               <button
                 onClick={handleDeleteCurrentSpread}
                 disabled={spreads.length <= 1}
@@ -9450,6 +9598,23 @@ export default function ComicCreator() {
       )}
 
       <FirstProjectGuide editorType="comic" userId={user?.id} />
+
+      {promoPagesEnabled && (
+        <PromoPageStudio
+          open={promoStudioOpen}
+          onOpenChange={setPromoStudioOpen}
+          insertAtPageIndex={currentSpread?.isPromoPage ? currentSpreadIndex : currentSpreadIndex + 1}
+          onInsert={(payload) => {
+            // If the active spread is already a promo page, swap in place by
+            // first removing it; otherwise just insert after the current spread.
+            if (currentSpread?.isPromoPage) {
+              setSpreads(prev => prev.filter((_, i) => i !== currentSpreadIndex));
+            }
+            insertPromoPageAtCurrent(payload);
+          }}
+          projectId={projectId}
+        />
+      )}
     </Layout>
   );
 }

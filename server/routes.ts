@@ -35,6 +35,7 @@ import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlag
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification, sendBugReportNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
 import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications, badges, userBadges } from "@shared/schema";
+import type { InsertPromoTemplate } from "@shared/schema";
 
 function getTodayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -11719,6 +11720,382 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ==========================================
+  // PROMO PAGE STUDIO
+  // School-safe in-comic promo/ad pages.
+  // ==========================================
+  // Strict fail-closed: missing flag, unknown error, or explicitly disabled all
+  // evaluate to FALSE. Only an explicit `enabled === true` row turns the
+  // feature on. This is required for school-safety guarantees.
+  async function isPromoPagesEnabled(): Promise<boolean> {
+    try {
+      const flag = await storage.getFeatureFlag("promo_pages_enabled");
+      return flag?.enabled === true;
+    } catch { return false; }
+  }
+  async function isPromoSponsorsEnabled(): Promise<boolean> {
+    try {
+      const flag = await storage.getFeatureFlag("promo_sponsors_enabled");
+      return flag?.enabled === true;
+    } catch { return false; }
+  }
+
+  // Centralized: can this user use this template right now?
+  // Enforces (in order): flag, sponsors-flag for sponsor type, active row,
+  // and the student safety contract (status=approved + isSchoolSafe + non-sponsor).
+  // Returns null if allowed, or an HTTP {status, message} to send back.
+  async function checkPromoTemplateAccess(req: any, t: any | null | undefined): Promise<{ status: number; message: string } | null> {
+    if (!(await isPromoPagesEnabled())) return { status: 403, message: "Promo Pages are disabled" };
+    if (!t || !t.isActive) return { status: 404, message: "Not found" };
+    const isStudent = req.user?.accountType === "student";
+    if (t.type === "sponsor") {
+      // Sponsor templates require BOTH the master flag AND sponsors flag,
+      // and may NEVER be used by students under any circumstance.
+      if (!(await isPromoSponsorsEnabled())) return { status: 403, message: "Sponsor templates are disabled" };
+      if (isStudent) return { status: 403, message: "Sponsor templates are not available to student accounts" };
+    }
+    if (isStudent) {
+      if (!t.isSchoolSafe || t.status !== "approved") {
+        return { status: 403, message: "This template is not approved for student use" };
+      }
+    }
+    return null;
+  }
+
+  // List templates available to the current user (audience + role + school-safe filtered).
+  app.get("/api/promo/templates", isAuthenticated, async (req, res) => {
+    try {
+      if (!(await isPromoPagesEnabled())) {
+        return res.status(403).json({ message: "Promo Pages are disabled" });
+      }
+      const sponsorsEnabled = await isPromoSponsorsEnabled();
+      const accountType = req.user!.accountType;
+      const role = req.user!.role;
+      let effectiveRole: "student" | "creator" | "teacher" | "admin" = "creator";
+      if (role === "admin") effectiveRole = "admin";
+      else if (role === "teacher") effectiveRole = "teacher";
+      else if (accountType === "student") effectiveRole = "student";
+      const type = typeof req.query.type === "string" ? req.query.type : undefined;
+      const templates = await storage.listPromoTemplatesForUser({ role: effectiveRole, sponsorsEnabled, type });
+      res.json(templates);
+    } catch (err: any) {
+      console.error("[promo] list templates error:", err);
+      res.status(500).json({ message: "Failed to load promo templates" });
+    }
+  });
+
+  // Single template fetch (used by editor and renderer).
+  app.get("/api/promo/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const t = await storage.getPromoTemplate(req.params.id);
+      const denied = await checkPromoTemplateAccess(req, t);
+      if (denied) return res.status(denied.status).json({ message: denied.message });
+      res.json(t);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to load template" });
+    }
+  });
+
+  // Create a template. Creators submit as pending_review; admins can publish directly.
+  app.post("/api/promo/templates", isAuthenticated, blockStudents, async (req, res) => {
+    try {
+      if (!(await isPromoPagesEnabled())) {
+        return res.status(403).json({ message: "Promo Pages are disabled" });
+      }
+      const isAdminUser = req.user!.role === "admin";
+      const body = req.body || {};
+      const allowedTypes = ["platform", "sponsor", "student", "creator"];
+      const type = allowedTypes.includes(body.type) ? body.type : "creator";
+      // Non-admins cannot create platform or sponsor templates.
+      if (!isAdminUser && (type === "platform" || type === "sponsor")) {
+        return res.status(403).json({ message: "Only admins can create platform or sponsor templates" });
+      }
+      const created = await storage.createPromoTemplate({
+        title: String(body.title || "Untitled Promo").slice(0, 200),
+        type,
+        status: isAdminUser ? (body.status || "approved") : "pending_review",
+        audience: ["all", "creator", "student", "teacher", "school"].includes(body.audience) ? body.audience : "all",
+        layoutStyle: String(body.layoutStyle || "classic-comic"),
+        thumbnailUrl: body.thumbnailUrl || null,
+        templateJson: body.templateJson || {},
+        isSchoolSafe: isAdminUser ? !!body.isSchoolSafe : false,
+        isActive: true,
+        createdBy: req.user!.id,
+      });
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error("[promo] create template error:", err);
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  // Update template — owner can edit own draft/rejected; admin can edit anything.
+  app.patch("/api/promo/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const t = await storage.getPromoTemplate(req.params.id);
+      if (!t) return res.status(404).json({ message: "Not found" });
+      const isAdminUser = req.user!.role === "admin";
+      const isOwner = t.createdBy === req.user!.id;
+      if (!isAdminUser && !isOwner) return res.status(403).json({ message: "Forbidden" });
+      if (!isAdminUser && t.status === "approved") {
+        return res.status(403).json({ message: "Approved templates cannot be edited; submit a new version" });
+      }
+      const updates: any = {};
+      if (req.body.title !== undefined) updates.title = String(req.body.title).slice(0, 200);
+      if (req.body.layoutStyle !== undefined) updates.layoutStyle = String(req.body.layoutStyle);
+      if (req.body.templateJson !== undefined) updates.templateJson = req.body.templateJson;
+      if (req.body.thumbnailUrl !== undefined) updates.thumbnailUrl = req.body.thumbnailUrl;
+      if (isAdminUser) {
+        if (req.body.audience !== undefined) updates.audience = req.body.audience;
+        if (req.body.status !== undefined) updates.status = req.body.status;
+        if (req.body.isSchoolSafe !== undefined) updates.isSchoolSafe = !!req.body.isSchoolSafe;
+        if (req.body.isActive !== undefined) updates.isActive = !!req.body.isActive;
+        if (req.body.type !== undefined) updates.type = req.body.type;
+      } else if (isOwner && t.status === "rejected") {
+        // Owner re-submitting after rejection.
+        updates.status = "pending_review";
+      }
+      const updated = await storage.updatePromoTemplate(req.params.id, updates);
+      res.json(updated);
+    } catch (err: any) {
+      console.error("[promo] update template error:", err);
+      res.status(500).json({ message: "Failed to update template" });
+    }
+  });
+
+  // Delete template — owner soft via isActive, admin hard delete.
+  app.delete("/api/promo/templates/:id", isAuthenticated, async (req, res) => {
+    try {
+      const t = await storage.getPromoTemplate(req.params.id);
+      if (!t) return res.status(404).json({ message: "Not found" });
+      const isAdminUser = req.user!.role === "admin";
+      const isOwner = t.createdBy === req.user!.id;
+      if (!isAdminUser && !isOwner) return res.status(403).json({ message: "Forbidden" });
+      if (isAdminUser) {
+        await storage.deletePromoTemplate(req.params.id);
+      } else {
+        await storage.updatePromoTemplate(req.params.id, { isActive: false });
+      }
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
+  // Admin moderation: approve/reject with notes.
+  app.post("/api/promo/templates/:id/review", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const status = req.body?.status === "rejected" ? "rejected" : "approved";
+      const notes = typeof req.body?.notes === "string" ? req.body.notes.slice(0, 1000) : null;
+      const t = await storage.getPromoTemplate(req.params.id);
+      if (!t) return res.status(404).json({ message: "Not found" });
+      await storage.createPromoReview({
+        templateId: req.params.id,
+        reviewerId: req.user!.id,
+        status,
+        notes,
+      });
+      const updated = await storage.updatePromoTemplate(req.params.id, {
+        status,
+        // Admin chooses to mark school-safe in the same action if approved.
+        ...(status === "approved" && req.body?.isSchoolSafe !== undefined ? { isSchoolSafe: !!req.body.isSchoolSafe } : {}),
+      });
+      res.json(updated);
+    } catch (err: any) {
+      console.error("[promo] review error:", err);
+      res.status(500).json({ message: "Failed to record review" });
+    }
+  });
+
+  // Admin: list all (no audience filter) for moderation.
+  app.get("/api/promo/admin/templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const filter: any = {};
+      if (typeof req.query.status === "string") filter.status = req.query.status;
+      if (typeof req.query.type === "string") filter.type = req.query.type;
+      const list = await storage.listAllPromoTemplates(filter);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to load templates" });
+    }
+  });
+
+  // Promo Instances (per-project usage records — analytics + sponsor reporting).
+  app.get("/api/promo/projects/:projectId/instances", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const list = await storage.listPromoInstancesForProject(req.params.projectId);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to load instances" });
+    }
+  });
+
+  app.post("/api/promo/projects/:projectId/instances", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const templateId = String(req.body?.templateId || "");
+      if (!templateId) return res.status(400).json({ message: "templateId required" });
+      const t = await storage.getPromoTemplate(templateId);
+      // Centralized policy: flag, sponsors-flag, sponsor-vs-student, school-safe.
+      const denied = await checkPromoTemplateAccess(req, t);
+      if (denied) return res.status(denied.status).json({ message: denied.message });
+      const created = await storage.createPromoInstance({
+        projectId: req.params.projectId,
+        templateId,
+        pageIndex: typeof req.body?.pageIndex === "number" ? req.body.pageIndex : 0,
+        customDataJson: req.body?.customDataJson || {},
+        createdBy: req.user!.id,
+      });
+      res.status(201).json(created);
+    } catch (err: any) {
+      console.error("[promo] create instance error:", err);
+      res.status(500).json({ message: "Failed to create instance" });
+    }
+  });
+
+  // Helper: load instance + verify the caller owns the parent project (or is admin).
+  async function loadInstanceForOwner(req: any) {
+    const inst = await storage.getPromoInstance(req.params.id);
+    if (!inst) return { error: { status: 404, message: "Not found" } as const };
+    const project = await storage.getProject(inst.projectId);
+    if (!project) return { error: { status: 404, message: "Parent project missing" } as const };
+    if (project.userId !== req.user!.id && req.user!.role !== "admin") {
+      return { error: { status: 403, message: "Forbidden" } as const };
+    }
+    return { inst, project };
+  }
+
+  app.patch("/api/promo/instances/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!(await isPromoPagesEnabled())) return res.status(403).json({ message: "Promo Pages are disabled" });
+      const found = await loadInstanceForOwner(req);
+      if (found.error) return res.status(found.error.status).json({ message: found.error.message });
+      const updates: any = {};
+      if (typeof req.body?.pageIndex === "number") updates.pageIndex = req.body.pageIndex;
+      if (req.body?.customDataJson !== undefined) updates.customDataJson = req.body.customDataJson;
+      const updated = await storage.updatePromoInstance(req.params.id, updates);
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to update instance" });
+    }
+  });
+
+  app.delete("/api/promo/instances/:id", isAuthenticated, async (req, res) => {
+    try {
+      const found = await loadInstanceForOwner(req);
+      if (found.error) return res.status(found.error.status).json({ message: found.error.message });
+      const ok = await storage.deletePromoInstance(req.params.id);
+      res.json({ success: ok });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to delete instance" });
+    }
+  });
+
+  // Seed a small starter pack of platform templates (idempotent).
+  try {
+    const existing = await storage.listAllPromoTemplates({ type: "platform" });
+    if (existing.length === 0) {
+      const seeds: InsertPromoTemplate[] = [
+        {
+          title: "Create your next comic in CoMiXX",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "classic-comic",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "CREATE YOUR NEXT COMIC IN COMIXX",
+            subheadline: "Pick up where the story leaves off — make your own comic now.",
+            bodyCopy: "Stylus-powered drawing, panels, FX, and instant publishing. Free to start.",
+            ctaText: "Start your comic",
+            ctaUrl: "https://pscomixx.com",
+            backgroundColor: "#1a1a1a",
+            accentColor: "#fbbf24",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Publish to PSStreaming",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "magazine",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "STREAM YOUR COMIC",
+            subheadline: "Publish to PSStreaming and reach readers worldwide.",
+            bodyCopy: "Approved comics ship to PSStreaming with one click.",
+            ctaText: "Publish now",
+            ctaUrl: "https://psstreaming.com",
+            backgroundColor: "#0c1226",
+            accentColor: "#06b6d4",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Earn XP by finishing your project",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "trading-card",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "FINISH STRONG. EARN XP.",
+            subheadline: "Complete your comic to unlock badges and level up.",
+            bodyCopy: "Every save, export, and publish counts toward your XP.",
+            ctaText: "See your progress",
+            ctaUrl: "https://pscomixx.com/dashboard",
+            backgroundColor: "#1a0c26",
+            accentColor: "#a855f7",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Join the Press Play Showcase",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "event-flyer",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "JOIN THE PRESS PLAY SHOWCASE",
+            subheadline: "Get your work in front of editors, teachers, and fans.",
+            bodyCopy: "Submit a finished comic to qualify for the next showcase.",
+            ctaText: "Submit your work",
+            ctaUrl: "https://pscomixx.com/showcase",
+            backgroundColor: "#26120c",
+            accentColor: "#f97316",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+      ];
+      for (const s of seeds) {
+        await storage.createPromoTemplate(s);
+      }
+      console.log("[promo] Seeded platform promo templates");
+    }
+  } catch (err: any) {
+    console.error("[promo] Seed error:", err.message);
+  }
 
   try {
     const { seedDefaultRules } = await import("./xpIngestionEngine");

@@ -1,0 +1,179 @@
+Build a school-safe “Promo Page + Ad Creator” system for PSCoMiXX Creator.
+
+IMPORTANT:
+Do NOT build random ad injection.
+Do NOT use targeted ads.
+Do NOT track minors for advertising.
+This is a controlled creative promo system for:
+- platform promo pages
+- educational sponsor pages
+- creator-made fictional ad pages
+- media literacy / marketing assignments
+
+Goal:
+Add comic-style promo/ad pages that can be used inside comic projects, exports, templates, and lessons while staying school-safe.
+
+Core Feature Name:
+Promo Page Studio
+
+Main User Flow:
+1. User opens Comic Creator
+2. User can add a “Promo Page” between comic pages
+3. User chooses from templates
+4. User edits text, images, QR code, logo, offer/call-to-action
+5. User exports comic with promo page included
+6. For student accounts, only teacher/admin-approved templates can be used
+
+Add these promo page types:
+
+1. Platform Promo Page
+Examples:
+- “Create your next comic in CoMiXX”
+- “Publish to PSStreaming”
+- “Earn XP by finishing your project”
+- “Join the Press Play Showcase”
+
+2. Sponsor Page
+Examples:
+- Wacom-style tablet promo
+- Reallusion-style character animation promo
+- Unreal-style game dev promo
+Must be clearly labeled:
+“Sponsored Page”
+
+3. Student/Fictional Ad Page
+For classroom/media literacy assignments.
+Examples:
+- fake cereal ad
+- fake superhero toy ad
+- fake game release ad
+- fake movie poster ad
+Must be clearly labeled:
+“Student-Created Promo”
+
+4. Creator Promo Page
+For creators promoting:
+- their comic series
+- their profile
+- their marketplace pack
+- their HOPs
+- their channel
+
+Required Safety Rules:
+- Student accounts cannot receive targeted ads
+- Student accounts only see platform/teacher-approved promo templates
+- All sponsored pages must display “Sponsored Page”
+- All user-created promo templates must display “Student-Created Promo” or “Creator Promo”
+- No third-party tracking pixels
+- No behavioral ad targeting
+- Teacher/admin can disable promo pages entirely
+- Teacher/admin can approve or reject templates
+
+Database:
+Create tables or schema support for:
+
+promo_templates:
+- id
+- title
+- type: platform | sponsor | student | creator
+- status: draft | pending_review | approved | rejected
+- audience: all | creator | student | teacher | school
+- thumbnail_url
+- template_json
+- created_by
+- created_at
+- updated_at
+- is_school_safe
+
+promo_instances:
+- id
+- project_id
+- template_id
+- page_index
+- custom_data_json
+- created_by
+- created_at
+
+promo_reviews:
+- id
+- template_id
+- reviewer_id
+- status
+- notes
+- reviewed_at
+
+Frontend:
+Add “Promo Page Studio” inside Comic Creator.
+
+UI requirements:
+- Add button: “+ Promo Page”
+- Template gallery
+- Category filters:
+  - Platform
+  - Sponsored
+  - Student-Created
+  - Creator Promo
+- Drag/drop image upload
+- Text editing
+- Logo placement
+- QR code field
+- CTA button/text field
+- Comic-style layouts
+- Preview mode
+- Add to comic button
+- Export preview
+
+Template styles:
+- Classic comic book ad
+- Full-page magazine ad
+- Coupon style
+- Retro toy ad
+- Trading card promo
+- Event flyer
+- HOPs promo page
+- Marketplace pack promo
+- School showcase promo
+
+Admin Controls:
+Add admin panel section:
+“Promo Pages”
+
+Admin can:
+- create platform promo templates
+- approve/reject creator templates
+- mark templates school-safe
+- enable/disable promo pages globally
+- enable/disable sponsor pages
+- restrict student accounts to approved templates only
+
+Export Behavior:
+When exporting PNG/PDF/JSON:
+- include promo pages in correct page order
+- preserve labels like “Sponsored Page”
+- include promo page metadata in JSON export
+
+Feature Flag:
+Add feature flag:
+promo_pages_enabled
+
+Fail closed:
+If missing or false, hide Promo Page Studio.
+
+Optional Monetization:
+Do not activate payments yet.
+Prepare structure for future:
+- sponsor placement
+- marketplace templates
+- premium promo templates
+- school-approved sponsor packs
+
+Deliverables:
+1. Database migration
+2. Backend routes
+3. Frontend Promo Page Studio
+4. Comic Creator integration
+5. Export integration
+6. Admin moderation controls
+7. Feature flag
+8. Basic seed templates
+9. Safety labels and school-safe restrictions

@@ -40,6 +40,9 @@ import {
   seriesSubscriptions,
   printQuoteRequests,
   engagementEvents,
+  promoTemplates,
+  promoInstances,
+  promoReviews,
   type User, type InsertUser,
   type PasswordResetToken, type InsertPasswordResetToken,
   type Project, type InsertProject,
@@ -103,6 +106,9 @@ import {
   type PublishJob, type InsertPublishJob,
   type EngagementEvent, type InsertEngagementEvent,
   type PrintQuoteRequest, type InsertPrintQuoteRequest,
+  type PromoTemplate, type InsertPromoTemplate,
+  type PromoInstance, type InsertPromoInstance,
+  type PromoReview, type InsertPromoReview,
   printProductReviews, type PrintProductReview,
   projectSnapshots, type ProjectSnapshot, type InsertProjectSnapshot,
 } from "@shared/schema";
@@ -512,6 +518,20 @@ export interface IStorage {
   getUserPrintProductReviews(userId: string): Promise<PrintProductReview[]>;
   deletePrintProductReview(id: string): Promise<boolean>;
   getPrintProductReviewStats(productType?: string): Promise<{ averageRating: number; totalReviews: number; distribution: Record<number, number> }>;
+
+  // Promo Page Studio
+  listPromoTemplatesForUser(opts: { role: "student" | "creator" | "teacher" | "admin"; sponsorsEnabled: boolean; type?: string }): Promise<PromoTemplate[]>;
+  listAllPromoTemplates(filter?: { type?: string; status?: string }): Promise<PromoTemplate[]>;
+  getPromoTemplate(id: string): Promise<PromoTemplate | undefined>;
+  createPromoTemplate(input: InsertPromoTemplate): Promise<PromoTemplate>;
+  updatePromoTemplate(id: string, updates: Partial<InsertPromoTemplate>): Promise<PromoTemplate | undefined>;
+  deletePromoTemplate(id: string): Promise<boolean>;
+  listPromoInstancesForProject(projectId: string): Promise<PromoInstance[]>;
+  createPromoInstance(input: InsertPromoInstance): Promise<PromoInstance>;
+  updatePromoInstance(id: string, updates: Partial<InsertPromoInstance>): Promise<PromoInstance | undefined>;
+  deletePromoInstance(id: string): Promise<boolean>;
+  createPromoReview(input: InsertPromoReview): Promise<PromoReview>;
+  listPromoReviews(templateId: string): Promise<PromoReview[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3623,6 +3643,101 @@ export class DatabaseStorage implements IStorage {
       totalReviews: reviews.length,
       distribution,
     };
+  }
+
+  // ==========================================
+  // Promo Page Studio
+  // ==========================================
+  async listPromoTemplatesForUser(opts: { role: "student" | "creator" | "teacher" | "admin"; sponsorsEnabled: boolean; type?: string }): Promise<PromoTemplate[]> {
+    const { role, sponsorsEnabled, type } = opts;
+    const conditions = [eq(promoTemplates.isActive, true)];
+    if (type) conditions.push(eq(promoTemplates.type, type));
+
+    if (role === "student") {
+      // Students see ONLY school-safe + approved + audience all/student.
+      // No sponsor templates for students regardless of sponsorsEnabled.
+      conditions.push(eq(promoTemplates.isSchoolSafe, true));
+      conditions.push(eq(promoTemplates.status, "approved"));
+      conditions.push(inArray(promoTemplates.audience, ["all", "student"]));
+      conditions.push(inArray(promoTemplates.type, ["platform", "creator", "student"]));
+    } else if (role === "teacher") {
+      conditions.push(eq(promoTemplates.status, "approved"));
+      conditions.push(inArray(promoTemplates.audience, ["all", "teacher", "school"]));
+      if (!sponsorsEnabled) conditions.push(inArray(promoTemplates.type, ["platform", "creator", "student"]));
+    } else if (role === "creator") {
+      conditions.push(eq(promoTemplates.status, "approved"));
+      conditions.push(inArray(promoTemplates.audience, ["all", "creator"]));
+      if (!sponsorsEnabled) conditions.push(inArray(promoTemplates.type, ["platform", "creator", "student"]));
+    }
+    // admin sees everything (no extra status/audience filter)
+
+    return db.select().from(promoTemplates).where(and(...conditions)).orderBy(desc(promoTemplates.updatedAt));
+  }
+
+  async listAllPromoTemplates(filter?: { type?: string; status?: string }): Promise<PromoTemplate[]> {
+    const conditions = [];
+    if (filter?.type) conditions.push(eq(promoTemplates.type, filter.type));
+    if (filter?.status) conditions.push(eq(promoTemplates.status, filter.status));
+    const q = conditions.length > 0
+      ? db.select().from(promoTemplates).where(and(...conditions))
+      : db.select().from(promoTemplates);
+    return q.orderBy(desc(promoTemplates.updatedAt));
+  }
+
+  async getPromoTemplate(id: string): Promise<PromoTemplate | undefined> {
+    const [t] = await db.select().from(promoTemplates).where(eq(promoTemplates.id, id));
+    return t || undefined;
+  }
+
+  async createPromoTemplate(input: InsertPromoTemplate): Promise<PromoTemplate> {
+    const [created] = await db.insert(promoTemplates).values(input).returning();
+    return created;
+  }
+
+  async updatePromoTemplate(id: string, updates: Partial<InsertPromoTemplate>): Promise<PromoTemplate | undefined> {
+    const [updated] = await db.update(promoTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(promoTemplates.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deletePromoTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(promoTemplates).where(eq(promoTemplates.id, id));
+    return (result?.rowCount ?? 0) > 0;
+  }
+
+  async listPromoInstancesForProject(projectId: string): Promise<PromoInstance[]> {
+    return db.select().from(promoInstances).where(eq(promoInstances.projectId, projectId));
+  }
+
+  async getPromoInstance(id: string): Promise<PromoInstance | undefined> {
+    const [row] = await db.select().from(promoInstances).where(eq(promoInstances.id, id));
+    return row || undefined;
+  }
+
+  async createPromoInstance(input: InsertPromoInstance): Promise<PromoInstance> {
+    const [created] = await db.insert(promoInstances).values(input).returning();
+    return created;
+  }
+
+  async updatePromoInstance(id: string, updates: Partial<InsertPromoInstance>): Promise<PromoInstance | undefined> {
+    const [updated] = await db.update(promoInstances).set(updates).where(eq(promoInstances.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deletePromoInstance(id: string): Promise<boolean> {
+    const result = await db.delete(promoInstances).where(eq(promoInstances.id, id));
+    return (result?.rowCount ?? 0) > 0;
+  }
+
+  async createPromoReview(input: InsertPromoReview): Promise<PromoReview> {
+    const [created] = await db.insert(promoReviews).values(input).returning();
+    return created;
+  }
+
+  async listPromoReviews(templateId: string): Promise<PromoReview[]> {
+    return db.select().from(promoReviews).where(eq(promoReviews.templateId, templateId)).orderBy(desc(promoReviews.reviewedAt));
   }
 }
 

@@ -7,8 +7,9 @@ import {
   Shield, Users, Mail, Key, Gift, Settings, Activity, 
   ToggleLeft, ToggleRight, Check, X, Plus, Trash2, 
   Download, RefreshCw, Clock, ChevronDown, ChevronRight, ArrowLeft,
-  UserPlus, Crown, Search, Package, Upload, Edit, DollarSign, Eye, EyeOff, Image
+  UserPlus, Crown, Search, Package, Upload, Edit, DollarSign, Eye, EyeOff, Image, Megaphone
 } from "lucide-react";
+import { PromoPageRenderer, type PromoTemplate, PROMO_TYPE_META } from "@/components/promo/PromoPageStudio";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -280,6 +281,9 @@ export default function AdminControlRoom() {
             </TabsTrigger>
             <TabsTrigger value="asset-store" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-asset-store">
               <Package className="w-4 h-4 mr-2" /> Asset Store
+            </TabsTrigger>
+            <TabsTrigger value="promo" className="data-[state=active]:bg-white data-[state=active]:text-black" data-testid="tab-promo">
+              <Megaphone className="w-4 h-4 mr-2" /> Promo Pages
             </TabsTrigger>
           </TabsList>
 
@@ -737,6 +741,10 @@ export default function AdminControlRoom() {
 
           <TabsContent value="asset-store">
             <AssetStorePanel />
+          </TabsContent>
+
+          <TabsContent value="promo">
+            <PromoPanel />
           </TabsContent>
         </Tabs>
       </div>
@@ -1499,6 +1507,157 @@ function AssetStorePanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PromoPanel() {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<"pending_review" | "approved" | "rejected" | "all">("pending_review");
+  const [previewId, setPreviewId] = useState<string | null>(null);
+
+  const { data: templates = [], isLoading } = useQuery<PromoTemplate[]>({
+    queryKey: ["admin-promo-templates", statusFilter],
+    queryFn: async () => {
+      const url = statusFilter === "all" ? "/api/promo/admin/templates" : `/api/promo/admin/templates?status=${statusFilter}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load templates");
+      return res.json();
+    },
+  });
+
+  const moderate = useMutation({
+    mutationFn: async ({ id, action, notes }: { id: string; action: "approve" | "reject"; notes?: string }) => {
+      const res = await fetch(`/api/promo/templates/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: action === "approve" ? "approved" : "rejected",
+          notes: notes || "",
+          ...(action === "approve" ? { isSchoolSafe: true } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Failed to ${action}`);
+      }
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(vars.action === "approve" ? "Template approved" : "Template rejected");
+      queryClient.invalidateQueries({ queryKey: ["admin-promo-templates"] });
+    },
+    onError: (err: any) => toast.error(err?.message || "Moderation failed"),
+  });
+
+  const toggleSchoolSafe = useMutation({
+    mutationFn: async ({ id, isSchoolSafe }: { id: string; isSchoolSafe: boolean }) => {
+      const res = await fetch(`/api/promo/templates/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isSchoolSafe }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Updated");
+      queryClient.invalidateQueries({ queryKey: ["admin-promo-templates"] });
+    },
+    onError: () => toast.error("Update failed"),
+  });
+
+  const previewTpl = templates.find(t => t.id === previewId) || null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight">PROMO PAGES MODERATION</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Review user-submitted promo templates. Only approved + school-safe templates appear to students.
+            Sponsor templates require both <code className="text-amber-400">promo_sponsors_enabled</code> and approval.
+          </p>
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+          <SelectTrigger className="w-48 bg-zinc-900 border-zinc-700 text-white" data-testid="select-promo-status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+            <SelectItem value="pending_review">Pending review</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-zinc-500">Loading templates...</div>
+      ) : templates.length === 0 ? (
+        <div className="text-center py-12 text-zinc-500 border border-dashed border-zinc-800 rounded">
+          No templates in this status.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {templates.map(t => {
+            const meta = PROMO_TYPE_META[t.type];
+            return (
+              <Card key={t.id} className="bg-zinc-950 border-zinc-800" data-testid={`card-promo-${t.id}`}>
+                <CardContent className="p-3 space-y-2">
+                  <div className="aspect-[8.5/11] bg-zinc-800 overflow-hidden border border-zinc-700">
+                    <div className="w-full h-full origin-top-left">
+                      <PromoPageRenderer template={t} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold truncate">{t.title}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                      <Badge variant="outline" className="text-[9px] border-zinc-700">{meta.label}</Badge>
+                      <Badge variant="outline" className={`text-[9px] ${t.status === "approved" ? "border-green-700 text-green-400" : t.status === "rejected" ? "border-red-700 text-red-400" : "border-amber-700 text-amber-400"}`}>{t.status}</Badge>
+                      {t.isSchoolSafe && <Badge variant="outline" className="text-[9px] border-cyan-700 text-cyan-400">school-safe</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <Button size="sm" variant="ghost" className="h-7 text-[11px] hover:bg-zinc-800" onClick={() => setPreviewId(t.id)} data-testid={`button-preview-${t.id}`}>
+                      <Eye className="w-3 h-3 mr-1" /> Preview
+                    </Button>
+                    {t.status !== "approved" && (
+                      <Button size="sm" className="h-7 text-[11px] bg-green-700 hover:bg-green-600" onClick={() => moderate.mutate({ id: t.id, action: "approve" })} data-testid={`button-approve-${t.id}`}>
+                        <Check className="w-3 h-3 mr-1" /> Approve
+                      </Button>
+                    )}
+                    {t.status !== "rejected" && (
+                      <Button size="sm" className="h-7 text-[11px] bg-red-700 hover:bg-red-600" onClick={() => {
+                        const notes = prompt("Rejection notes (shown to creator):") || "";
+                        moderate.mutate({ id: t.id, action: "reject", notes });
+                      }} data-testid={`button-reject-${t.id}`}>
+                        <X className="w-3 h-3 mr-1" /> Reject
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-7 text-[11px] border-zinc-700" onClick={() => toggleSchoolSafe.mutate({ id: t.id, isSchoolSafe: !t.isSchoolSafe })} data-testid={`button-school-safe-${t.id}`}>
+                      {t.isSchoolSafe ? "Mark not school-safe" : "Mark school-safe"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={!!previewTpl} onOpenChange={(v) => !v && setPreviewId(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">{previewTpl?.title}</DialogTitle>
+          </DialogHeader>
+          {previewTpl && (
+            <div className="aspect-[8.5/11] border border-zinc-700">
+              <PromoPageRenderer template={previewTpl} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

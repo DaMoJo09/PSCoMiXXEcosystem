@@ -28,6 +28,8 @@ async function seedFeatureFlags() {
     { key: 'payments_enabled', enabled: true, description: 'Enable Stripe payment processing' },
     { key: 'print_studio_enabled', enabled: true, description: 'Show/hide the Print Studio section in sidebar' },
     { key: 'social_enabled', enabled: true, description: 'Show/hide Social features (feed, messaging, collabs, chains)' },
+    { key: 'promo_pages_enabled', enabled: true, description: 'Show/hide Promo Page Studio in Comic Creator (school-safe in-comic ad/promo pages)' },
+    { key: 'promo_sponsors_enabled', enabled: true, description: 'Allow sponsor-type promo templates (independent of promo_pages_enabled)' },
   ];
 
   try {

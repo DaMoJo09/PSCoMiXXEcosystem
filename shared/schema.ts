@@ -3567,3 +3567,77 @@ export const launchTickets = pgTable("launch_tickets", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ==========================================
+// PROMO PAGE STUDIO
+// School-safe in-comic promo/ad pages: platform announcements,
+// approved sponsor placements, classroom media-literacy assignments,
+// and creator self-promotion. Strict moderation + feature-flagged.
+// No behavioral targeting, no third-party tracking pixels.
+// ==========================================
+
+export const promoTemplates = pgTable("promo_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  // platform | sponsor | student | creator
+  type: text("type").notNull(),
+  // draft | pending_review | approved | rejected
+  status: text("status").notNull().default("draft"),
+  // all | creator | student | teacher | school
+  audience: text("audience").notNull().default("all"),
+  // classic-comic | magazine | coupon | retro-toy | trading-card | event-flyer | hops-promo | marketplace-promo | showcase
+  layoutStyle: text("layout_style").notNull().default("classic-comic"),
+  thumbnailUrl: text("thumbnail_url"),
+  // Layout schema: text slots, image slots, CTA, QR, logo, brand colors, copy hints.
+  templateJson: jsonb("template_json").notNull(),
+  isSchoolSafe: boolean("is_school_safe").notNull().default(false),
+  // Soft-disable a template without deleting it.
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPromoTemplateSchema = createInsertSchema(promoTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPromoTemplate = z.infer<typeof insertPromoTemplateSchema>;
+export type PromoTemplate = typeof promoTemplates.$inferSelect;
+
+export const promoInstances = pgTable("promo_instances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  templateId: varchar("template_id").notNull().references(() => promoTemplates.id, { onDelete: "restrict" }),
+  // Logical insertion index in the comic (0-based, between spreads).
+  pageIndex: integer("page_index").notNull().default(0),
+  // Per-instance overrides: title, body copy, CTA, image URLs, QR target.
+  customDataJson: jsonb("custom_data_json").notNull().default({}),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPromoInstanceSchema = createInsertSchema(promoInstances).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPromoInstance = z.infer<typeof insertPromoInstanceSchema>;
+export type PromoInstance = typeof promoInstances.$inferSelect;
+
+export const promoReviews = pgTable("promo_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull().references(() => promoTemplates.id, { onDelete: "cascade" }),
+  reviewerId: varchar("reviewer_id").notNull().references(() => users.id, { onDelete: "set null" }),
+  // approved | rejected
+  status: text("status").notNull(),
+  notes: text("notes"),
+  reviewedAt: timestamp("reviewed_at").defaultNow().notNull(),
+});
+
+export const insertPromoReviewSchema = createInsertSchema(promoReviews).omit({
+  id: true,
+  reviewedAt: true,
+});
+export type InsertPromoReview = z.infer<typeof insertPromoReviewSchema>;
+export type PromoReview = typeof promoReviews.$inferSelect;
