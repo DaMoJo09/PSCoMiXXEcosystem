@@ -496,11 +496,12 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           ) : (
             <button
               onClick={() => handleSSORedirect("streaming")}
-              className="flex items-center justify-center py-2.5 text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="flex items-center justify-center gap-3 py-1.5 px-0 w-full text-muted-foreground hover:text-foreground transition-all"
               title={`Your Stage${stageStats ? ` (${stageStats.publishedCount} published)` : ""}`}
+              aria-label="Your Stage"
               data-testid="button-go-to-stage-collapsed"
             >
-              <Monitor className="w-4 h-4" />
+              <AppIconInline icon={Monitor} className="border-cyan-500/40 text-cyan-400" />
             </button>
           )
         )}
