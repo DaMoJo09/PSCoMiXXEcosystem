@@ -6,8 +6,13 @@ import {
   BookOpen, Palette, Clock, Award, Globe, Instagram,
   Twitter, Link2, ChevronRight, Layers, Sparkles, FileText,
   Image as ImageIcon, Film, Gamepad2, BookMarked, Pencil,
-  Share2, Copy, Check, CreditCard, UserPlus, UserMinus, Users
+  Share2, Copy, Check, CreditCard, UserPlus, UserMinus, Users, Wand2
 } from "lucide-react";
+import { PortfolioCustomizer } from "@/components/portfolio/PortfolioCustomizer";
+import {
+  PortfolioTheme, mergeTheme, themeToCssVars, backgroundCss,
+  surfaceCss, fontStack, ensureGoogleFonts, DEFAULT_SECTIONS,
+} from "@/lib/portfolioTheme";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -63,6 +68,7 @@ interface UserProfile {
   totalMinutes: number;
   accountType?: string;
   socialLinks: { twitter?: string; instagram?: string; website?: string; youtube?: string } | null;
+  portfolioTheme?: PortfolioTheme | null;
   statCreativity?: number;
   statStorytelling?: number;
   statArtistry?: number;
@@ -103,6 +109,9 @@ export default function PortfolioPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+
+  useEffect(() => { ensureGoogleFonts(); }, []);
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -291,6 +300,45 @@ export default function PortfolioPage() {
     },
     onError: () => toast.error("Failed to update profile"),
   });
+
+  const themeMutation = useMutation({
+    mutationFn: async (portfolioTheme: PortfolioTheme) => {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ portfolioTheme }),
+      });
+      if (!res.ok) throw new Error("Failed to save theme");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio", viewingUserId, "public"] });
+      setShowCustomizer(false);
+      toast.success("Look saved!");
+    },
+    onError: () => toast.error("Could not save your portfolio look"),
+  });
+
+  const theme = useMemo(() => mergeTheme(profile?.portfolioTheme), [profile?.portfolioTheme]);
+  const themeVars = useMemo(() => themeToCssVars(theme), [theme]);
+  const themeBgStyle = useMemo(() => backgroundCss(theme.background), [theme.background]);
+  const themeSurfaceStyle = useMemo(() => surfaceCss(theme.surface), [theme.surface]);
+  const sectionOrder = theme.sections?.order || DEFAULT_SECTIONS.order!;
+  const showSection = (id: string) => {
+    const s = theme.sections || DEFAULT_SECTIONS;
+    if (id === "intro") {
+      // intro is opt-in: customizer toggles `theme.intro.enabled` and provides the content.
+      // Render only when explicitly enabled AND there is something to show.
+      const hasContent = !!(theme.intro?.headline || theme.intro?.body || theme.intro?.imageUrl);
+      return !!theme.intro?.enabled && hasContent;
+    }
+    if (id === "about") return s.showAbout !== false;
+    if (id === "works") return s.showWorks !== false;
+    if (id === "artworks") return s.showArtworks !== false; // visible to anyone; gallery itself enforces ownership for empty/CRUD
+    return true;
+  };
 
   const createArtworkMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -508,17 +556,34 @@ export default function PortfolioPage() {
 
   const PageWrapper = isOwner ? Layout : ({ children }: { children: React.ReactNode }) => <div className="min-h-screen">{children}</div>;
 
+  const heroStyle = theme.layout?.heroStyle || "split";
+  const isMinimalHero = heroStyle === "minimal";
+
   return (
     <PageWrapper>
-      <div className="min-h-screen bg-black text-white">
+      <div
+        className="min-h-screen"
+        style={{
+          ...themeVars,
+          ...themeBgStyle,
+          color: theme.textColor,
+          fontFamily: "var(--pf-body-font)",
+        } as React.CSSProperties}
+      >
         {/* HERO / COVER SECTION */}
         <div className="relative">
+          {!isMinimalHero && (
           <div
-            className="h-56 md:h-72 bg-gradient-to-br from-zinc-900 via-zinc-800 to-black border-b-4 border-cyan-500 relative overflow-hidden"
-            style={profile?.coverImage ? { backgroundImage: `url(${profile.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+            className="h-56 md:h-72 relative overflow-hidden"
+            style={{
+              ...(profile?.coverImage
+                ? { backgroundImage: `url(${profile.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : { background: `linear-gradient(135deg, ${theme.accentColor}33, ${theme.accent2Color || theme.accentColor}22, transparent)` }),
+              borderBottom: `4px solid ${theme.accentColor}`,
+            }}
           >
-            <div className="absolute inset-0 bg-black/50" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+            {profile?.coverImage && <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.5)" }} />}
+            <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${theme.background?.color || "rgba(0,0,0,0.85)"}, transparent)` }} />
 
             {editMode && isOwner && (
               <div className="absolute top-4 right-4 z-10">
@@ -530,6 +595,7 @@ export default function PortfolioPage() {
               </div>
             )}
           </div>
+          )}
 
           <div className="max-w-6xl mx-auto px-6 relative">
             <div className="flex items-end gap-6 -mt-16 relative z-10">
@@ -577,12 +643,12 @@ export default function PortfolioPage() {
                     />
                   </div>
                 ) : (
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-black tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }} data-testid="text-profile-name">
+                  <div className={heroStyle === "centered" ? "text-center" : ""}>
+                    <h1 className="text-3xl md:text-5xl font-black tracking-tight" style={{ fontFamily: "var(--pf-display-font)", color: theme.textColor }} data-testid="text-profile-name">
                       {profile?.name || "Creator"}
                     </h1>
                     {profile?.tagline && (
-                      <p className="text-cyan-400 text-lg mt-1" data-testid="text-profile-tagline">{profile.tagline}</p>
+                      <p className="text-lg mt-1" style={{ color: theme.accentColor, fontFamily: "var(--pf-body-font)" }} data-testid="text-profile-tagline">{profile.tagline}</p>
                     )}
                   </div>
                 )}
@@ -604,6 +670,14 @@ export default function PortfolioPage() {
                       <>
                         <Button onClick={() => setShowShareModal(true)} variant="outline" className="border-zinc-600 text-zinc-400 hover:border-cyan-500 hover:text-cyan-400" data-testid="btn-share-portfolio">
                           <Share2 className="w-4 h-4 mr-2" /> SHARE
+                        </Button>
+                        <Button
+                          onClick={() => setShowCustomizer(true)}
+                          variant="outline"
+                          className="border-purple-500 text-purple-400 hover:bg-purple-500/10"
+                          data-testid="btn-customize-portfolio"
+                        >
+                          <Wand2 className="w-4 h-4 mr-2" /> CUSTOMIZE
                         </Button>
                         <Button onClick={startEditMode} variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10" data-testid="btn-edit-portfolio">
                           <Edit2 className="w-4 h-4 mr-2" /> EDIT
@@ -637,7 +711,8 @@ export default function PortfolioPage() {
             </div>
 
             {/* STATS ROW */}
-            <div className="flex flex-wrap items-center gap-4 mt-6 pb-6 border-b border-zinc-800">
+            {(theme.sections?.showStats !== false) && (
+            <div className="flex flex-wrap items-center gap-4 mt-6 pb-6 border-b border-zinc-800" data-testid="stats-row">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700">
                 <Award className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm font-bold">LVL {profile?.level || 1}</span>
@@ -672,8 +747,8 @@ export default function PortfolioPage() {
                 <span className="text-sm">{Math.round((profile?.totalMinutes || 0) / 60)}h studio time</span>
               </div>
 
-              {!editMode && profile?.socialLinks && (
-                <div className="flex items-center gap-2 ml-auto">
+              {!editMode && profile?.socialLinks && (theme.sections?.showSocial !== false) && (
+                <div className="flex items-center gap-2 ml-auto" data-testid="social-links">
                   {(profile.socialLinks as any)?.twitter && (
                     <a href={(profile.socialLinks as any).twitter.startsWith("http") ? (profile.socialLinks as any).twitter : `https://twitter.com/${(profile.socialLinks as any).twitter.replace(/^@/, "")}`} target="_blank" rel="noreferrer" className="p-2 text-zinc-400 hover:text-cyan-400 transition-colors" data-testid="link-twitter">
                       <Twitter className="w-4 h-4" />
@@ -697,12 +772,45 @@ export default function PortfolioPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col">
+          {/* INTRO / FEATURED BLOCK */}
+          {showSection("intro") && (
+            <section className="mb-10" style={{ order: sectionOrder.indexOf("intro") }} data-testid="section-intro">
+              <div className="p-6 md:p-8" style={themeSurfaceStyle}>
+                <div className="flex flex-col md:flex-row gap-6 items-center">
+                  {theme.intro?.imageUrl && (
+                    <img
+                      src={theme.intro.imageUrl}
+                      alt=""
+                      className="w-full md:w-56 max-h-64 object-cover flex-shrink-0"
+                      style={{ borderRadius: theme.surface?.radius ?? 0 }}
+                      data-testid="img-intro"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    {theme.intro?.headline && (
+                      <h2 className="text-2xl md:text-3xl font-black mb-3 leading-tight" style={{ fontFamily: "var(--pf-display-font)", color: theme.accentColor }} data-testid="text-intro-headline">
+                        {theme.intro.headline}
+                      </h2>
+                    )}
+                    {theme.intro?.body && (
+                      <p className="leading-relaxed whitespace-pre-wrap" style={{ color: theme.textColor, fontFamily: "var(--pf-body-font)" }} data-testid="text-intro-body">
+                        {theme.intro.body}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ABOUT / BIO SECTION */}
-          <section className="mb-10">
+          {(showSection("about") || (editMode && isOwner)) && (
+          <section className="mb-10" style={{ order: sectionOrder.indexOf("about") }} data-testid="section-about">
             {editMode && isOwner ? (
               <div className="space-y-4 p-6 border-2 border-cyan-500/30 bg-zinc-900/50">
                 <h2 className="text-xl font-black text-cyan-400">EDIT PROFILE</h2>
@@ -775,223 +883,182 @@ export default function PortfolioPage() {
                 </div>
               </div>
             ) : profile?.bio ? (
-              <div className="p-6 border-l-4 border-cyan-500 bg-zinc-900/30">
-                <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap" data-testid="text-profile-bio">{profile.bio}</p>
+              <div className="p-6" style={{ ...themeSurfaceStyle, borderLeft: `4px solid ${theme.accentColor}` }}>
+                <p className="leading-relaxed whitespace-pre-wrap" style={{ color: theme.textColor, fontFamily: "var(--pf-body-font)" }} data-testid="text-profile-bio">{profile.bio}</p>
               </div>
             ) : isOwner ? (
-              <div className="p-6 border border-dashed border-zinc-700 text-center">
-                <p className="text-zinc-500">No bio yet. Click "Edit" to add one!</p>
+              <div className="p-6 border border-dashed text-center" style={{ borderColor: theme.mutedTextColor, color: theme.mutedTextColor }}>
+                <p>No bio yet. Click "Edit" to add one!</p>
               </div>
             ) : null}
           </section>
-
-          {/* PUBLISHED WORKS HEADER */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-black" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                {isOwner ? "PUBLISHED WORKS" : `${profile?.name?.toUpperCase()}'S WORK`}
-              </h2>
-              <span className="text-zinc-500 text-sm">({galleryItems.length})</span>
-            </div>
-            <div className="flex items-center gap-3">
-              {galleryItems.length > 4 && (
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-1.5 bg-black border border-zinc-700 text-sm text-white focus:border-cyan-500 outline-none w-48"
-                    data-testid="gallery-search"
-                  />
-                </div>
-              )}
-              {isOwner && (
-                <Dialog open={isAddArtworkOpen || !!editingArtwork} onOpenChange={(open) => {
-                  if (!open) { setIsAddArtworkOpen(false); setEditingArtwork(null); resetArtworkForm(); }
-                }}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => setIsAddArtworkOpen(true)} size="sm" variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10" data-testid="btn-add-artwork">
-                      <Plus className="w-4 h-4 mr-1" /> ADD ARTWORK
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-zinc-900 border-2 border-cyan-500 text-white max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-black text-cyan-400">{editingArtwork ? "EDIT ARTWORK" : "ADD ARTWORK"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
-                      <div>
-                        <Label className="text-zinc-400">Title *</Label>
-                        <Input value={artworkForm.title} onChange={(e) => setArtworkForm({ ...artworkForm, title: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-title" />
-                      </div>
-                      <div>
-                        <Label className="text-zinc-400">Description</Label>
-                        <Textarea value={artworkForm.description} onChange={(e) => setArtworkForm({ ...artworkForm, description: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-description" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-zinc-400">Category</Label>
-                          <Select value={artworkForm.category} onValueChange={(v) => setArtworkForm({ ...artworkForm, category: v })}>
-                            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-700">
-                              {ARTWORK_CATEGORIES.filter(c => c.id !== "all").map(cat => (
-                                <SelectItem key={cat.id} value={cat.id} className="text-white">{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-zinc-400">Medium</Label>
-                          <Input value={artworkForm.medium} onChange={(e) => setArtworkForm({ ...artworkForm, medium: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="e.g., Digital Painting" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-zinc-400">Year</Label>
-                          <Input type="number" value={artworkForm.year} onChange={(e) => setArtworkForm({ ...artworkForm, year: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
-                        </div>
-                        <div>
-                          <Label className="text-zinc-400">Price (cents)</Label>
-                          <Input type="number" value={artworkForm.price} onChange={(e) => setArtworkForm({ ...artworkForm, price: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
-                        </div>
-                      </div>
-                      <ImageUpload label="Artwork Image" value={artworkForm.images[0]} onChange={(value) => setArtworkForm({ ...artworkForm, images: [value] })} />
-                      <div>
-                        <Label className="text-zinc-400">Tags (comma-separated)</Label>
-                        <Input value={artworkForm.tags} onChange={(e) => setArtworkForm({ ...artworkForm, tags: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="digital, portrait, noir" />
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input type="checkbox" checked={artworkForm.available} onChange={(e) => setArtworkForm({ ...artworkForm, available: e.target.checked })} className="w-4 h-4" />
-                          Available for Sale
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input type="checkbox" checked={artworkForm.featured} onChange={(e) => setArtworkForm({ ...artworkForm, featured: e.target.checked })} className="w-4 h-4" />
-                          Featured
-                        </label>
-                      </div>
-                      <Button onClick={submitArtwork} disabled={!artworkForm.title || createArtworkMutation.isPending || updateArtworkMutation.isPending} className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold" data-testid="btn-save-artwork">
-                        {editingArtwork ? "UPDATE" : "ADD TO PORTFOLIO"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </div>
-
-          {/* GALLERY GRID */}
-          {galleryItems.length === 0 ? (
-            <div className="text-center py-16 border border-dashed border-zinc-700">
-              <Layers className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-              <p className="text-zinc-500 mb-2">
-                {searchQuery ? "No results found" : isOwner ? "No published works yet" : "This creator hasn't published any work yet"}
-              </p>
-              {isOwner && !searchQuery && (
-                <p className="text-zinc-600 text-sm">
-                  Publish your projects to showcase them here. Visit your Library to manage your work.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {galleryItems.map((item) => {
-                if (item.kind === "project") {
-                  const project = item.project;
-                  const typeConfig = getProjectTypeConfig(project.type);
-                  const TypeIcon = typeConfig.icon;
-                  const thumb = getThumbnail(project);
-                  return (
-                    <div
-                      key={`p-${project.id}`}
-                      className="group border-2 border-zinc-700 hover:border-cyan-500 bg-zinc-900/50 cursor-pointer transition-all hover:shadow-[4px_4px_0_rgba(0,255,255,0.2)]"
-                      onClick={() => setSelectedProject(project)}
-                      data-testid={`gallery-card-${project.id}`}
-                    >
-                      <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800">
-                        {thumb ? (
-                          <img src={thumb} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <TypeIcon className={`w-16 h-16 ${typeConfig.color.split(' ')[0]} opacity-30`} />
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 flex gap-1">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border ${typeConfig.color} bg-black/80`}>
-                            <TypeIcon className="w-3 h-3" />
-                            {typeConfig.label.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-4 border-t border-zinc-700">
-                        <h3 className="font-black text-lg mb-1 truncate" data-testid={`text-title-${project.id}`}>{project.title}</h3>
-                        <p className="text-zinc-500 text-xs">
-                          {new Date(project.updatedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                } else {
-                  const artwork = item.artwork;
-                  return (
-                    <div
-                      key={`a-${artwork.id}`}
-                      className="group border-2 border-zinc-800 hover:border-purple-500 bg-zinc-900/30 transition-all hover:shadow-[4px_4px_0_rgba(168,85,247,0.15)]"
-                      data-testid={`gallery-artwork-${artwork.id}`}
-                    >
-                      <div className="aspect-[4/3] relative overflow-hidden bg-zinc-800/50">
-                        {artwork.images?.[0] ? (
-                          <img src={artwork.images[0]} alt={artwork.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                            <ImageIcon className="w-12 h-12 opacity-30" />
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border border-purple-400 text-purple-400 bg-black/80">
-                            <Palette className="w-3 h-3" /> ARTWORK
-                          </span>
-                        </div>
-                        {artwork.featured && (
-                          <div className="absolute top-2 right-2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold">FEATURED</div>
-                        )}
-                        {isOwner && (
-                          <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openEditArtwork(artwork); }}
-                              className="p-2 bg-black/80 border border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-black"
-                              data-testid={`btn-edit-artwork-${artwork.id}`}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteArtworkMutation.mutate(artwork.id); }}
-                              className="p-2 bg-black/80 border border-red-500 text-red-400 hover:bg-red-500 hover:text-black"
-                              data-testid={`btn-delete-artwork-${artwork.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4 border-t border-zinc-800">
-                        <h3 className="font-bold truncate">{artwork.title}</h3>
-                        <p className="text-zinc-500 text-sm">{artwork.medium || artwork.category} {artwork.year ? `• ${artwork.year}` : ""}</p>
-                        {artwork.price ? (
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="font-bold text-green-400">${(artwork.price / 100).toFixed(2)}</span>
-                            {artwork.available === false && <span className="text-xs text-red-400">SOLD</span>}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                }
-              })}
-            </div>
           )}
+
+          {/* WORKS/ARTWORKS sections rendered in user's chosen order via CSS `order` */}
+          {sectionOrder.filter(id => id === "works" || id === "artworks").map(sid => {
+            if (sid === "works" && showSection("works")) {
+              const projectItems = galleryItems.filter(i => i.kind === "project");
+              return (
+                <div key="works-section" style={{ order: sectionOrder.indexOf("works") }} data-testid="section-works">
+                  <WorksHeader
+                    title={isOwner ? "PUBLISHED WORKS" : `${profile?.name?.toUpperCase() || ""}'S WORK`}
+                    count={projectItems.length}
+                    accent={theme.accentColor || "#22d3ee"}
+                    displayFont={fontStack(theme.fonts?.display)}
+                    showSearch={projectItems.length > 4}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                  />
+                  {projectItems.length === 0 ? (
+                    <EmptyGalleryCard
+                      message={searchQuery ? "No results found" : isOwner ? "No published works yet" : "This creator hasn't published any work yet"}
+                      hint={isOwner && !searchQuery ? "Publish your projects to showcase them here." : undefined}
+                      mutedColor={theme.mutedTextColor}
+                    />
+                  ) : (
+                    <ProjectGallery
+                      items={projectItems as any}
+                      layout={theme.layout?.style || "grid"}
+                      surfaceStyle={themeSurfaceStyle}
+                      accent={theme.accentColor || "#22d3ee"}
+                      onSelect={setSelectedProject}
+                      getThumbnail={getThumbnail}
+                      getTypeConfig={getProjectTypeConfig}
+                    />
+                  )}
+                </div>
+              );
+            }
+            if (sid === "artworks" && showSection("artworks")) {
+              const artworkItems = galleryItems.filter(i => i.kind === "artwork");
+              return (
+                <div key="artworks-section" className="mt-12" style={{ order: sectionOrder.indexOf("artworks") }} data-testid="section-artworks">
+                  <WorksHeader
+                    title="ARTWORKS"
+                    count={artworkItems.length}
+                    accent={theme.accent2Color || "#a855f7"}
+                    displayFont={fontStack(theme.fonts?.display)}
+                    showSearch={false}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    rightSlot={isOwner ? (
+                      <Button
+                        onClick={() => setIsAddArtworkOpen(true)}
+                        size="sm"
+                        variant="outline"
+                        className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                        data-testid="btn-add-artwork"
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> ADD ARTWORK
+                      </Button>
+                    ) : null}
+                  />
+                  {artworkItems.length === 0 ? (
+                    <EmptyGalleryCard
+                      message="No artworks yet"
+                      hint="Add standalone illustrations, paintings, or photographs that aren't part of a comic project."
+                      mutedColor={theme.mutedTextColor}
+                    />
+                  ) : (
+                    <ArtworkGallery
+                      items={artworkItems as any}
+                      layout={theme.layout?.style || "grid"}
+                      surfaceStyle={themeSurfaceStyle}
+                      accent2={theme.accent2Color || "#a855f7"}
+                      isOwner={!!isOwner}
+                      onEdit={openEditArtwork}
+                      onDelete={(id) => deleteArtworkMutation.mutate(id)}
+                    />
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })}
+
         </div>
+
+        {/* HOISTED ADD/EDIT ARTWORK DIALOG (owner-only) */}
+        {isOwner && (
+          <Dialog
+            open={isAddArtworkOpen || !!editingArtwork}
+            onOpenChange={(open) => {
+              if (!open) { setIsAddArtworkOpen(false); setEditingArtwork(null); resetArtworkForm(); }
+            }}
+          >
+            <DialogContent className="bg-zinc-900 border-2 border-cyan-500 text-white max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-cyan-400">{editingArtwork ? "EDIT ARTWORK" : "ADD ARTWORK"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                  <Label className="text-zinc-400">Title *</Label>
+                  <Input value={artworkForm.title} onChange={(e) => setArtworkForm({ ...artworkForm, title: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-title" />
+                </div>
+                <div>
+                  <Label className="text-zinc-400">Description</Label>
+                  <Textarea value={artworkForm.description} onChange={(e) => setArtworkForm({ ...artworkForm, description: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" data-testid="input-artwork-description" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-zinc-400">Category</Label>
+                    <Select value={artworkForm.category} onValueChange={(v) => setArtworkForm({ ...artworkForm, category: v })}>
+                      <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-700">
+                        {ARTWORK_CATEGORIES.filter(c => c.id !== "all").map(cat => (
+                          <SelectItem key={cat.id} value={cat.id} className="text-white">{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-zinc-400">Medium</Label>
+                    <Input value={artworkForm.medium} onChange={(e) => setArtworkForm({ ...artworkForm, medium: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="e.g., Digital Painting" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-zinc-400">Year</Label>
+                    <Input type="number" value={artworkForm.year} onChange={(e) => setArtworkForm({ ...artworkForm, year: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-400">Price (cents)</Label>
+                    <Input type="number" value={artworkForm.price} onChange={(e) => setArtworkForm({ ...artworkForm, price: parseInt(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-white" />
+                  </div>
+                </div>
+                <ImageUpload label="Artwork Image" value={artworkForm.images[0]} onChange={(value) => setArtworkForm({ ...artworkForm, images: [value] })} />
+                <div>
+                  <Label className="text-zinc-400">Tags (comma-separated)</Label>
+                  <Input value={artworkForm.tags} onChange={(e) => setArtworkForm({ ...artworkForm, tags: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white" placeholder="digital, portrait, noir" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="checkbox" checked={artworkForm.available} onChange={(e) => setArtworkForm({ ...artworkForm, available: e.target.checked })} className="w-4 h-4" />
+                    Available for Sale
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="checkbox" checked={artworkForm.featured} onChange={(e) => setArtworkForm({ ...artworkForm, featured: e.target.checked })} className="w-4 h-4" />
+                    Featured
+                  </label>
+                </div>
+                <Button onClick={submitArtwork} disabled={!artworkForm.title || createArtworkMutation.isPending || updateArtworkMutation.isPending} className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-bold" data-testid="btn-save-artwork">
+                  {editingArtwork ? "UPDATE" : "ADD TO PORTFOLIO"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* PORTFOLIO CUSTOMIZER DIALOG (owner only) */}
+        {isOwner && (
+          <PortfolioCustomizer
+            open={showCustomizer}
+            onOpenChange={setShowCustomizer}
+            initialTheme={profile?.portfolioTheme}
+            onSave={(t) => themeMutation.mutate(t)}
+            saving={themeMutation.isPending}
+          />
+        )}
 
         {/* PROJECT DETAIL MODAL */}
         {selectedProject && (
@@ -1103,5 +1170,226 @@ export default function PortfolioPage() {
 
       </div>
     </PageWrapper>
+  );
+}
+
+// ============================================================================
+// THEMED GALLERY HELPERS
+// ============================================================================
+
+interface WorksHeaderProps {
+  title: string;
+  count: number;
+  accent: string;
+  displayFont: string;
+  showSearch: boolean;
+  searchQuery: string;
+  setSearchQuery: (s: string) => void;
+  rightSlot?: React.ReactNode;
+}
+function WorksHeader({ title, count, accent, displayFont, showSearch, searchQuery, setSearchQuery, rightSlot }: WorksHeaderProps) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-black" style={{ fontFamily: displayFont, color: accent }}>{title}</h2>
+        <span className="text-zinc-500 text-sm">({count})</span>
+      </div>
+      <div className="flex items-center gap-3">
+        {showSearch && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-1.5 bg-black/40 border border-zinc-700 text-sm text-white focus:border-cyan-500 outline-none w-48"
+              data-testid="gallery-search"
+            />
+          </div>
+        )}
+        {rightSlot}
+      </div>
+    </div>
+  );
+}
+
+function EmptyGalleryCard({ message, hint, mutedColor }: { message: string; hint?: string; mutedColor?: string }) {
+  return (
+    <div className="text-center py-16 border border-dashed" style={{ borderColor: mutedColor || "#52525b" }}>
+      <Layers className="w-12 h-12 mx-auto mb-4 opacity-40" style={{ color: mutedColor || "#71717a" }} />
+      <p className="mb-2" style={{ color: mutedColor || "#a1a1aa" }}>{message}</p>
+      {hint && <p className="text-sm opacity-70" style={{ color: mutedColor || "#71717a" }}>{hint}</p>}
+    </div>
+  );
+}
+
+type LayoutStyle = "grid" | "magazine" | "reel" | "compact";
+
+function gridClassesFor(layout: LayoutStyle) {
+  switch (layout) {
+    case "magazine":
+      return "grid grid-cols-1 md:grid-cols-6 gap-6 auto-rows-[minmax(180px,auto)]";
+    case "reel":
+      return "flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory";
+    case "compact":
+      return "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3";
+    case "grid":
+    default:
+      return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6";
+  }
+}
+
+function cellClassFor(layout: LayoutStyle, index: number) {
+  if (layout === "magazine") {
+    const pattern = [
+      "md:col-span-4 md:row-span-2",
+      "md:col-span-2",
+      "md:col-span-2",
+      "md:col-span-3",
+      "md:col-span-3",
+    ];
+    return pattern[index % pattern.length];
+  }
+  if (layout === "reel") return "min-w-[280px] md:min-w-[340px] snap-start";
+  return "";
+}
+
+interface ProjectGalleryProps {
+  items: { kind: "project"; project: any; date: string }[];
+  layout: LayoutStyle;
+  surfaceStyle: React.CSSProperties;
+  accent: string;
+  onSelect: (p: any) => void;
+  getThumbnail: (p: any) => string | null;
+  getTypeConfig: (t: string) => { icon: any; color: string; label: string };
+}
+function ProjectGallery({ items, layout, surfaceStyle, accent, onSelect, getThumbnail, getTypeConfig }: ProjectGalleryProps) {
+  const compact = layout === "compact";
+  return (
+    <div className={gridClassesFor(layout)}>
+      {items.map((item, idx) => {
+        const project = item.project;
+        const typeConfig = getTypeConfig(project.type);
+        const TypeIcon = typeConfig.icon;
+        const thumb = getThumbnail(project);
+        return (
+          <div
+            key={`p-${project.id}`}
+            className={`group cursor-pointer transition-all hover:-translate-y-0.5 ${cellClassFor(layout, idx)}`}
+            style={{ ...surfaceStyle, borderColor: surfaceStyle.borderColor || "#3f3f46" }}
+            onClick={() => onSelect(project)}
+            data-testid={`gallery-card-${project.id}`}
+          >
+            <div className={`${layout === "magazine" && idx % 5 === 0 ? "aspect-[16/9]" : "aspect-[4/3]"} relative overflow-hidden bg-black/40`}>
+              {thumb ? (
+                <img src={thumb} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <TypeIcon className={`${compact ? "w-10 h-10" : "w-16 h-16"} opacity-30`} style={{ color: accent }} />
+                </div>
+              )}
+              <div className="absolute top-2 left-2 flex gap-1">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border bg-black/80"
+                  style={{ borderColor: accent, color: accent }}
+                >
+                  <TypeIcon className="w-3 h-3" />
+                  {typeConfig.label.toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <div className={`${compact ? "p-2" : "p-4"}`}>
+              <h3 className={`${compact ? "text-sm" : "font-black text-lg"} mb-1 truncate`} data-testid={`text-title-${project.id}`}>{project.title}</h3>
+              {!compact && (
+                <p className="text-zinc-500 text-xs">
+                  {new Date(project.updatedAt).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface ArtworkGalleryProps {
+  items: { kind: "artwork"; artwork: any; date: string }[];
+  layout: LayoutStyle;
+  surfaceStyle: React.CSSProperties;
+  accent2: string;
+  isOwner: boolean;
+  onEdit: (a: any) => void;
+  onDelete: (id: string) => void;
+}
+function ArtworkGallery({ items, layout, surfaceStyle, accent2, isOwner, onEdit, onDelete }: ArtworkGalleryProps) {
+  const compact = layout === "compact";
+  return (
+    <div className={gridClassesFor(layout)}>
+      {items.map((item, idx) => {
+        const artwork = item.artwork;
+        return (
+          <div
+            key={`a-${artwork.id}`}
+            className={`group transition-all hover:-translate-y-0.5 ${cellClassFor(layout, idx)}`}
+            style={{ ...surfaceStyle, borderColor: surfaceStyle.borderColor || "#27272a" }}
+            data-testid={`gallery-artwork-${artwork.id}`}
+          >
+            <div className={`${layout === "magazine" && idx % 5 === 0 ? "aspect-[16/9]" : "aspect-[4/3]"} relative overflow-hidden bg-black/40`}>
+              {artwork.images?.[0] ? (
+                <img src={artwork.images[0]} alt={artwork.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                  <ImageIcon className={`${compact ? "w-10 h-10" : "w-12 h-12"} opacity-30`} style={{ color: accent2 }} />
+                </div>
+              )}
+              <div className="absolute top-2 left-2">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold border bg-black/80"
+                  style={{ borderColor: accent2, color: accent2 }}
+                >
+                  <Palette className="w-3 h-3" /> ARTWORK
+                </span>
+              </div>
+              {artwork.featured && (
+                <div className="absolute top-2 right-2 px-2 py-1 bg-yellow-400 text-black text-xs font-bold">FEATURED</div>
+              )}
+              {isOwner && (
+                <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(artwork); }}
+                    className="p-2 bg-black/80 border text-purple-400 hover:bg-purple-500 hover:text-black"
+                    style={{ borderColor: accent2 }}
+                    data-testid={`btn-edit-artwork-${artwork.id}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(artwork.id); }}
+                    className="p-2 bg-black/80 border border-red-500 text-red-400 hover:bg-red-500 hover:text-black"
+                    data-testid={`btn-delete-artwork-${artwork.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className={`${compact ? "p-2" : "p-4"}`}>
+              <h3 className={`${compact ? "text-sm" : "font-bold"} truncate`}>{artwork.title}</h3>
+              {!compact && (
+                <p className="text-zinc-500 text-sm">{artwork.medium || artwork.category} {artwork.year ? `• ${artwork.year}` : ""}</p>
+              )}
+              {artwork.price ? (
+                <div className="flex items-center justify-between mt-2">
+                  <span className="font-bold text-green-400">${(artwork.price / 100).toFixed(2)}</span>
+                  {artwork.available === false && <span className="text-xs text-red-400">SOLD</span>}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

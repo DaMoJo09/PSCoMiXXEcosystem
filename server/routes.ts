@@ -69,6 +69,100 @@ interface CollabClient {
 
 const collabClients = new Map<string, CollabClient[]>();
 
+// ----------------------------------------------------------------------------
+// Portfolio theme sanitizer
+// ----------------------------------------------------------------------------
+// portfolioTheme is creator-controlled JSON that drives the public profile page.
+// We strip unknown keys, clamp numeric ranges, restrict URL protocols to http/https,
+// and cap the final payload size so a malicious or careless creator can't break
+// the page or stash hostile content in the user record.
+const PORTFOLIO_THEME_MAX_BYTES = 12 * 1024;
+const PORTFOLIO_TEXT_MAX = 2000;
+const PORTFOLIO_SHORT_MAX = 200;
+const SAFE_URL_RE = /^https?:\/\/[^\s<>"']+$/i;
+const HEX_OR_RGB_RE = /^(#[0-9a-fA-F]{3,8}|rgba?\([^)]{0,80}\)|hsla?\([^)]{0,80}\))$/;
+const PORTFOLIO_THEME_SCHEMA = z.object({
+  preset: z.string().max(64).optional(),
+  accentColor: z.string().regex(HEX_OR_RGB_RE).optional(),
+  accent2Color: z.string().regex(HEX_OR_RGB_RE).optional(),
+  textColor: z.string().regex(HEX_OR_RGB_RE).optional(),
+  mutedTextColor: z.string().regex(HEX_OR_RGB_RE).optional(),
+  background: z.object({
+    type: z.enum(["solid", "gradient", "image", "pattern"]).optional(),
+    color: z.string().regex(HEX_OR_RGB_RE).optional(),
+    gradientFrom: z.string().regex(HEX_OR_RGB_RE).optional(),
+    gradientTo: z.string().regex(HEX_OR_RGB_RE).optional(),
+    gradientAngle: z.number().int().min(0).max(360).optional(),
+    pattern: z.enum(["none", "dots", "halftone", "grid", "lines", "paper"]).optional(),
+    imageUrl: z.string().regex(SAFE_URL_RE).max(2048).optional(),
+  }).strict().optional(),
+  surface: z.object({
+    color: z.string().regex(HEX_OR_RGB_RE).optional(),
+    borderColor: z.string().regex(HEX_OR_RGB_RE).optional(),
+    borderWidth: z.number().min(0).max(10).optional(),
+    borderStyle: z.enum(["none", "solid", "dashed", "dotted", "double"]).optional(),
+    radius: z.number().min(0).max(48).optional(),
+    shadow: z.enum(["none", "soft", "hard", "glow"]).optional(),
+  }).strict().optional(),
+  fonts: z.object({
+    display: z.string().max(48).optional(),
+    body: z.string().max(48).optional(),
+  }).strict().optional(),
+  layout: z.object({
+    style: z.enum(["grid", "magazine", "reel", "compact"]).optional(),
+    heroStyle: z.enum(["split", "centered", "minimal"]).optional(),
+  }).strict().optional(),
+  sections: z.object({
+    showStats: z.boolean().optional(),
+    showAbout: z.boolean().optional(),
+    showSocial: z.boolean().optional(),
+    showWorks: z.boolean().optional(),
+    showArtworks: z.boolean().optional(),
+    showIntro: z.boolean().optional(),
+    order: z.array(z.enum(["intro", "about", "works", "artworks"])).max(8).optional(),
+  }).strict().optional(),
+  intro: z.object({
+    enabled: z.boolean().optional(),
+    headline: z.string().max(PORTFOLIO_SHORT_MAX).optional(),
+    body: z.string().max(PORTFOLIO_TEXT_MAX).optional(),
+    imageUrl: z.string().regex(SAFE_URL_RE).max(2048).optional().or(z.literal("")),
+  }).strict().optional(),
+}).strict();
+
+const CANONICAL_SECTIONS = ["intro", "about", "works", "artworks"] as const;
+type CanonicalSection = typeof CANONICAL_SECTIONS[number];
+
+export function sanitizePortfolioTheme(input: unknown): { value: any; error?: string } {
+  if (input === null) return { value: null };
+  if (typeof input !== "object") return { value: null, error: "portfolioTheme must be an object or null" };
+  const parsed = PORTFOLIO_THEME_SCHEMA.safeParse(input);
+  if (!parsed.success) {
+    return { value: null, error: `Invalid portfolioTheme: ${parsed.error.issues[0]?.message || "validation failed"}` };
+  }
+  const data: any = parsed.data;
+  // Normalize sections.order to a canonical permutation: dedupe user choices,
+  // append any missing canonical sections so each renders exactly once.
+  if (data.sections?.order) {
+    const seen = new Set<CanonicalSection>();
+    const normalized: CanonicalSection[] = [];
+    for (const sid of data.sections.order as CanonicalSection[]) {
+      if (CANONICAL_SECTIONS.includes(sid) && !seen.has(sid)) {
+        seen.add(sid);
+        normalized.push(sid);
+      }
+    }
+    for (const sid of CANONICAL_SECTIONS) {
+      if (!seen.has(sid)) normalized.push(sid);
+    }
+    data.sections.order = normalized;
+  }
+  const serialized = JSON.stringify(data);
+  if (Buffer.byteLength(serialized, "utf8") > PORTFOLIO_THEME_MAX_BYTES) {
+    return { value: null, error: "portfolioTheme is too large" };
+  }
+  return { value: data };
+}
+
 function broadcastToSession(sessionId: string, message: any, excludeUserId?: string) {
   const clients = collabClients.get(sessionId) || [];
   const messageStr = JSON.stringify(message);
@@ -1409,6 +1503,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         statArtistry: (user as any).statArtistry || 10,
         statCollaboration: (user as any).statCollaboration || 10,
         socialLinks: (user as any).socialLinks || null,
+        portfolioTheme: (user as any).portfolioTheme || null,
         createdAt: user.createdAt,
         postCount,
         projectCount,
@@ -1424,7 +1519,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const allowedFields = [
         'name', 'avatar', 'coverImage', 'tagline', 'bio', 
-        'creatorClass', 'socialLinks'
+        'creatorClass', 'socialLinks', 'portfolioTheme'
       ];
       
       const updates: Record<string, any> = {};
@@ -1437,7 +1532,16 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ message: "No valid fields to update" });
       }
-      
+
+      // Validate + sanitize portfolioTheme (creator-controlled JSON, must be tightly bounded).
+      if ('portfolioTheme' in updates) {
+        const sanitized = sanitizePortfolioTheme(updates.portfolioTheme);
+        if (sanitized.error) {
+          return res.status(400).json({ message: sanitized.error });
+        }
+        updates.portfolioTheme = sanitized.value;
+      }
+
       const user = await storage.updateUserProfile(req.user!.id, updates);
       res.json(user);
     } catch (error: any) {
@@ -3384,6 +3488,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           xp: profile.xp,
           level: profile.level,
           socialLinks: (profile as any).socialLinks || null,
+          portfolioTheme: (profile as any).portfolioTheme || null,
           totalMinutes: (profile as any).totalMinutes || 0,
         },
         projects: safeProjects,

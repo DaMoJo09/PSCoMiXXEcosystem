@@ -28,6 +28,7 @@ export const users = pgTable("users", {
   statArtistry: integer("stat_artistry").default(10),
   statCollaboration: integer("stat_collaboration").default(10),
   socialLinks: jsonb("social_links"),
+  portfolioTheme: jsonb("portfolio_theme"),
   parentalConsentAt: timestamp("parental_consent_at"),
   ipDisclosureAccepted: timestamp("ip_disclosure_accepted"),
   userAgreementAccepted: timestamp("user_agreement_accepted"),
