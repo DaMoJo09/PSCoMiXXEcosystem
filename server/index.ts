@@ -11,7 +11,7 @@ import helmet from "helmet";
 import crypto from "crypto";
 import path from "path";
 import { db } from "./db";
-import { featureFlags } from "@shared/schema";
+import { featureFlags, platformAssets } from "@shared/schema";
 import { sql, eq } from "drizzle-orm";
 import { validateEnv } from "./envValidation";
 
@@ -40,6 +40,83 @@ async function seedFeatureFlags() {
     console.log("[feature-flags] Seeded default feature flags");
   } catch (err) {
     console.error("[feature-flags] Failed to seed:", err);
+  }
+}
+
+async function seedPlatformAssets() {
+  const seeds: Array<{
+    name: string;
+    description: string;
+    category: string;
+    type: string;
+    fileUrl: string;
+    thumbnailUrl: string;
+    tags: string[];
+    priceInCents: number;
+    isFree: boolean;
+    sourceType: string;
+    rightsClass: string;
+    usageMode: string;
+    downloadAllowed: boolean;
+    publishAllowed: boolean;
+    unlockType: string;
+    schoolSafe: boolean;
+    licenseNotes: string;
+  }> = [
+    // CHARACTERS — all free starter set
+    { name: "Caped Hero", description: "Classic vintage superhero with flowing cape — drop-in character sprite for any comic.", category: "characters", type: "image", fileUrl: "/marketplace/char_caped_hero.png", thumbnailUrl: "/marketplace/char_caped_hero.png", tags: ["hero", "vintage", "comic", "cape"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Schoolgirl with Backpack", description: "Modern manga-style schoolgirl, perfect for slice-of-life and visual novels.", category: "characters", type: "image", fileUrl: "/marketplace/char_schoolgirl.png", thumbnailUrl: "/marketplace/char_schoolgirl.png", tags: ["schoolgirl", "manga", "modern", "vn"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Robot Mascot", description: "Friendly cyberpunk robot mascot with glowing cyan eyes — great as a sidekick or interface guide.", category: "characters", type: "image", fileUrl: "/marketplace/char_robot_mascot.png", thumbnailUrl: "/marketplace/char_robot_mascot.png", tags: ["robot", "mascot", "cyberpunk", "scifi"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Wizard Mentor", description: "Mystical wizard with glowing orb — the wise guide your story needs.", category: "characters", type: "image", fileUrl: "/marketplace/char_wizard.png", thumbnailUrl: "/marketplace/char_wizard.png", tags: ["wizard", "fantasy", "mentor", "magic"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    // BACKGROUNDS — all free
+    { name: "Sunset City Skyline", description: "Dramatic art-deco skyline at sunset. 16:9 — perfect for comic establishing shots.", category: "backgrounds", type: "image", fileUrl: "/marketplace/bg_city_skyline.png", thumbnailUrl: "/marketplace/bg_city_skyline.png", tags: ["city", "skyline", "noir", "establishing"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Empty Classroom", description: "Vintage classroom interior with chalkboard and sunlit windows.", category: "backgrounds", type: "image", fileUrl: "/marketplace/bg_classroom.png", thumbnailUrl: "/marketplace/bg_classroom.png", tags: ["classroom", "school", "interior", "vn"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Mystic Forest", description: "Glowing mushrooms and twisting trees — a magical fantasy backdrop.", category: "backgrounds", type: "image", fileUrl: "/marketplace/bg_mystic_forest.png", thumbnailUrl: "/marketplace/bg_mystic_forest.png", tags: ["forest", "fantasy", "magic", "mystical"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Space Nebula", description: "Swirling nebula and distant planets — drop into any sci-fi scene.", category: "backgrounds", type: "image", fileUrl: "/marketplace/bg_space_nebula.png", thumbnailUrl: "/marketplace/bg_space_nebula.png", tags: ["space", "nebula", "scifi", "stars"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    // ITEMS — 2 free, 2 paid
+    { name: "Magic Sword", description: "Ornate hero's sword with glowing blue gem.", category: "items", type: "image", fileUrl: "/marketplace/item_magic_sword.png", thumbnailUrl: "/marketplace/item_magic_sword.png", tags: ["sword", "weapon", "fantasy", "magic"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Health Potion", description: "Bubbling red health potion in a corked bottle.", category: "items", type: "image", fileUrl: "/marketplace/item_health_potion.png", thumbnailUrl: "/marketplace/item_health_potion.png", tags: ["potion", "fantasy", "rpg", "item"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Treasure Chest (Premium)", description: "Overflowing treasure chest with gold coins and gems — high-detail.", category: "items", type: "image", fileUrl: "private_assets/marketplace/item_treasure_chest.png", thumbnailUrl: "/marketplace/previews/item_treasure_chest_preview.png", tags: ["treasure", "chest", "gold", "fantasy"], priceInCents: 99, isFree: false, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "premium", schoolSafe: true, licenseNotes: "Press Start CoMiXX premium asset — included with paid tiers, or unlocked via single purchase." },
+    { name: "Retro Ray Gun (Premium)", description: "Chrome-and-brass ray gun with glowing energy core.", category: "items", type: "image", fileUrl: "private_assets/marketplace/item_ray_gun.png", thumbnailUrl: "/marketplace/previews/item_ray_gun_preview.png", tags: ["raygun", "scifi", "weapon", "retro"], priceInCents: 99, isFree: false, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "premium", schoolSafe: true, licenseNotes: "Press Start CoMiXX premium asset — included with paid tiers, or unlocked via single purchase." },
+    // ACCESSORIES — 2 free, 2 paid
+    { name: "Hero Mask", description: "Classic eye mask in red with yellow trim.", category: "accessories", type: "image", fileUrl: "/marketplace/acc_hero_mask.png", thumbnailUrl: "/marketplace/acc_hero_mask.png", tags: ["mask", "hero", "costume"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Aviator Sunglasses", description: "Cool aviator sunglasses with reflective lenses.", category: "accessories", type: "image", fileUrl: "/marketplace/acc_sunglasses.png", thumbnailUrl: "/marketplace/acc_sunglasses.png", tags: ["sunglasses", "accessory", "cool"], priceInCents: 0, isFree: true, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "free", schoolSafe: true, licenseNotes: "Press Start CoMiXX original — free for personal & commercial use within published projects." },
+    { name: "Wizard Hat (Premium)", description: "Pointed wizard hat with gold star pattern.", category: "accessories", type: "image", fileUrl: "private_assets/marketplace/acc_wizard_hat.png", thumbnailUrl: "/marketplace/previews/acc_wizard_hat_preview.png", tags: ["hat", "wizard", "fantasy"], priceInCents: 99, isFree: false, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "premium", schoolSafe: true, licenseNotes: "Press Start CoMiXX premium asset — included with paid tiers, or unlocked via single purchase." },
+    { name: "Hero Cape (Premium)", description: "Flowing red cape with gold clasp — high-detail with motion lines.", category: "accessories", type: "image", fileUrl: "private_assets/marketplace/acc_hero_cape.png", thumbnailUrl: "/marketplace/previews/acc_hero_cape_preview.png", tags: ["cape", "hero", "costume"], priceInCents: 99, isFree: false, sourceType: "original", rightsClass: "safe-redistributable", usageMode: "system-use-and-export", downloadAllowed: true, publishAllowed: true, unlockType: "premium", schoolSafe: true, licenseNotes: "Press Start CoMiXX premium asset — included with paid tiers, or unlocked via single purchase." },
+  ];
+
+  try {
+    let inserted = 0;
+    let migrated = 0;
+    for (const seed of seeds) {
+      const existing = await db
+        .select({ id: platformAssets.id, fileUrl: platformAssets.fileUrl, thumbnailUrl: platformAssets.thumbnailUrl })
+        .from(platformAssets)
+        .where(eq(platformAssets.name, seed.name));
+      if (existing.length === 0) {
+        await db.insert(platformAssets).values({ ...seed, isActive: true });
+        inserted++;
+        continue;
+      }
+      // One-way legacy → private migration: only rewrite rows whose URLs still match the
+      // initial public-path seed pattern. Any admin-edited row (URL not starting with
+      // /marketplace/) is left untouched. Skip when multiple rows share the same name.
+      if (existing.length !== 1) continue;
+      const row = existing[0];
+      const seedTargetsPrivate = seed.fileUrl.startsWith("private_assets/");
+      const rowOnLegacyPublic = (row.fileUrl ?? "").startsWith("/marketplace/") && !(row.fileUrl ?? "").startsWith("/marketplace/previews/");
+      const isPaidLegacyToPrivate = seedTargetsPrivate && rowOnLegacyPublic;
+      if (isPaidLegacyToPrivate) {
+        await db
+          .update(platformAssets)
+          .set({ fileUrl: seed.fileUrl, thumbnailUrl: seed.thumbnailUrl })
+          .where(eq(platformAssets.id, row.id));
+        migrated++;
+      }
+    }
+    if (inserted > 0 || migrated > 0) console.log(`[platform-assets] Seed: inserted=${inserted} migrated=${migrated}`);
+  } catch (err) {
+    console.error("[platform-assets] Seed failed:", err);
   }
 }
 
@@ -323,6 +400,7 @@ async function ensureIndexes() {
 
   await initStripe();
   await seedFeatureFlags();
+  await seedPlatformAssets();
   await ensureIndexes();
 
   const { seedProgressionData } = await import('./progressionEngine');

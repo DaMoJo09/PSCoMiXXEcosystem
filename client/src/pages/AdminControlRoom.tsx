@@ -984,7 +984,7 @@ interface PlatformAssetData {
   updatedAt: string;
 }
 
-const ASSET_CATEGORIES = ["general", "characters", "backgrounds", "effects", "ui", "audio", "fonts", "templates", "stickers", "borders"];
+const ASSET_CATEGORIES = ["general", "characters", "backgrounds", "items", "accessories", "effects", "ui", "audio", "music", "vocals", "sfx", "fonts", "templates", "stickers", "borders"];
 const ASSET_TYPES = ["image", "audio", "video", "font", "template", "svg", "sprite-sheet"];
 const SOURCE_TYPES = ["original", "licensed-restricted", "creator-owned", "system-only", "xp-unlockable", "premium-paid", "admin-only"];
 const RIGHTS_CLASSES = ["safe-redistributable", "system-use-only", "embedded-output-only", "creator-owned", "restricted-commercial", "internal-testing"];

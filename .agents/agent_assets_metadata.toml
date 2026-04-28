@@ -66,6 +66,102 @@ uri = "file://client/src/assets/dashboard_bg_4_covers.png"
 type = "image"
 title = "dashboard bg comic cover stack"
 
+[[generated]]
+id = "Yv_q576_S0Yb9DzM9eA_v"
+uri = "file://client/src/assets/marketplace/item_magic_sword.png"
+type = "image"
+title = "marketplace magic sword"
+
+[[generated]]
+id = "QF879G63TpYF4zQ1SAOfR"
+uri = "file://client/src/assets/marketplace/item_treasure_chest.png"
+type = "image"
+title = "marketplace treasure chest"
+
+[[generated]]
+id = "oc6KxH-tuWYNJKuTNX0ph"
+uri = "file://client/src/assets/marketplace/item_health_potion.png"
+type = "image"
+title = "marketplace health potion"
+
+[[generated]]
+id = "J2sb16Cw_m-lUBgg7Qdqk"
+uri = "file://client/src/assets/marketplace/item_ray_gun.png"
+type = "image"
+title = "marketplace ray gun"
+
+[[generated]]
+id = "gUBDfksAUIL2M2fCqQV1z"
+uri = "file://client/src/assets/marketplace/acc_hero_mask.png"
+type = "image"
+title = "marketplace hero mask"
+
+[[generated]]
+id = "vC0cgOey3tPKmWJ_Z6LVp"
+uri = "file://client/src/assets/marketplace/acc_sunglasses.png"
+type = "image"
+title = "marketplace sunglasses"
+
+[[generated]]
+id = "PSLvZVwMVbImnZymRr4DU"
+uri = "file://client/src/assets/marketplace/acc_wizard_hat.png"
+type = "image"
+title = "marketplace wizard hat"
+
+[[generated]]
+id = "iVClcEYNahmfw3xeMWk-o"
+uri = "file://client/src/assets/marketplace/acc_hero_cape.png"
+type = "image"
+title = "marketplace hero cape"
+
+[[generated]]
+id = "z3iW4tm7IG04Fw2UKldTZ"
+uri = "file://client/src/assets/marketplace/char_caped_hero.png"
+type = "image"
+title = "marketplace caped hero"
+
+[[generated]]
+id = "yGnyi2m9pvHjps9cAA2wa"
+uri = "file://client/src/assets/marketplace/char_schoolgirl.png"
+type = "image"
+title = "marketplace schoolgirl"
+
+[[generated]]
+id = "W8izqSxyr8RFmVBPNhjUf"
+uri = "file://client/src/assets/marketplace/char_robot_mascot.png"
+type = "image"
+title = "marketplace robot mascot"
+
+[[generated]]
+id = "tHrUjwkmioCa8upRHoZcA"
+uri = "file://client/src/assets/marketplace/char_wizard.png"
+type = "image"
+title = "marketplace wizard"
+
+[[generated]]
+id = "VaNWKbEkuMd7_Czc03vYr"
+uri = "file://client/src/assets/marketplace/bg_city_skyline.png"
+type = "image"
+title = "marketplace city skyline"
+
+[[generated]]
+id = "aV7HWEX307esDg4iSjXSq"
+uri = "file://client/src/assets/marketplace/bg_classroom.png"
+type = "image"
+title = "marketplace classroom"
+
+[[generated]]
+id = "q5c3xxEvsywhk3sMJAMUh"
+uri = "file://client/src/assets/marketplace/bg_mystic_forest.png"
+type = "image"
+title = "marketplace mystic forest"
+
+[[generated]]
+id = "K3OUyBpaaUYZUe1EDFt9N"
+uri = "file://client/src/assets/marketplace/bg_space_nebula.png"
+type = "image"
+title = "marketplace space nebula"
+
 [[outputs]]
 id = "SCxjgwINvNTVVXEozAJAg"
 uri = "file://.local/pslms-integration-scope.md"
