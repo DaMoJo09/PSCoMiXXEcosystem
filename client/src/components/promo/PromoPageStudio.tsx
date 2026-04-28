@@ -59,9 +59,45 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Send, Megaphone, GraduationCap, User as UserIcon, Loader2, Check, X, Building2 } from "lucide-react";
+import { Sparkles, Send, Megaphone, GraduationCap, User as UserIcon, Loader2, Check, X, Building2, ImageIcon, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/lib/queryClient";
+import { ImageUpload } from "@/components/ImageUpload";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Vintage filter presets — applied as a CSS `filter:` string to all promo
+// images. Picked to evoke specific old-school looks without re-rendering.
+export const VINTAGE_FILTERS: Record<string, { label: string; css: string }> = {
+  none:        { label: "None",                   css: "" },
+  sepia:       { label: "Sepia (yellowed paper)", css: "sepia(80%) contrast(95%) brightness(95%) saturate(110%)" },
+  bw:          { label: "Black & White",          css: "grayscale(100%) contrast(110%)" },
+  newsprint:   { label: "Newsprint",              css: "grayscale(100%) contrast(180%) brightness(95%)" },
+  faded:       { label: "Faded Vintage",          css: "saturate(40%) brightness(105%) contrast(85%)" },
+  punchy:      { label: "Punchy Comic",           css: "saturate(160%) contrast(125%) brightness(98%)" },
+  warmComic:   { label: "Warm Comic",             css: "sepia(35%) saturate(150%) brightness(105%) contrast(110%)" },
+  coolComic:   { label: "Cool Comic",             css: "hue-rotate(15deg) saturate(115%) contrast(115%) brightness(102%)" },
+  cyanotype:   { label: "Cyanotype Blueprint",    css: "grayscale(100%) sepia(60%) hue-rotate(160deg) saturate(280%)" },
+  noir:        { label: "Noir Halftone",          css: "grayscale(100%) contrast(160%) brightness(85%)" },
+};
+
+// Build the image style object once per image. Returns CSS that applies the
+// chosen vintage filter, scale, and object-position pulled from the merged
+// promo data. Safe to spread into any inline style — falls back to defaults
+// when fields are missing.
+export function getPromoImageStyle(data: PromoTemplateData): React.CSSProperties {
+  const filterKey = (data.imageFilter && VINTAGE_FILTERS[data.imageFilter]) ? data.imageFilter : "none";
+  const filterCss = VINTAGE_FILTERS[filterKey].css;
+  const scale = typeof data.imageScale === "number" ? Math.max(25, Math.min(250, data.imageScale)) / 100 : 1;
+  const px = typeof data.imagePositionX === "number" ? Math.max(0, Math.min(100, data.imagePositionX)) : 50;
+  const py = typeof data.imagePositionY === "number" ? Math.max(0, Math.min(100, data.imagePositionY)) : 50;
+  return {
+    filter: filterCss || undefined,
+    objectPosition: `${px}% ${py}%`,
+    transform: scale !== 1 ? `scale(${scale})` : undefined,
+    transformOrigin: "center center",
+  };
+}
 
 export type PromoType = "platform" | "sponsor" | "student" | "creator";
 
@@ -93,6 +129,20 @@ export interface PromoTemplateData {
   backgroundColor?: string;
   accentColor?: string;
   textColor?: string;
+  // Image transform / look controls (apply to ALL images in the page)
+  imageFilter?: string;          // key into VINTAGE_FILTERS
+  imageScale?: number;           // 25..250 (% of natural size)
+  imagePositionX?: number;       // 0..100 — object-position X %
+  imagePositionY?: number;       // 0..100 — object-position Y %
+  // Used by the vintage-triple-feature layout for per-strip content.
+  strips?: PromoStrip[];
+}
+
+export interface PromoStrip {
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  badge?: string;
 }
 
 export type PromoCustomData = Partial<PromoTemplateData>;
@@ -197,7 +247,7 @@ function ModernBody({ data }: { data: PromoTemplateData }) {
         <p className="text-base md:text-lg font-bold uppercase opacity-90">{data.subheadline}</p>
       )}
       {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
-        <img src={data.imageUrl} alt="" className="max-h-48 my-2 object-contain" referrerPolicy="no-referrer" />
+        <img src={data.imageUrl} alt="" className="max-h-48 my-2 object-contain" referrerPolicy="no-referrer" style={getPromoImageStyle(data)} />
       )}
       {data.bodyCopy && (
         <p className="text-sm md:text-base max-w-md opacity-90 leading-relaxed">{data.bodyCopy}</p>
@@ -258,7 +308,8 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
         )}
         {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
           <img src={data.imageUrl} alt="" referrerPolicy="no-referrer"
-            className="absolute right-2 bottom-2 max-h-[85%] max-w-[60%] object-contain" />
+            className="absolute right-2 bottom-2 max-h-[85%] max-w-[60%] object-contain"
+            style={getPromoImageStyle(data)} />
         )}
       </div>
 
@@ -327,7 +378,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
           )}
         </div>
         {data.logoUrl && isPromoImageAllowed(data.logoUrl) && (
-          <img src={data.logoUrl} alt="" referrerPolicy="no-referrer" className="max-h-20 max-w-[35%] object-contain" />
+          <img src={data.logoUrl} alt="" referrerPolicy="no-referrer" className="max-h-20 max-w-[35%] object-contain" style={getPromoImageStyle(data)} />
         )}
       </div>
 
@@ -344,7 +395,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
         {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
           <div className="flex-1 border-2 overflow-hidden"
             style={{ borderColor: VINTAGE_INK, backgroundColor: "#000" }}>
-            <img src={data.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full max-h-32 object-contain" />
+            <img src={data.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full max-h-32 object-contain" style={getPromoImageStyle(data)} />
           </div>
         )}
         <div className="flex-1 flex flex-col justify-center px-3 py-2 border-2 text-center"
@@ -366,10 +417,8 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
  * badge }[]`. If no strips are provided, a default 3-strip placeholder shows.
  */
 function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
-  const strips = (Array.isArray((data as any).strips) ? (data as any).strips : []) as Array<{
-    title?: string; subtitle?: string; imageUrl?: string; badge?: string;
-  }>;
-  const padded = [0, 1, 2].map(i => strips[i] || {});
+  const strips: PromoStrip[] = Array.isArray(data.strips) ? data.strips : [];
+  const padded: PromoStrip[] = [0, 1, 2].map(i => strips[i] || {});
   const stripBgs = ["#fff7d6", "#0a0a0a", "#ffd9d9"]; // light, dark, pink — vintage variety
 
   return (
@@ -386,7 +435,7 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
             <div className="w-2/5 border-r-2 flex items-center justify-center"
               style={{ borderColor: VINTAGE_INK, backgroundColor: dark ? "#000" : "rgba(0,0,0,0.04)" }}>
               {s.imageUrl && isPromoImageAllowed(s.imageUrl) ? (
-                <img src={s.imageUrl} alt="" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
+                <img src={s.imageUrl} alt="" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" style={getPromoImageStyle(data)} />
               ) : (
                 <div className="text-xs italic opacity-60 text-center px-2">Cover art slot {i + 1}</div>
               )}
@@ -643,6 +692,160 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
                         />
                       </div>
                     </div>
+
+                    {/* IMAGES — upload from device. Triple-feature uses 3 strip slots. */}
+                    {selected.layoutStyle === "vintage-triple-feature" ? (
+                      <div className="border border-zinc-800 rounded p-2 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                          <ImageIcon className="w-3.5 h-3.5 text-amber-400" /> Cover Strips
+                        </div>
+                        {[0, 1, 2].map(i => {
+                          const baseStrip = (selected.templateJson.strips || [])[i] || {};
+                          const customStrip = (customData.strips || [])[i] || {};
+                          const strip = { ...baseStrip, ...customStrip };
+                          const updateStrip = (patch: Partial<PromoStrip>) => {
+                            setCustomData(d => {
+                              const merged = (d.strips ?? selected.templateJson.strips ?? [{}, {}, {}]).slice();
+                              for (let k = merged.length; k < 3; k++) merged[k] = {};
+                              merged[i] = { ...merged[i], ...patch };
+                              return { ...d, strips: merged };
+                            });
+                          };
+                          return (
+                            <div key={i} className="border border-zinc-800 rounded p-2 space-y-2 bg-zinc-950" data-testid={`strip-editor-${i}`}>
+                              <div className="text-[10px] uppercase tracking-wider text-amber-400 font-mono">Strip {i + 1}</div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input
+                                  placeholder="Title"
+                                  value={strip.title ?? ""}
+                                  onChange={(e) => updateStrip({ title: e.target.value })}
+                                  className="bg-zinc-900 border-zinc-700 text-white text-xs h-8"
+                                  data-testid={`input-strip-title-${i}`}
+                                />
+                                <Input
+                                  placeholder="Subtitle"
+                                  value={strip.subtitle ?? ""}
+                                  onChange={(e) => updateStrip({ subtitle: e.target.value })}
+                                  className="bg-zinc-900 border-zinc-700 text-white text-xs h-8"
+                                  data-testid={`input-strip-subtitle-${i}`}
+                                />
+                              </div>
+                              <Input
+                                placeholder="Badge (e.g. ON SALE!)"
+                                value={strip.badge ?? ""}
+                                onChange={(e) => updateStrip({ badge: e.target.value })}
+                                className="bg-zinc-900 border-zinc-700 text-white text-xs h-8"
+                                data-testid={`input-strip-badge-${i}`}
+                              />
+                              <ImageUpload
+                                value={strip.imageUrl}
+                                onChange={(v) => updateStrip({ imageUrl: v })}
+                                className="text-xs"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                            <ImageIcon className="w-3 h-3" /> Hero Image
+                          </Label>
+                          <ImageUpload
+                            value={customData.imageUrl ?? selected.templateJson.imageUrl}
+                            onChange={(v) => setCustomData(d => ({ ...d, imageUrl: v }))}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                            <ImageIcon className="w-3 h-3" /> Logo
+                          </Label>
+                          <ImageUpload
+                            value={customData.logoUrl ?? selected.templateJson.logoUrl}
+                            onChange={(v) => setCustomData(d => ({ ...d, logoUrl: v }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* VINTAGE FILTER + TRANSFORM CONTROLS — apply to all images */}
+                    <div className="border border-amber-900/40 rounded p-3 space-y-3 bg-amber-950/10">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider">
+                        <Wand2 className="w-3.5 h-3.5" /> Old-School Look
+                      </div>
+                      <div>
+                        <Label className="text-xs text-zinc-400">Vintage Filter</Label>
+                        <Select
+                          value={customData.imageFilter ?? selected.templateJson.imageFilter ?? "none"}
+                          onValueChange={(v) => setCustomData(d => ({ ...d, imageFilter: v }))}
+                        >
+                          <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9" data-testid="select-promo-filter">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                            {Object.entries(VINTAGE_FILTERS).map(([key, f]) => (
+                              <SelectItem key={key} value={key} className="text-xs" data-testid={`option-filter-${key}`}>
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs text-zinc-400">Image Scale</Label>
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {customData.imageScale ?? selected.templateJson.imageScale ?? 100}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[customData.imageScale ?? selected.templateJson.imageScale ?? 100]}
+                          onValueChange={([v]) => setCustomData(d => ({ ...d, imageScale: v }))}
+                          min={25} max={250} step={5}
+                          data-testid="slider-promo-scale"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs text-zinc-400">Position X</Label>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {customData.imagePositionX ?? selected.templateJson.imagePositionX ?? 50}%
+                            </span>
+                          </div>
+                          <Slider
+                            value={[customData.imagePositionX ?? selected.templateJson.imagePositionX ?? 50]}
+                            onValueChange={([v]) => setCustomData(d => ({ ...d, imagePositionX: v }))}
+                            min={0} max={100} step={1}
+                            data-testid="slider-promo-pos-x"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs text-zinc-400">Position Y</Label>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {customData.imagePositionY ?? selected.templateJson.imagePositionY ?? 50}%
+                            </span>
+                          </div>
+                          <Slider
+                            value={[customData.imagePositionY ?? selected.templateJson.imagePositionY ?? 50]}
+                            onValueChange={([v]) => setCustomData(d => ({ ...d, imagePositionY: v }))}
+                            min={0} max={100} step={1}
+                            data-testid="slider-promo-pos-y"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCustomData(d => ({ ...d, imageFilter: "none", imageScale: 100, imagePositionX: 50, imagePositionY: 50 }))}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-300 underline-offset-2 hover:underline"
+                        data-testid="button-reset-image-look"
+                      >
+                        Reset look to defaults
+                      </button>
+                    </div>
+
                     <div className="border border-zinc-800 rounded">
                       <div className="text-[10px] text-zinc-500 uppercase tracking-wider px-2 py-1 border-b border-zinc-800">Preview</div>
                       <div className="aspect-[8.5/11] max-h-[300px] mx-auto">
