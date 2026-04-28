@@ -298,6 +298,83 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Classic Comic Starter — pre-builds a 6-spread project: front cover,
+   * 3 story spreads, an ad page (vintage promo template), 1 more story spread,
+   * and a back cover. Equivalent to ~11 reading pages of a real mini-comic.
+   * Mirrors how kids/creators expect a "blank comic" to feel — not literally
+   * empty, but ready to draw into.
+   */
+  const handleClassicComicStarter = async () => {
+    if (checkProjectLimit()) return;
+    try {
+      // Try to fetch a vintage promo template to embed in the ad spread.
+      // Falls back to no-snapshot (user picks one in-creator) if anything fails.
+      let promoSnapshot: any = null;
+      let promoTemplateId: string | undefined;
+      try {
+        const res = await fetch("/api/promo/templates?type=platform", { credentials: "include" });
+        if (res.ok) {
+          const list = await res.json();
+          const vintage = Array.isArray(list)
+            ? list.find((t: any) => String(t.layoutStyle || "").startsWith("vintage-")) || list[0]
+            : null;
+          if (vintage) {
+            promoSnapshot = vintage;
+            promoTemplateId = vintage.id;
+          }
+        }
+      } catch { /* non-fatal — ship the project with an empty promo spread */ }
+
+      const sid = () => `spread_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const pid = () => `panel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const blankPanel = () => ({
+        id: pid(), x: 0, y: 0, width: 800, height: 1200, rotation: 0,
+        type: "rectangle" as const, contents: [], zIndex: 0,
+        backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 2,
+      });
+      const frontCoverPanel = () => ({
+        id: pid(), x: 0, y: 0, width: 800, height: 1200, rotation: 0,
+        type: "rectangle" as const, contents: [], zIndex: 0,
+        coverRole: "front-cover" as const,
+      });
+      const backCoverPanel = () => ({
+        id: pid(), x: 0, y: 0, width: 800, height: 1200, rotation: 0,
+        type: "rectangle" as const, contents: [], zIndex: 0,
+        coverRole: "back-cover" as const,
+      });
+
+      const spreads: any[] = [
+        { id: sid(), tag: "cover",      leftPage: [frontCoverPanel()], rightPage: [blankPanel()] },
+        { id: sid(), tag: "spread",     leftPage: [blankPanel()],      rightPage: [blankPanel()] },
+        { id: sid(), tag: "spread",     leftPage: [blankPanel()],      rightPage: [blankPanel()] },
+        // The ad spread — full-spread promo page.
+        {
+          id: sid(),
+          leftPage: [], rightPage: [],
+          isPromoPage: true,
+          ...(promoTemplateId ? { promoTemplateId } : {}),
+          ...(promoSnapshot ? { promoTemplateSnapshot: promoSnapshot } : {}),
+          promoCustomData: {},
+        },
+        { id: sid(), tag: "spread",     leftPage: [blankPanel()],      rightPage: [blankPanel()] },
+        { id: sid(), tag: "back-cover", leftPage: [blankPanel()],      rightPage: [backCoverPanel()], isLastPage: true },
+      ];
+
+      const project = await createProject.mutateAsync({
+        title: "My Classic Comic",
+        type: "comic",
+        status: "draft",
+        data: { spreads },
+        forceNew: true,
+      });
+      toast.success("Classic comic ready! Front cover, 8 story pages, an ad page, and back cover.");
+      navigate(`/creator/comic?id=${project.id}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Could not create starter comic");
+    }
+  };
+
   const handleQuickCreate = async (type: string, href: string) => {
     if (type === "fx") {
       navigate(href);
@@ -595,6 +672,20 @@ export default function Dashboard() {
           </h2>
           <p className="text-sm text-zinc-500 mb-4">Get inspired — click "Remix" to start with any of these as a template.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Standalone: Classic Comic Starter — uses its own async handler because
+                it has to fetch a promo template snapshot before saving the project. */}
+            <button
+              onClick={handleClassicComicStarter}
+              className="group p-4 border-2 border-amber-500/40 hover:border-amber-500 bg-zinc-900/50 text-left transition-all rounded-xl hover:shadow-lg"
+              data-testid="button-remix-classic-starter"
+            >
+              <span className="text-2xl block mb-2">📓</span>
+              <h3 className="text-sm font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Classic Comic Starter</h3>
+              <p className="text-[10px] text-zinc-500 leading-relaxed mb-3">Front cover, back cover, 8 story pages and a vintage ad page — like a real mini-comic.</p>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-white bg-white/10 px-2 py-1 rounded-lg group-hover:bg-white/20 transition-colors">
+                <Sparkles className="w-3 h-3" /> Start Now
+              </span>
+            </button>
             {[
               { title: "Space Opera Comic", type: "comic", emoji: "\uD83D\uDE80", desc: "3-page sci-fi comic with AI panels and cover art", href: "/creator/comic", accent: "border-cyan-500/40 hover:border-cyan-500", template: { spreads: [{ title: "Cover", panels: [{ x: 0, y: 0, width: 800, height: 1200, content: "Deep space — a lone ship approaches a nebula" }] }, { title: "Page 1", panels: [{ x: 0, y: 0, width: 400, height: 600, content: "Captain on the bridge, stars through viewport" }, { x: 400, y: 0, width: 400, height: 600, content: "Alert klaxons — enemy fleet detected" }] }, { title: "Page 2", panels: [{ x: 0, y: 0, width: 800, height: 600, content: "Space battle — lasers and explosions" }] }] } },
               { title: "Mystery Detective CYOA", type: "cyoa", emoji: "\uD83D\uDD0D", desc: "Branching detective story with 8 endings", href: "/creator/cyoa", accent: "border-red-500/40 hover:border-red-500", template: { nodes: [{ id: "start", title: "The Case Begins", text: "A mysterious letter arrives at your detective agency...", choices: [{ label: "Open it carefully", target: "letter" }, { label: "Check for traps first", target: "traps" }], color: "blue" }, { id: "letter", title: "The Letter", text: "Inside is a plea for help from a wealthy collector.", choices: [{ label: "Visit the collector", target: "mansion" }, { label: "Research their background", target: "research" }], color: "green" }, { id: "traps", title: "Checking for Traps", text: "Smart move — you notice a faint powder on the seal.", choices: [{ label: "Analyze the powder", target: "lab" }], color: "red" }] } },

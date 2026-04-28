@@ -12002,10 +12002,13 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     }
   });
 
-  // Seed a small starter pack of platform templates (idempotent).
+  // Seed a small starter pack of platform templates (idempotent — checks per
+  // layoutStyle so newly added templates get inserted on next boot without
+  // disturbing existing rows).
   try {
     const existing = await storage.listAllPromoTemplates({ type: "platform" });
-    if (existing.length === 0) {
+    const existingStyles = new Set(existing.map(t => String(t.layoutStyle || "")));
+    {
       const seeds: InsertPromoTemplate[] = [
         {
           title: "Create your next comic in CoMiXX",
@@ -12087,11 +12090,75 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           isActive: true,
           createdBy: null as any,
         },
+        // ---- Vintage comic-ad styles (modeled on classic mid-century back-of-book ads) ----
+        {
+          title: "Vintage Mail-Order — How To...",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "vintage-mail-order",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "HOW TO DRAW COMICS",
+            subheadline: "It's easy to start your own comic… when you know how!",
+            bodyCopy:
+              "Want the thrill of bringing your own characters to life? PSCoMiXX gives you everything you need: stylus-powered drawing, smart panels, FX, and instant publishing. Perfect for schools, creators, and stay-up-late dreamers.\n\nStart for FREE today — no credit card required.",
+            ctaText: "Mail Coupon Today",
+            qrUrl: "pscomixx.com/start",
+            imageUrl: "",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Vintage Novelty — Amazing Offer",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "vintage-novelty",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "AMAZING X-RAY STORYTELLING!",
+            subheadline: "See your story come alive INSTANTLY!",
+            bodyCopy:
+              "WHAT WE PROMISED: A creator studio that turns your wild ideas into a finished comic in minutes.\n\nWHAT YOU GET: Stylus-powered drawing tools, AI-assisted panels, instant export to PDF/PNG/JSON, and one-click publishing to PSStreaming.\n\nBEHIND THE MAGIC: Built on years of comic-making craft, PSCoMiXX combines the joy of paper-and-pen with the power of modern devices.\n\nGUARANTEED to make a creator out of you — or your money back. (Just kidding, the free tier is actually free.)",
+            ctaText: "Send No Money!",
+            qrUrl: "pscomixx.com",
+            imageUrl: "",
+            logoUrl: "",
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Vintage Triple Feature — On Sale Now!",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "vintage-triple-feature",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "",
+            strips: [
+              { title: "INKBLADE STYLUS",   subtitle: "The all-new pressure-sensitive pen!", badge: "NEW!",          imageUrl: "" },
+              { title: "PSSTREAMING",       subtitle: "Watch and publish comics worldwide.", badge: "ON AIR",        imageUrl: "" },
+              { title: "FX STUDIO",         subtitle: "Effects that bring your panels alive.", badge: "FREE TRIAL",  imageUrl: "" },
+            ],
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
       ];
-      for (const s of seeds) {
+      const toInsert = seeds.filter(s => !existingStyles.has(String(s.layoutStyle || "")));
+      for (const s of toInsert) {
         await storage.createPromoTemplate(s);
       }
-      console.log("[promo] Seeded platform promo templates");
+      if (toInsert.length > 0) {
+        console.log(`[promo] Seeded ${toInsert.length} new platform promo template(s): ${toInsert.map(t => t.layoutStyle).join(", ")}`);
+      }
     }
   } catch (err: any) {
     console.error("[promo] Seed error:", err.message);

@@ -125,14 +125,18 @@ export function PromoPageRenderer({
   }), [template, customData]);
 
   const requiredLabel = PROMO_TYPE_META[template.type].required;
-  const bg = data.backgroundColor || "#1a1a1a";
-  const accent = data.accentColor || "#fbbf24";
-  const text = data.textColor || "#ffffff";
 
+  // The vintage layouts have their own complete looks (paper textures, fixed
+  // palettes), so they ignore the editable color fields. The classic/magazine/
+  // trading-card/event-flyer layouts still respect them.
+  const layoutStyle = template.layoutStyle || "classic-comic";
+
+  // Always wrap in the safety frame: mandatory disclosure label on top, brand
+  // mark on bottom. The inner body changes per layoutStyle.
   return (
     <div
       className={`relative w-full h-full flex flex-col ${className || ""}`}
-      style={{ backgroundColor: bg, color: text, aspectRatio: "8.5 / 11" }}
+      style={{ aspectRatio: "8.5 / 11" }}
       data-testid="promo-page-render"
     >
       {/* Mandatory label — strip across the top, always visible.
@@ -140,7 +144,7 @@ export function PromoPageRenderer({
           so a malicious editor cannot hide the label by recoloring the accent. */}
       {requiredLabel && (
         <div
-          className="w-full px-3 py-1.5 text-[10px] font-bold tracking-widest text-center uppercase border-b-2"
+          className="w-full px-3 py-1.5 text-[10px] font-bold tracking-widest text-center uppercase border-b-2 z-10"
           style={{
             backgroundColor: MANDATORY_LABEL_BG,
             color: MANDATORY_LABEL_FG,
@@ -152,54 +156,271 @@ export function PromoPageRenderer({
         </div>
       )}
 
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 gap-3 overflow-hidden">
-        {data.logoUrl && isPromoImageAllowed(data.logoUrl) && (
-          <img src={data.logoUrl} alt="logo" className="max-h-12 mb-2 object-contain" referrerPolicy="no-referrer" />
-        )}
+      <div className="flex-1 relative overflow-hidden">
+        {layoutStyle === "vintage-mail-order"   && <VintageMailOrderBody data={data} />}
+        {layoutStyle === "vintage-novelty"      && <VintageNoveltyBody data={data} />}
+        {layoutStyle === "vintage-triple-feature" && <VintageTripleFeatureBody data={data} />}
+        {(layoutStyle !== "vintage-mail-order" &&
+          layoutStyle !== "vintage-novelty" &&
+          layoutStyle !== "vintage-triple-feature") && <ModernBody data={data} />}
+      </div>
 
+      {/* Footer brand mark — minimal, just identifies what this is. */}
+      <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest text-center border-t z-10"
+        style={{ backgroundColor: "rgba(0,0,0,0.85)", color: "#9ca3af", borderColor: "rgba(255,255,255,0.1)" }}>
+        Promo Page · PSCoMiXX
+      </div>
+    </div>
+  );
+}
+
+/* ---- Layout body components ---- */
+
+// Original layout, kept for backward compat with existing seeds.
+function ModernBody({ data }: { data: PromoTemplateData }) {
+  const bg = data.backgroundColor || "#1a1a1a";
+  const accent = data.accentColor || "#fbbf24";
+  const text = data.textColor || "#ffffff";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 gap-3"
+      style={{ backgroundColor: bg, color: text }}>
+      {data.logoUrl && isPromoImageAllowed(data.logoUrl) && (
+        <img src={data.logoUrl} alt="logo" className="max-h-12 mb-2 object-contain" referrerPolicy="no-referrer" />
+      )}
+      {data.headline && (
+        <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight tracking-tight"
+          style={{ color: accent, textShadow: "2px 2px 0 rgba(0,0,0,0.4)" }}>
+          {data.headline}
+        </h1>
+      )}
+      {data.subheadline && (
+        <p className="text-base md:text-lg font-bold uppercase opacity-90">{data.subheadline}</p>
+      )}
+      {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
+        <img src={data.imageUrl} alt="" className="max-h-48 my-2 object-contain" referrerPolicy="no-referrer" />
+      )}
+      {data.bodyCopy && (
+        <p className="text-sm md:text-base max-w-md opacity-90 leading-relaxed">{data.bodyCopy}</p>
+      )}
+      {data.ctaText && (
+        <div className="mt-3 px-6 py-2.5 font-bold uppercase tracking-wider text-sm border-2"
+          style={{ backgroundColor: accent, color: bg, borderColor: text }}>
+          {data.ctaText}
+        </div>
+      )}
+      {data.qrUrl && <div className="mt-2 text-xs opacity-70">{data.qrUrl}</div>}
+    </div>
+  );
+}
+
+/* Vintage palettes are fixed — they're the whole point of the look.
+   Cream paper, classic comic-ad red, mustard-yellow accent panel. */
+const VINTAGE_PAPER_BG     = "#f4ecd5";
+const VINTAGE_PAPER_BG_ALT = "#f5d83d"; // yellow novelty paper
+const VINTAGE_INK          = "#1a1a1a";
+const VINTAGE_RED          = "#c8342b";
+const VINTAGE_RED_DARK     = "#8a1f18";
+const VINTAGE_COUPON_BG    = "#e8c93a";
+
+// Subtle paper-grain via SVG noise — keeps file size tiny, no external asset.
+const PAPER_GRAIN_BG: React.CSSProperties = {
+  backgroundImage:
+    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.25  0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+  backgroundBlendMode: "multiply",
+};
+
+/**
+ * "How to Hypnotize" style — single bold red headline arcing top, big
+ * illustration on the right, body paragraph + mail-order coupon along the
+ * bottom. Cream paper texture throughout.
+ */
+function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
+  return (
+    <div className="absolute inset-0 flex flex-col p-3 sm:p-4"
+      style={{ backgroundColor: VINTAGE_PAPER_BG, color: VINTAGE_INK, ...PAPER_GRAIN_BG }}>
+      {/* Top half: headline + hero illustration on a black panel */}
+      <div className="relative flex-[1.2] border-2 overflow-hidden"
+        style={{ backgroundColor: "#0a0a0a", borderColor: VINTAGE_INK }}>
         {data.headline && (
           <h1
-            className="text-3xl md:text-4xl font-black uppercase leading-tight tracking-tight"
-            style={{ color: accent, textShadow: "2px 2px 0 rgba(0,0,0,0.4)" }}
+            className="absolute top-2 left-3 right-3 font-black uppercase leading-none z-10"
+            style={{
+              color: VINTAGE_RED,
+              fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+              fontSize: "clamp(2.4rem, 7vw, 5rem)",
+              letterSpacing: "0.01em",
+              textShadow: "3px 3px 0 #000, 5px 5px 0 rgba(0,0,0,0.4)",
+              transform: "rotate(-2deg)",
+            }}
           >
             {data.headline}
           </h1>
         )}
-
-        {data.subheadline && (
-          <p className="text-base md:text-lg font-bold uppercase opacity-90">
-            {data.subheadline}
-          </p>
-        )}
-
         {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
-          <img src={data.imageUrl} alt="" className="max-h-48 my-2 object-contain" referrerPolicy="no-referrer" />
+          <img src={data.imageUrl} alt="" referrerPolicy="no-referrer"
+            className="absolute right-2 bottom-2 max-h-[85%] max-w-[60%] object-contain" />
         )}
+      </div>
 
-        {data.bodyCopy && (
-          <p className="text-sm md:text-base max-w-md opacity-90 leading-relaxed">
-            {data.bodyCopy}
-          </p>
+      {/* Sub headline strip */}
+      {data.subheadline && (
+        <div className="my-1 italic font-bold text-base sm:text-lg leading-tight"
+          style={{ color: VINTAGE_INK, fontFamily: "Georgia, serif" }}>
+          {data.subheadline}
+        </div>
+      )}
+
+      {/* Bottom half: body copy left, coupon box right */}
+      <div className="flex-1 flex gap-2 mt-1">
+        <div className="flex-[1.4] text-[11px] sm:text-xs leading-snug overflow-hidden"
+          style={{ fontFamily: "Georgia, 'Times New Roman', serif", columnCount: 1 }}>
+          {data.bodyCopy && <p className="whitespace-pre-line">{data.bodyCopy}</p>}
+        </div>
+        <div className="flex-1 border-2 p-2 flex flex-col"
+          style={{ backgroundColor: VINTAGE_COUPON_BG, borderColor: VINTAGE_INK }}>
+          <div className="text-center font-black text-xs uppercase border-b-2 pb-1 mb-1"
+            style={{ backgroundColor: VINTAGE_RED, color: "#fff", borderColor: VINTAGE_INK,
+              fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+            {data.ctaText || "Mail Coupon Today"}
+          </div>
+          <div className="text-[9px] sm:text-[10px] leading-tight space-y-0.5"
+            style={{ fontFamily: "Georgia, serif" }}>
+            <div>Name: ____________________</div>
+            <div>Address: __________________</div>
+            <div>City: ______ State: ____ Zip: ____</div>
+            {data.qrUrl && <div className="mt-1 italic">Visit: {data.qrUrl}</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "X-Ray Spex" style — bright yellow background, bold red headline, dense
+ * column copy in 2 sub-sections, small product illo strip at bottom.
+ */
+function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
+  return (
+    <div className="absolute inset-0 flex flex-col p-3 sm:p-4"
+      style={{ backgroundColor: VINTAGE_PAPER_BG_ALT, color: VINTAGE_INK, ...PAPER_GRAIN_BG }}>
+      {/* Banner */}
+      <div className="border-2 px-3 py-2 mb-2 flex items-center gap-3"
+        style={{ borderColor: VINTAGE_INK, backgroundColor: VINTAGE_PAPER_BG_ALT }}>
+        <div className="flex-1">
+          {data.headline && (
+            <h1 className="font-black uppercase leading-none"
+              style={{
+                color: VINTAGE_RED,
+                fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+                fontSize: "clamp(1.8rem, 5.5vw, 3.6rem)",
+                letterSpacing: "0.01em",
+                textShadow: "2px 2px 0 #000",
+              }}>
+              {data.headline}
+            </h1>
+          )}
+          {data.subheadline && (
+            <p className="text-xs sm:text-sm font-bold italic mt-1" style={{ fontFamily: "Georgia, serif" }}>
+              {data.subheadline}
+            </p>
+          )}
+        </div>
+        {data.logoUrl && isPromoImageAllowed(data.logoUrl) && (
+          <img src={data.logoUrl} alt="" referrerPolicy="no-referrer" className="max-h-20 max-w-[35%] object-contain" />
         )}
+      </div>
 
-        {data.ctaText && (
-          <div
-            className="mt-3 px-6 py-2.5 font-bold uppercase tracking-wider text-sm border-2"
-            style={{ backgroundColor: accent, color: bg, borderColor: text }}
-          >
-            {data.ctaText}
+      {/* Two-column body */}
+      {data.bodyCopy && (
+        <div className="flex-1 text-[10px] sm:text-xs leading-snug overflow-hidden"
+          style={{ fontFamily: "Georgia, 'Times New Roman', serif", columnCount: 2, columnGap: "0.75rem" }}>
+          <p className="whitespace-pre-line">{data.bodyCopy}</p>
+        </div>
+      )}
+
+      {/* Bottom strip: product image + CTA box */}
+      <div className="mt-2 flex gap-2 items-stretch">
+        {data.imageUrl && isPromoImageAllowed(data.imageUrl) && (
+          <div className="flex-1 border-2 overflow-hidden"
+            style={{ borderColor: VINTAGE_INK, backgroundColor: "#000" }}>
+            <img src={data.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full max-h-32 object-contain" />
           </div>
         )}
-
-        {data.qrUrl && (
-          <div className="mt-2 text-xs opacity-70">{data.qrUrl}</div>
-        )}
+        <div className="flex-1 flex flex-col justify-center px-3 py-2 border-2 text-center"
+          style={{ backgroundColor: VINTAGE_RED, color: "#fff", borderColor: VINTAGE_INK }}>
+          <div className="font-black uppercase text-base sm:text-xl leading-tight"
+            style={{ fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+            {data.ctaText || "Send No Money!"}
+          </div>
+          {data.qrUrl && <div className="text-[10px] mt-1 opacity-90">{data.qrUrl}</div>}
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Footer brand mark — minimal, just identifies what this is. */}
-      <div className="px-3 py-1.5 text-[9px] uppercase tracking-widest opacity-50 text-center border-t border-white/10">
-        Promo Page · PSCoMiXX
-      </div>
+/**
+ * "My Son the Man-Wolf!" style — three horizontal strips, each promoting a
+ * different title. Strips come from `data.strips: { title, subtitle, imageUrl,
+ * badge }[]`. If no strips are provided, a default 3-strip placeholder shows.
+ */
+function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
+  const strips = (Array.isArray((data as any).strips) ? (data as any).strips : []) as Array<{
+    title?: string; subtitle?: string; imageUrl?: string; badge?: string;
+  }>;
+  const padded = [0, 1, 2].map(i => strips[i] || {});
+  const stripBgs = ["#fff7d6", "#0a0a0a", "#ffd9d9"]; // light, dark, pink — vintage variety
+
+  return (
+    <div className="absolute inset-0 flex flex-col"
+      style={{ backgroundColor: VINTAGE_PAPER_BG, ...PAPER_GRAIN_BG }}>
+      {padded.map((s, i) => {
+        const dark = i === 1;
+        const stripBg = stripBgs[i];
+        return (
+          <div key={i}
+            className="flex-1 flex items-stretch border-b-2 overflow-hidden"
+            style={{ backgroundColor: stripBg, borderColor: VINTAGE_INK, color: dark ? "#fff" : VINTAGE_INK }}>
+            {/* Image / illustration */}
+            <div className="w-2/5 border-r-2 flex items-center justify-center"
+              style={{ borderColor: VINTAGE_INK, backgroundColor: dark ? "#000" : "rgba(0,0,0,0.04)" }}>
+              {s.imageUrl && isPromoImageAllowed(s.imageUrl) ? (
+                <img src={s.imageUrl} alt="" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <div className="text-xs italic opacity-60 text-center px-2">Cover art slot {i + 1}</div>
+              )}
+            </div>
+            {/* Title block */}
+            <div className="flex-1 relative p-2 sm:p-3 flex flex-col justify-center">
+              {s.subtitle && (
+                <p className="text-[10px] sm:text-xs italic font-bold mb-1 leading-tight"
+                  style={{ fontFamily: "Georgia, serif", color: dark ? "#fde047" : VINTAGE_RED_DARK }}>
+                  {s.subtitle}
+                </p>
+              )}
+              <h2 className="font-black uppercase leading-none"
+                style={{
+                  fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+                  fontSize: "clamp(1.3rem, 4vw, 2.6rem)",
+                  color: dark ? VINTAGE_RED : VINTAGE_RED,
+                  textShadow: dark ? "2px 2px 0 #000" : "2px 2px 0 rgba(0,0,0,0.3)",
+                  letterSpacing: "0.01em",
+                  transform: "rotate(-1deg)",
+                }}>
+                {s.title || `Title ${i + 1}`}
+              </h2>
+              {s.badge && (
+                <div className="absolute top-1 right-1 px-2 py-0.5 border-2 font-black text-[10px] uppercase rotate-[8deg]"
+                  style={{ backgroundColor: VINTAGE_COUPON_BG, color: VINTAGE_INK, borderColor: VINTAGE_INK,
+                    fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+                  {s.badge}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
