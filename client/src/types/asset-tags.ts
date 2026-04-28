@@ -29,7 +29,8 @@ export type AssetTag =
   | "comic-script"
   | "hop-scene"
   | "hop-overlay"
-  | "hop-loop";
+  | "hop-loop"
+  | "promo-page";
 
 export type AssetType =
   | "static-asset"
@@ -121,6 +122,7 @@ export const ASSET_TAG_LABELS: Record<AssetTag, string> = {
   "hop-scene": "HOP Scene",
   "hop-overlay": "HOP Overlay",
   "hop-loop": "HOP Loop",
+  "promo-page": "Promo Page",
 };
 
 export const FX_MODE_TYPE_MAP: Record<string, { defaultTag: AssetTag; label: string }> = {

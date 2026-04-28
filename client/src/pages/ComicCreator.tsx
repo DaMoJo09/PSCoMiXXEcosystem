@@ -48,6 +48,7 @@ import { useFxStudio } from "@/hooks/useFxStudio";
 import { CoverData, defaultCover, TextLayer as CoverTextLayer, ImageLayer as CoverImageLayer } from "@/components/tools/CoverEditorPanel";
 import { CoverPropertiesPanel } from "@/components/tools/CoverPropertiesPanel";
 import { PromoPageStudio, PromoPageRenderer, type PromoTemplate, type PromoCustomData, type PromoInsertPayload } from "@/components/promo/PromoPageStudio";
+import { materializePromoTemplate } from "@/components/promo/promoMaterializer";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { Megaphone } from "lucide-react";
 import {
@@ -1287,26 +1288,6 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
     setSpreads(prev => [...prev, { id: newId, leftPage: [], rightPage: [] }]);
   }, [setSpreads]);
 
-  const insertPromoSpread = useCallback((payload: PromoInsertPayload) => {
-    const newId = `promo_${Date.now()}`;
-    const newSpread: Spread = {
-      id: newId,
-      leftPage: [],
-      rightPage: [],
-      isPromoPage: true,
-      promoTemplateId: payload.templateId,
-      promoTemplateSnapshot: payload.templateSnapshot,
-      promoCustomData: payload.customData,
-    };
-    setSpreads(prev => {
-      const next = [...prev];
-      const insertAt = Math.min(Math.max(payload.pageIndex, 0), next.length);
-      next.splice(insertAt, 0, newSpread);
-      return next;
-    });
-    onSelectSpread(Math.min(payload.pageIndex, spreads.length));
-  }, [setSpreads, onSelectSpread, spreads.length]);
-
   const duplicateSpread = useCallback((idx: number) => {
     const src = spreads[idx];
     if (!src) return;
@@ -2210,7 +2191,11 @@ export default function ComicCreator() {
       }
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
-        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
+        // Legacy promo (no materialized panels) → use the read-only renderer.
+        // New promos materialize into editable panels and export through
+        // the regular spread path below, so the user's edits are preserved.
+        if (spread.isPromoPage && spread.promoTemplateSnapshot
+            && spread.leftPage.length === 0 && spread.rightPage.length === 0) {
           pageNum++;
           const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, 1988, 3075);
           await syncAsset({ name: `${title} - Page ${pageNum} (Promo)`, dataUrl: promoCanvas.toDataURL("image/png"), tag: "promo-page", targetPage: pageNum });
@@ -4072,7 +4057,10 @@ export default function ComicCreator() {
 
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
-        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
+        if (spread.isPromoPage && spread.promoTemplateSnapshot
+            && spread.leftPage.length === 0 && spread.rightPage.length === 0) {
+          // Legacy promo without materialized panels — render via promo
+          // renderer. New promos export through the regular path below.
           const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, canvasW, canvasH);
           addImageToPDF(promoCanvas.toDataURL("image/jpeg", 0.92));
         } else {
@@ -4152,10 +4140,14 @@ export default function ComicCreator() {
   const [promoStudioOpen, setPromoStudioOpen] = useState(false);
 
   const insertPromoPageAtCurrent = useCallback((payload: PromoInsertPayload) => {
+    const { leftPage, rightPage } = materializePromoTemplate(
+      payload.templateSnapshot,
+      payload.customData,
+    );
     const newSpread: Spread = {
       id: `promo_${Date.now()}`,
-      leftPage: [],
-      rightPage: [],
+      leftPage: leftPage as unknown as Panel[],
+      rightPage: rightPage as unknown as Panel[],
       isPromoPage: true,
       promoTemplateId: payload.templateId,
       promoTemplateSnapshot: payload.templateSnapshot,
@@ -7484,7 +7476,12 @@ export default function ComicCreator() {
                 <span className="text-zinc-600">{currentSpread?.leftPage.length || 0}L / {currentSpread?.rightPage.length || 0}R panels</span>
               </div>
             </div>
-            {currentSpread?.isPromoPage && currentSpread.promoTemplateSnapshot ? (
+            {currentSpread?.isPromoPage && currentSpread.promoTemplateSnapshot
+              && currentSpread.leftPage.length === 0 && currentSpread.rightPage.length === 0 ? (
+              // Legacy promo spread (no materialized panels). Render the
+              // read-only template renderer so historical promos still
+              // display correctly. Newly inserted promos materialize into
+              // editable panels and fall through to the regular branch.
               <div
                 className={`flex justify-center ${showPreview ? 'hidden' : ''}`}
                 style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.5))' }}

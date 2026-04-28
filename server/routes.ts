@@ -12343,6 +12343,170 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           isActive: true,
           createdBy: null as any,
         },
+        // --- RICH VINTAGE TEMPLATES (materializeSpec-driven) ----------
+        // These authoring specs define complete, multi-element layouts.
+        // When the user adds them to a comic, the materializer turns them
+        // into a regular editable spread — every text block, hero image,
+        // starburst, and decorative shape becomes a normal panel content
+        // the user can drag, resize, recolor, or replace.
+        {
+          title: "Hero Ad — Be the Hero of Your Story",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "hero-ad-charles-atlas",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "BE THE HERO OF YOUR OWN COMIC!",
+            subheadline: "Stop reading other people's stories. Start telling YOURS.",
+            bodyCopy:
+              "In just 15 minutes a day with PSCoMiXX, anyone can create a real, finished comic. Stylus drawing. Smart panels. Pro lettering. One-click publishing.\n\nNo art school. No expensive tablets. No more 'someday'.",
+            ctaText: "Start FREE Today",
+            ctaUrl: "pscomixx.com/start",
+            imageUrl: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=900&q=85&auto=format&fit=crop",
+            backgroundColor: "#fef3c7",
+            accentColor: "#dc2626",
+            materializeSpec: {
+              pageBackground: "#fef3c7",
+              items: [
+                // Cream-on-red banner across the top — old comic ad masthead.
+                { kind: "shape",  shape: "rectangle", x: 0,  y: 6,  w: 100, h: 11, backgroundColor: "#dc2626", borderColor: "#000000", borderWidth: 3, z: 1 },
+                { kind: "text",   x: 4,  y: 7,  w: 92, h: 9,
+                  text: "{{headline}}",
+                  fontSize: 38, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#fef3c7", fontWeight: "900", textAlign: "center",
+                  textTransform: "uppercase", letterSpacing: 1.5, z: 5,
+                  textEffect: "comic", strokeColor: "#000000", strokeWidth: 2 },
+
+                // Big hero PNG on the left, locked-feel column.
+                { kind: "image",  x: 4,  y: 20, w: 44, h: 60, src: "{{imageUrl}}", z: 3 },
+
+                // Starburst sticker in upper-right corner of the hero image.
+                { kind: "shape",  shape: "starburst", x: 36, y: 17, w: 18, h: 18,
+                  burstText: "FREE!", burstColor: "#dc2626", burstFontSize: 24, z: 6 },
+
+                // Sub-headline + body block on the right.
+                { kind: "text",   x: 51, y: 22, w: 45, h: 8,
+                  text: "{{subheadline}}",
+                  fontSize: 20, fontFamily: "'Georgia', serif",
+                  color: "#7f1d1d", fontStyle: "italic", textAlign: "left",
+                  fontWeight: "bold", z: 4 },
+                { kind: "shape",  shape: "rectangle", x: 50, y: 32, w: 47, h: 38,
+                  backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 2, z: 2 },
+                { kind: "text",   x: 52, y: 34, w: 43, h: 34,
+                  text: "{{bodyCopy}}",
+                  fontSize: 14, fontFamily: "'Georgia', serif",
+                  color: "#1f2937", textAlign: "left", lineHeight: 1.45, z: 5 },
+
+                // Bold CTA badge at the bottom — black bar with cream text.
+                { kind: "shape",  shape: "rectangle", x: 8, y: 84, w: 84, h: 9,
+                  backgroundColor: "#000000", borderColor: "#dc2626", borderWidth: 3, z: 2 },
+                { kind: "text",   x: 8, y: 84, w: 84, h: 9,
+                  text: "{{ctaText}} → {{ctaUrl}}",
+                  fontSize: 22, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#fef3c7", fontWeight: "900", textAlign: "center",
+                  textTransform: "uppercase", letterSpacing: 2, z: 6 },
+              ],
+            },
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
+        {
+          title: "Treasure Chest of Fun — Inside This Issue",
+          type: "platform",
+          status: "approved",
+          audience: "all",
+          layoutStyle: "treasure-chest-grid",
+          thumbnailUrl: null,
+          templateJson: {
+            headline: "TREASURE CHEST OF FUN!",
+            subheadline: "INSIDE THIS ISSUE",
+            bodyCopy: "A whole issue packed with stories, jokes, puzzles, and surprises.",
+            ctaText: "Read it ALL inside",
+            ctaUrl: "pscomixx.com",
+            imageUrl: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=900&q=85&auto=format&fit=crop",
+            backgroundColor: "#fffbeb",
+            accentColor: "#b45309",
+            materializeSpec: {
+              pageBackground: "#fffbeb",
+              items: [
+                // Top scroll banner — brown bar with cream serif title.
+                { kind: "shape",  shape: "rectangle", x: 4,  y: 4,  w: 92, h: 11,
+                  backgroundColor: "#7c2d12", borderColor: "#000000", borderWidth: 3, z: 1 },
+                { kind: "text",   x: 4,  y: 5,  w: 92, h: 9,
+                  text: "{{headline}}",
+                  fontSize: 36, fontFamily: "'Georgia', serif",
+                  color: "#fde68a", fontWeight: "900", textAlign: "center",
+                  textTransform: "uppercase", letterSpacing: 2, z: 5 },
+
+                // "INSIDE THIS ISSUE" sub-banner.
+                { kind: "text",   x: 4,  y: 17, w: 92, h: 4,
+                  text: "{{subheadline}}",
+                  fontSize: 14, fontFamily: "'Georgia', serif",
+                  color: "#7c2d12", fontStyle: "italic",
+                  textAlign: "center", letterSpacing: 4, z: 4 },
+
+                // Hero PNG in a framed window, top-left of the grid.
+                { kind: "shape",  shape: "rectangle", x: 4,  y: 23, w: 44, h: 44,
+                  backgroundColor: "#ffffff", borderColor: "#7c2d12", borderWidth: 3, z: 2 },
+                { kind: "image",  x: 5,  y: 24, w: 42, h: 42, src: "{{imageUrl}}", z: 3 },
+
+                // 3 framed feature blocks down the right side — each one a
+                // shape + a text caption stacked on top, ready to be edited.
+                { kind: "shape",  shape: "rectangle", x: 51, y: 23, w: 45, h: 13,
+                  backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 2, z: 2 },
+                { kind: "text",   x: 53, y: 24, w: 41, h: 5,
+                  text: "JUNGLE ADVENTURE",
+                  fontSize: 18, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#7c2d12", textAlign: "left", textTransform: "uppercase", z: 5 },
+                { kind: "text",   x: 53, y: 29, w: 41, h: 6,
+                  text: "Brave heroes. Hidden temples. One mighty quest.",
+                  fontSize: 11, fontFamily: "'Georgia', serif",
+                  color: "#1f2937", textAlign: "left", lineHeight: 1.35, z: 5 },
+
+                { kind: "shape",  shape: "rectangle", x: 51, y: 38, w: 45, h: 13,
+                  backgroundColor: "#fef3c7", borderColor: "#000000", borderWidth: 2, z: 2 },
+                { kind: "text",   x: 53, y: 39, w: 41, h: 5,
+                  text: "MYSTERY OF THE OLD MILL",
+                  fontSize: 18, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#7c2d12", textAlign: "left", textTransform: "uppercase", z: 5 },
+                { kind: "text",   x: 53, y: 44, w: 41, h: 6,
+                  text: "Two kids, one creaky mill, and a secret nobody saw coming.",
+                  fontSize: 11, fontFamily: "'Georgia', serif",
+                  color: "#1f2937", textAlign: "left", lineHeight: 1.35, z: 5 },
+
+                { kind: "shape",  shape: "rectangle", x: 51, y: 53, w: 45, h: 13,
+                  backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 2, z: 2 },
+                { kind: "text",   x: 53, y: 54, w: 41, h: 5,
+                  text: "JOKES, PUZZLES & MORE!",
+                  fontSize: 18, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#7c2d12", textAlign: "left", textTransform: "uppercase", z: 5 },
+                { kind: "text",   x: 53, y: 59, w: 41, h: 6,
+                  text: "Funny pages, brain-busters, and a maze you'll actually want to finish.",
+                  fontSize: 11, fontFamily: "'Georgia', serif",
+                  color: "#1f2937", textAlign: "left", lineHeight: 1.35, z: 5 },
+
+                // Bottom strip — dark bar with bold CTA.
+                { kind: "shape",  shape: "rectangle", x: 4,  y: 70, w: 92, h: 9,
+                  backgroundColor: "#000000", borderColor: "#7c2d12", borderWidth: 3, z: 2 },
+                { kind: "text",   x: 4,  y: 70, w: 92, h: 9,
+                  text: "{{ctaText}}  ·  {{ctaUrl}}",
+                  fontSize: 22, fontFamily: "'Bangers', 'Impact', system-ui, sans-serif",
+                  color: "#fde68a", textAlign: "center", textTransform: "uppercase",
+                  letterSpacing: 2, z: 6 },
+
+                // Corner starburst tease.
+                { kind: "shape",  shape: "starburst", x: 36, y: 60, w: 14, h: 14,
+                  burstText: "ALL-NEW", burstColor: "#dc2626", burstFontSize: 14, z: 7 },
+              ],
+            },
+          },
+          isSchoolSafe: true,
+          isActive: true,
+          createdBy: null as any,
+        },
       ];
 
       // Upsert pass: insert brand-new layoutStyles, and for existing
