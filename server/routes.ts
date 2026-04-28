@@ -132,6 +132,83 @@ const PORTFOLIO_THEME_SCHEMA = z.object({
 const CANONICAL_SECTIONS = ["intro", "about", "works", "artworks"] as const;
 type CanonicalSection = typeof CANONICAL_SECTIONS[number];
 
+// ---------------------------------------------------------------------------
+// Promo free-elements sanitizer. The studio lets creators drop arbitrary
+// text/image elements onto a promo page. We never trust client geometry or
+// content: numbers are clamped, kinds are whitelisted, image URLs must look
+// like a URL, text is length-capped, and the array itself is bounded.
+// ---------------------------------------------------------------------------
+const PROMO_FREE_ELEMENT_SCHEMA = z.object({
+  id: z.string().min(1).max(64),
+  kind: z.enum(["text", "image"]),
+  x: z.number().finite(),
+  y: z.number().finite(),
+  w: z.number().finite(),
+  h: z.number().finite(),
+  rotation: z.number().finite().optional(),
+  z: z.number().finite().optional(),
+  text: z.string().max(2000).optional(),
+  fontFamily: z.string().max(120).optional(),
+  fontSize: z.number().finite().optional(),
+  fontWeight: z.number().finite().optional(),
+  italic: z.boolean().optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).optional(),
+  align: z.enum(["left", "center", "right"]).optional(),
+  src: z.string().max(2048).optional(),
+  alt: z.string().max(500).optional(),
+  fit: z.enum(["contain", "cover"]).optional(),
+}).strict();
+
+const PROMO_MAX_FREE_ELEMENTS = 50;
+
+export function sanitizePromoCustomData(input: unknown): { value: any; error?: string } {
+  if (input === undefined || input === null) return { value: {} };
+  if (typeof input !== "object" || Array.isArray(input)) {
+    return { value: {}, error: "customDataJson must be an object" };
+  }
+  const data: any = { ...(input as any) };
+  if (data.freeElements !== undefined) {
+    if (!Array.isArray(data.freeElements)) {
+      return { value: {}, error: "freeElements must be an array" };
+    }
+    if (data.freeElements.length > PROMO_MAX_FREE_ELEMENTS) {
+      return { value: {}, error: `freeElements exceeds limit of ${PROMO_MAX_FREE_ELEMENTS}` };
+    }
+    const cleaned: any[] = [];
+    for (const raw of data.freeElements) {
+      const parsed = PROMO_FREE_ELEMENT_SCHEMA.safeParse(raw);
+      if (!parsed.success) {
+        return { value: {}, error: `Invalid free element: ${parsed.error.issues[0]?.message || "validation failed"}` };
+      }
+      const e = parsed.data;
+      const clamp = (v: number, min = 0, max = 100) => Math.max(min, Math.min(max, v));
+      cleaned.push({
+        ...e,
+        x: clamp(e.x),
+        y: clamp(e.y),
+        w: clamp(e.w, 1),
+        h: clamp(e.h, 1),
+        rotation: typeof e.rotation === "number" ? ((Math.round(e.rotation) % 360) + 360) % 360 : 0,
+        // z is normalized below — preserve the raw value for sort here.
+        _rawZ: typeof e.z === "number" ? e.z : 0,
+        fontSize: typeof e.fontSize === "number" ? Math.max(6, Math.min(400, e.fontSize)) : undefined,
+        fontWeight: typeof e.fontWeight === "number" ? Math.max(100, Math.min(900, Math.round(e.fontWeight))) : undefined,
+      });
+    }
+    // Normalize z by RELATIVE order, not per-element clamping. This preserves
+    // layer ordering across save/reload even if the client sent negatives or
+    // out-of-range values. Stable sort via index keeps insertion order as the
+    // tiebreaker for ties.
+    cleaned
+      .map((el, i) => ({ el, i }))
+      .sort((a, b) => (a.el._rawZ - b.el._rawZ) || (a.i - b.i))
+      .forEach(({ el }, rank) => { el.z = rank; });
+    for (const el of cleaned) delete el._rawZ;
+    data.freeElements = cleaned;
+  }
+  return { value: data };
+}
+
 export function sanitizePortfolioTheme(input: unknown): { value: any; error?: string } {
   if (input === null) return { value: null };
   if (typeof input !== "object") return { value: null, error: "portfolioTheme must be an object or null" };
@@ -12054,11 +12131,13 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       // Centralized policy: flag, sponsors-flag, sponsor-vs-student, school-safe.
       const denied = await checkPromoTemplateAccess(req, t);
       if (denied) return res.status(denied.status).json({ message: denied.message });
+      const sanitized = sanitizePromoCustomData(req.body?.customDataJson);
+      if (sanitized.error) return res.status(400).json({ message: sanitized.error });
       const created = await storage.createPromoInstance({
         projectId: req.params.projectId,
         templateId,
         pageIndex: typeof req.body?.pageIndex === "number" ? req.body.pageIndex : 0,
-        customDataJson: req.body?.customDataJson || {},
+        customDataJson: sanitized.value,
         createdBy: req.user!.id,
       });
       res.status(201).json(created);
@@ -12087,7 +12166,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       if (found.error) return res.status(found.error.status).json({ message: found.error.message });
       const updates: any = {};
       if (typeof req.body?.pageIndex === "number") updates.pageIndex = req.body.pageIndex;
-      if (req.body?.customDataJson !== undefined) updates.customDataJson = req.body.customDataJson;
+      if (req.body?.customDataJson !== undefined) {
+        const sanitized = sanitizePromoCustomData(req.body.customDataJson);
+        if (sanitized.error) return res.status(400).json({ message: sanitized.error });
+        updates.customDataJson = sanitized.value;
+      }
       const updated = await storage.updatePromoInstance(req.params.id, updates);
       if (!updated) return res.status(404).json({ message: "Not found" });
       res.json(updated);

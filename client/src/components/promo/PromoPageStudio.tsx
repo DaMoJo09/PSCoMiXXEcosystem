@@ -50,7 +50,7 @@ function isPromoImageAllowed(url: string | undefined | null): boolean {
     return false;
   }
 }
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -59,12 +59,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Send, Megaphone, GraduationCap, User as UserIcon, Loader2, Check, X, Building2, ImageIcon, Wand2 } from "lucide-react";
+import { Sparkles, Send, Megaphone, GraduationCap, User as UserIcon, Loader2, Check, X, Building2, ImageIcon, Wand2, Type as TypeIcon, FolderOpen, Trash2, Copy as CopyIcon, ArrowUp, ArrowDown, Bold, Italic as ItalicIcon, AlignLeft, AlignCenter, AlignRight, RotateCw, Layers as LayersIcon } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageUpload } from "@/components/ImageUpload";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AssetBrowser, type AssetItem } from "@/components/tools/AssetBrowser";
 
 // Vintage filter presets — applied as a CSS `filter:` string to all promo
 // images. Picked to evoke specific old-school looks without re-rendering.
@@ -136,6 +137,36 @@ export interface PromoTemplateData {
   imagePositionY?: number;       // 0..100 — object-position Y %
   // Used by the vintage-triple-feature layout for per-strip content.
   strips?: PromoStrip[];
+  // Free-form layer: items the creator dropped onto the page that can be
+  // dragged, resized, rotated, and (for text) edited inline. Rendered on top
+  // of whichever layout body the template uses.
+  freeElements?: PromoElement[];
+}
+
+export type PromoElementKind = "text" | "image";
+export interface PromoElement {
+  id: string;
+  kind: PromoElementKind;
+  // All position/size values are percentages of the promo page (0-100) so the
+  // layout reflows correctly at any render size (preview, comic page, export).
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;             // degrees, 0-360
+  z?: number;                   // higher = on top
+  // text-only
+  text?: string;
+  fontFamily?: string;
+  fontSize?: number;            // px at the design page size (8.5x11 @ ~595x770)
+  fontWeight?: number;          // 100..900
+  italic?: boolean;
+  color?: string;
+  align?: "left" | "center" | "right";
+  // image-only
+  src?: string;
+  alt?: string;
+  fit?: "contain" | "cover";
 }
 
 export interface PromoStrip {
@@ -159,20 +190,30 @@ export const PROMO_TYPE_META: Record<PromoType, { label: string; icon: typeof Sp
  * comic creator overview between spreads, and in the export pipeline.
  * The required label is rendered ALWAYS for sponsor/student/creator types
  * and cannot be suppressed by custom data.
+ *
+ * `editing` suppresses the read-only free-elements overlay so the studio's
+ * interactive editor can render its own draggable handles in its place.
  * ========================================================================== */
 export function PromoPageRenderer({
   template,
   customData,
   className,
+  editing = false,
 }: {
   template: PromoTemplate | { type: PromoType; layoutStyle: string; templateJson: PromoTemplateData; title?: string };
   customData?: PromoCustomData;
   className?: string;
+  editing?: boolean;
 }) {
   const data: PromoTemplateData = useMemo(() => ({
     ...template.templateJson,
     ...(customData || {}),
   }), [template, customData]);
+
+  const freeElements: PromoElement[] = useMemo(
+    () => Array.isArray(data.freeElements) ? data.freeElements : [],
+    [data.freeElements],
+  );
 
   const requiredLabel = PROMO_TYPE_META[template.type].required;
 
@@ -213,6 +254,10 @@ export function PromoPageRenderer({
         {(layoutStyle !== "vintage-mail-order" &&
           layoutStyle !== "vintage-novelty" &&
           layoutStyle !== "vintage-triple-feature") && <ModernBody data={data} />}
+
+        {/* Free-form overlay (read-only). Hidden in editing mode so the
+            interactive editor renders the draggable handles in its place. */}
+        {!editing && freeElements.length > 0 && <FreeElementsLayer elements={freeElements} />}
       </div>
 
       {/* Footer brand mark — minimal, just identifies what this is. */}
@@ -475,6 +520,588 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
 }
 
 /* ==========================================================================
+ * FREE-FORM LAYER — text + image elements the creator placed on top of the
+ * template. Read-only renderer used in the comic page, in the export, and in
+ * any non-editing preview. The interactive editor lives further below in the
+ * studio and shares the same coordinate system (percentages of the page).
+ * ========================================================================== */
+
+// Sanity clamp used in both the read-only renderer and the editor so a stale
+// or imported template can never blow out the canvas.
+function clampPct(v: number, min = 0, max = 100): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
+
+function elementBoxStyle(el: PromoElement): React.CSSProperties {
+  return {
+    position: "absolute",
+    left: `${clampPct(el.x)}%`,
+    top: `${clampPct(el.y)}%`,
+    width: `${clampPct(el.w, 1)}%`,
+    height: `${clampPct(el.h, 1)}%`,
+    transform: `rotate(${(el.rotation || 0) % 360}deg)`,
+    transformOrigin: "center center",
+    zIndex: typeof el.z === "number" ? el.z : 1,
+  };
+}
+
+function FreeElementRender({ el }: { el: PromoElement }) {
+  if (el.kind === "text") {
+    return (
+      <div
+        className="w-full h-full overflow-hidden flex"
+        style={{
+          color: el.color || "#111",
+          fontFamily: el.fontFamily || "inherit",
+          fontWeight: el.fontWeight || 700,
+          fontStyle: el.italic ? "italic" : "normal",
+          fontSize: el.fontSize ? `${el.fontSize}px` : "16px",
+          textAlign: el.align || "left",
+          alignItems: "center",
+          justifyContent: el.align === "center" ? "center" : el.align === "right" ? "flex-end" : "flex-start",
+          padding: 4,
+          lineHeight: 1.15,
+          wordBreak: "break-word",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {el.text || ""}
+      </div>
+    );
+  }
+  // image
+  if (!el.src || !isPromoImageAllowed(el.src)) {
+    return (
+      <div className="w-full h-full border border-dashed border-zinc-500 bg-zinc-200/40 flex items-center justify-center text-[10px] text-zinc-500 uppercase tracking-wider">
+        Image blocked
+      </div>
+    );
+  }
+  return (
+    <img
+      src={el.src}
+      alt={el.alt || ""}
+      referrerPolicy="no-referrer"
+      className="w-full h-full"
+      style={{ objectFit: el.fit || "contain", pointerEvents: "none", userSelect: "none" }}
+      draggable={false}
+    />
+  );
+}
+
+function FreeElementsLayer({ elements }: { elements: PromoElement[] }) {
+  const sorted = useMemo(
+    () => [...elements].sort((a, b) => (a.z || 0) - (b.z || 0)),
+    [elements],
+  );
+  return (
+    <div className="absolute inset-0 pointer-events-none z-20">
+      {sorted.map(el => (
+        <div key={el.id} style={elementBoxStyle(el)}>
+          <FreeElementRender el={el} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ==========================================================================
+ * INTERACTIVE EDITOR — drag, resize (corner), rotate (top handle), inline
+ * text edit. All mutations report up via onChange so the studio owns the
+ * authoritative state. Pointer events are tracked in % of the canvas size,
+ * so the result is resolution-independent.
+ * ========================================================================== */
+type DragMode = "move" | "resize-br" | "resize-tl" | "resize-tr" | "resize-bl" | "rotate";
+
+function FreeFormCanvas({
+  elements,
+  onChange,
+  selectedId,
+  onSelect,
+}: {
+  elements: PromoElement[];
+  onChange: (next: PromoElement[]) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    mode: DragMode;
+    id: string;
+    start: { x: number; y: number };
+    rect: { left: number; top: number; width: number; height: number };
+    el: PromoElement;
+  } | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+
+  const sorted = useMemo(
+    () => [...elements].sort((a, b) => (a.z || 0) - (b.z || 0)),
+    [elements],
+  );
+
+  const updateOne = useCallback((id: string, patch: Partial<PromoElement>) => {
+    onChange(elements.map(e => e.id === id ? { ...e, ...patch } : e));
+  }, [elements, onChange]);
+
+  // Pointer move/up listeners during a drag/resize/rotate gesture.
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.start.x;
+      const dy = e.clientY - drag.start.y;
+      const dxPct = (dx / drag.rect.width) * 100;
+      const dyPct = (dy / drag.rect.height) * 100;
+      const el = drag.el;
+
+      if (drag.mode === "move") {
+        updateOne(drag.id, {
+          x: clampPct(el.x + dxPct, 0, 100 - el.w),
+          y: clampPct(el.y + dyPct, 0, 100 - el.h),
+        });
+      } else if (drag.mode === "resize-br") {
+        updateOne(drag.id, {
+          w: clampPct(el.w + dxPct, 2, 100 - el.x),
+          h: clampPct(el.h + dyPct, 2, 100 - el.y),
+        });
+      } else if (drag.mode === "resize-tl") {
+        const newW = clampPct(el.w - dxPct, 2, el.x + el.w);
+        const newH = clampPct(el.h - dyPct, 2, el.y + el.h);
+        updateOne(drag.id, {
+          x: clampPct(el.x + (el.w - newW), 0, 100),
+          y: clampPct(el.y + (el.h - newH), 0, 100),
+          w: newW,
+          h: newH,
+        });
+      } else if (drag.mode === "resize-tr") {
+        const newH = clampPct(el.h - dyPct, 2, el.y + el.h);
+        updateOne(drag.id, {
+          y: clampPct(el.y + (el.h - newH), 0, 100),
+          w: clampPct(el.w + dxPct, 2, 100 - el.x),
+          h: newH,
+        });
+      } else if (drag.mode === "resize-bl") {
+        const newW = clampPct(el.w - dxPct, 2, el.x + el.w);
+        updateOne(drag.id, {
+          x: clampPct(el.x + (el.w - newW), 0, 100),
+          w: newW,
+          h: clampPct(el.h + dyPct, 2, 100 - el.y),
+        });
+      } else if (drag.mode === "rotate") {
+        const cx = drag.rect.left + ((el.x + el.w / 2) / 100) * drag.rect.width;
+        const cy = drag.rect.top + ((el.y + el.h / 2) / 100) * drag.rect.height;
+        const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI) + 90;
+        updateOne(drag.id, { rotation: ((Math.round(angle) % 360) + 360) % 360 });
+      }
+    };
+    const onUp = () => { dragRef.current = null; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [updateOne]);
+
+  const beginDrag = (e: React.PointerEvent, mode: DragMode, el: PromoElement) => {
+    if (!containerRef.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = containerRef.current.getBoundingClientRect();
+    dragRef.current = {
+      mode,
+      id: el.id,
+      start: { x: e.clientX, y: e.clientY },
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      el: { ...el },
+    };
+    onSelect(el.id);
+  };
+
+  const onContainerPointerDown = (e: React.PointerEvent) => {
+    if (e.target === e.currentTarget) {
+      onSelect(null);
+      setEditingTextId(null);
+    }
+  };
+
+  // Keyboard delete for selected element (when not inline-editing text).
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (editingTextId) return;
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        onChange(elements.filter(el => el.id !== selectedId));
+        onSelect(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId, editingTextId, elements, onChange, onSelect]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 z-30"
+      onPointerDown={onContainerPointerDown}
+      data-testid="promo-freeform-canvas"
+    >
+      {sorted.map(el => {
+        const isSelected = el.id === selectedId;
+        const isEditingText = editingTextId === el.id && el.kind === "text";
+        return (
+          <div
+            key={el.id}
+            className={`absolute ${isSelected ? "outline outline-2 outline-amber-400" : "outline outline-1 outline-transparent hover:outline-amber-300/50"}`}
+            style={{ ...elementBoxStyle(el), cursor: isEditingText ? "text" : "move", pointerEvents: "auto" }}
+            onPointerDown={(e) => {
+              if (isEditingText) return;
+              beginDrag(e, "move", el);
+            }}
+            onDoubleClick={(e) => {
+              if (el.kind === "text") {
+                e.stopPropagation();
+                setEditingTextId(el.id);
+                onSelect(el.id);
+              }
+            }}
+            data-testid={`promo-element-${el.id}`}
+          >
+            {el.kind === "text" ? (
+              isEditingText ? (
+                <textarea
+                  autoFocus
+                  defaultValue={el.text || ""}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    updateOne(el.id, { text: e.target.value });
+                    setEditingTextId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setEditingTextId(null);
+                    }
+                  }}
+                  className="w-full h-full bg-white/95 text-black p-1 outline-none resize-none border border-amber-400"
+                  style={{
+                    fontFamily: el.fontFamily || "inherit",
+                    fontSize: el.fontSize ? `${el.fontSize}px` : "16px",
+                    fontWeight: el.fontWeight || 700,
+                    fontStyle: el.italic ? "italic" : "normal",
+                    textAlign: el.align || "left",
+                  }}
+                  data-testid={`textarea-promo-element-${el.id}`}
+                />
+              ) : (
+                <FreeElementRender el={el} />
+              )
+            ) : (
+              <FreeElementRender el={el} />
+            )}
+
+            {isSelected && !isEditingText && (
+              <>
+                {/* Rotate handle: above the top-center */}
+                <div
+                  className="absolute left-1/2 -top-7 -translate-x-1/2 w-4 h-4 rounded-full bg-amber-400 border-2 border-white shadow cursor-grab"
+                  onPointerDown={(e) => beginDrag(e, "rotate", el)}
+                  title="Rotate"
+                  data-testid={`handle-rotate-${el.id}`}
+                />
+                <div className="absolute left-1/2 -top-3 -translate-x-1/2 w-px h-3 bg-amber-400" />
+                {/* Resize handles */}
+                <div
+                  className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-white border-2 border-amber-400 cursor-nwse-resize"
+                  onPointerDown={(e) => beginDrag(e, "resize-tl", el)}
+                  data-testid={`handle-tl-${el.id}`}
+                />
+                <div
+                  className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-white border-2 border-amber-400 cursor-nesw-resize"
+                  onPointerDown={(e) => beginDrag(e, "resize-tr", el)}
+                  data-testid={`handle-tr-${el.id}`}
+                />
+                <div
+                  className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-white border-2 border-amber-400 cursor-nesw-resize"
+                  onPointerDown={(e) => beginDrag(e, "resize-bl", el)}
+                  data-testid={`handle-bl-${el.id}`}
+                />
+                <div
+                  className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white border-2 border-amber-400 cursor-nwse-resize"
+                  onPointerDown={(e) => beginDrag(e, "resize-br", el)}
+                  data-testid={`handle-br-${el.id}`}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Helpers shared by the studio toolbar to add new elements with sensible defaults.
+function makeId(): string {
+  return `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function nextZ(els: PromoElement[]): number {
+  return (els.reduce((m, e) => Math.max(m, e.z || 0), 0) || 0) + 1;
+}
+
+// Reindex z values to [0..n-1] by current sorted order so that bring-forward
+// / send-backward operations never produce negative z (which the server
+// sanitizer would clamp to 0, corrupting persisted layer order).
+function reindexZ(els: PromoElement[]): PromoElement[] {
+  const sorted = [...els].sort((a, b) => (a.z || 0) - (b.z || 0));
+  const orderById = new Map(sorted.map((e, i) => [e.id, i]));
+  return els.map(e => ({ ...e, z: orderById.get(e.id) ?? 0 }));
+}
+// Move `id` one slot forward/backward in the z-stack, then reindex.
+function moveLayer(els: PromoElement[], id: string, dir: 1 | -1): PromoElement[] {
+  const sorted = [...els].sort((a, b) => (a.z || 0) - (b.z || 0));
+  const idx = sorted.findIndex(e => e.id === id);
+  if (idx < 0) return els;
+  const swapWith = idx + dir;
+  if (swapWith < 0 || swapWith >= sorted.length) return els;
+  const a = sorted[idx];
+  const b = sorted[swapWith];
+  sorted[idx] = b;
+  sorted[swapWith] = a;
+  const orderById = new Map(sorted.map((e, i) => [e.id, i]));
+  return els.map(e => ({ ...e, z: orderById.get(e.id) ?? 0 }));
+}
+function newTextElement(els: PromoElement[]): PromoElement {
+  return {
+    id: makeId(),
+    kind: "text",
+    x: 20, y: 20, w: 60, h: 12,
+    rotation: 0,
+    z: nextZ(els),
+    text: "Double-click to edit",
+    fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+    fontSize: 36,
+    fontWeight: 800,
+    color: "#111111",
+    align: "center",
+  };
+}
+function newImageElement(els: PromoElement[], src: string, alt?: string): PromoElement {
+  return {
+    id: makeId(),
+    kind: "image",
+    x: 20, y: 30, w: 50, h: 35,
+    rotation: 0,
+    z: nextZ(els),
+    src,
+    alt: alt || "",
+    fit: "contain",
+  };
+}
+
+// Side-panel form for the currently-selected free element. Lets the user
+// tweak the things you can't do by dragging: typography, color, fit, exact
+// position values. Lives inside the studio's right column.
+function ElementPropertiesPanel({
+  el,
+  onChange,
+}: {
+  el: PromoElement;
+  onChange: (patch: Partial<PromoElement>) => void;
+}) {
+  return (
+    <ScrollArea className="flex-1 min-h-0 border border-zinc-800 rounded">
+      <div className="p-3 space-y-3">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-200 uppercase tracking-wider">
+          {el.kind === "text" ? <TypeIcon className="w-3.5 h-3.5 text-amber-400" /> : <ImageIcon className="w-3.5 h-3.5 text-amber-400" />}
+          {el.kind === "text" ? "Text element" : "Image element"}
+        </div>
+
+        {el.kind === "text" && (
+          <>
+            <div>
+              <Label className="text-xs text-zinc-400">Text</Label>
+              <Textarea
+                rows={3}
+                value={el.text || ""}
+                onChange={(e) => onChange({ text: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 text-white text-sm"
+                data-testid="input-element-text"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-zinc-400">Font size (px)</Label>
+                <Input
+                  type="number"
+                  min={6}
+                  max={400}
+                  value={el.fontSize ?? 36}
+                  onChange={(e) => onChange({ fontSize: Math.max(6, Math.min(400, Number(e.target.value) || 36)) })}
+                  className="bg-zinc-900 border-zinc-700 text-white h-9"
+                  data-testid="input-element-font-size"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-400">Color</Label>
+                <Input
+                  type="color"
+                  value={el.color || "#111111"}
+                  onChange={(e) => onChange({ color: e.target.value })}
+                  className="bg-zinc-900 border-zinc-700 h-9 p-1"
+                  data-testid="input-element-color"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-zinc-400">Font family</Label>
+              <Select
+                value={el.fontFamily || "'Bangers', 'Anton', 'Impact', sans-serif"}
+                onValueChange={(v) => onChange({ fontFamily: v })}
+              >
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9" data-testid="select-element-font">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectItem value="'Bangers', 'Anton', 'Impact', sans-serif">Bangers (comic)</SelectItem>
+                  <SelectItem value="'Anton', 'Impact', sans-serif">Anton (heavy)</SelectItem>
+                  <SelectItem value="'Impact', sans-serif">Impact</SelectItem>
+                  <SelectItem value="'Inter', system-ui, sans-serif">Inter (clean)</SelectItem>
+                  <SelectItem value="Georgia, serif">Georgia (serif)</SelectItem>
+                  <SelectItem value="'Courier New', monospace">Courier (mono)</SelectItem>
+                  <SelectItem value="'Comic Sans MS', cursive">Comic Sans</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={el.fontWeight && el.fontWeight >= 700 ? "default" : "ghost"}
+                className="h-8 px-2"
+                onClick={() => onChange({ fontWeight: el.fontWeight && el.fontWeight >= 700 ? 400 : 800 })}
+                data-testid="button-element-bold"
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={el.italic ? "default" : "ghost"}
+                className="h-8 px-2"
+                onClick={() => onChange({ italic: !el.italic })}
+                data-testid="button-element-italic"
+              >
+                <ItalicIcon className="w-3.5 h-3.5" />
+              </Button>
+              <div className="w-px h-5 bg-zinc-700 mx-1" />
+              {(["left", "center", "right"] as const).map(a => {
+                const Icon = a === "left" ? AlignLeft : a === "center" ? AlignCenter : AlignRight;
+                return (
+                  <Button
+                    key={a}
+                    type="button"
+                    size="sm"
+                    variant={el.align === a ? "default" : "ghost"}
+                    className="h-8 px-2"
+                    onClick={() => onChange({ align: a })}
+                    data-testid={`button-element-align-${a}`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                  </Button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {el.kind === "image" && (
+          <>
+            <div>
+              <Label className="text-xs text-zinc-400">Source</Label>
+              <Input
+                value={el.src || ""}
+                onChange={(e) => onChange({ src: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 text-white h-9 text-xs font-mono"
+                data-testid="input-element-src"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-zinc-400">Alt text</Label>
+              <Input
+                value={el.alt || ""}
+                onChange={(e) => onChange({ alt: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 text-white h-9"
+                data-testid="input-element-alt"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-zinc-400">Fit</Label>
+              <Select value={el.fit || "contain"} onValueChange={(v) => onChange({ fit: v as "contain" | "cover" })}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white h-9" data-testid="select-element-fit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectItem value="contain">Contain (no crop)</SelectItem>
+                  <SelectItem value="cover">Cover (fill, may crop)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+
+        <div className="border-t border-zinc-800 pt-3">
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <LayersIcon className="w-3 h-3" /> Position &amp; size
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              ["x", "X %"],
+              ["y", "Y %"],
+              ["w", "Width %"],
+              ["h", "Height %"],
+            ] as const).map(([key, label]) => (
+              <div key={key}>
+                <Label className="text-xs text-zinc-400">{label}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={Math.round(((el as any)[key] ?? 0) * 10) / 10}
+                  onChange={(e) => onChange({ [key]: clampPct(Number(e.target.value) || 0) } as any)}
+                  className="bg-zinc-900 border-zinc-700 text-white h-9"
+                  data-testid={`input-element-${key}`}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-xs text-zinc-400 flex items-center gap-1.5">
+                <RotateCw className="w-3 h-3" /> Rotation
+              </Label>
+              <span className="text-[10px] text-zinc-500 font-mono">{Math.round(el.rotation || 0)}°</span>
+            </div>
+            <Slider
+              value={[el.rotation || 0]}
+              onValueChange={([v]) => onChange({ rotation: v })}
+              min={0} max={360} step={1}
+              data-testid="slider-element-rotation"
+            />
+          </div>
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
+
+/* ==========================================================================
  * STUDIO — gallery + editor + insertion. Modal dialog opened from the
  * Comic Creator. Lists templates the current user is allowed to use
  * (server enforces school-safe + role + approval filters).
@@ -498,7 +1125,30 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
   const [activeType, setActiveType] = useState<PromoType>("platform");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [customData, setCustomData] = useState<PromoCustomData>({});
+  // Free-form layer state
+  const [selectedElId, setSelectedElId] = useState<string | null>(null);
+  const [assetBrowserOpen, setAssetBrowserOpen] = useState(false);
+  const [sidePanelTab, setSidePanelTab] = useState<"layout" | "element">("layout");
   const queryClient = useQueryClient();
+
+  // Live, mutable view of the free-elements list. Mutations go through here
+  // so the canvas + side panel + final payload all see the same array.
+  const freeElements: PromoElement[] = customData.freeElements ?? [];
+  const setFreeElements = useCallback((next: PromoElement[]) => {
+    setCustomData(d => ({ ...d, freeElements: next }));
+  }, []);
+  const selectedEl = useMemo(
+    () => freeElements.find(e => e.id === selectedElId) || null,
+    [freeElements, selectedElId],
+  );
+  const updateSelectedEl = useCallback((patch: Partial<PromoElement>) => {
+    if (!selectedElId) return;
+    setFreeElements(freeElements.map(e => e.id === selectedElId ? { ...e, ...patch } : e));
+  }, [freeElements, selectedElId, setFreeElements]);
+  // Auto-switch the side panel to "element" whenever the user selects one.
+  useEffect(() => {
+    if (selectedElId) setSidePanelTab("element");
+  }, [selectedElId]);
 
   const { data: templates = [], isLoading } = useQuery<PromoTemplate[]>({
     queryKey: ["promo-templates", activeType],
@@ -512,7 +1162,12 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
   });
 
   // Reset selection when type changes or dialog reopens.
-  useEffect(() => { setSelectedId(null); setCustomData({}); }, [activeType, open]);
+  useEffect(() => {
+    setSelectedId(null);
+    setCustomData({});
+    setSelectedElId(null);
+    setSidePanelTab("layout");
+  }, [activeType, open]);
 
   const selected = useMemo(() => templates.find(t => t.id === selectedId) || null, [templates, selectedId]);
 
@@ -552,7 +1207,7 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] bg-zinc-950 border-zinc-700 text-white flex flex-col" data-testid="dialog-promo-studio">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] max-h-[90vh] bg-zinc-950 border-zinc-700 text-white flex flex-col" data-testid="dialog-promo-studio">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Megaphone className="w-5 h-5 text-amber-400" /> Promo Page Studio
@@ -576,9 +1231,9 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
             })}
           </TabsList>
 
-          <TabsContent value={activeType} className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 min-h-0 overflow-hidden">
+          <TabsContent value={activeType} className="flex-1 grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)_360px] gap-3 mt-3 min-h-0 overflow-hidden">
             {/* GALLERY */}
-            <ScrollArea className="border border-zinc-800 rounded p-2 h-[55vh]">
+            <ScrollArea className="border border-zinc-800 rounded p-2 min-h-0">
               {isLoading ? (
                 <div className="flex items-center gap-2 p-4 text-sm text-zinc-500">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading templates...
@@ -616,10 +1271,158 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
               )}
             </ScrollArea>
 
-            {/* EDITOR */}
-            <div className="flex flex-col h-[55vh] gap-3 overflow-hidden">
+            {/* CANVAS — interactive preview where free elements are dragged.
+                The renderer paints the chosen template; the editor sits on
+                top in editing mode and lets the user move/resize/rotate. */}
+            <div className="flex flex-col min-h-0 gap-2 overflow-hidden">
               {selected ? (
                 <>
+                  {/* Toolbar: add free elements */}
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-zinc-900 border border-zinc-800 rounded">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-zinc-200 hover:bg-zinc-800"
+                      onClick={() => {
+                        const el = newTextElement(freeElements);
+                        setFreeElements([...freeElements, el]);
+                        setSelectedElId(el.id);
+                      }}
+                      data-testid="button-add-text"
+                    >
+                      <TypeIcon className="w-3.5 h-3.5 mr-1" /> Text
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-zinc-200 hover:bg-zinc-800"
+                      onClick={() => setAssetBrowserOpen(true)}
+                      data-testid="button-add-from-assets"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 mr-1" /> From Assets
+                    </Button>
+                    <div className="ml-2 flex-1" />
+                    {selectedEl && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-zinc-300 hover:bg-zinc-800"
+                          onClick={() => setFreeElements(moveLayer(freeElements, selectedEl.id, 1))}
+                          title="Bring forward"
+                          data-testid="button-bring-forward"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-zinc-300 hover:bg-zinc-800"
+                          onClick={() => setFreeElements(moveLayer(freeElements, selectedEl.id, -1))}
+                          title="Send backward"
+                          data-testid="button-send-backward"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-zinc-300 hover:bg-zinc-800"
+                          onClick={() => {
+                            const dup: PromoElement = {
+                              ...selectedEl,
+                              id: makeId(),
+                              x: clampPct((selectedEl.x || 0) + 3, 0, 100 - selectedEl.w),
+                              y: clampPct((selectedEl.y || 0) + 3, 0, 100 - selectedEl.h),
+                              z: nextZ(freeElements),
+                            };
+                            setFreeElements([...freeElements, dup]);
+                            setSelectedElId(dup.id);
+                          }}
+                          title="Duplicate"
+                          data-testid="button-duplicate-element"
+                        >
+                          <CopyIcon className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs text-red-400 hover:bg-red-950/40"
+                          onClick={() => {
+                            setFreeElements(freeElements.filter(e => e.id !== selectedEl.id));
+                            setSelectedElId(null);
+                          }}
+                          title="Delete"
+                          data-testid="button-delete-element"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* The actual editing surface. The renderer is in `editing`
+                      mode so it doesn't paint the read-only overlay; the
+                      interactive editor draws the same elements with handles. */}
+                  <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-900/60 border border-zinc-800 rounded p-3 overflow-auto">
+                    <div className="relative aspect-[8.5/11] h-full max-h-full max-w-full bg-white shadow-2xl">
+                      <PromoPageRenderer template={selected} customData={customData} editing />
+                      <FreeFormCanvas
+                        elements={freeElements}
+                        onChange={setFreeElements}
+                        selectedId={selectedElId}
+                        onSelect={setSelectedElId}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 text-center">
+                    Drag to move · corners resize · top handle rotates · double-click text to edit · Delete to remove
+                  </p>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-sm text-zinc-500 border border-dashed border-zinc-800 rounded">
+                  Pick a template to start editing.
+                </div>
+              )}
+            </div>
+
+            {/* SIDE PANEL — switches between the layout's template fields
+                (existing form) and the selected free-element properties. */}
+            <div className="flex flex-col min-h-0 gap-2 overflow-hidden">
+              {selected ? (
+                <>
+                  <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSidePanelTab("layout")}
+                      className={`flex-1 text-xs px-2 py-1 rounded ${sidePanelTab === "layout" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+                      data-testid="tab-side-layout"
+                    >
+                      Layout
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSidePanelTab("element")}
+                      className={`flex-1 text-xs px-2 py-1 rounded ${sidePanelTab === "element" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"} ${!selectedEl ? "opacity-50" : ""}`}
+                      data-testid="tab-side-element"
+                    >
+                      Element {selectedEl ? `· ${selectedEl.kind}` : ""}
+                    </button>
+                  </div>
+
+                  {sidePanelTab === "element" && selectedEl ? (
+                    <ElementPropertiesPanel el={selectedEl} onChange={updateSelectedEl} />
+                  ) : sidePanelTab === "element" && !selectedEl ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded p-4 text-center">
+                      Select an element on the canvas to edit its properties, or add one from the toolbar.
+                    </div>
+                  ) : (
                   <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
                     <div>
                       <Label className="text-xs text-zinc-400">Headline</Label>
@@ -845,23 +1648,31 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
                         Reset look to defaults
                       </button>
                     </div>
-
-                    <div className="border border-zinc-800 rounded">
-                      <div className="text-[10px] text-zinc-500 uppercase tracking-wider px-2 py-1 border-b border-zinc-800">Preview</div>
-                      <div className="aspect-[8.5/11] max-h-[300px] mx-auto">
-                        <PromoPageRenderer template={selected} customData={customData} />
-                      </div>
-                    </div>
                   </div>
+                  )}
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-sm text-zinc-500 border border-dashed border-zinc-800 rounded">
-                  Pick a template to start editing.
+                  Pick a template to load its layout panel.
                 </div>
               )}
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Asset Browser — pulls in any image from the user's library, the
+            built-in effects/bubbles, or FX Studio output and drops it onto
+            the canvas as a free-form image element. */}
+        <AssetBrowser
+          isOpen={assetBrowserOpen}
+          onClose={() => setAssetBrowserOpen(false)}
+          onSelectAsset={(asset: AssetItem) => {
+            const el = newImageElement(freeElements, asset.url, asset.name);
+            setFreeElements([...freeElements, el]);
+            setSelectedElId(el.id);
+            setAssetBrowserOpen(false);
+          }}
+        />
 
         <DialogFooter className="border-t border-zinc-800 pt-3 mt-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} data-testid="button-promo-cancel">
