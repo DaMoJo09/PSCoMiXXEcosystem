@@ -32,6 +32,69 @@ import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import vnBg from "@assets/generated_images/visual_novel_background.png";
 import coverArt from "@assets/generated_images/comic_cover_art.png";
 import motionThumb from "@assets/generated_images/motion_timeline_interface.png";
+import dashBgHero from "@/assets/dashboard_bg_1_hero.png";
+import dashBgPanels from "@/assets/dashboard_bg_2_panels.png";
+import dashBgWorkshop from "@/assets/dashboard_bg_3_workshop.png";
+import dashBgCovers from "@/assets/dashboard_bg_4_covers.png";
+
+const DASHBOARD_BACKDROPS = [dashBgHero, dashBgPanels, dashBgWorkshop, dashBgCovers];
+
+function DashboardBackdrop() {
+  const [scrollPos, setScrollPos] = useState(0);
+
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const doc = document.documentElement;
+      const max = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, window.scrollY / max));
+      setScrollPos(p);
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const total = DASHBOARD_BACKDROPS.length;
+  const getOpacity = (idx: number) => {
+    const center = total <= 1 ? 0.5 : idx / (total - 1);
+    const win = total <= 1 ? 1 : 1 / (total - 1);
+    const dist = Math.abs(scrollPos - center);
+    return Math.max(0, 1 - dist / win);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
+      aria-hidden="true"
+      data-testid="dashboard-backdrop"
+    >
+      {DASHBOARD_BACKDROPS.map((src, i) => (
+        <div
+          key={i}
+          className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 ease-out"
+          style={{
+            backgroundImage: `url(${src})`,
+            opacity: getOpacity(i) * 0.32,
+            transform: `translateY(${(scrollPos - 0.5) * -20}px) scale(1.05)`,
+            willChange: "opacity, transform",
+          }}
+        />
+      ))}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/75 to-background/90" />
+    </div>
+  );
+}
 
 const typeImages: Record<string, string> = {
   comic: noirComic,
@@ -403,7 +466,8 @@ export default function Dashboard() {
       {charOnboardingComplete && !onboardingComplete && (
         <OnboardingWizard onComplete={markOnboardingComplete} />
       )}
-      <div className="p-8 max-w-7xl mx-auto space-y-12">
+      <DashboardBackdrop />
+      <div className="relative z-10 p-8 max-w-7xl mx-auto space-y-12">
         <EventCarousel className="mb-4" variant="dark" />
 
         <div className="border border-zinc-800 rounded-xl bg-zinc-900/30 p-4 backdrop-blur-sm" data-testid="creator-flow-bar">

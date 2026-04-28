@@ -42,6 +42,30 @@ uri = "file://client/public/guide/06-export.png"
 type = "image"
 title = "guide export"
 
+[[generated]]
+id = "1FR9aSHqFhVh6BEcgpNuI"
+uri = "file://client/src/assets/dashboard_bg_1_hero.png"
+type = "image"
+title = "dashboard bg hero spotlight"
+
+[[generated]]
+id = "NM9i59RzPzr6Lm5oG0lRV"
+uri = "file://client/src/assets/dashboard_bg_2_panels.png"
+type = "image"
+title = "dashboard bg comic panels"
+
+[[generated]]
+id = "S-7L3wvvU1E36TFrJ5nnw"
+uri = "file://client/src/assets/dashboard_bg_3_workshop.png"
+type = "image"
+title = "dashboard bg comic workshop"
+
+[[generated]]
+id = "14IXc5Nsfi4JESmRBYubo"
+uri = "file://client/src/assets/dashboard_bg_4_covers.png"
+type = "image"
+title = "dashboard bg comic cover stack"
+
 [[outputs]]
 id = "SCxjgwINvNTVVXEozAJAg"
 uri = "file://.local/pslms-integration-scope.md"
