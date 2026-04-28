@@ -8140,10 +8140,62 @@ export default function ComicCreator() {
                   Auto-lock new panels
                 </label>
               </div>
+              {!currentSpread.isPromoPage && (
+                <div className="grid grid-cols-2 border-b border-zinc-800" data-testid="layers-page-tabs">
+                  <button
+                    onClick={() => { setSelectedPage("left"); setSelectedPanelId(null); setSelectedContentId(null); }}
+                    className={`px-2 py-2 text-[11px] font-mono uppercase tracking-wider transition-colors border-r border-zinc-800 ${
+                      selectedPage === "left"
+                        ? "bg-cyan-500/15 text-cyan-300 border-b-2 border-b-cyan-400"
+                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 border-b-2 border-b-transparent"
+                    }`}
+                    data-testid="tab-layers-left"
+                  >
+                    Left Page <span className="opacity-60">({currentSpread.leftPage.length})</span>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedPage("right"); setSelectedPanelId(null); setSelectedContentId(null); }}
+                    className={`px-2 py-2 text-[11px] font-mono uppercase tracking-wider transition-colors ${
+                      selectedPage === "right"
+                        ? "bg-cyan-500/15 text-cyan-300 border-b-2 border-b-cyan-400"
+                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 border-b-2 border-b-transparent"
+                    }`}
+                    data-testid="tab-layers-right"
+                  >
+                    Right Page <span className="opacity-60">({currentSpread.rightPage.length})</span>
+                  </button>
+                </div>
+              )}
               <div className="flex-1 overflow-auto p-2 space-y-0.5" data-testid="unified-layer-panel">
                 {(() => {
                   const pagePanels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
                   const sortedPanels = [...pagePanels].sort((a, b) => b.zIndex - a.zIndex);
+                  if (sortedPanels.length === 0) {
+                    const otherCount = selectedPage === "left" ? currentSpread.rightPage.length : currentSpread.leftPage.length;
+                    return (
+                      <div className="px-3 py-6 text-center" data-testid="layers-empty-state">
+                        <div className="mx-auto w-10 h-10 rounded border border-dashed border-zinc-700 flex items-center justify-center mb-3">
+                          <Layers className="w-4 h-4 text-zinc-600" />
+                        </div>
+                        <p className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-1">
+                          No layers on this page
+                        </p>
+                        <p className="text-[11px] text-zinc-600 leading-relaxed mb-4">
+                          Press <span className="px-1 py-0.5 bg-zinc-800 text-zinc-300 rounded text-[10px]">P</span> and drag on the page to add a panel,
+                          or use <span className="text-zinc-400">Templates</span> in the top bar.
+                        </p>
+                        {otherCount > 0 && (
+                          <button
+                            onClick={() => { setSelectedPage(selectedPage === "left" ? "right" : "left"); setSelectedPanelId(null); setSelectedContentId(null); }}
+                            className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 hover:text-cyan-300 underline-offset-2 hover:underline"
+                            data-testid="button-jump-other-page"
+                          >
+                            View {selectedPage === "left" ? "right" : "left"} page ({otherCount}) →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
                   const layerRowClass = (active: boolean, dragOver: boolean, dimmed?: boolean) =>
                     `px-2 py-1 text-xs cursor-pointer flex items-center gap-1 group/row transition-colors ${
                       active ? 'bg-zinc-600 text-white' : dimmed ? 'bg-zinc-850 text-zinc-500' : 'hover:bg-zinc-800'
