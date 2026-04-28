@@ -1,5 +1,6 @@
 import { LayoutGrid, Pen, Palette, Film, Sparkles, Type } from "lucide-react";
 import type { ModeId } from "@/lib/inkblade/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * UNIFIED CREATION ENGINE — mode switcher.
@@ -32,25 +33,31 @@ export function ModeSwitcher({ active, onChange, disabled = [] }: Props) {
         const isActive = m.id === active;
         const isDisabled = disabled.includes(m.id);
         return (
-          <button
-            key={m.id}
-            onClick={() => !isDisabled && onChange(m.id)}
-            disabled={isDisabled}
-            title={m.hint}
-            data-testid={`mode-${m.id}`}
-            data-active={isActive}
-            className={[
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border-r border-zinc-700 last:border-r-0 transition",
-              isActive
-                ? "bg-white text-black"
-                : isDisabled
-                  ? "text-zinc-600 cursor-not-allowed"
-                  : "text-zinc-300 hover:bg-zinc-800 hover:text-white",
-            ].join(" ")}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{m.label}</span>
-          </button>
+          <Tooltip key={m.id} delayDuration={100}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => !isDisabled && onChange(m.id)}
+                disabled={isDisabled}
+                aria-label={m.label}
+                data-testid={`mode-${m.id}`}
+                data-active={isActive}
+                className={[
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border-r border-zinc-700 last:border-r-0 transition whitespace-nowrap",
+                  isActive
+                    ? "bg-white text-black"
+                    : isDisabled
+                      ? "text-zinc-600 cursor-not-allowed"
+                      : "text-zinc-300 hover:bg-zinc-800 hover:text-white",
+                ].join(" ")}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{m.label}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
+              <p>{m.hint}</p>
+            </TooltipContent>
+          </Tooltip>
         );
       })}
     </div>

@@ -6659,7 +6659,7 @@ export default function ComicCreator() {
                 <button
                   onClick={handleSave}
                   disabled={isSaving || !effectiveProjectId}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   data-testid="button-save"
                 >
                   <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
@@ -6673,7 +6673,7 @@ export default function ComicCreator() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2"
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                   data-testid="button-preview"
                 >
                   <Eye className="w-4 h-4" /> Preview
@@ -6697,7 +6697,7 @@ export default function ComicCreator() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export">
+                <button className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap" data-testid="button-export">
                   <Download className="w-4 h-4" /> Export
                 </button>
               </DropdownMenuTrigger>
@@ -6784,7 +6784,7 @@ export default function ComicCreator() {
               <button
                 onClick={handleCompileComic}
                 disabled={isCompiling}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
                 data-testid="button-compile-comic"
               >
                 <Package className="w-4 h-4" /> {isCompiling ? "Compiling..." : "Compile"}
@@ -6794,17 +6794,17 @@ export default function ComicCreator() {
               <button
                 onClick={() => submitForReview.mutate()}
                 disabled={submitForReview.isPending}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
                 data-testid="button-submit-review"
               >
-                <SendHorizonal className="w-4 h-4" /> Submit for Review
+                <SendHorizonal className="w-4 h-4" /> Submit
               </button>
             )}
             {effectiveProjectId && project && project.status === "approved" && (
               <button
                 onClick={() => publishProject.mutate()}
                 disabled={publishProject.isPending}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 border border-green-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 border border-green-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
                 data-testid="button-publish"
               >
                 <Rocket className="w-4 h-4" /> Publish
@@ -6816,7 +6816,7 @@ export default function ComicCreator() {
                 projectType="comic"
                 projectTitle={title}
                 trigger={
-                  <button className="px-4 py-2 bg-gradient-to-r from-zinc-700 to-zinc-800 hover:from-zinc-600 hover:to-zinc-700 border border-zinc-600 text-sm font-bold flex items-center gap-2" data-testid="button-share">
+                  <button className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap" data-testid="button-share">
                     <Share2 className="w-4 h-4" /> Share
                   </button>
                 }
@@ -6826,10 +6826,10 @@ export default function ComicCreator() {
               <button
                 onClick={() => sendToPortfolio.mutate()}
                 disabled={sendToPortfolio.isPending}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50"
+                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 border border-purple-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
                 data-testid="button-send-portfolio"
               >
-                <Briefcase className="w-4 h-4" /> {sendToPortfolio.isPending ? "Sending..." : "Send to Portfolio"}
+                <Briefcase className="w-4 h-4" /> {sendToPortfolio.isPending ? "Sending..." : "Portfolio"}
               </button>
             )}
           </div>
