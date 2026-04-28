@@ -381,24 +381,77 @@ export async function syncCreatorProfile(user: User): Promise<{ success: boolean
   }
 }
 
-export async function checkPSStreamingHealth(): Promise<{ healthy: boolean; message: string }> {
+export async function checkPSStreamingHealth(): Promise<{
+  healthy: boolean;
+  degraded?: boolean;
+  message: string;
+}> {
   if (!PSSTREAMING_WEBHOOK_SECRET) {
     return { healthy: false, message: "No webhook secret configured" };
   }
 
-  try {
-    const response = await fetch(`${PSSTREAMING_API_URL}/api/replit/sync/status`, {
-      method: "GET",
-      headers: {
-        "x-webhook-secret": PSSTREAMING_WEBHOOK_SECRET,
-      },
-    });
+  // PSStreaming exposes a public JSON content endpoint that the live app
+  // serves directly. We only declare "healthy" when:
+  //   1. /api/content returns 2xx, AND
+  //   2. the response body parses as JSON.
+  // This rules out CDN edge / static error pages that happen to return 200.
+  // The legacy /api/replit/sync/status path no longer exists on the new
+  // psstreaming.com host, so we don't ping it.
+  // The actual write path (/api/replit/sync/content) is POST-only and
+  // verified separately by an end-to-end roundtrip during publish, not by
+  // a health check.
+  const primary = await probeJson(`${PSSTREAMING_API_URL}/api/content`, 8000);
+  if (primary.ok) {
+    return { healthy: true, message: "Connected to PSStreaming" };
+  }
 
-    if (response.ok) {
-      return { healthy: true, message: "Connected to PSStreaming" };
+  // If /api/content is down but the host is still reachable, surface that
+  // as DEGRADED (not healthy) so the dashboard can flag it without the
+  // sync engine treating it as fully operational.
+  const root = await probeReachable(PSSTREAMING_API_URL, 5000);
+  if (root.ok) {
+    return {
+      healthy: false,
+      degraded: true,
+      message: `Host reachable but /api/content returned ${primary.status ?? "non-JSON"}`,
+    };
+  }
+
+  return {
+    healthy: false,
+    message: primary.error || root.error || `HTTP ${primary.status ?? "unknown"}`,
+  };
+}
+
+async function probeJson(url: string, timeoutMs: number): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: "GET", signal: controller.signal });
+    if (!response.ok) return { ok: false, status: response.status };
+    const text = await response.text();
+    try {
+      JSON.parse(text);
+      return { ok: true, status: response.status };
+    } catch {
+      return { ok: false, status: response.status, error: "Non-JSON response" };
     }
-    return { healthy: false, message: `HTTP ${response.status}` };
   } catch (err: any) {
-    return { healthy: false, message: err.message };
+    return { ok: false, error: err?.message || "Network error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function probeReachable(url: string, timeoutMs: number): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: "GET", signal: controller.signal });
+    return { ok: response.ok, status: response.status };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Network error" };
+  } finally {
+    clearTimeout(timer);
   }
 }

@@ -59,8 +59,13 @@ export default function CollabSession() {
   
   const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
+  const MAX_RECONNECT_ATTEMPTS = 8;
+
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [myColor, setMyColor] = useState("#fff");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -80,17 +85,25 @@ export default function CollabSession() {
   
   const connectWebSocket = useCallback(() => {
     if (!sessionId || !user || wsRef.current) return;
-    
+
+    intentionalCloseRef.current = false;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(`${protocol}//${window.location.host}/ws/collab`);
-    
+
     ws.onopen = () => {
+      // Successful (re)connect — reset backoff state.
+      const wasReconnecting = reconnectAttemptsRef.current > 0;
+      reconnectAttemptsRef.current = 0;
+      setReconnecting(false);
       ws.send(JSON.stringify({
         type: "join",
         sessionId,
         userId: user.id,
         userName: user.name,
       }));
+      if (wasReconnecting) {
+        toast({ title: "Reconnected", description: "You're back in the session" });
+      }
     };
     
     ws.onmessage = (event) => {
@@ -161,19 +174,59 @@ export default function CollabSession() {
     ws.onclose = () => {
       setConnected(false);
       wsRef.current = null;
+
+      if (intentionalCloseRef.current) return; // unmount/leave — do not retry
+      if (!sessionId || !user) return;
+
+      const attempt = reconnectAttemptsRef.current + 1;
+      if (attempt > MAX_RECONNECT_ATTEMPTS) {
+        setReconnecting(false);
+        toast({
+          title: "Disconnected",
+          description: "Couldn't reconnect. Please refresh to rejoin the session.",
+          variant: "destructive",
+        });
+        return;
+      }
+      reconnectAttemptsRef.current = attempt;
+      setReconnecting(true);
+
+      // Exponential backoff capped at 30s, with small jitter so kids on the
+      // same wifi don't all reconnect in lockstep.
+      const baseDelay = Math.min(1000 * 2 ** (attempt - 1), 30000);
+      const jitter = Math.floor(Math.random() * 500);
+      const delay = baseDelay + jitter;
+
+      if (attempt === 1) {
+        toast({ title: "Connection lost", description: "Trying to reconnect..." });
+      }
+
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        connectWebSocket();
+      }, delay);
     };
-    
+
     ws.onerror = () => {
-      toast({ title: "Connection error", variant: "destructive" });
+      // Avoid noisy toasts on every retry; onclose handles the user-facing
+      // reconnection state.
+      if (reconnectAttemptsRef.current === 0) {
+        toast({ title: "Connection error", variant: "destructive" });
+      }
     };
-    
+
     wsRef.current = ws;
   }, [sessionId, user, toast]);
-  
+
   useEffect(() => {
     connectWebSocket();
-    
+
     return () => {
+      intentionalCloseRef.current = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
