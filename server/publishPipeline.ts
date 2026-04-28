@@ -1,8 +1,18 @@
 import { storage } from "./storage";
 import { psContentBundleSchema, type PSContentBundle, type Project, type User } from "@shared/schema";
 
-const EMERGENT_API_URL = process.env.EMERGENT_API_URL || "https://gamexclub.preview.emergentagent.com";
-const EMERGENT_WEBHOOK_SECRET = process.env.EMERGENT_WEBHOOK_SECRET || "";
+// PSStreaming is the live streaming platform at psstreaming.com.
+// Both env names are accepted for backward compatibility with older deploys
+// that still use the legacy EMERGENT_* names — new deploys should set
+// PSSTREAMING_API_URL / PSSTREAMING_WEBHOOK_SECRET.
+const PSSTREAMING_API_URL =
+  process.env.PSSTREAMING_API_URL ||
+  process.env.EMERGENT_API_URL ||
+  "https://psstreaming.com";
+const PSSTREAMING_WEBHOOK_SECRET =
+  process.env.PSSTREAMING_WEBHOOK_SECRET ||
+  process.env.EMERGENT_WEBHOOK_SECRET ||
+  "";
 
 export function buildPSContentBundle(
   project: Project,
@@ -149,30 +159,30 @@ export async function runPublishPipeline(
 
       await storage.updatePublishJob(job.id, { step: "sync" });
 
-      const syncResult = await syncToEmergent(bundle);
+      const syncResult = await syncToPSStreaming(bundle);
 
       if (syncResult.skipped) {
         await storage.updatePublishJob(job.id, {
           status: "complete",
           step: "sync",
-          emergentSyncId: null,
-          error: "Streaming sync skipped - no webhook secret configured",
+          streamingSyncId: null,
+          error: "PSStreaming sync skipped - no webhook secret configured",
           completedAt: new Date(),
         });
-        console.log(`[Publish] Content "${bundle.title}" published locally (streaming sync skipped)`);
+        console.log(`[Publish] Content "${bundle.title}" published locally (PSStreaming sync skipped)`);
       } else if (syncResult.success) {
         await storage.updatePublishJob(job.id, {
           status: "complete",
           step: "sync",
-          emergentSyncId: syncResult.syncId || null,
+          streamingSyncId: syncResult.syncId || null,
           completedAt: new Date(),
         });
-        console.log(`[Publish] Content "${bundle.title}" synced to streaming platform (ID: ${syncResult.syncId})`);
+        console.log(`[Publish] Content "${bundle.title}" synced to PSStreaming (ID: ${syncResult.syncId})`);
       } else {
         await storage.updatePublishJob(job.id, {
           status: "failed",
           step: "sync",
-          error: "Sync to streaming platform failed",
+          error: "Sync to PSStreaming failed",
         });
       }
     } catch (err: any) {
@@ -196,7 +206,7 @@ function findFirstImageInPanels(panels: any[]): string | null {
   return null;
 }
 
-function buildEmergentPayload(bundle: PSContentBundle): Record<string, any> {
+function buildPSStreamingPayload(bundle: PSContentBundle): Record<string, any> {
   const payload: Record<string, any> = {
     contract_version: "v1",
     content_id: bundle.content_id,
@@ -304,50 +314,50 @@ function buildEmergentPayload(bundle: PSContentBundle): Record<string, any> {
   return payload;
 }
 
-export async function syncToEmergent(bundle: PSContentBundle): Promise<{ syncId: string | null; success: boolean; skipped?: boolean }> {
-  if (!EMERGENT_WEBHOOK_SECRET) {
-    console.warn(`[Emergent Sync] No webhook secret configured, skipping sync for "${bundle.title}"`);
+export async function syncToPSStreaming(bundle: PSContentBundle): Promise<{ syncId: string | null; success: boolean; skipped?: boolean }> {
+  if (!PSSTREAMING_WEBHOOK_SECRET) {
+    console.warn(`[PSStreaming Sync] No webhook secret configured, skipping sync for "${bundle.title}"`);
     return { syncId: null, success: false, skipped: true };
   }
 
-  const emergentPayload = buildEmergentPayload(bundle);
+  const streamingPayload = buildPSStreamingPayload(bundle);
 
-  console.log(`[Emergent Sync] Syncing "${bundle.title}" (${bundle.content_id}) to ${EMERGENT_API_URL}`);
+  console.log(`[PSStreaming Sync] Syncing "${bundle.title}" (${bundle.content_id}) to ${PSSTREAMING_API_URL}`);
 
   try {
-    const response = await fetch(`${EMERGENT_API_URL}/api/replit/sync/content`, {
+    const response = await fetch(`${PSSTREAMING_API_URL}/api/replit/sync/content`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-webhook-secret": EMERGENT_WEBHOOK_SECRET,
+        "x-webhook-secret": PSSTREAMING_WEBHOOK_SECRET,
       },
-      body: JSON.stringify(emergentPayload),
+      body: JSON.stringify(streamingPayload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Emergent Sync] HTTP ${response.status}: ${errorText}`);
+      console.error(`[PSStreaming Sync] HTTP ${response.status}: ${errorText}`);
       return { syncId: null, success: false };
     }
 
     const result = await response.json() as { success: boolean; content_id?: string; action?: string };
-    console.log(`[Emergent Sync] Success: ${result.action || "synced"} content_id=${result.content_id}`);
+    console.log(`[PSStreaming Sync] Success: ${result.action || "synced"} content_id=${result.content_id}`);
     return { syncId: result.content_id || bundle.content_id, success: result.success };
   } catch (err: any) {
-    console.error(`[Emergent Sync] Failed:`, err.message);
+    console.error(`[PSStreaming Sync] Failed:`, err.message);
     return { syncId: null, success: false };
   }
 }
 
 export async function syncCreatorProfile(user: User): Promise<{ success: boolean }> {
-  if (!EMERGENT_WEBHOOK_SECRET) return { success: true };
+  if (!PSSTREAMING_WEBHOOK_SECRET) return { success: true };
 
   try {
-    const response = await fetch(`${EMERGENT_API_URL}/api/replit/sync/creator`, {
+    const response = await fetch(`${PSSTREAMING_API_URL}/api/replit/sync/creator`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-webhook-secret": EMERGENT_WEBHOOK_SECRET,
+        "x-webhook-secret": PSSTREAMING_WEBHOOK_SECRET,
       },
       body: JSON.stringify({
         ps_user_id: user.id,
@@ -359,33 +369,33 @@ export async function syncCreatorProfile(user: User): Promise<{ success: boolean
     });
 
     if (!response.ok) {
-      console.error(`[Emergent Sync] Creator profile sync failed: HTTP ${response.status}`);
+      console.error(`[PSStreaming Sync] Creator profile sync failed: HTTP ${response.status}`);
       return { success: false };
     }
 
-    console.log(`[Emergent Sync] Creator profile synced for ${user.name || user.email}`);
+    console.log(`[PSStreaming Sync] Creator profile synced for ${user.name || user.email}`);
     return { success: true };
   } catch (err: any) {
-    console.error(`[Emergent Sync] Creator sync error:`, err.message);
+    console.error(`[PSStreaming Sync] Creator sync error:`, err.message);
     return { success: false };
   }
 }
 
-export async function checkEmergentHealth(): Promise<{ healthy: boolean; message: string }> {
-  if (!EMERGENT_WEBHOOK_SECRET) {
+export async function checkPSStreamingHealth(): Promise<{ healthy: boolean; message: string }> {
+  if (!PSSTREAMING_WEBHOOK_SECRET) {
     return { healthy: false, message: "No webhook secret configured" };
   }
 
   try {
-    const response = await fetch(`${EMERGENT_API_URL}/api/replit/sync/status`, {
+    const response = await fetch(`${PSSTREAMING_API_URL}/api/replit/sync/status`, {
       method: "GET",
       headers: {
-        "x-webhook-secret": EMERGENT_WEBHOOK_SECRET,
+        "x-webhook-secret": PSSTREAMING_WEBHOOK_SECRET,
       },
     });
 
     if (response.ok) {
-      return { healthy: true, message: "Connected to streaming platform" };
+      return { healthy: true, message: "Connected to PSStreaming" };
     }
     return { healthy: false, message: `HTTP ${response.status}` };
   } catch (err: any) {

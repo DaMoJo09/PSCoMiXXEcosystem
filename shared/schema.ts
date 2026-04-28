@@ -1252,7 +1252,10 @@ export const publishJobs = pgTable("publish_jobs", {
   step: text("step"), // validate | bundle | save | sync
   error: text("error"),
   bundleJson: jsonb("bundle_json"),
-  emergentSyncId: text("emergent_sync_id"),
+  // JS field renamed Emergent → streaming for clarity (we now publish to PSStreaming).
+  // The DB column name is intentionally preserved as "emergent_sync_id" so this is
+  // a non-destructive rename and existing rows keep working.
+  streamingSyncId: text("emergent_sync_id"),
   retryCount: integer("retry_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1268,14 +1271,14 @@ export const insertPublishJobSchema = createInsertSchema(publishJobs).omit({
 export type InsertPublishJob = z.infer<typeof insertPublishJobSchema>;
 export type PublishJob = typeof publishJobs.$inferSelect;
 
-// Engagement Events - inbound from Emergent streaming platform
+// Engagement Events - inbound from PSStreaming
 export const engagementEvents = pgTable("engagement_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contentId: varchar("content_id").notNull(),
   eventType: text("event_type").notNull(), // view | like | vote | share | comment | watch_time
   userId: varchar("user_id"),
   payload: jsonb("payload"),
-  source: text("source").default("emergent"),
+  source: text("source").default("psstreaming"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

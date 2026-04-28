@@ -16,7 +16,7 @@ import passport from "passport";
 import { insertUserSchema, insertProjectSchema, insertAssetSchema, insertAssetImportSchema, tierEntitlements, TierName, insertContentReportSchema, insertAssetPackSchema, insertEngagementEventSchema, insertMarketplaceListingSchema, insertMarketplaceOrderSchema, users, projects, subscriptions, revenueEvents, marketplaceListings, engagementEvents, usageTracking, schoolMemberships, schools, platformEvents, insertPlatformEventSchema, fxEffects, platformAssets, insertPlatformAssetSchema, xpTransactions, xpEvents as xpEventsTable, xpBalances as xpBalancesTable, passportEntries as passportEntriesTable, competencies as competenciesTable, skillTags as skillTagsTable, externalTools as externalToolsTable, externalSubmissions as externalSubmissionsTable, roleEligibilityRules as roleEligibilityRulesTable, apprenticeshipTracks as apprenticeshipTracksTable, apprenticeshipApplications as apprenticeshipAppsTable, productionRoles as productionRolesTable, mentorReviews as mentorReviewsTable, bugReports as bugReportsTable, creatorChannels as creatorChannelsTable, schoolStations as schoolStationsTable, pathways as pathwaysTable, userPathwayProgress as userPathwayProgressTable, XP_ACTIONS as XP_ACTIONS_IMPORT } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, and, or, desc, ilike, isNull, gte } from "drizzle-orm";
-import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToEmergent, syncCreatorProfile, checkEmergentHealth } from "./publishPipeline";
+import { buildPSContentBundle, validateBundle, runPublishPipeline, syncToPSStreaming, syncCreatorProfile, checkPSStreamingHealth } from "./publishPipeline";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripeSync, getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
@@ -6195,7 +6195,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       const updated = await storage.updateProject(project.id, { status: "approved" } as any);
 
-      // Auto-trigger publish pipeline on approval to sync to Emergent streaming
+      // Auto-trigger publish pipeline on approval to sync to PSStreaming
       try {
         const result = await runPublishPipeline(project.id, project.userId, { visibility: "public" });
         console.log(`[Auto-Publish] Triggered for approved project ${project.id}: jobId=${result.jobId}`);
@@ -6358,10 +6358,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
-  // Emergent engagement webhook (inbound events) - requires shared secret
+  // PSStreaming engagement webhook (inbound events) - requires shared secret.
+  // Accepts the new PSSTREAMING_WEBHOOK_SECRET, falling back to the legacy
+  // EMERGENT_WEBHOOK_SECRET so existing deploys keep working during cutover.
   app.post("/api/webhooks/engagement", async (req: Request, res: Response) => {
     try {
-      const webhookSecret = process.env.EMERGENT_WEBHOOK_SECRET;
+      const webhookSecret =
+        process.env.PSSTREAMING_WEBHOOK_SECRET || process.env.EMERGENT_WEBHOOK_SECRET;
       if (webhookSecret) {
         const provided = req.headers["x-webhook-secret"] || req.headers["authorization"]?.replace("Bearer ", "");
         if (provided !== webhookSecret) {
@@ -6395,7 +6398,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     const user = req.user as any;
     if (user.role !== "admin") return res.status(403).json({ message: "Admin only" });
     try {
-      const health = await checkEmergentHealth();
+      const health = await checkPSStreamingHealth();
       res.json(health);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -6407,8 +6410,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     try {
       const pslmsUrl = process.env.PSLMS_API_URL;
       const pslmsKey = process.env.PSLMS_API_KEY;
-      const emergentSecret = process.env.EMERGENT_WEBHOOK_SECRET;
-      const emergentUrl = process.env.EMERGENT_API_URL;
+      // Prefer the new PSStreaming env names, fall back to the legacy
+      // EMERGENT_* names so existing prod deploys keep reporting "connected"
+      // until the new env vars are rolled out everywhere.
+      const streamingSecret =
+        process.env.PSSTREAMING_WEBHOOK_SECRET || process.env.EMERGENT_WEBHOOK_SECRET;
+      const streamingUrl =
+        process.env.PSSTREAMING_API_URL || process.env.EMERGENT_API_URL || "https://psstreaming.com";
 
       const connections: { name: string; configured: boolean; url: string | null; status: string }[] = [];
 
@@ -6420,10 +6428,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       });
 
       connections.push({
-        name: "Mad Mixed Media",
-        configured: !!emergentSecret,
-        url: emergentUrl || null,
-        status: emergentSecret ? "connected" : "not_configured",
+        name: "PSStreaming",
+        configured: !!streamingSecret,
+        url: streamingUrl,
+        status: streamingSecret ? "connected" : "not_configured",
       });
 
       res.json({
@@ -8968,7 +8976,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
             "Pollinations.ai (AI generation) - European Union - Processes image and text generation requests; no personally identifiable user data is sent",
             "Resend (Email delivery) - United States - Sends transactional emails including welcome messages, purchase confirmations, and assignment notifications",
             "Google Fonts (Typography) - Serves web fonts across Ecosystem platforms; subject to Google's Privacy Policy",
-            "Emergent / PS Streaming (Content delivery) - United States - Streams and distributes published content within the Ecosystem"
+            "PSStreaming / Mad Mixed Media (Content delivery) - United States - Streams and distributes published content within the Ecosystem"
           ]
         },
         cookies: {
@@ -9599,7 +9607,10 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
       let authenticated = false;
       if (process.env.ECOSYSTEM_JWT_SECRET && authHeader === `Bearer ${process.env.ECOSYSTEM_JWT_SECRET}`) authenticated = true;
-      if (process.env.EMERGENT_WEBHOOK_SECRET && webhookSecret && webhookSecret === process.env.EMERGENT_WEBHOOK_SECRET) authenticated = true;
+      // Accept either the new PSStreaming secret or the legacy Emergent name.
+      const streamingSharedSecret =
+        process.env.PSSTREAMING_WEBHOOK_SECRET || process.env.EMERGENT_WEBHOOK_SECRET;
+      if (streamingSharedSecret && webhookSecret && webhookSecret === streamingSharedSecret) authenticated = true;
       if (process.env.FX_STUDIO_API_KEY && apiKey && apiKey === process.env.FX_STUDIO_API_KEY) authenticated = true;
 
       if (!authenticated) {

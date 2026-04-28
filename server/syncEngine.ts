@@ -129,7 +129,8 @@ async function deliverSyncEvent(item: typeof syncQueue.$inferSelect) {
       "X-Source-App": item.sourceApp,
     };
 
-    const webhookSecret = process.env.EMERGENT_WEBHOOK_SECRET;
+    const webhookSecret =
+      process.env.PSSTREAMING_WEBHOOK_SECRET || process.env.EMERGENT_WEBHOOK_SECRET;
     if (webhookSecret) {
       headers["X-Webhook-Signature"] = createHmac("sha256", webhookSecret)
         .update(payloadStr)
