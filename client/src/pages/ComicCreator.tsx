@@ -9618,19 +9618,34 @@ export default function ComicCreator() {
                       accept="image/*"
                       multiple
                       onChange={async (e) => {
-                        const files = e.target.files;
+                        const input = e.currentTarget;
+                        const files = input.files;
                         if (files && files.length > 0) {
+                          const filesArray = Array.from(files);
+                          const targetFolder = selectedLibraryFolder || "sprites";
                           try {
-                            const filesArray = Array.from(files);
                             if (filesArray.length === 1) {
-                              await importFromFile(filesArray[0], selectedLibraryFolder || "sprites");
-                              toast.success("Asset imported!");
+                              const saved = await importFromFile(filesArray[0], targetFolder);
+                              if (saved) {
+                                toast.success("Asset imported!");
+                              } else {
+                                toast.error("Asset couldn't be saved. Please try again.");
+                              }
                             } else {
-                              await importFromFiles(filesArray, selectedLibraryFolder || "sprites");
-                              toast.success(`${filesArray.length} assets imported!`);
+                              const saved = await importFromFiles(filesArray, targetFolder);
+                              const ok = Array.isArray(saved) ? saved.filter(Boolean).length : 0;
+                              if (ok === filesArray.length) {
+                                toast.success(`${ok} assets imported!`);
+                              } else if (ok > 0) {
+                                toast.warning(`${ok} of ${filesArray.length} assets imported`);
+                              } else {
+                                toast.error("No assets were imported. Please try again.");
+                              }
                             }
                           } catch (err) {
                             toast.error("Failed to import assets");
+                          } finally {
+                            input.value = "";
                           }
                         }
                       }}
