@@ -12357,15 +12357,24 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           layoutStyle: "hero-ad-charles-atlas",
           thumbnailUrl: null,
           templateJson: {
-            headline: "BE THE HERO OF YOUR OWN COMIC!",
-            subheadline: "Stop reading other people's stories. Start telling YOURS.",
+            headline: "THE INSULT THAT MADE A CHAMPION",
+            subheadline: "Awarded the title 'World's Most Perfectly Developed Comic'",
             bodyCopy:
-              "In just 15 minutes a day with PSCoMiXX, anyone can create a real, finished comic. Stylus drawing. Smart panels. Pro lettering. One-click publishing.\n\nNo art school. No expensive tablets. No more 'someday'.",
-            ctaText: "Start FREE Today",
+              "ARE you fed up with seeing the huskies walk off with the best of everything? Sick and tired of being soft, frail, skinny or flabby — only HALF ALIVE? I know just how you feel. Because I myself was once a puny 97-pound runt. And I was so ashamed of my scrawny frame I dreaded being seen in a swim suit.",
+            ctaText: "MAIL NOW!",
             ctaUrl: "pscomixx.com/start",
+            qrUrl: "Dept. R325 · 49 W. 23rd St., NY",
             imageUrl: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=900&q=85&auto=format&fit=crop",
-            backgroundColor: "#fef3c7",
+            backgroundColor: "#f4ecd5",
             accentColor: "#dc2626",
+            strips: [
+              { subtitle: "\"HEY! QUIT KICKING SAND IN OUR FACES!\"" },
+              { subtitle: "\"LISTEN HERE, I'D SMASH YOUR FACE!\"" },
+              { subtitle: "\"OH, DON'T LET IT BOTHER YOU, LITTLE BOY!\"" },
+              { subtitle: "\"DARN IT! I'M SICK OF BEING A SCARECROW!\"" },
+              { subtitle: "\"BOY! IT DIDN'T TAKE LONG TO DO THIS!\"" },
+              { subtitle: "\"HERO OF THE BEACH!\"" },
+            ],
             materializeSpec: {
               pageBackground: "#fef3c7",
               items: [
@@ -12421,7 +12430,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           layoutStyle: "treasure-chest-grid",
           thumbnailUrl: null,
           templateJson: {
-            headline: "TREASURE CHEST OF FUN!",
+            headline: "TREASURE CHEST OF FUN",
             subheadline: "INSIDE THIS ISSUE",
             bodyCopy: "A whole issue packed with stories, jokes, puzzles, and surprises.",
             ctaText: "Read it ALL inside",
@@ -12429,6 +12438,14 @@ Sitemap: https://pscomixx.com/sitemap.xml`
             imageUrl: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=900&q=85&auto=format&fit=crop",
             backgroundColor: "#fffbeb",
             accentColor: "#b45309",
+            strips: [
+              { title: "Throw Your Voice", subtitle: "Throw your voice into trunks, behind doors, everywhere! Fool teacher, friends and family.", badge: "No. 137 — 25¢" },
+              { title: "Surprise Package", subtitle: "Are you willing to take a chance? We won't tell you what you get but you'll get more than your money's worth!", badge: "No. 67S — 50¢" },
+              { title: "Jack Pot Bank", subtitle: "A dime-operated bank that works just like a one-armed bandit! Just deposit, spin and the reels spin. Coins removable.", badge: "No. 2060 — $1.95" },
+              { title: "Monster Size Monsters", subtitle: "6 ft. tall — a full 6 feet tall in authentic full color. Very realistic — your friends will probably faint!", badge: "No. F17 — $1.00" },
+              { title: "Whoopee Cushion", subtitle: "Place under a cushion, then watch the fun! Embarrassing rubber noise — a screech at parties.", badge: "No. 247 — 50¢" },
+              { title: "X-Ray Specs", subtitle: "An hilarious optical illusion. Scientific optical principle really works. Look at your friend — see the bones underneath. Loads of laughter!", badge: "No. FL7 — $1.00" },
+            ],
             materializeSpec: {
               pageBackground: "#fffbeb",
               items: [
@@ -12533,10 +12550,28 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         const next: any = (seed.templateJson as any) || {};
         const merged: any = { ...cur };
         let changed = false;
-        for (const key of ["imageUrl", "logoUrl"] as const) {
+        // Backfill empty top-level scalar fields. Never overwrites non-empty
+        // values — admin edits always win. Listed explicitly so we never
+        // accidentally backfill a field a creator deliberately cleared.
+        const SCALAR_BACKFILL_KEYS = [
+          "imageUrl", "logoUrl",
+          "headline", "subheadline", "bodyCopy",
+          "ctaText", "ctaUrl", "qrUrl",
+          "backgroundColor", "accentColor",
+        ] as const;
+        for (const key of SCALAR_BACKFILL_KEYS) {
           if (next[key] && !cur[key]) { merged[key] = next[key]; changed = true; }
         }
-        if (Array.isArray(next.strips) && Array.isArray(cur.strips)) {
+        // If the current row has NO strips field at all (key missing — the
+        // signal of a row created by an older seed that didn't populate
+        // strips), copy the whole array in. We deliberately do NOT backfill
+        // when `cur.strips` is an explicit empty array, which represents an
+        // admin who cleared the strips intentionally. Otherwise fall back to
+        // per-strip image backfill on existing entries.
+        if (Array.isArray(next.strips) && next.strips.length > 0 && cur.strips === undefined) {
+          merged.strips = next.strips;
+          changed = true;
+        } else if (Array.isArray(next.strips) && Array.isArray(cur.strips)) {
           const mergedStrips = cur.strips.map((s: any, i: number) => {
             const ns = next.strips?.[i];
             if (ns?.imageUrl && !s?.imageUrl) { changed = true; return { ...s, imageUrl: ns.imageUrl }; }

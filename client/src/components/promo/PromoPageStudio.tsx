@@ -289,12 +289,16 @@ export function PromoPageRenderer({
       )}
 
       <div className="flex-1 relative overflow-hidden">
-        {layoutStyle === "vintage-mail-order"   && <VintageMailOrderBody data={data} />}
-        {layoutStyle === "vintage-novelty"      && <VintageNoveltyBody data={data} />}
+        {layoutStyle === "vintage-mail-order"     && <VintageMailOrderBody data={data} />}
+        {layoutStyle === "vintage-novelty"        && <VintageNoveltyBody data={data} />}
         {layoutStyle === "vintage-triple-feature" && <VintageTripleFeatureBody data={data} />}
+        {layoutStyle === "hero-ad-charles-atlas"  && <VintageHeroAdBody data={data} />}
+        {layoutStyle === "treasure-chest-grid"    && <VintageCatalogBody data={data} />}
         {(layoutStyle !== "vintage-mail-order" &&
           layoutStyle !== "vintage-novelty" &&
-          layoutStyle !== "vintage-triple-feature") && <ModernBody data={data} />}
+          layoutStyle !== "vintage-triple-feature" &&
+          layoutStyle !== "hero-ad-charles-atlas" &&
+          layoutStyle !== "treasure-chest-grid") && <ModernBody data={data} />}
 
         {/* Free-form overlay (read-only). Hidden in editing mode so the
             interactive editor renders the draggable handles in its place. */}
@@ -566,6 +570,257 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * "The Insult That Made a Man Out of Mac" style — old-comic full-page hero ad.
+ *  - Black masthead at top with a 2- or 3-color split headline (last word in
+ *    accent yellow, rest in cream/white).
+ *  - Big hero figure cutout on the left, 3×2 grid of small comic-panel boxes
+ *    on the right (data.strips supply the panel captions / images).
+ *  - Bold tilted red call-out (data.subheadline) below the grid.
+ *  - Small typewriter body paragraph + mail coupon row on the bottom, with
+ *    a tilted red "MAIL NOW!" CTA (data.ctaText) on the bottom-right.
+ *
+ *  Field mapping mirrors the other vintage layouts so users can swap between
+ *  them without losing their content.
+ */
+function VintageHeroAdBody({ data }: { data: PromoTemplateData }) {
+  const fonts = getPromoFonts(data);
+  const displayFont = fonts.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+  const bodyFont    = fonts.body    ?? "Georgia, 'Times New Roman', serif";
+  // Typewriter font for the coupon stays constant — it's part of the look.
+  const typeFont    = "'Special Elite', 'Courier New', monospace";
+
+  // Split the masthead headline into "lead" + "tail" so we can color the last
+  // word(s) in the accent yellow, like INSULT … MAN OUT OF "MAC" or
+  // "THE INSULT THAT MADE A CHAMPION".
+  const headline = (data.headline || "").trim();
+  const words = headline ? headline.split(/\s+/) : [];
+  const tailCount = words.length >= 5 ? 1 : (words.length >= 3 ? 1 : 0);
+  const lead = tailCount > 0 ? words.slice(0, words.length - tailCount).join(" ") : headline;
+  const tail = tailCount > 0 ? words.slice(words.length - tailCount).join(" ") : "";
+
+  // Pad strips to 6 so the grid always fills out as a 3×2 even if the seed
+  // gives us fewer captions.
+  const strips: PromoStrip[] = Array.isArray(data.strips) ? data.strips : [];
+  const panels: PromoStrip[] = [0, 1, 2, 3, 4, 5].map(i => strips[i] || {});
+
+  return (
+    <div className="absolute inset-0 flex flex-col"
+      style={{ backgroundColor: VINTAGE_PAPER_BG, color: VINTAGE_INK, ...PAPER_GRAIN_BG, fontFamily: bodyFont }}>
+      {/* Masthead — black bar with mixed-color title */}
+      <div className="px-3 py-2 flex items-baseline gap-2 border-b-2"
+        style={{ backgroundColor: "#0a0a0a", borderColor: VINTAGE_INK }}>
+        <h1 className="font-black uppercase leading-none flex-1 truncate"
+          style={{
+            color: "#ffffff",
+            fontFamily: displayFont,
+            fontSize: "clamp(1.4rem, 4.5vw, 2.6rem)",
+            letterSpacing: "0.02em",
+            textShadow: data.disableTextShadow ? "none" : "2px 2px 0 rgba(0,0,0,0.4)",
+          }}>
+          {lead}
+          {tail && (
+            <span style={{
+              color: "#fbbf24",
+              marginLeft: "0.4em",
+              transform: "skewX(-6deg) rotate(-2deg)",
+              display: "inline-block",
+              textShadow: data.disableTextShadow ? "none" : "2px 2px 0 #000",
+            }}>{tail}</span>
+          )}
+        </h1>
+      </div>
+
+      {/* Body — figure cutout left, 3×2 panel grid right */}
+      <div className="flex-1 flex gap-2 p-3 sm:p-4 min-h-0">
+        {/* overflow-hidden so scaled hero art (image filter scale up to ~250%)
+            cannot bleed across the masthead, panel grid, or coupon row. */}
+        <div className="w-[36%] flex flex-col items-center overflow-hidden">
+          {data.imageUrl && isPromoImageAllowed(data.imageUrl) ? (
+            <img src={data.imageUrl} alt="" referrerPolicy="no-referrer"
+              className="max-h-full max-w-full object-contain"
+              style={getPromoImageStyle(data)} />
+          ) : (
+            <div className="w-full h-2/3 border-2 flex items-center justify-center text-xs italic opacity-60"
+              style={{ borderColor: VINTAGE_INK }}>
+              Hero figure
+            </div>
+          )}
+          {data.subheadline && (
+            <p className="text-[9px] sm:text-[10px] italic text-center mt-1 px-1 leading-tight"
+              style={{ fontFamily: bodyFont, color: VINTAGE_INK }}>
+              {data.subheadline}
+            </p>
+          )}
+        </div>
+
+        <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-1.5">
+          {panels.map((p, i) => (
+            <div key={i} className="border-2 flex flex-col items-center justify-center p-1 text-center overflow-hidden"
+              style={{ borderColor: VINTAGE_INK, backgroundColor: "#ffffff" }}>
+              {p.imageUrl && isPromoImageAllowed(p.imageUrl) && (
+                <img src={p.imageUrl} alt="" referrerPolicy="no-referrer"
+                  className="max-h-[70%] max-w-full object-contain mb-0.5"
+                  style={getPromoImageStyle(data)} />
+              )}
+              {p.subtitle && (
+                <p className="text-[8px] sm:text-[9px] font-bold uppercase leading-tight"
+                  style={{ fontFamily: bodyFont, color: VINTAGE_INK }}>
+                  {p.subtitle}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom payoff row: tilted red call-out + body paragraph + coupon + MAIL NOW */}
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-1.5">
+        {data.bodyCopy && (
+          <p className="text-[10px] sm:text-[11px] leading-snug"
+            style={{ fontFamily: typeFont, color: VINTAGE_INK }}>
+            {data.bodyCopy.split("\n")[0]}
+          </p>
+        )}
+        <div className="flex gap-2 items-stretch">
+          <div className="flex-[2] border-2 px-2 py-1.5 text-[9px] sm:text-[10px] leading-tight"
+            style={{ fontFamily: typeFont, borderColor: VINTAGE_INK, backgroundColor: VINTAGE_COUPON_BG, color: VINTAGE_INK }}>
+            <div className="font-bold uppercase mb-0.5">Mail this coupon NOW</div>
+            <div>{data.qrUrl || "Dept. R325 · 49 W. 23rd St., NY"}</div>
+            <div className="mt-0.5">☐ Send me your FREE 32-page book</div>
+          </div>
+          {data.ctaText && (
+            <div className="flex-1 flex items-center justify-center">
+              <span className="font-black uppercase leading-none px-2 py-1"
+                style={{
+                  fontFamily: displayFont,
+                  fontSize: "clamp(1rem, 3.5vw, 2rem)",
+                  color: VINTAGE_RED,
+                  transform: "rotate(-6deg)",
+                  display: "inline-block",
+                  textShadow: data.disableTextShadow ? "none" : "2px 2px 0 rgba(0,0,0,0.3)",
+                }}>
+                {data.ctaText}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Treasure Chest of Fun" style — vintage novelty catalog page.
+ *  - 3×2 grid of pastel panels, each with a title, body description,
+ *    illustration, and an item code/price line at the bottom.
+ *  - Optional black diagonal banner across the middle reading data.headline,
+ *    with a stylized red bubble-letter look.
+ *
+ *  Strips supply the 6 catalog items: title, subtitle (description),
+ *  imageUrl (illustration), badge ("No. F17 · $1.00" code).
+ */
+function VintageCatalogBody({ data }: { data: PromoTemplateData }) {
+  const fonts = getPromoFonts(data);
+  const displayFont = fonts.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+  const bodyFont    = fonts.body    ?? "Georgia, 'Times New Roman', serif";
+  const typeFont    = "'Special Elite', 'Courier New', monospace";
+
+  const strips: PromoStrip[] = Array.isArray(data.strips) ? data.strips : [];
+  const items: PromoStrip[] = [0, 1, 2, 3, 4, 5].map(i => strips[i] || {});
+  // Pastel panel backgrounds — alternating cream / yellow / peach / pink so
+  // the grid feels like a real comic catalog page.
+  const cellBgs = ["#fff7d6", "#f5d83d", "#ffd9c0", "#ffd9d9", "#fff7d6", "#ffd9c0"];
+
+  return (
+    <div className="absolute inset-0 flex flex-col"
+      style={{ backgroundColor: VINTAGE_PAPER_BG, ...PAPER_GRAIN_BG, color: VINTAGE_INK, fontFamily: bodyFont }}>
+      {/* Top row of 3 panels */}
+      <div className="flex-1 grid grid-cols-3 min-h-0 border-b-2" style={{ borderColor: VINTAGE_INK }}>
+        {items.slice(0, 3).map((it, i) => (
+          <CatalogCell key={`t-${i}`} item={it} bg={cellBgs[i]} displayFont={displayFont}
+            bodyFont={bodyFont} typeFont={typeFont} disableTextShadow={data.disableTextShadow}
+            imageStyle={getPromoImageStyle(data)} />
+        ))}
+      </div>
+
+      {/* Diagonal black banner reading the headline */}
+      {data.headline && (
+        <div className="relative h-9 sm:h-11 overflow-hidden"
+          style={{ backgroundColor: "#0a0a0a", borderTop: `2px solid ${VINTAGE_INK}`, borderBottom: `2px solid ${VINTAGE_INK}` }}>
+          <div className="absolute inset-0 flex items-center justify-center"
+            style={{ transform: "skewY(-3deg) translateY(-2px)" }}>
+            <span className="font-black uppercase leading-none px-3 py-1"
+              style={{
+                fontFamily: displayFont,
+                fontSize: "clamp(1rem, 3.5vw, 1.9rem)",
+                color: VINTAGE_RED,
+                letterSpacing: "0.06em",
+                textShadow: data.disableTextShadow ? "none" : "2px 2px 0 #fbbf24, 3px 3px 0 #000",
+                transform: "skewY(3deg)",
+                display: "inline-block",
+              }}>
+              {data.headline}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom row of 3 panels */}
+      <div className="flex-1 grid grid-cols-3 min-h-0">
+        {items.slice(3, 6).map((it, i) => (
+          <CatalogCell key={`b-${i}`} item={it} bg={cellBgs[i + 3]} displayFont={displayFont}
+            bodyFont={bodyFont} typeFont={typeFont} disableTextShadow={data.disableTextShadow}
+            imageStyle={getPromoImageStyle(data)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Single catalog cell — title at top, body description, illustration centered,
+   item code/price at the bottom in monospace. The parent threads down the
+   page-level image style (filter / scale / position) so user-selected image
+   adjustments apply consistently here too. */
+function CatalogCell({
+  item, bg, displayFont, bodyFont, typeFont, disableTextShadow, imageStyle,
+}: {
+  item: PromoStrip; bg: string; displayFont: string; bodyFont: string; typeFont: string;
+  disableTextShadow?: boolean; imageStyle?: React.CSSProperties;
+}) {
+  return (
+    <div className="border-r-2 last:border-r-0 p-2 sm:p-3 flex flex-col text-center min-w-0 overflow-hidden"
+      style={{ borderColor: VINTAGE_INK, backgroundColor: bg, color: VINTAGE_INK }}>
+      <div className="font-black uppercase text-[10px] sm:text-xs leading-tight mb-1"
+        style={{ fontFamily: displayFont, color: VINTAGE_INK,
+          textShadow: disableTextShadow ? "none" : "1px 1px 0 rgba(0,0,0,0.15)" }}>
+        {item.title || "Item Title"}
+      </div>
+      {item.subtitle && (
+        <p className="text-[8px] sm:text-[9px] leading-snug italic mb-1"
+          style={{ fontFamily: bodyFont }}>
+          {item.subtitle}
+        </p>
+      )}
+      <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+        {item.imageUrl && isPromoImageAllowed(item.imageUrl) ? (
+          <img src={item.imageUrl} alt="" referrerPolicy="no-referrer"
+            className="max-h-full max-w-full object-contain"
+            style={imageStyle} />
+        ) : (
+          <div className="text-[9px] italic opacity-50">illustration</div>
+        )}
+      </div>
+      {item.badge && (
+        <div className="mt-1 text-[9px] sm:text-[10px]"
+          style={{ fontFamily: typeFont, color: VINTAGE_INK }}>
+          {item.badge}
+        </div>
+      )}
     </div>
   );
 }
