@@ -149,6 +149,32 @@ export interface PromoTemplateData {
   // with NO text-shadow. Lets creators turn off the chunky vintage shadow
   // for a cleaner look. Default = false (shadow on, matches original look).
   disableTextShadow?: boolean;
+  // Font mood preset that swaps the display + body fonts across the whole
+  // template. "default" leaves the template's built-in fonts alone.
+  // See PROMO_FONT_PRESETS for the roster.
+  fontPreset?: PromoFontPreset;
+}
+
+export type PromoFontPreset = "default" | "typewriter" | "pixel" | "handdrawn" | "modern";
+
+/* Font-mood roster. Each preset overrides the display (headline/CTA) and
+   body (subhead/copy/coupon details) font stacks across every template body.
+   "default" keeps the template's original fonts. All fonts in this roster are
+   already loaded from Google Fonts in client/index.html. */
+export const PROMO_FONT_PRESETS: Record<PromoFontPreset, { label: string; display: string | null; body: string | null }> = {
+  default:    { label: "Default",    display: null, body: null },
+  typewriter: { label: "Typewriter", display: "'Special Elite', 'Courier New', monospace", body: "'Special Elite', 'Courier New', monospace" },
+  pixel:      { label: "Pixel",      display: "'Press Start 2P', 'VT323', monospace",       body: "'VT323', 'Courier New', monospace" },
+  handdrawn:  { label: "Hand-drawn", display: "'Permanent Marker', 'Caveat', cursive",       body: "'Caveat', 'Comic Sans MS', cursive" },
+  modern:     { label: "Modern",     display: "'Bebas Neue', 'Anton', sans-serif",           body: "'Inter', system-ui, sans-serif" },
+};
+
+/** Resolve a promo's display + body fonts. When preset is "default" or unset,
+ *  callers should fall back to the template's hard-coded fontFamily. */
+export function getPromoFonts(data: PromoTemplateData): { display: string | null; body: string | null } {
+  const key = (data.fontPreset ?? "default") as PromoFontPreset;
+  const preset = PROMO_FONT_PRESETS[key] ?? PROMO_FONT_PRESETS.default;
+  return { display: preset.display, body: preset.body };
 }
 
 export type PromoElementKind = "text" | "image" | "shape";
@@ -291,15 +317,16 @@ function ModernBody({ data }: { data: PromoTemplateData }) {
   const bg = data.backgroundColor || "#1a1a1a";
   const accent = data.accentColor || "#fbbf24";
   const text = data.textColor || "#ffffff";
+  const fonts = getPromoFonts(data);
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 gap-3"
-      style={{ backgroundColor: bg, color: text }}>
+      style={{ backgroundColor: bg, color: text, ...(fonts.body ? { fontFamily: fonts.body } : {}) }}>
       {data.logoUrl && isPromoImageAllowed(data.logoUrl) && (
         <img src={data.logoUrl} alt="logo" className="max-h-12 mb-2 object-contain" referrerPolicy="no-referrer" />
       )}
       {data.headline && (
         <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight tracking-tight"
-          style={{ color: accent, textShadow: data.disableTextShadow ? "none" : "2px 2px 0 rgba(0,0,0,0.4)" }}>
+          style={{ color: accent, textShadow: data.disableTextShadow ? "none" : "2px 2px 0 rgba(0,0,0,0.4)", ...(fonts.display ? { fontFamily: fonts.display } : {}) }}>
           {data.headline}
         </h1>
       )}
@@ -314,7 +341,7 @@ function ModernBody({ data }: { data: PromoTemplateData }) {
       )}
       {data.ctaText && (
         <div className="mt-3 px-6 py-2.5 font-bold uppercase tracking-wider text-sm border-2"
-          style={{ backgroundColor: accent, color: bg, borderColor: text }}>
+          style={{ backgroundColor: accent, color: bg, borderColor: text, ...(fonts.display ? { fontFamily: fonts.display } : {}) }}>
           {data.ctaText}
         </div>
       )}
@@ -345,6 +372,9 @@ const PAPER_GRAIN_BG: React.CSSProperties = {
  * bottom. Cream paper texture throughout.
  */
 function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
+  const fonts = getPromoFonts(data);
+  const displayFont = fonts.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+  const bodyFont    = fonts.body    ?? "Georgia, 'Times New Roman', serif";
   return (
     <div className="absolute inset-0 flex flex-col p-3 sm:p-4"
       style={{ backgroundColor: VINTAGE_PAPER_BG, color: VINTAGE_INK, ...PAPER_GRAIN_BG }}>
@@ -356,7 +386,7 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
             className="absolute top-2 left-3 right-3 font-black uppercase leading-none z-10"
             style={{
               color: VINTAGE_RED,
-              fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+              fontFamily: displayFont,
               fontSize: "clamp(2.4rem, 7vw, 5rem)",
               letterSpacing: "0.01em",
               textShadow: data.disableTextShadow ? "none" : "3px 3px 0 #000, 5px 5px 0 rgba(0,0,0,0.4)",
@@ -376,7 +406,7 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
       {/* Sub headline strip */}
       {data.subheadline && (
         <div className="my-1 italic font-bold text-base sm:text-lg leading-tight"
-          style={{ color: VINTAGE_INK, fontFamily: "Georgia, serif" }}>
+          style={{ color: VINTAGE_INK, fontFamily: bodyFont }}>
           {data.subheadline}
         </div>
       )}
@@ -384,18 +414,18 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
       {/* Bottom half: body copy left, coupon box right */}
       <div className="flex-1 flex gap-2 mt-1">
         <div className="flex-[1.4] text-[11px] sm:text-xs leading-snug overflow-hidden"
-          style={{ fontFamily: "Georgia, 'Times New Roman', serif", columnCount: 1 }}>
+          style={{ fontFamily: bodyFont, columnCount: 1 }}>
           {data.bodyCopy && <p className="whitespace-pre-line">{data.bodyCopy}</p>}
         </div>
         <div className="flex-1 border-2 p-2 flex flex-col"
           style={{ backgroundColor: VINTAGE_COUPON_BG, borderColor: VINTAGE_INK }}>
           <div className="text-center font-black text-xs uppercase border-b-2 pb-1 mb-1"
             style={{ backgroundColor: VINTAGE_RED, color: "#fff", borderColor: VINTAGE_INK,
-              fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+              fontFamily: displayFont }}>
             {data.ctaText || "Mail Coupon Today"}
           </div>
           <div className="text-[9px] sm:text-[10px] leading-tight space-y-0.5"
-            style={{ fontFamily: "Georgia, serif" }}>
+            style={{ fontFamily: bodyFont }}>
             <div>Name: ____________________</div>
             <div>Address: __________________</div>
             <div>City: ______ State: ____ Zip: ____</div>
@@ -412,6 +442,9 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
  * column copy in 2 sub-sections, small product illo strip at bottom.
  */
 function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
+  const fonts = getPromoFonts(data);
+  const displayFont = fonts.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+  const bodyFont    = fonts.body    ?? "Georgia, 'Times New Roman', serif";
   return (
     <div className="absolute inset-0 flex flex-col p-3 sm:p-4"
       style={{ backgroundColor: VINTAGE_PAPER_BG_ALT, color: VINTAGE_INK, ...PAPER_GRAIN_BG }}>
@@ -423,7 +456,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
             <h1 className="font-black uppercase leading-none"
               style={{
                 color: VINTAGE_RED,
-                fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+                fontFamily: displayFont,
                 fontSize: "clamp(1.8rem, 5.5vw, 3.6rem)",
                 letterSpacing: "0.01em",
                 textShadow: data.disableTextShadow ? "none" : "2px 2px 0 #000",
@@ -432,7 +465,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
             </h1>
           )}
           {data.subheadline && (
-            <p className="text-xs sm:text-sm font-bold italic mt-1" style={{ fontFamily: "Georgia, serif" }}>
+            <p className="text-xs sm:text-sm font-bold italic mt-1" style={{ fontFamily: bodyFont }}>
               {data.subheadline}
             </p>
           )}
@@ -445,7 +478,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
       {/* Two-column body */}
       {data.bodyCopy && (
         <div className="flex-1 text-[10px] sm:text-xs leading-snug overflow-hidden"
-          style={{ fontFamily: "Georgia, 'Times New Roman', serif", columnCount: 2, columnGap: "0.75rem" }}>
+          style={{ fontFamily: bodyFont, columnCount: 2, columnGap: "0.75rem" }}>
           <p className="whitespace-pre-line">{data.bodyCopy}</p>
         </div>
       )}
@@ -461,7 +494,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
         <div className="flex-1 flex flex-col justify-center px-3 py-2 border-2 text-center"
           style={{ backgroundColor: VINTAGE_RED, color: "#fff", borderColor: VINTAGE_INK }}>
           <div className="font-black uppercase text-base sm:text-xl leading-tight"
-            style={{ fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+            style={{ fontFamily: displayFont }}>
             {data.ctaText || "Send No Money!"}
           </div>
           {data.qrUrl && <div className="text-[10px] mt-1 opacity-90">{data.qrUrl}</div>}
@@ -480,6 +513,9 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
   const strips: PromoStrip[] = Array.isArray(data.strips) ? data.strips : [];
   const padded: PromoStrip[] = [0, 1, 2].map(i => strips[i] || {});
   const stripBgs = ["#fff7d6", "#0a0a0a", "#ffd9d9"]; // light, dark, pink — vintage variety
+  const fonts = getPromoFonts(data);
+  const displayFont = fonts.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+  const bodyFont    = fonts.body    ?? "Georgia, serif";
 
   return (
     <div className="absolute inset-0 flex flex-col"
@@ -504,13 +540,13 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
             <div className="flex-1 relative p-2 sm:p-3 flex flex-col justify-center">
               {s.subtitle && (
                 <p className="text-[10px] sm:text-xs italic font-bold mb-1 leading-tight"
-                  style={{ fontFamily: "Georgia, serif", color: dark ? "#fde047" : VINTAGE_RED_DARK }}>
+                  style={{ fontFamily: bodyFont, color: dark ? "#fde047" : VINTAGE_RED_DARK }}>
                   {s.subtitle}
                 </p>
               )}
               <h2 className="font-black uppercase leading-none"
                 style={{
-                  fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
+                  fontFamily: displayFont,
                   fontSize: "clamp(1.3rem, 4vw, 2.6rem)",
                   color: dark ? VINTAGE_RED : VINTAGE_RED,
                   textShadow: data.disableTextShadow ? "none" : (dark ? "2px 2px 0 #000" : "2px 2px 0 rgba(0,0,0,0.3)"),
@@ -522,7 +558,7 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
               {s.badge && (
                 <div className="absolute top-1 right-1 px-2 py-0.5 border-2 font-black text-[10px] uppercase rotate-[8deg]"
                   style={{ backgroundColor: VINTAGE_COUPON_BG, color: VINTAGE_INK, borderColor: VINTAGE_INK,
-                    fontFamily: "'Bangers', 'Anton', sans-serif" }}>
+                    fontFamily: displayFont }}>
                   {s.badge}
                 </div>
               )}
@@ -886,6 +922,35 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
                             {shadowOff ? "OFF" : "ON"}
                           </span>
                         </label>
+                      );
+                    })()}
+                    {(() => {
+                      const currentPreset = (customData.fontPreset ?? selected.templateJson.fontPreset ?? "default") as PromoFontPreset;
+                      const sample = PROMO_FONT_PRESETS[currentPreset] ?? PROMO_FONT_PRESETS.default;
+                      const previewFont = sample.display ?? "'Bangers', 'Anton', 'Impact', sans-serif";
+                      return (
+                        <div className="space-y-1" data-testid="picker-promo-font-preset">
+                          <Label className="text-xs text-zinc-400">Font mood</Label>
+                          <div className="flex gap-2 items-center">
+                            <select
+                              value={currentPreset}
+                              onChange={(e) => setCustomData(d => ({ ...d, fontPreset: e.target.value as PromoFontPreset }))}
+                              className="flex-1 bg-zinc-900 border border-zinc-700 rounded h-9 px-2 text-xs text-zinc-100"
+                              data-testid="select-promo-font-preset"
+                            >
+                              {(Object.keys(PROMO_FONT_PRESETS) as PromoFontPreset[]).map(key => (
+                                <option key={key} value={key}>{PROMO_FONT_PRESETS[key].label}</option>
+                              ))}
+                            </select>
+                            <div
+                              className="px-2 h-9 flex items-center justify-center border border-zinc-700 bg-zinc-900 rounded text-zinc-100 text-base min-w-[52px]"
+                              style={{ fontFamily: previewFont }}
+                              data-testid="text-promo-font-preview"
+                            >
+                              Aa
+                            </div>
+                          </div>
+                        </div>
                       );
                     })()}
 
