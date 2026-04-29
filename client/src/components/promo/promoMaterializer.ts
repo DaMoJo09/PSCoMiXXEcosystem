@@ -13,13 +13,18 @@
  * fields (headline, subheadline, body, image, cta).
  *
  * Coordinate system:
- *   - Panel position is % of page (0-100). We always use ONE full-page
- *     panel covering 0,0 -> 100,100 — the entire page becomes the canvas
- *     and every item is a movable child.
- *   - PanelContent transform.x/y/width/height are PIXELS relative to the
- *     panel's rendered size. The Comic Creator's renderer divides by the
- *     live panel pixel size to compute % positions, so authoring at a
- *     fixed reference page size (650x920) gives consistent layouts.
+ *   - EACH spec item (text, image, decorative shape) becomes its OWN
+ *     top-level Panel sized in % of page (0-100). Every panel sits at
+ *     the same stacking level, so the author's intended z-order — e.g.
+ *     a red banner shape BEHIND the headline text — is preserved and
+ *     each item stays independently selectable on the canvas.
+ *   - A locked, full-page background panel at zIndex 0 holds the page
+ *     color so individual item panels can be transparent without
+ *     exposing the underlying white page.
+ *   - PanelContent transform.x/y/width/height are PIXELS relative to
+ *     the panel's rendered size. The Comic Creator's renderer divides
+ *     by the live panel pixel size to compute % positions, so authoring
+ *     at a fixed reference page size (650x920) gives consistent layouts.
  */
 import type { PromoTemplate, PromoTemplateData, PromoCustomData } from "./PromoPageStudio";
 
@@ -218,6 +223,145 @@ function makeFullPagePanel(opts: { backgroundColor?: string }): MaterializedPane
   };
 }
 
+// Wrap a single text item in its own top-level panel sized to the slot.
+// This keeps text/images at the SAME stacking level as decorative shapes
+// so they can be interleaved by zIndex and each selected independently.
+// Position is in % of page, so it scales correctly across non-fullscreen
+// (650x920) and fullscreen (800x1130) page sizes.
+function makeTextPanel(item: SpecTextItem, merged: PromoTemplateData, zIndex: number): MaterializedPanel {
+  const wPx = pctToPxX(item.w);
+  const hPx = pctToPxY(item.h);
+  return {
+    id: uid("textp"),
+    x: item.x,
+    y: item.y,
+    width: item.w,
+    height: item.h,
+    rotation: item.rotation || 0,
+    type: "rectangle",
+    shape: "rectangle",
+    contents: [
+      {
+        id: uid("text"),
+        type: "text",
+        transform: { x: 0, y: 0, width: wPx, height: hPx, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: {
+          text: resolveTokens(item.text, merged) || " ",
+          fontSize: item.fontSize ?? 24,
+          fontFamily: item.fontFamily || "'Bangers', cursive",
+          color: item.color || "#000000",
+          fontWeight: item.fontWeight || "bold",
+          fontStyle: item.fontStyle || "normal",
+          textAlign: item.textAlign || "left",
+          textTransform: item.textTransform,
+          letterSpacing: item.letterSpacing,
+          lineHeight: item.lineHeight,
+          backgroundColor: item.backgroundColor,
+          padding: item.padding,
+          borderRadius: item.borderRadius,
+          textPanel: !!item.backgroundColor,
+          textEffect: item.textEffect,
+          strokeColor: item.strokeColor,
+          strokeWidth: item.strokeWidth,
+        },
+        zIndex: 0,
+        locked: !!item.locked,
+      },
+    ],
+    zIndex,
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    borderWidth: 0,
+    locked: !!item.locked,
+    name: "Text",
+  };
+}
+
+// Same idea for images — own panel, image content fills it.
+function makeImagePanel(item: SpecImageItem, merged: PromoTemplateData, zIndex: number): MaterializedPanel | null {
+  const url = resolveTokens(item.src, merged);
+  if (!url) return null;
+  const wPx = pctToPxX(item.w);
+  const hPx = pctToPxY(item.h);
+  return {
+    id: uid("imgp"),
+    x: item.x,
+    y: item.y,
+    width: item.w,
+    height: item.h,
+    rotation: item.rotation || 0,
+    type: "rectangle",
+    shape: "rectangle",
+    contents: [
+      {
+        id: uid("img"),
+        type: "image",
+        transform: { x: 0, y: 0, width: wPx, height: hPx, rotation: 0, scaleX: 1, scaleY: 1 },
+        data: { url, alt: item.alt || "" },
+        zIndex: 0,
+        locked: !!item.locked,
+      },
+    ],
+    zIndex,
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    borderWidth: 0,
+    locked: !!item.locked,
+    name: "Image",
+  };
+}
+
+// Disclosure label becomes its own top-level panel pinned to the top of
+// the page. Locked + with the highest zIndex so the user cannot move,
+// re-style, or accidentally hide it.
+function makeDisclosureLabelPanel(text: string, zIndex: number): MaterializedPanel {
+  return {
+    id: uid("disclose"),
+    x: 2,
+    y: 1.5,
+    width: 96,
+    height: 3.5,
+    rotation: 0,
+    type: "rectangle",
+    shape: "rectangle",
+    contents: [
+      {
+        id: uid("disc-text"),
+        name: "Disclosure label (required)",
+        type: "text",
+        transform: {
+          x: 0, y: 0,
+          width: pctToPxX(96),
+          height: pctToPxY(3.5),
+          rotation: 0, scaleX: 1, scaleY: 1,
+        },
+        data: {
+          text,
+          fontSize: 14,
+          fontFamily: "'Inter', system-ui, sans-serif",
+          fontWeight: "900",
+          textAlign: "center",
+          textTransform: "uppercase",
+          letterSpacing: 1.5,
+          color: "#fde047",
+          backgroundColor: "#000000",
+          padding: 6,
+          borderRadius: 4,
+          textPanel: true,
+        },
+        zIndex: 0,
+        locked: true,
+      },
+    ],
+    zIndex,
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    borderWidth: 0,
+    locked: true,
+    name: "Disclosure label (required)",
+  };
+}
+
 function makeShapePanel(item: SpecShapeItem, zIndex: number): MaterializedPanel {
   const panel: MaterializedPanel = {
     id: uid("shape"),
@@ -262,6 +406,10 @@ function makeShapePanel(item: SpecShapeItem, zIndex: number): MaterializedPanel 
   return panel;
 }
 
+// Legacy helper kept for backward-compat: text-as-content inside an
+// existing host panel. New code path uses makeTextPanel above which gives
+// each text its own top-level panel for correct stacking with shapes.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function makeTextContent(item: SpecTextItem, merged: PromoTemplateData, zIndex: number): MaterializedContent {
   return {
     id: uid("text"),
@@ -299,6 +447,8 @@ function makeTextContent(item: SpecTextItem, merged: PromoTemplateData, zIndex: 
   };
 }
 
+// Legacy helper kept for backward-compat — see makeTextContent comment.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function makeImageContent(item: SpecImageItem, merged: PromoTemplateData, zIndex: number): MaterializedContent | null {
   const url = resolveTokens(item.src, merged);
   if (!url) return null; // Skip empty image slots — keeps the spec clean.
@@ -399,28 +549,34 @@ function defaultMaterialize(merged: PromoTemplateData): MaterializedPages {
 // --- Spec-driven layout -------------------------------------------------
 
 function materializeFromSpec(spec: MaterializeSpec, merged: PromoTemplateData): MaterializedPages {
-  const host = makeFullPagePanel({ backgroundColor: spec.pageBackground });
-  const shapePanels: MaterializedPanel[] = [];
-  // Decorative shapes go BEHIND the host panel content, so they sit at
-  // lower zIndex. Text + images live inside the host panel.
+  // Background fill: locked full-page panel at z=0 holding the page color.
+  // Locked so the user can't accidentally drag/resize it; if they want a
+  // different color they can unlock and re-style or just delete it.
+  const bgPanel = makeFullPagePanel({ backgroundColor: spec.pageBackground });
+  bgPanel.zIndex = 0;
+  bgPanel.locked = true;
+  bgPanel.name = "Background";
+
+  // Each spec item becomes its own top-level panel. This means decorative
+  // shapes, text blocks, and images all live at the same stacking level
+  // and can be interleaved by zIndex — so a shape that's authored to sit
+  // BEHIND a text block actually renders behind it (and remains
+  // independently selectable from the canvas).
+  const itemPanels: MaterializedPanel[] = [];
   let zCounter = 1;
   for (const item of spec.items) {
+    const z = item.z ?? zCounter++;
     if (item.kind === "shape") {
-      shapePanels.push(makeShapePanel(item, item.z ?? zCounter++));
-    }
-  }
-  const hostZ = (shapePanels.length ? Math.max(...shapePanels.map(p => p.zIndex)) : 0) + 1;
-  host.zIndex = hostZ;
-  let inner = 0;
-  for (const item of spec.items) {
-    if (item.kind === "text") {
-      host.contents.push(makeTextContent(item, merged, item.z ?? inner++));
+      itemPanels.push(makeShapePanel(item, z));
+    } else if (item.kind === "text") {
+      itemPanels.push(makeTextPanel(item, merged, z));
     } else if (item.kind === "image") {
-      const c = makeImageContent(item, merged, item.z ?? inner++);
-      if (c) host.contents.push(c);
+      const p = makeImagePanel(item, merged, z);
+      if (p) itemPanels.push(p);
     }
   }
-  const allPanels = [...shapePanels, host];
+
+  const allPanels = [bgPanel, ...itemPanels];
   if (spec.side === "left") {
     return { leftPage: allPanels, rightPage: [] };
   }
@@ -440,39 +596,6 @@ const REQUIRED_LABELS: Record<string, string | null> = {
   creator:  "CREATOR PROMO",
 };
 
-function makeDisclosureLabelContent(text: string, zIndex: number): MaterializedContent {
-  return {
-    id: uid("disclosure"),
-    name: "Disclosure label (required)",
-    type: "text",
-    transform: {
-      x: pctToPxX(2),
-      y: pctToPxY(1.5),
-      width: pctToPxX(96),
-      height: pctToPxY(3.5),
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-    },
-    data: {
-      text,
-      fontSize: 14,
-      fontFamily: "'Inter', system-ui, sans-serif",
-      fontWeight: "900",
-      textAlign: "center",
-      textTransform: "uppercase",
-      letterSpacing: 1.5,
-      color: "#fde047",
-      backgroundColor: "#000000",
-      padding: 6,
-      borderRadius: 4,
-      textPanel: true,
-    },
-    zIndex,
-    locked: true,
-  };
-}
-
 /**
  * Convert a promo template + the user's custom data into editable Comic
  * Creator panels. Returns leftPage and rightPage panel arrays the caller
@@ -487,16 +610,16 @@ export function materializePromoTemplate(
   const pages = (spec && Array.isArray(spec.items))
     ? materializeFromSpec(spec, merged)
     : defaultMaterialize(merged);
-  // Stamp the required disclosure label on whichever page has content.
-  // Locked, fixed yellow-on-black, always at the top — matches the
-  // PromoPageRenderer's read-only banner for legacy spreads.
+  // Stamp the required disclosure label as a locked top-level panel pinned
+  // to whichever page has content. Highest zIndex so it always wins the
+  // stacking contest — matches the PromoPageRenderer's read-only banner
+  // for legacy spreads.
   const requiredLabel = REQUIRED_LABELS[template.type] ?? null;
   if (requiredLabel) {
     const target = pages.rightPage.length ? pages.rightPage : pages.leftPage;
-    const host = target.find(p => p.x === 0 && p.y === 0 && p.width === 100 && p.height === 100);
-    if (host) {
-      const topZ = host.contents.reduce((m, c) => Math.max(m, c.zIndex), 0) + 1;
-      host.contents.push(makeDisclosureLabelContent(requiredLabel, topZ));
+    if (target.length > 0) {
+      const topZ = target.reduce((m, p) => Math.max(m, p.zIndex), 0) + 1;
+      target.push(makeDisclosureLabelPanel(requiredLabel, topZ));
     }
   }
   return pages;
