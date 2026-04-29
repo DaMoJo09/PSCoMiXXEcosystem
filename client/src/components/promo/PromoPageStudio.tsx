@@ -145,6 +145,10 @@ export interface PromoTemplateData {
   // freeElements on top. Used by "Edit Freely" mode where the template is
   // exploded into editable elements instead of fixed slots.
   hideTemplateBody?: boolean;
+  // When true the structured template bodies render headlines/strip titles
+  // with NO text-shadow. Lets creators turn off the chunky vintage shadow
+  // for a cleaner look. Default = false (shadow on, matches original look).
+  disableTextShadow?: boolean;
 }
 
 export type PromoElementKind = "text" | "image" | "shape";
@@ -295,7 +299,7 @@ function ModernBody({ data }: { data: PromoTemplateData }) {
       )}
       {data.headline && (
         <h1 className="text-3xl md:text-4xl font-black uppercase leading-tight tracking-tight"
-          style={{ color: accent, textShadow: "2px 2px 0 rgba(0,0,0,0.4)" }}>
+          style={{ color: accent, textShadow: data.disableTextShadow ? "none" : "2px 2px 0 rgba(0,0,0,0.4)" }}>
           {data.headline}
         </h1>
       )}
@@ -355,7 +359,7 @@ function VintageMailOrderBody({ data }: { data: PromoTemplateData }) {
               fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
               fontSize: "clamp(2.4rem, 7vw, 5rem)",
               letterSpacing: "0.01em",
-              textShadow: "3px 3px 0 #000, 5px 5px 0 rgba(0,0,0,0.4)",
+              textShadow: data.disableTextShadow ? "none" : "3px 3px 0 #000, 5px 5px 0 rgba(0,0,0,0.4)",
               transform: "rotate(-2deg)",
             }}
           >
@@ -422,7 +426,7 @@ function VintageNoveltyBody({ data }: { data: PromoTemplateData }) {
                 fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
                 fontSize: "clamp(1.8rem, 5.5vw, 3.6rem)",
                 letterSpacing: "0.01em",
-                textShadow: "2px 2px 0 #000",
+                textShadow: data.disableTextShadow ? "none" : "2px 2px 0 #000",
               }}>
               {data.headline}
             </h1>
@@ -509,7 +513,7 @@ function VintageTripleFeatureBody({ data }: { data: PromoTemplateData }) {
                   fontFamily: "'Bangers', 'Anton', 'Impact', sans-serif",
                   fontSize: "clamp(1.3rem, 4vw, 2.6rem)",
                   color: dark ? VINTAGE_RED : VINTAGE_RED,
-                  textShadow: dark ? "2px 2px 0 #000" : "2px 2px 0 rgba(0,0,0,0.3)",
+                  textShadow: data.disableTextShadow ? "none" : (dark ? "2px 2px 0 #000" : "2px 2px 0 rgba(0,0,0,0.3)"),
                   letterSpacing: "0.01em",
                   transform: "rotate(-1deg)",
                 }}>
@@ -866,6 +870,24 @@ export function PromoPageStudio({ open, onOpenChange, insertAtPageIndex, onInser
                         />
                       </div>
                     </div>
+                    {(() => {
+                      const shadowOff = !!(customData.disableTextShadow ?? selected.templateJson.disableTextShadow);
+                      return (
+                        <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none" data-testid="toggle-promo-shadow-wrapper">
+                          <input
+                            type="checkbox"
+                            checked={shadowOff}
+                            onChange={(e) => setCustomData(d => ({ ...d, disableTextShadow: e.target.checked }))}
+                            className="w-4 h-4 accent-amber-400 bg-zinc-900 border-zinc-700"
+                            data-testid="toggle-promo-shadow"
+                          />
+                          <span>Remove headline drop shadow</span>
+                          <span className="ml-auto text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+                            {shadowOff ? "OFF" : "ON"}
+                          </span>
+                        </label>
+                      );
+                    })()}
 
                     {/* IMAGES — upload from device. Triple-feature uses 3 strip slots. */}
                     {selected.layoutStyle === "vintage-triple-feature" ? (
