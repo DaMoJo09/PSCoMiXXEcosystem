@@ -2322,6 +2322,121 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   });
 
   // ============================================
+  // ONE-SHOT CLEANUP: STRIPPED-IMAGE SENTINELS
+  // ============================================
+  // Some legacy projects had embedded image URLs overwritten with the
+  // local-backup space-saver sentinel "__omitted_for_local_backup__"
+  // before the client-side scrub was in place. These two endpoints let an
+  // admin audit and clean those projects in production. Audit is GET (safe
+  // to call any time); cleanup is POST and idempotent (it just replaces
+  // the sentinel string with "" so the renderer's empty-url short-circuit
+  // shows a blank panel instead of a broken-image icon).
+  //
+  // Design notes (addressing prior review):
+  // 1) Damaged-project lookup uses a SQL LIKE on `data::text` so it scans
+  //    the entire `projects` table directly — not bounded by any in-memory
+  //    pagination limit on storage.getAllProjects().
+  // 2) Cleanup writes use optimistic concurrency: we re-fetch the row by
+  //    id+updatedAt right before update; if the row was edited between
+  //    audit and write, we skip it (no clobber) and report `skipped`.
+  // 3) totalReplacements counts each individual sentinel occurrence per
+  //    string (not per-string), matching the audit hit counts.
+  const STRIPPED_SENTINEL = "__omitted_for_local_backup__";
+  function scrubSentinel(node: any): { value: any; replaced: number } {
+    let replaced = 0;
+    const walk = (v: any): any => {
+      if (typeof v === "string") {
+        if (!v.includes(STRIPPED_SENTINEL)) return v;
+        const parts = v.split(STRIPPED_SENTINEL);
+        replaced += parts.length - 1; // count every occurrence in this string
+        return parts.join("");
+      }
+      if (Array.isArray(v)) return v.map(walk);
+      if (v && typeof v === "object") {
+        const out: any = {};
+        for (const k of Object.keys(v)) out[k] = walk(v[k]);
+        return out;
+      }
+      return v;
+    };
+    return { value: walk(node), replaced };
+  }
+
+  // Fetch only the rows whose serialized data actually contains the
+  // sentinel. JSONB-as-text LIKE is fine here because the sentinel is a
+  // unique multi-underscore string that won't false-match real content.
+  async function findDamagedProjects() {
+    return db.select().from(projects)
+      .where(sql`${projects.data}::text LIKE ${'%' + STRIPPED_SENTINEL + '%'}`);
+  }
+
+  app.get("/api/admin/sentinel-audit", isAdmin, async (_req, res) => {
+    try {
+      const damagedRows = await findDamagedProjects();
+      const damaged = damagedRows.map((p) => {
+        const s = JSON.stringify(p.data ?? {});
+        const hits = s.split(STRIPPED_SENTINEL).length - 1;
+        return { id: p.id, title: p.title, type: p.type, userId: p.userId, hits };
+      });
+      res.json({
+        damagedCount: damaged.length,
+        totalSentinelHits: damaged.reduce((n, d) => n + d.hits, 0),
+        damaged,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/admin/sentinel-cleanup", isAdmin, async (req, res) => {
+    try {
+      // Default to dry-run; caller must explicitly pass {dryRun:false} to write.
+      const dryRun = req.body?.dryRun !== false;
+      const damagedRows = await findDamagedProjects();
+      const results: Array<{
+        id: string; title: string; replaced: number;
+        updated: boolean; skipped?: boolean; error?: string;
+      }> = [];
+      for (const p of damagedRows) {
+        const { value: cleaned, replaced } = scrubSentinel(p.data);
+        if (replaced === 0) continue;
+        if (dryRun) {
+          results.push({ id: p.id, title: p.title, replaced, updated: false });
+          continue;
+        }
+        try {
+          // Optimistic concurrency: only update if updatedAt hasn't changed
+          // since we read it. If a user edited the project between audit
+          // and write, skip rather than clobber their newer data.
+          const original = p.updatedAt as Date;
+          const updated = await db.update(projects)
+            .set({ data: cleaned, updatedAt: new Date() })
+            .where(and(eq(projects.id, p.id), eq(projects.updatedAt, original)))
+            .returning({ id: projects.id });
+          if (updated.length === 0) {
+            results.push({ id: p.id, title: p.title, replaced, updated: false, skipped: true });
+          } else {
+            results.push({ id: p.id, title: p.title, replaced, updated: true });
+          }
+        } catch (e: any) {
+          results.push({ id: p.id, title: p.title, replaced, updated: false, error: e?.message || "update failed" });
+        }
+      }
+      res.json({
+        dryRun,
+        affected: results.length,
+        totalReplacements: results.reduce((n, r) => n + r.replaced, 0),
+        wrote: results.filter((r) => r.updated).length,
+        skipped: results.filter((r) => r.skipped).length,
+        errors: results.filter((r) => r.error).length,
+        results,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============================================
   // PLATFORM ANALYTICS & KPI ROUTES
   // ============================================
 
