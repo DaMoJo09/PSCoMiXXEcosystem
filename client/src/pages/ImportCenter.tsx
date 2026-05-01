@@ -147,17 +147,49 @@ export default function ImportCenter() {
 
   const fileImportMutation = useMutation({
     mutationFn: async (data: { format: string; images?: string[]; projectData?: any; title: string }) => {
-      const res = await fetch("/api/imports/file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to import");
+      const controller = new AbortController();
+      const timeoutMs = 120_000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch("/api/imports/file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(data),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          let errMsg = `Server returned ${res.status}`;
+          try {
+            const err = await res.json();
+            errMsg = err.message || errMsg;
+          } catch {
+            try {
+              const text = await res.text();
+              if (text) errMsg = text.slice(0, 200);
+            } catch {}
+          }
+          if (res.status === 413) {
+            errMsg = "The project file is too large for the server to accept. Ask your student to export a slimmer version or split the comic into chapters.";
+          } else if (res.status === 401) {
+            errMsg = "You're signed out. Please sign back in and try again.";
+          } else if (res.status >= 500) {
+            errMsg = `Server error while importing: ${errMsg}. Try again in a moment — if it keeps failing, the file may have an unusual structure.`;
+          }
+          throw new Error(errMsg);
+        }
+        return res.json();
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+          throw new Error("Upload took longer than 2 minutes and was cancelled. The project file may be very large or your connection may be slow. Try again on a stronger network.");
+        }
+        if (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError")) {
+          throw new Error("Lost connection to the server while uploading. Check your internet and try again.");
+        }
+        throw err;
       }
-      return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
@@ -238,16 +270,90 @@ export default function ImportCenter() {
 
   const processJSON = useCallback(async (file: File) => {
     setIsProcessing(true);
-    setImportProgress(50);
+    setImportProgress(10);
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      const MAX_BYTES = 48 * 1024 * 1024;
+      if (file.size === 0) {
+        throw new Error("This file is empty (0 bytes). It may have failed to download — ask your student to re-export and re-send the project.");
+      }
+      if (file.size > MAX_BYTES) {
+        const mb = (file.size / 1024 / 1024).toFixed(1);
+        throw new Error(`File is too large (${mb}MB). Max is 48MB. Ask your student to export again without embedded full-resolution images, or split the comic into chapters.`);
+      }
+
+      setImportProgress(30);
+      let text: string;
+      try {
+        text = await file.text();
+      } catch (readErr: any) {
+        throw new Error(`Couldn't read the file: ${readErr.message || "unknown error"}. The file may be corrupted — try re-downloading it.`);
+      }
+      setImportProgress(60);
+
+      if (text.charCodeAt(0) === 0xFEFF) {
+        text = text.slice(1);
+      }
+      text = text.replace(/^\s+|\s+$/g, "");
+
+      if (text.length === 0) {
+        throw new Error("The file is blank after trimming whitespace. Re-export the project from CoMiXX and re-send.");
+      }
+
+      const head = text.slice(0, 200).toLowerCase();
+      if (head.startsWith("<!doctype") || head.startsWith("<html") || head.startsWith("<?xml")) {
+        throw new Error("This file looks like a web page or XML, not a CoMiXX project. Make sure you're importing the .json file your student exported, not a saved screenshot or downloaded web page.");
+      }
+
+      const firstChar = text[0];
+      if (firstChar !== "{" && firstChar !== "[") {
+        const preview = text.slice(0, 60).replace(/\n/g, " ");
+        throw new Error(`This doesn't look like a JSON file — it starts with "${preview}…". The file may be corrupted, encrypted, or the wrong type.`);
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr: any) {
+        const msg = parseErr?.message || "";
+        const posMatch = msg.match(/position\s+(\d+)/i);
+        if (posMatch) {
+          const pos = parseInt(posMatch[1], 10);
+          const start = Math.max(0, pos - 25);
+          const end = Math.min(text.length, pos + 25);
+          const snippet = text.slice(start, end).replace(/\n/g, "\\n").replace(/\t/g, "\\t");
+          const lineNum = text.slice(0, pos).split("\n").length;
+          throw new Error(`The project file is corrupted near line ${lineNum} (character ${pos}): "…${snippet}…". This usually happens when the file was sent through email or chat that re-encoded it. Ask your student to re-send it as a direct file attachment (not pasted as text) or upload it to a shared drive.`);
+        }
+        throw new Error(`The project file is not valid JSON: ${msg}. Try re-downloading or re-exporting.`);
+      }
+
+      const projectTypes = ["comic", "cyoa", "visual_novel", "library_card", "cover"];
+      const inner = (data && typeof data === "object" && data.data && typeof data.data === "object") ? data.data : null;
+      const looksLikeProject =
+        !!(data && typeof data === "object") &&
+        (
+          Array.isArray(data.spreads) ||
+          Array.isArray(inner?.spreads) ||
+          Array.isArray(data.pages) ||
+          Array.isArray(inner?.pages) ||
+          (typeof data.type === "string" && projectTypes.includes(data.type)) ||
+          (typeof inner?.type === "string" && projectTypes.includes(inner.type)) ||
+          (data.comicMeta && typeof data.comicMeta === "object") ||
+          (inner?.comicMeta && typeof inner.comicMeta === "object")
+        );
+
+      if (!looksLikeProject) {
+        throw new Error("This JSON file doesn't look like a CoMiXX project (no comic pages, spreads, or metadata found). Make sure your student used 'Export Project Data (JSON)' from inside the comic editor — not a different export option.");
+      }
+
+      setImportProgress(90);
       const baseName = file.name.replace(/\.(json|cyoa|psdcf)$/i, "");
       setPreview({ format: "json", title: data.title || baseName, images: [], projectData: data, fileName: file.name });
       setProjectTitle(data.title || baseName);
       setImportProgress(100);
     } catch (err: any) {
       toast.error(err.message || "Invalid JSON file");
+      setImportProgress(0);
     } finally {
       setIsProcessing(false);
     }
