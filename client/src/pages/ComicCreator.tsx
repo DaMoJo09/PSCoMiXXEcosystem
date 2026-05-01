@@ -1745,6 +1745,12 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
   );
 }
 
+// Sentinel string written by the local-backup stripper when an embedded image
+// is too big for localStorage. NEVER allowed to reach the server or the
+// rendered DOM (it would show as a broken-image icon). Hydration refuses
+// stripped backups; save sanitizers replace it with empty string.
+const STRIPPED_IMAGE_PLACEHOLDER = "__omitted_for_local_backup__";
+
 // Strips heavy fields (base64 dataURLs, large image blobs) so the local
 // backup stays small. The server save still sends the full payload — this
 // only affects the local seatbelt copy.
@@ -1752,7 +1758,7 @@ function stripHeavyFields(value: any): any {
   if (value == null) return value;
   if (typeof value === "string") {
     if (value.length > 50_000 && (value.startsWith("data:") || value.startsWith("blob:"))) {
-      return "__omitted_for_local_backup__";
+      return STRIPPED_IMAGE_PLACEHOLDER;
     }
     return value;
   }
@@ -1760,6 +1766,25 @@ function stripHeavyFields(value: any): any {
   if (typeof value === "object") {
     const out: any = {};
     for (const k of Object.keys(value)) out[k] = stripHeavyFields(value[k]);
+    return out;
+  }
+  return value;
+}
+
+// Replaces every STRIPPED_IMAGE_PLACEHOLDER occurrence with an empty string so
+// affected panels render blank instead of a broken-image icon, and so the
+// poison sentinel is never written back to the server. Used both at hydration
+// time (defensive against existing corrupted projects) and right before any
+// save.
+function sanitizeStrippedPlaceholders(value: any): any {
+  if (value == null) return value;
+  if (typeof value === "string") {
+    return value === STRIPPED_IMAGE_PLACEHOLDER ? "" : value;
+  }
+  if (Array.isArray(value)) return value.map(sanitizeStrippedPlaceholders);
+  if (typeof value === "object") {
+    const out: any = {};
+    for (const k of Object.keys(value)) out[k] = sanitizeStrippedPlaceholders(value[k]);
     return out;
   }
   return value;
@@ -1791,9 +1816,9 @@ function getLastExportAt(projectId: string | null | undefined): number | null {
 function safeWriteLocalBackup(projectId: string, title: string, payload: any) {
   if (!projectId) return;
   const key = `pscomixx_local_backup_v1_${projectId}`;
-  const write = (data: any) => {
+  const write = (data: any, stripped: boolean) => {
     try {
-      const serialized = JSON.stringify({ savedAt: Date.now(), title, data });
+      const serialized = JSON.stringify({ savedAt: Date.now(), title, data, stripped });
       if (serialized.length * 2 > LOCAL_BACKUP_MAX_BYTES) return false;
       localStorage.setItem(key, serialized);
       return true;
@@ -1802,11 +1827,14 @@ function safeWriteLocalBackup(projectId: string, title: string, payload: any) {
     }
   };
   // First try a full backup. If it's too big or storage is full, fall back to
-  // a stripped version (no embedded image bytes). If even that fails, drop the
-  // local backup silently — server autosave still runs.
-  if (write(payload)) return;
+  // a stripped version (no embedded image bytes) and TAG it as stripped so the
+  // hydration code refuses to use it as the editor's source of truth (which
+  // would otherwise overwrite the server copy with placeholder strings on the
+  // next save). If even that fails, drop the local backup silently — server
+  // autosave still runs.
+  if (write(payload, false)) return;
   const stripped = stripHeavyFields(payload);
-  if (write(stripped)) return;
+  if (write(stripped, true)) return;
   try { localStorage.removeItem(key); } catch {}
 }
 
@@ -2373,7 +2401,22 @@ export default function ComicCreator() {
             local.data.spreads.some((s: any) =>
               (s?.leftPage || []).some((p: any) => (p?.contents || []).length > 0) ||
               (s?.rightPage || []).some((p: any) => (p?.contents || []).length > 0));
-          if (localHasContent && local.savedAt && local.savedAt > serverTs + 5000) {
+          // SAFETY: A stripped backup has had every embedded image replaced
+          // with the placeholder sentinel. Restoring it as the source of
+          // truth would propagate those placeholders back to the server on
+          // the next save and permanently destroy the student's images.
+          // New backups carry an explicit `stripped` flag. Older backups
+          // (pre this fix) had no flag, so for those — and ONLY for those
+          // — fall back to sniffing the raw text. Limiting the sniff to
+          // legacy backups avoids false positives when a user types the
+          // sentinel string into legitimate text content.
+          const hasFlag = local && typeof local === "object" && "stripped" in local;
+          const isStripped = hasFlag
+            ? local.stripped === true
+            : (typeof raw === "string" && raw.includes(STRIPPED_IMAGE_PLACEHOLDER));
+          if (isStripped) {
+            console.warn(`[ComicCreator] ignoring stripped local backup for project ${project.id} — using server copy to preserve images`);
+          } else if (localHasContent && local.savedAt && local.savedAt > serverTs + 5000) {
             console.warn(`[ComicCreator] restoring newer local backup for project ${project.id} (local=${local.savedAt}, server=${serverTs})`);
             dataSource = local.data;
             titleSource = local.title || project.title;
@@ -2381,6 +2424,11 @@ export default function ComicCreator() {
           }
         }
       } catch { /* ignore */ }
+      // DEFENSIVE: scrub any leftover sentinel strings from already-corrupted
+      // server data so the editor renders blank panels instead of broken-image
+      // icons. The save path also scrubs, so the cleaned shape gets written
+      // back the next time the user saves.
+      dataSource = sanitizeStrippedPlaceholders(dataSource);
 
       setTitle(titleSource);
       const data = dataSource as any;
@@ -2618,7 +2666,13 @@ export default function ComicCreator() {
       autoSaveTimerRef.current = null;
     }
     const { frontCover, backCover, coverProjectId, ...comicMetaSafe } = cm as any;
-    const payload = { spreads: s, comicMeta: comicMetaSafe, flowConnections: latestDataRef.current.flowConnections || [], ...(cd ? { coverDesign: cd } : {}) };
+    const rawPayload = { spreads: s, comicMeta: comicMetaSafe, flowConnections: latestDataRef.current.flowConnections || [], ...(cd ? { coverDesign: cd } : {}) };
+    // SAFETY: scrub every save payload of the local-backup sentinel before it
+    // can reach the server. The hydration scrub already cleans known-corrupted
+    // projects on load, but this guards against any code path that introduces
+    // the sentinel into in-memory state after hydration (e.g. an imported
+    // project containing the string).
+    const payload = sanitizeStrippedPlaceholders(rawPayload);
     // Always write a local snapshot first so the work is recoverable no matter
     // what the server does. This is the seatbelt — every other failure mode
     // below is allowed to fail without losing student work. Size-guarded so a
@@ -2692,9 +2746,10 @@ export default function ComicCreator() {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd, flowConnections: fc } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
+          const cleanData = sanitizeStrippedPlaceholders({ spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) });
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: cleanData })], { type: "application/json" })
           );
         }
       }
@@ -2707,9 +2762,10 @@ export default function ComicCreator() {
         const { projectId, title: t, spreads: s, comicMeta: cm, coverDesignData: cd, flowConnections: fc } = latestDataRef.current;
         if (projectId) {
           const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...cmSafe } = cm as any;
+          const cleanData = sanitizeStrippedPlaceholders({ spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) });
           navigator.sendBeacon(
             `/api/projects/${projectId}/autosave`,
-            new Blob([JSON.stringify({ title: t, data: { spreads: s, comicMeta: cmSafe, flowConnections: fc || [], ...(cd ? { coverDesign: cd } : {}) } })], { type: "application/json" })
+            new Blob([JSON.stringify({ title: t, data: cleanData })], { type: "application/json" })
           );
         }
         e.preventDefault();
@@ -2841,7 +2897,7 @@ export default function ComicCreator() {
       // stale work without telling the user.
       if (effectiveProjectId) {
         const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
-        const payload = { spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+        const payload = sanitizeStrippedPlaceholders({ spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) });
         safeWriteLocalBackup(effectiveProjectId, title, payload);
         const flushRes = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
           method: "POST",
@@ -2886,7 +2942,7 @@ export default function ComicCreator() {
     pendingSaveRef.current = false;
     try {
       const { frontCover: _fc, backCover: _bc, coverProjectId: _cp, ...comicMetaSafe } = comicMeta as any;
-      const payload = { spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) };
+      const payload = sanitizeStrippedPlaceholders({ spreads, comicMeta: comicMetaSafe, activeMode, flowConnections, ...(coverDesignData ? { coverDesign: coverDesignData } : {}) });
       // Mirror the autosave seatbelt: write a local backup before the network
       // call so a flaky connection can't lose the student's manual save.
       safeWriteLocalBackup(effectiveProjectId, title, payload);
@@ -2911,18 +2967,19 @@ export default function ComicCreator() {
 
   const handleCoverSave = async (coverDesign: CoverData, coverImages: { frontCover: string; backCover: string }) => {
     if (!effectiveProjectId) throw new Error("No project to save cover to");
+    const cleanData = sanitizeStrippedPlaceholders({
+      coverDesign,
+      comicMeta: {
+        frontCover: coverImages.frontCover,
+        backCover: coverImages.backCover,
+      },
+    });
     const res = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        data: {
-          coverDesign,
-          comicMeta: {
-            frontCover: coverImages.frontCover,
-            backCover: coverImages.backCover,
-          }
-        },
+        data: cleanData,
         thumbnail: coverImages.frontCover || undefined,
       }),
     });
@@ -3906,18 +3963,19 @@ export default function ComicCreator() {
       setComicMeta(updatedMeta);
 
       try {
+        const cleanData = sanitizeStrippedPlaceholders({
+          spreads,
+          title,
+          coverDesign: coverDesignData,
+          comicMeta: updatedMeta,
+          flowConnections,
+        });
         const saveRes = await fetch(`/api/projects/${effectiveProjectId}/autosave`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            data: {
-              spreads,
-              title,
-              coverDesign: coverDesignData,
-              comicMeta: updatedMeta,
-              flowConnections,
-            },
+            data: cleanData,
             thumbnail: compiledFrontCover || undefined,
           }),
         });
@@ -6624,11 +6682,11 @@ export default function ComicCreator() {
   const handleRescueToNewProject = useCallback(async () => {
     try {
       const { frontCover: _f, backCover: _b, coverProjectId: _c, ...cmSafe } = comicMeta as any;
-      const payload = {
+      const payload = sanitizeStrippedPlaceholders({
         spreads,
         comicMeta: cmSafe,
         ...(coverDesignData ? { coverDesign: coverDesignData } : {}),
-      };
+      });
       const newProject = await createProject.mutateAsync({
         title: title || "Recovered Comic",
         type: "comic",
