@@ -263,3 +263,9 @@ id = "zrrRV4o6Awsnf8GYypfv0"
 uri = "file://attached_assets/fx-studio-curriculum.zip"
 type = "unspecified"
 title = "FX Studio Curriculum (HTML, fonts embedded)"
+
+[[outputs]]
+id = "huN5CZY0D1hCViPbADrKE"
+uri = "file://attached_assets/comixx-app-curriculum.zip"
+type = "unspecified"
+title = "CoMiXX Creator — 6-Week Curriculum (HTML, fonts embedded, purple)"
