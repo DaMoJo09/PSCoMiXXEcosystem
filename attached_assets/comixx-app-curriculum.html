@@ -865,7 +865,18 @@ body.student-mode .teacher-only { display: none !important; }
   .obj-grid { grid-template-columns: 1fr; }
   .mode-grid { grid-template-columns: 1fr 1fr; }
 }
-</style>
+
+  /* Journey Flow */
+  .journey-flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin:32px 0 48px;border:1px solid var(--line);background:#0a0a0a;padding:0;overflow:hidden;}
+  .journey-step{flex:1;min-width:140px;padding:20px 16px;background:#0a0a0a;border-right:1px solid var(--line);position:relative;}
+  .journey-step:last-child{border-right:none;}
+  .journey-step .step-num{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);margin-bottom:8px;}
+  .journey-step .step-label{font-family:'Bebas Neue',sans-serif;font-size:18px;line-height:1;letter-spacing:1px;color:var(--accent,#fff);margin-bottom:8px;}
+  .journey-step .step-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mid);line-height:1.4;}
+  .journey-step::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);background:#0a0a0a;color:var(--mid);font-size:14px;width:16px;text-align:center;z-index:2;}
+  .journey-step:last-child::after{display:none;}
+  @media (max-width:900px){.journey-flow{flex-direction:column;}.journey-step{border-right:none;border-bottom:1px solid var(--line);}.journey-step::after{right:50%;top:auto;bottom:-8px;transform:translateX(50%);}}
+  </style>
 </head>
 <body class="teacher-mode">
 
@@ -876,59 +887,35 @@ body.student-mode .teacher-only { display: none !important; }
       <div class="sub">Creator Curriculum</div>
       <div class="pill">6-WEEK · GRADES 6–12</div>
     </div>
-
     <div class="view-toggle">
       <button class="toggle-btn active" onclick="setMode('teacher')">TEACHER</button>
       <button class="toggle-btn" onclick="setMode('student')">STUDENT</button>
     </div>
-
     <div class="week-nav">
       <a href="#overview" class="week-nav-item" style="--accent:var(--purple)">
-        <span class="num">00</span>
-        <span class="label">Overview</span>
-        <span class="dot"></span>
+        <span class="num">00</span><span class="label">The Journey</span><span class="dot"></span>
       </a>
       <a href="#week1" class="week-nav-item" style="--accent:var(--w1)">
-        <span class="num">01</span>
-        <span class="label">Script &amp; Story</span>
-        <span class="dot" style="background:var(--w1)"></span>
+        <span class="num">01</span><span class="label">First Run</span><span class="dot" style="background:var(--w1)"></span>
       </a>
       <a href="#week2" class="week-nav-item" style="--accent:var(--w2)">
-        <span class="num">02</span>
-        <span class="label">Layout &amp; Ink</span>
-        <span class="dot" style="background:var(--w2)"></span>
+        <span class="num">02</span><span class="label">Build the Page</span><span class="dot" style="background:var(--w2)"></span>
       </a>
       <a href="#week3" class="week-nav-item" style="--accent:var(--w3)">
-        <span class="num">03</span>
-        <span class="label">Color &amp; FX</span>
-        <span class="dot" style="background:var(--w3)"></span>
+        <span class="num">03</span><span class="label">Style the Page</span><span class="dot" style="background:var(--w3)"></span>
       </a>
       <a href="#week4" class="week-nav-item" style="--accent:var(--w4)">
-        <span class="num">04</span>
-        <span class="label">Voice &amp; Bubbles</span>
-        <span class="dot" style="background:var(--w4)"></span>
+        <span class="num">04</span><span class="label">Voice the Page</span><span class="dot" style="background:var(--w4)"></span>
       </a>
       <a href="#week5" class="week-nav-item" style="--accent:var(--w5)">
-        <span class="num">05</span>
-        <span class="label">Motion &amp; Formats</span>
-        <span class="dot" style="background:var(--w5)"></span>
+        <span class="num">05</span><span class="label">Expand the Format</span><span class="dot" style="background:var(--w5)"></span>
       </a>
       <a href="#week6" class="week-nav-item" style="--accent:var(--w6)">
-        <span class="num">06</span>
-        <span class="label">Ship It</span>
-        <span class="dot" style="background:var(--w6)"></span>
+        <span class="num">06</span><span class="label">Ship It</span><span class="dot" style="background:var(--w6)"></span>
       </a>
     </div>
-
     <div class="sidebar-footer">
-      <p>
-        Curriculum by<br>
-        <strong style="color:#fff">Press Start Gaming Inc.</strong><br>
-        Delivered by MADMIXEDMEDIA LLC<br><br>
-        pscomixx.com<br>
-        pscomixx.online<br>
-        pressstart.space
-      </p>
+      <p>Curriculum by<br><strong style="color:#fff">Press Start Gaming Inc.</strong><br>Delivered by MADMIXEDMEDIA LLC<br><br>pscomixx.com<br>pressstart.space</p>
     </div>
   </nav>
 
@@ -939,105 +926,89 @@ body.student-mode .teacher-only { display: none !important; }
 <section id="overview">
   <div class="hero">
     <div class="hero-tag">Press Start Gaming Inc. · CTE Creative Technology</div>
-    <h1>COMIXX<br><span>CREATOR</span><br>CURRICULUM</h1>
-    <p class="hero-desc">A six-week, project-based creative technology course built around the CoMiXX comic app. Students run the full Unified Creation Engine — Layout, Ink, Color, Motion, FX, Text — plus the standalone surfaces (Cover, HOPs, Cards, VN, CYOA), the Asset Lab, the Promo Lab, and the SendTo handoff that ties every tool together.</p>
-
+    <h1>COMIXX<br><span>CREATOR</span><br>JOURNEY</h1>
+    <p class="hero-desc">A six-week, project-based course built as a literal step-by-step user journey — from First Login on pscomixx.com all the way to a Shipped comic listed on the Marketplace and credited on a verified Skill Passport. Every session uses only what's actually in the CoMiXX app today.</p>
     <div class="hero-grid">
       <div class="hero-stat"><div class="val">6</div><div class="key">Weeks</div></div>
       <div class="hero-stat"><div class="val">30</div><div class="key">Sessions</div></div>
-      <div class="hero-stat"><div class="val">23</div><div class="key">Modes/Tools</div></div>
-      <div class="hero-stat"><div class="val">8</div><div class="key">Surfaces</div></div>
+      <div class="hero-stat"><div class="val">First→Ship</div><div class="key">Journey Arc</div></div>
+      <div class="hero-stat"><div class="val">14</div><div class="key">Surfaces</div></div>
       <div class="hero-stat"><div class="val">6–12</div><div class="key">Grade</div></div>
       <div class="hero-stat"><div class="val">∞</div><div class="key">Output</div></div>
     </div>
   </div>
 
   <div class="jump-bar">
-    <a href="#week1" class="jump-item w1">01 · Script &amp; Story</a>
-    <a href="#week2" class="jump-item w2">02 · Layout &amp; Ink</a>
-    <a href="#week3" class="jump-item w3">03 · Color &amp; FX</a>
-    <a href="#week4" class="jump-item w4">04 · Voice &amp; Bubbles</a>
-    <a href="#week5" class="jump-item w5">05 · Motion &amp; Formats</a>
+    <a href="#week1" class="jump-item w1">01 · First Run</a>
+    <a href="#week2" class="jump-item w2">02 · Build the Page</a>
+    <a href="#week3" class="jump-item w3">03 · Style the Page</a>
+    <a href="#week4" class="jump-item w4">04 · Voice the Page</a>
+    <a href="#week5" class="jump-item w5">05 · Expand the Format</a>
     <a href="#week6" class="jump-item w6">06 · Ship It</a>
   </div>
 
   <div class="content-area">
 
     <div style="padding-top:40px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:16px;">Course Overview</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:16px;">The Creator Journey — How a CoMiXX Comic Gets Made</div>
 
-      <div class="timeline">
-        <div class="tl-week" onclick="location.href='#week1'">
-          <div class="tl-num">WEEK 01</div>
-          <div class="tl-title" style="color:var(--w1)">SCRIPT &amp; STORY</div>
-          <div class="tl-sessions">CoMiXX tour<br>Script Import<br>Layout templates<br>AI Generator<br>Cover concept</div>
-          <div class="tl-bar" style="background:var(--w1)"></div>
-        </div>
-        <div class="tl-week" onclick="location.href='#week2'">
-          <div class="tl-num">WEEK 02</div>
-          <div class="tl-title" style="color:var(--w2)">LAYOUT &amp; INK</div>
-          <div class="tl-sessions">Custom panels<br>INKBLADE engine<br>Asset Library<br>First inked pages<br>Inks critique</div>
-          <div class="tl-bar" style="background:var(--w2)"></div>
-        </div>
-        <div class="tl-week" onclick="location.href='#week3'">
-          <div class="tl-num">WEEK 03</div>
-          <div class="tl-title" style="color:var(--w3)">COLOR &amp; FX</div>
-          <div class="tl-sessions">Color Mode<br>Comic filters<br>FX Mode + Browser<br>Style lock<br>Look book review</div>
-          <div class="tl-bar" style="background:var(--w3)"></div>
-        </div>
-        <div class="tl-week" onclick="location.href='#week4'">
-          <div class="tl-num">WEEK 04</div>
-          <div class="tl-title" style="color:var(--w4)">VOICE &amp; BUBBLES</div>
-          <div class="tl-sessions">Text Mode<br>Graffiti effects<br>Asset Lab<br>Dialogue pass<br>Voice critique</div>
-          <div class="tl-bar" style="background:var(--w4)"></div>
-        </div>
-        <div class="tl-week" onclick="location.href='#week5'">
-          <div class="tl-num">WEEK 05</div>
-          <div class="tl-title" style="color:var(--w5)">MOTION &amp; FORMATS</div>
-          <div class="tl-sessions">Motion Mode<br>Motion Studio<br>HOP Creator<br>Card Creator<br>VN/CYOA preview</div>
-          <div class="tl-bar" style="background:var(--w5)"></div>
-        </div>
-        <div class="tl-week" onclick="location.href='#week6'">
-          <div class="tl-num">WEEK 06</div>
-          <div class="tl-title" style="color:var(--w6)">SHIP IT</div>
-          <div class="tl-sessions">Cover Creator<br>Promo Lab<br>SendTo handoff<br>Marketplace<br>Launch day</div>
-          <div class="tl-bar" style="background:var(--w6)"></div>
-        </div>
+      <div class="journey-flow">
+        <div class="journey-step" style="--accent:var(--w1)"><div class="step-num">STEP 01</div><div class="step-label">FIRST LOGIN</div><div class="step-sub">Dashboard, editor tour, Script Import, story idea</div></div>
+        <div class="journey-step" style="--accent:var(--w2)"><div class="step-num">STEP 02</div><div class="step-label">BUILD PAGE</div><div class="step-sub">Panel tool, Draw tool, AI Gen, Asset Library</div></div>
+        <div class="journey-step" style="--accent:var(--w3)"><div class="step-num">STEP 03</div><div class="step-label">STYLE PAGE</div><div class="step-sub">17 filters, halftone overlays, Properties panel</div></div>
+        <div class="journey-step" style="--accent:var(--w4)"><div class="step-num">STEP 04</div><div class="step-label">VOICE PAGE</div><div class="step-sub">Text tool, 15 bubbles, 13 effects, Asset Lab</div></div>
+        <div class="journey-step" style="--accent:var(--w5)"><div class="step-num">STEP 05</div><div class="step-label">EXPAND</div><div class="step-sub">Cover, HOP, Card, Motion Studio, VN, CYOA</div></div>
+        <div class="journey-step" style="--accent:var(--w6)"><div class="step-num">STEP 06</div><div class="step-label">SHIP IT</div><div class="step-sub">Promo Lab, SendTo, Reader, Marketplace, Passport</div></div>
       </div>
 
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">All CoMiXX Modes &amp; Surfaces — Covered Across the Course</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Course Map by Week</div>
+
+      <div class="timeline">
+        <div class="tl-week" onclick="location.href='#week1'"><div class="tl-num">WEEK 01</div><div class="tl-title" style="color:var(--w1)">FIRST RUN</div><div class="tl-sessions">First login &amp; dashboard<br>Editor tour<br>Design vs Prototype<br>Script Import<br>Story pitch</div><div class="tl-bar" style="background:var(--w1)"></div></div>
+        <div class="tl-week" onclick="location.href='#week2'"><div class="tl-num">WEEK 02</div><div class="tl-title" style="color:var(--w2)">BUILD THE PAGE</div><div class="tl-sessions">Panel tool (rect/circle/poly)<br>Draw + Erase<br>Layers + Properties<br>AI Generator<br>Asset Library</div><div class="tl-bar" style="background:var(--w2)"></div></div>
+        <div class="tl-week" onclick="location.href='#week3'"><div class="tl-num">WEEK 03</div><div class="tl-title" style="color:var(--w3)">STYLE THE PAGE</div><div class="tl-sessions">17 comic filters<br>Halftone &amp; overlays<br>Properties panel<br>Style lock<br>Mid-course rubric</div><div class="tl-bar" style="background:var(--w3)"></div></div>
+        <div class="tl-week" onclick="location.href='#week4'"><div class="tl-num">WEEK 04</div><div class="tl-title" style="color:var(--w4)">VOICE THE PAGE</div><div class="tl-sessions">Text tool + 13 effects<br>15 bubble styles<br>Asset Lab<br>Lettering pass<br>Voice critique</div><div class="tl-bar" style="background:var(--w4)"></div></div>
+        <div class="tl-week" onclick="location.href='#week5'"><div class="tl-num">WEEK 05</div><div class="tl-title" style="color:var(--w5)">EXPAND THE FORMAT</div><div class="tl-sessions">Cover Creator<br>HOP Builder<br>Card Creator<br>Motion Studio<br>VN + CYOA</div><div class="tl-bar" style="background:var(--w5)"></div></div>
+        <div class="tl-week" onclick="location.href='#week6'"><div class="tl-num">WEEK 06</div><div class="tl-title" style="color:var(--w6)">SHIP IT</div><div class="tl-sessions">Promo Lab<br>SendTo handoff<br>Comic Reader<br>Marketplace<br>Skill Passport</div><div class="tl-bar" style="background:var(--w6)"></div></div>
+      </div>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Every CoMiXX Surface &amp; Tool — As It Exists in the App</div>
 
       <div class="mode-grid" style="--accent:var(--purple)">
-        <div class="mode-cell"><div class="mname">SCRIPT IMPORT</div><div class="mpath">Editor tool · Wk 1</div><div class="mdesc">Convert text scripts into auto-generated panel layouts with dialogue.</div></div>
-        <div class="mode-cell"><div class="mname">LAYOUT</div><div class="mpath">Core mode · Wk 1 + 2</div><div class="mdesc">Templates, custom panel shapes, vector polygons.</div></div>
-        <div class="mode-cell"><div class="mname">AI GENERATOR</div><div class="mpath">Editor tool · Wk 1 + 2</div><div class="mdesc">Prompt-to-image for backgrounds, characters, reference art.</div></div>
-        <div class="mode-cell"><div class="mname">INK</div><div class="mpath">Core mode · Wk 2</div><div class="mdesc">INKBLADE engine — pressure + tilt stylus drawing.</div></div>
-        <div class="mode-cell"><div class="mname">ASSET BROWSER</div><div class="mpath">Lab · Wk 2</div><div class="mdesc">Browse, tag, and insert all user + marketplace assets.</div></div>
-        <div class="mode-cell"><div class="mname">COLOR</div><div class="mpath">Core mode · Wk 3</div><div class="mdesc">Fills, gradients, palette management.</div></div>
-        <div class="mode-cell"><div class="mname">COMIC FILTERS</div><div class="mpath">Editor tool · Wk 3</div><div class="mdesc">Classic, Vintage, Noir, Manga, Watercolor — page-wide stylization.</div></div>
-        <div class="mode-cell"><div class="mname">FX</div><div class="mpath">Core mode · Wk 3</div><div class="mdesc">Cinematic effects, smears, motion accents, overlays.</div></div>
-        <div class="mode-cell"><div class="mname">FX BROWSER</div><div class="mpath">Drawer · Wk 3</div><div class="mdesc">Searchable library of FX synced from the FX Studio.</div></div>
-        <div class="mode-cell"><div class="mname">TEXT</div><div class="mpath">Core mode · Wk 4</div><div class="mdesc">Bubbles, captions, SFX, dynamic typography.</div></div>
-        <div class="mode-cell"><div class="mname">GRAFFITI FX</div><div class="mpath">Sub-tool · Wk 4</div><div class="mdesc">Stylized text — outlines, glows, 3D, distress.</div></div>
-        <div class="mode-cell"><div class="mname">ASSET LAB</div><div class="mpath">Workshop · Wk 4</div><div class="mdesc">Build reusable bubble + SFX assets saved to your library.</div></div>
-        <div class="mode-cell"><div class="mname">MOTION</div><div class="mpath">Core mode · Wk 5</div><div class="mdesc">Keyframes + movement on panels and layers.</div></div>
-        <div class="mode-cell"><div class="mname">MOTION STUDIO</div><div class="mpath">Surface · Wk 5</div><div class="mdesc">Timeline animation suite — motion comics &amp; short clips.</div></div>
-        <div class="mode-cell"><div class="mname">HOP CREATOR</div><div class="mpath">Surface · Wk 5</div><div class="mdesc">Mobile-first vertical scroll with pan/zoom + audio.</div></div>
-        <div class="mode-cell"><div class="mname">CARD CREATOR</div><div class="mpath">Surface · Wk 5</div><div class="mdesc">TCG / sports cards with stats, rarity, frames.</div></div>
-        <div class="mode-cell"><div class="mname">VN CREATOR</div><div class="mpath">Surface · Wk 5 + 6</div><div class="mdesc">Visual novels with branching dialogue + sprites.</div></div>
-        <div class="mode-cell"><div class="mname">CYOA BUILDER</div><div class="mpath">Surface · Wk 5 + 6</div><div class="mdesc">Choose-Your-Own-Adventure flowchart editor.</div></div>
-        <div class="mode-cell"><div class="mname">COVER CREATOR</div><div class="mpath">Surface · Wk 1 + 6</div><div class="mdesc">Front + back covers at print resolution.</div></div>
-        <div class="mode-cell"><div class="mname">PROMO LAB</div><div class="mpath">Studio · Wk 6</div><div class="mdesc">School-safe promo pages and creator ads.</div></div>
-        <div class="mode-cell"><div class="mname">SENDTO</div><div class="mpath">Handoff · Wk 6</div><div class="mdesc">Teleport assets between Comic, Motion, HOP, Card.</div></div>
-        <div class="mode-cell"><div class="mname">MARKETPLACE</div><div class="mpath">Surface · Wk 6</div><div class="mdesc">List + sell digital assets and finished comics.</div></div>
-        <div class="mode-cell"><div class="mname">PUBLIC PASSPORT</div><div class="mpath">Surface · Wk 6</div><div class="mdesc">Verified creator portfolio — XP, certs, credits.</div></div>
+        <div class="mode-cell"><div class="mname">DASHBOARD</div><div class="mpath">Page · Wk 1</div><div class="mdesc">Backdrops, mode quick-launch, version history, featured-on-stage feed.</div></div>
+        <div class="mode-cell"><div class="mname">DESIGN / PROTOTYPE</div><div class="mpath">Mode toggle · Wk 1</div><div class="mdesc">Editor's two-mode switcher: design pages or prototype the read flow.</div></div>
+        <div class="mode-cell"><div class="mname">SCRIPT IMPORT</div><div class="mpath">Route · Wk 1</div><div class="mdesc">Auto-generates spreads + dialogue placement from a written script.</div></div>
+        <div class="mode-cell"><div class="mname">SELECT</div><div class="mpath">Toolbar · Wk 2</div><div class="mdesc">Move, resize, rotate, group elements on the page.</div></div>
+        <div class="mode-cell"><div class="mname">PANEL</div><div class="mpath">Toolbar · Wk 2</div><div class="mdesc">Draw rectangle, circle, or custom polygon panels.</div></div>
+        <div class="mode-cell"><div class="mname">DRAW</div><div class="mpath">Toolbar · Wk 2</div><div class="mdesc">Raster drawing/inking inside any panel.</div></div>
+        <div class="mode-cell"><div class="mname">ERASE</div><div class="mpath">Toolbar · Wk 2</div><div class="mdesc">Eraser for raster strokes.</div></div>
+        <div class="mode-cell"><div class="mname">AI GENERATOR</div><div class="mpath">Toolbar · Wk 2</div><div class="mdesc">In-editor AI image generation for backgrounds, characters, refs.</div></div>
+        <div class="mode-cell"><div class="mname">LAYERS PANEL</div><div class="mpath">Sidebar · Wk 2</div><div class="mdesc">Drag-sort, visibility, lock — full layer control per panel.</div></div>
+        <div class="mode-cell"><div class="mname">ASSET LIBRARY</div><div class="mpath">Sidebar · Wk 2</div><div class="mdesc">Browse, tag, and insert your own + platform assets.</div></div>
+        <div class="mode-cell"><div class="mname">17 COMIC FILTERS</div><div class="mpath">Properties · Wk 3</div><div class="mdesc">Classic, Vintage, Ink &amp; Paper, Newsprint, Pop Art, Manga, Noir, +10.</div></div>
+        <div class="mode-cell"><div class="mname">OVERLAYS</div><div class="mpath">Properties · Wk 3</div><div class="mdesc">Halftone (3 grades), screentone, grain, paper textures.</div></div>
+        <div class="mode-cell"><div class="mname">PROPERTIES PANEL</div><div class="mpath">Sidebar · Wk 3</div><div class="mdesc">Context-aware controls — transform, filters, text styles.</div></div>
+        <div class="mode-cell"><div class="mname">TEXT TOOL</div><div class="mpath">Toolbar · Wk 4</div><div class="mdesc">Captions and on-page text with 13 text effects.</div></div>
+        <div class="mode-cell"><div class="mname">15 BUBBLE STYLES</div><div class="mpath">Text · Wk 4</div><div class="mdesc">Speech, thought, shout, whisper, burst, scream, robot, drip, glitch, retro, neon, graffiti, caption, starburst.</div></div>
+        <div class="mode-cell"><div class="mname">13 TEXT EFFECTS</div><div class="mpath">Text · Wk 4</div><div class="mdesc">Outline, shadow, glow, 3d, emboss, neon, comic, retro, fire, ice, gold, chrome.</div></div>
+        <div class="mode-cell"><div class="mname">ASSET LAB</div><div class="mpath">Page · Wk 4</div><div class="mdesc">Vector bubble + SFX builder; saves to your Asset Library.</div></div>
+        <div class="mode-cell"><div class="mname">COVER CREATOR</div><div class="mpath">Page · Wk 5</div><div class="mdesc">Genre templates, filter presets, spine + back-cover design.</div></div>
+        <div class="mode-cell"><div class="mname">HOP BUILDER</div><div class="mpath">Page · Wk 5</div><div class="mdesc">Scene timeline, transitions, camera presets, parallax, sound packs.</div></div>
+        <div class="mode-cell"><div class="mname">CARD CREATOR</div><div class="mpath">Page · Wk 5</div><div class="mdesc">TCG (MTG/Pokémon/Yu-Gi-Oh), rarity, sports cards, pack opening.</div></div>
+        <div class="mode-cell"><div class="mname">MOTION STUDIO</div><div class="mpath">Page · Wk 5</div><div class="mdesc">Keyframe timeline, easing, vector + raster, blend modes.</div></div>
+        <div class="mode-cell"><div class="mname">VN CREATOR</div><div class="mpath">Page · Wk 5</div><div class="mdesc">Branching narrative canvas, sprites, ADV/NVL text modes.</div></div>
+        <div class="mode-cell"><div class="mname">CYOA BUILDER</div><div class="mpath">Page · Wk 5</div><div class="mdesc">Infinite node canvas, variable effects, choice conditions.</div></div>
+        <div class="mode-cell"><div class="mname">PROMO LAB</div><div class="mpath">Page · Wk 6</div><div class="mdesc">Template materializer, insert-to-comic, custom data injection.</div></div>
+        <div class="mode-cell"><div class="mname">SENDTO MENU</div><div class="mpath">Modal · Wk 6</div><div class="mdesc">Cross-app handoff, LMS submission, Community publishing.</div></div>
+        <div class="mode-cell"><div class="mname">COMIC READER</div><div class="mpath">Page · Wk 6</div><div class="mdesc">Scroll/page modes, interactive endings, comments, bookmarks.</div></div>
+        <div class="mode-cell"><div class="mname">MARKETPLACE</div><div class="mpath">Page · Wk 6</div><div class="mdesc">Categories, Press Start Originals, free/paid, Submit a Pack.</div></div>
+        <div class="mode-cell"><div class="mname">SKILL PASSPORT</div><div class="mpath">Page · Wk 6</div><div class="mdesc">XP/level, tool radar, creator class, social activity feed.</div></div>
       </div>
 
       <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Platforms Used</div>
       <div style="margin-bottom:32px;">
-        <span class="tool-badge" style="--accent:var(--purple)"><span class="dot" style="background:var(--purple)"></span>pscomixx.com — CoMiXX Comic Engine</span>
-        <span class="tool-badge"><span class="dot" style="background:var(--cyan)"></span>pscomixx.online — FX Studio (sync)</span>
-        <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>pressstart.space — Public Passport</span>
+        <span class="tool-badge" style="--accent:var(--purple)"><span class="dot" style="background:var(--purple)"></span>pscomixx.com — CoMiXX (entire course)</span>
+        <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>pressstart.space — Skill Passport publishing</span>
         <span class="tool-badge"><span class="dot" style="background:var(--yellow)"></span>Stylus / iPad / Touchscreen (recommended)</span>
       </div>
 
@@ -1057,22 +1028,23 @@ body.student-mode .teacher-only { display: none !important; }
         <div class="obj-cell">
           <h4>Course Objectives</h4>
           <ul>
-            <li>Students run the full CoMiXX Unified Creation Engine end-to-end</li>
-            <li>Students operate every core editor mode: Layout, Ink, Color, Motion, FX, Text</li>
-            <li>Students build reusable assets in the Asset Lab and organize the Asset Browser</li>
-            <li>Students produce work across multiple surfaces: Comic, Motion, HOP, Card</li>
-            <li>Students design a finished cover, a Promo Lab page, and a Marketplace listing</li>
-            <li>Students publish a verified creator profile via Public Passport</li>
+            <li>Students complete the full CoMiXX user journey — first login through published portfolio</li>
+            <li>Students operate every toolbar tool: Select, Panel, Draw, Erase, Text, AI Generator</li>
+            <li>Students apply all 17 Comic Image Filters and the halftone/screentone overlay system</li>
+            <li>Students letter pages with the 15 bubble styles and 13 text effects</li>
+            <li>Students build reusable assets in Asset Lab + organize an Asset Library</li>
+            <li>Students publish across at least 4 surfaces: Comic, Cover, HOP, Card</li>
+            <li>Students list work on the Marketplace and verify it on their Skill Passport</li>
           </ul>
         </div>
         <div class="obj-cell">
           <h4>Assessment Overview</h4>
           <ul>
-            <li>Weekly deliverable — story bible, inked pages, look book, voice library, motion + format set, ship pack</li>
-            <li>Peer critique — structured gallery walk every Friday</li>
-            <li>Mid-course check — Week 3 Look Book rubric</li>
-            <li>Final assessment — Cover + Promo + Marketplace listing + Public Passport (Week 6)</li>
-            <li>Participation — daily creator log (student-facing)</li>
+            <li>Weekly deliverable mapped to a real CoMiXX surface or feature</li>
+            <li>Friday peer critique — structured gallery walk every week</li>
+            <li>Mid-course check — Week 3 Look Book rubric (filters + overlays + style lock)</li>
+            <li>Final assessment — Marketplace listing + Skill Passport (Week 6)</li>
+            <li>Daily creator log (student-facing)</li>
             <li>Self-assessment — "Creator reflection" each week</li>
           </ul>
         </div>
@@ -1088,13 +1060,13 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(0,229,255,0.08)">01</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w1)">📝 Week 01 · Script &amp; Story</div>
-      <div class="week-title">PRE-WRITE<br>YOUR COMIC</div>
-      <p class="week-desc">Students take the CoMiXX tour, drop a script into Script Import, set up a layout grid, pull reference art with the AI Generator, and concept their first cover. By Friday they pitch the story bible aloud.</p>
+      <div class="week-tag" style="color:var(--w1)">🚪 Week 01 · First Run</div>
+      <div class="week-title">FIRST<br>LOGIN<br>FIRST IDEA</div>
+      <p class="week-desc">Students sign in to pscomixx.com for the first time, tour the Dashboard, learn the editor's Design / Prototype mode toggle, and pre-write their comic with Script Import. By Friday they pitch a story idea backed by an auto-generated layout.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Script Import · Layout · AI Generator · Cover</div>
-        <div class="meta-item"><strong>Deliverable</strong>Story Bible + Cover Concept</div>
+        <div class="meta-item"><strong>Surfaces</strong>Dashboard · Editor (Design/Prototype) · Script Import</div>
+        <div class="meta-item"><strong>Deliverable</strong>Story Idea + Imported Script</div>
         <div class="meta-item"><strong>Skill Level</strong>Beginner — No prior experience</div>
       </div>
     </div>
@@ -1102,10 +1074,10 @@ body.student-mode .teacher-only { display: none !important; }
 
   <div class="content-area">
     <div class="platform-callout">
-      <span style="font-size:24px;">📝</span>
+      <span style="font-size:24px;">🚪</span>
       <div>
-        <div class="url" style="color:var(--w1)">pscomixx.com — CoMiXX Comic Engine</div>
-        <p>Open the app. Take the tour. Import a script. Snap a layout. Generate the first reference art. Sketch the cover. The whole story rig comes online this week.</p>
+        <div class="url" style="color:var(--w1)">pscomixx.com — Dashboard, Editor, Script Import</div>
+        <p>The whole rest of the course launches from these three surfaces. Get fluent here Week 1 and everything later compounds.</p>
       </div>
     </div>
 
@@ -1113,20 +1085,20 @@ body.student-mode .teacher-only { display: none !important; }
       <div class="obj-cell">
         <h4>Learning Objectives</h4>
         <ul>
-          <li>Navigate the CoMiXX Unified Creation Engine — six modes + tools</li>
-          <li>Drop a script into Script Import and review the auto-layout</li>
-          <li>Use Layout Mode to set spread structure with templates</li>
-          <li>Run the AI Generator for backgrounds and reference art</li>
-          <li>Open Cover Creator and rough a cover concept</li>
+          <li>Sign in, set up profile, navigate the Dashboard</li>
+          <li>Open a new comic project and identify Design vs Prototype mode</li>
+          <li>Identify all 6 toolbar tools: Select, Panel, Draw, Erase, Text, AI Generator</li>
+          <li>Use Script Import to auto-generate a comic from text</li>
+          <li>Pitch a story idea in 60 seconds with their imported pages on screen</li>
         </ul>
       </div>
       <div class="obj-cell">
-        <h4>Teacher Setup Notes</h4>
+        <h4>Teacher Setup</h4>
         <ul>
-          <li>Pre-create student accounts on pscomixx.com and verify login Day 1</li>
-          <li>Project the Unified Creation Engine map — six core modes labeled</li>
-          <li>Pre-write a 6-panel sample script as the demo import</li>
-          <li>Bookmark Cover Creator on student devices</li>
+          <li>Pre-create student accounts on pscomixx.com — verify login Day 1</li>
+          <li>Project the Dashboard live — point out Backdrops, mode quick-launch, version history, "Featured on Stage"</li>
+          <li>Pre-write a 6-panel sample script as the demo Script Import</li>
+          <li>Bookmark Script Import (<code>/import/script</code>) on student devices</li>
           <li>Reserve Friday for 60-second pitches — 3-min prep + 30-min pitches</li>
         </ul>
       </div>
@@ -1134,121 +1106,65 @@ body.student-mode .teacher-only { display: none !important; }
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">01.1</span>
-        <span class="session-title">CoMiXX Tour + Script Import — Pre-Write Your Comic</span>
-        <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">TOOL INTRO</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Full walkthrough of the CoMiXX engine: Layout, Ink, Color, Motion, FX, Text. Then the Script Import tool — paste in a written script and watch the app auto-generate panel layouts with dialogue placement. Students import their own short script and review what the engine made.</p>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">01.1</span><span class="session-title">First Login + Dashboard Tour</span><span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">ONBOARDING</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students sign in to pscomixx.com for the first time, set up their profile, and tour the Dashboard. Teacher walks through every Dashboard region: dynamic Backdrops, mode quick-launch tiles (New Comic, New HOP, New Card, etc.), version history snapshots, and the live "Featured on Stage" feed. The Dashboard is the hub of every future session.</p>
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Welcome + sign in — verify every student logs in (10 min)</td></tr>
+        <tr><td>0:10</td><td>Profile setup: avatar, display name, school (5 min)</td></tr>
+        <tr><td>0:15</td><td>Dashboard walkthrough — projected, narrated (15 min)</td></tr>
+        <tr><td>0:30</td><td>Student exploration — change Backdrop, open each tile (15 min)</td></tr>
+        <tr><td>0:45</td><td>Daily creator log — first entry: "What surprised me about CoMiXX" (10 min)</td></tr>
+      </table>
+      <h5>Student Activity</h5>
+      <p>Sign in. Set your profile. Try every quick-launch tile (do NOT save anything yet). Change the Dashboard Backdrop to one that fits your vibe. Open the version history panel. In your creator log, write one paragraph: what's the FIRST thing that caught your attention?</p>
+      <div class="quote-bar" style="border-color:var(--w1)">YOU'RE NOT LEARNING THE APP. YOU'RE MEETING IT.</div>
+    </div></div>
 
-        <h5>Timing (Teacher View)</h5>
-        <table class="timing-table teacher-only">
-          <tr><td>0:00</td><td>Hook — show a finished CoMiXX comic projected (5 min)</td></tr>
-          <tr><td>0:05</td><td>Engine tour — 6 core modes mapped on board (15 min)</td></tr>
-          <tr><td>0:20</td><td>Live demo — paste sample script into Script Import (10 min)</td></tr>
-          <tr><td>0:30</td><td>Student practice — write &amp; import 1 short script (20 min)</td></tr>
-          <tr><td>0:50</td><td>Share-out — 3 students show their auto-layout (5 min)</td></tr>
-        </table>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">01.2</span><span class="session-title">First Comic — Design vs Prototype Mode</span><span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">EDITOR INTRO</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students click "New Comic" from the Dashboard and land in the editor for the first time. Teacher demos the ModeSwitcher: <strong>Design Mode</strong> (where you build) vs <strong>Prototype Mode</strong> (where you preview the read-flow). Students toggle between both on a sample project to see the difference. No tool use yet — just orientation.</p>
+      <h5>Student Activity</h5>
+      <p>Open a new comic project. Toggle Design ↔ Prototype 5 times. In Design, click on a panel — see the editing controls. In Prototype, the same panel reads like a finished page. Write one sentence in your log: when would you use each mode?</p>
+    </div></div>
 
-        <h5>Student Activity</h5>
-        <p>Open pscomixx.com. Take the tour. Write a 6-panel scene about a character making one important choice. Paste it into Script Import. Review the auto-generated layout — what did the engine get right, what would you change? Save the project. This is the seed of your comic.</p>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">01.3</span><span class="session-title">Editor Tour — All 6 Toolbar Tools + Layers + Properties</span><span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">EDITOR MAP</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Top-to-bottom map of the editor UI. Six toolbar tools: <strong>Select</strong>, <strong>Panel</strong>, <strong>Draw</strong>, <strong>Erase</strong>, <strong>Text</strong>, <strong>AI Generator</strong>. The <strong>Layers Panel</strong> on the side (drag-sort, visibility, lock). The <strong>Properties Panel</strong> that changes based on what's selected. Students touch each tool just enough to identify it — deep practice comes Week 2.</p>
+      <h5>Student Activity</h5>
+      <p>On a scratch comic, click each of the 6 toolbar tools in order. For each one, do the smallest possible action (place one panel, draw one line, type one word, generate one tiny image). Then open the Layers Panel — you should see your moves stacked. Open the Properties Panel — click on different elements to see how it changes.</p>
+      <div class="quote-bar" style="border-color:var(--w1)">SIX TOOLS. ONE EDITOR. THAT'S THE WHOLE GAME.</div>
+    </div></div>
 
-        <div class="quote-bar" style="border-color:var(--w1)">THE SCRIPT IS THE CHEAPEST PART OF THE COMIC. WASTE IT EARLY.</div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">01.4</span><span class="session-title">Script Import — Auto-Generate Your First Pages</span><span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">SCRIPT</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students navigate to Script Import (<code>/import/script</code>). They write a short scene as text, paste it in, and watch CoMiXX normalize the script into spreads with dialogue automatically placed. Then they review what the import got right and what they want to change. This is the fastest way to go from blank page to draft pages.</p>
+      <h5>Student Activity</h5>
+      <p>Write a 6-panel scene about a character making one important choice. Format it simply: <em>PANEL 1: [description]. CHARACTER: "dialogue."</em> Paste it into Script Import. Confirm the import. Open the resulting project. Toggle to Prototype Mode — read it through. In your log: list 2 things the import nailed and 2 things you want to redo by hand.</p>
+    </div></div>
 
-        <h5>Resources</h5>
-        <ul>
-          <li>CoMiXX 6-Mode Engine Map — printable reference</li>
-          <li>Sample 6-panel script (PDF) — paste-ready</li>
-          <li>Script Import quick-start video</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">01.2</span>
-        <span class="session-title">Layout Mode — Templates, Custom Panels &amp; Vector Polygons</span>
-        <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">DESIGN LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Layout Mode is where the page is built. Students explore the template library (3-grid, 6-grid, splash, vertical webtoon), then learn to draw custom panel shapes — rectangles, circles, and free-form vector polygons. They also learn gutter spacing and bleed safety zones.</p>
-        <h5>Student Activity</h5>
-        <p>Open Layout Mode. Build a 4-page layout for your story: pick a different template per page (one splash, one 3-grid, one 6-grid, one custom polygon page). Save. Print or screenshot the layouts and tape them in order. This is your storyboard.</p>
-      </div>
-    </div>
-
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">01.3</span>
-        <span class="session-title">AI Generator — Reference Art on Demand</span>
-        <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">AI LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>The AI Generator is your unfair advantage for reference art. Students learn prompt structure (subject + setting + mood + style), generate backgrounds and character references, and learn that AI is a REFERENCE tool — it kicks the project forward, it doesn't finish it for you.</p>
-        <h5>Student Activity</h5>
-        <p>Generate 4 reference assets for your story: 1 background environment, 1 character full-body, 1 character close-up, 1 prop or vehicle. Save them all. In your log, write one sentence per asset: how would you build on this in Ink Mode next week?</p>
-        <div class="quote-bar" style="border-color:var(--w1)">AI GIVES YOU THE BLOCK. YOU CARVE THE STATUE.</div>
-      </div>
-    </div>
-
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">01.4</span>
-        <span class="session-title">Cover Concept — First Pass in Cover Creator</span>
-        <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">BRAND DESIGN</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>First touch of Cover Creator. A great cover is a promise. Students concept 3 cover directions using Cover Creator's title typography tools and one of their AI reference images as the cover art. No final yet — just three rough directions.</p>
-        <h5>Student Activity</h5>
-        <p>Open Cover Creator. Pick your favorite AI background or character. Lay in your title (3 different fonts), an "ISSUE 01" badge, and your creator name. Build 3 different cover roughs. Save all three. Show them to a partner. Which one makes them want to read it?</p>
-      </div>
-    </div>
-
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">01.5</span>
-        <span class="session-title">Pitch Day — Story Bible</span>
-        <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">CRITIQUE + PITCH</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Every student pitches the story bible in 60 seconds: title, world, main character, central conflict, plus they hold up their best cover rough. Class gives warm feedback. Teacher anchors it in industry: this is exactly how comics get pitched to publishers.</p>
-
-        <h5>Timing (Teacher View)</h5>
-        <table class="timing-table teacher-only">
-          <tr><td>0:00</td><td>Pitch structure mini-lesson — title / world / hero / problem (10 min)</td></tr>
-          <tr><td>0:10</td><td>Pair rehearsal — each student pitches twice (10 min)</td></tr>
-          <tr><td>0:20</td><td>Live pitches — 60 sec each, class of 20 ≈ 30 min (30 min)</td></tr>
-          <tr><td>0:50</td><td>Closing — class names 3 favorite hooks (5 min)</td></tr>
-        </table>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">01.5</span><span class="session-title">Pitch Day — Story Idea + Imported Pages</span><span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">CRITIQUE + PITCH</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Every student pitches their story in 60 seconds: title, world, main character, central conflict — with their imported pages projected behind them. Class gives warm feedback. Teacher anchors the pitch in industry: this is how comics actually get sold.</p>
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Pitch structure mini-lesson — title / world / hero / problem (10 min)</td></tr>
+        <tr><td>0:10</td><td>Pair rehearsal — each student pitches twice (10 min)</td></tr>
+        <tr><td>0:20</td><td>Live pitches — 60 sec each (30 min)</td></tr>
+        <tr><td>0:50</td><td>Closing — class names 3 favorite hooks (5 min)</td></tr>
+      </table>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 01 · Student Deliverable" style="--accent:var(--w1)">
-      <h3>STORY BIBLE + COVER CONCEPT</h3>
-      <p>You have a written script, a 4-page layout, AI reference art, three cover roughs, and a pitch you can deliver out loud. Everything else this course builds sits on top of this foundation.</p>
+      <h3>STORY IDEA + IMPORTED SCRIPT</h3>
+      <p>You're logged in, oriented in the Dashboard, fluent in the editor's six tools, you've used Script Import to draft your first pages, and you've pitched the story aloud. Every following week builds on this.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>Script imported via Script Import — auto-layout reviewed</li>
-        <li><span class="check"></span>4-page layout built with at least one custom panel shape</li>
-        <li><span class="check"></span>4 AI-generated reference assets saved</li>
-        <li><span class="check"></span>3 cover concept roughs in Cover Creator</li>
-        <li><span class="check"></span>60-second pitch delivered (live or recorded)</li>
+        <li><span class="check"></span>Account active + profile set on pscomixx.com</li>
+        <li><span class="check"></span>Can name all 6 toolbar tools and what each one does</li>
+        <li><span class="check"></span>Can switch between Design and Prototype mode</li>
+        <li><span class="check"></span>Script imported via Script Import — pages auto-generated</li>
+        <li><span class="check"></span>60-second story pitch delivered (live or recorded)</li>
       </ul>
     </div>
   </div>
@@ -1262,13 +1178,13 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(168,85,247,0.08)">02</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w2)">✏️ Week 02 · Layout &amp; Ink</div>
-      <div class="week-title">DRAW<br>THE WORLD</div>
-      <p class="week-desc">Students go deep on Layout Mode and turn on the INKBLADE engine to ink their first real pages. They learn to use the Asset Browser to drop in reusable elements, and combine AI reference + custom inks into a finished spread.</p>
+      <div class="week-tag" style="color:var(--w2)">🧱 Week 02 · Build the Page</div>
+      <div class="week-title">PANELS<br>DRAW<br>ASSETS</div>
+      <p class="week-desc">Students go deep on the Panel tool (rectangle/circle/polygon), the Draw + Erase tools, the Layers Panel, the AI Generator, and the Asset Library. By Friday they have two real pages built end-to-end.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Layout · Ink · Asset Browser · AI Generator</div>
-        <div class="meta-item"><strong>Deliverable</strong>2 Inked Pages with Custom Panels</div>
+        <div class="meta-item"><strong>Tools</strong>Panel · Draw · Erase · AI Gen · Asset Library · Layers</div>
+        <div class="meta-item"><strong>Deliverable</strong>2 Built Pages with Custom Panels &amp; AI Assets</div>
         <div class="meta-item"><strong>Skill Level</strong>Beginner → Intermediate</div>
       </div>
     </div>
@@ -1276,103 +1192,59 @@ body.student-mode .teacher-only { display: none !important; }
 
   <div class="content-area">
     <div class="platform-callout">
-      <span style="font-size:24px;">✏️</span>
+      <span style="font-size:24px;">🧱</span>
       <div>
-        <div class="url" style="color:var(--w2)">CoMiXX → Layout Mode + Ink Mode (INKBLADE)</div>
-        <p>Pressure. Tilt. Vector. Raster. INKBLADE is the same engine pros use. Students get on it Day 1 of this week.</p>
+        <div class="url" style="color:var(--w2)">CoMiXX Editor → Panel + Draw + AI Gen + Asset Library</div>
+        <p>Build mode. Every line on the page is a decision. This week the editor stops being mysterious and starts being yours.</p>
       </div>
     </div>
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">02.1</span>
-        <span class="session-title">Layout Mode Deep — Spreads &amp; Custom Polygons</span>
-        <span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">LAYOUT LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Layout, second pass — this time on full spreads. Students learn double-page spread composition, how panel SIZE communicates pacing (big = slow / important, small = fast / cuts), and how to draw custom vector polygons that break the grid for impact moments.</p>
-        <h5>Student Activity</h5>
-        <p>Build 2 spreads (4 pages total) for your story. At least one must be a double-page splash. At least one panel per page must be a custom polygon — not a rectangle. Pacing: your biggest panel = your most important moment. Save and screenshot.</p>
-        <div class="quote-bar" style="border-color:var(--w2)">PANEL SIZE IS PACING. SMALL = FAST. BIG = WAIT.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">02.1</span><span class="session-title">Panel Tool — Rectangle, Circle, Polygon</span><span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">LAYOUT</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Panel tool has a Panel Shape Selector with three modes: rectangle, circle, custom polygon. Students learn pacing through panel size (big = important, small = fast cuts), how to mix shapes intentionally, and how to draw a clean polygon panel for impact moments. They rebuild the auto-imported pages from Week 1 into a polished 4-page layout.</p>
+      <h5>Student Activity</h5>
+      <p>Take your Week 1 imported project. Rebuild the layout: 4 pages, mix all three panel shapes (rectangle / circle / polygon). Each page needs at least one custom polygon panel. Save. Open Prototype mode and read through — does panel size match story importance?</p>
+      <div class="quote-bar" style="border-color:var(--w2)">PANEL SIZE IS PACING. SMALL = FAST. BIG = WAIT.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">02.2</span>
-        <span class="session-title">Ink Mode + INKBLADE — Stylus Workflow</span>
-        <span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">DRAWING</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Ink Mode runs the INKBLADE engine — a high-fidelity stylus engine with full pressure and tilt sensitivity. Students learn brush selection, pressure ramp, smoothing, and the difference between raster strokes and vector strokes. Mouse users get keyboard-shortcut tips.</p>
-        <h5>Student Activity</h5>
-        <p>In Ink Mode, ink a single panel from one of your spreads. Use 2 different brushes. Try at least one vector stroke (cleanable, scalable) and one raster stroke (textured, expressive). Save the panel. Compare the two stroke types — which feels right for YOUR story?</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">02.2</span><span class="session-title">Draw + Erase + Layers Panel</span><span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">DRAWING</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Draw tool is raster drawing inside any panel. The Erase tool removes raster strokes. The Layers Panel (sidebar) supports drag-sort, visibility toggles, and locks. Students learn to keep figures, backgrounds, and FX on separate layers from day one — it makes everything later faster.</p>
+      <h5>Student Activity</h5>
+      <p>Pick one panel from your layout. On <strong>3 separate layers</strong> in the Layers Panel: Layer 1 = background (soft strokes), Layer 2 = main figure (sharp strokes), Layer 3 = foreground/FX (bold strokes). Use Erase to clean up edges. Toggle layer visibility on/off — see how each layer carries its own job.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">02.3</span>
-        <span class="session-title">Asset Browser — Browse, Tag, Insert</span>
-        <span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">WORKFLOW</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>The Asset Browser is the central library for everything: AI generations, brushes, marketplace assets, and your own saved sprites. Students learn the tagging system, how to insert assets directly into a panel, and how to keep their library navigable.</p>
-        <h5>Student Activity</h5>
-        <p>Open the Asset Browser. Tag your Week 1 AI generations into 3 buckets: BG, CHAR, PROP. Then drop one of your AI characters into one of your inked panels. Resize, position, and ink directly OVER it. Save. The asset is now part of your story — not just a reference.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">02.3</span><span class="session-title">AI Generator — In-Editor Asset Pipeline</span><span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">AI LAB</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The AI Generator is built into the editor — open it from the toolbar. Students learn prompt structure (subject + setting + mood + style), generate art directly into a panel, and learn it's a REFERENCE/ASSIST tool, not a finisher. AI gets you 70% of the way; your hand finishes the last 30%.</p>
+      <h5>Student Activity</h5>
+      <p>Generate 4 assets directly into your project: 1 background, 1 character full-body, 1 close-up, 1 prop. Drop each into a relevant panel. On at least 2 of them, draw OVER the AI on a new layer with the Draw tool to claim them as YOUR work.</p>
+      <div class="quote-bar" style="border-color:var(--w2)">AI GIVES YOU THE BLOCK. YOU CARVE THE STATUE.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">02.4</span>
-        <span class="session-title">First Page Inks — Layout × Ink Combo Pass</span>
-        <span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">PRODUCTION</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Full production day. Students take 2 pages from concept all the way through layout + ink: panel borders inked, key figures inked, AI references dropped behind ink layers. Teacher floats and conferences. Goal: by end of session, every student has 2 fully-inked pages.</p>
-        <h5>Student Activity</h5>
-        <p>Pick 2 pages from your spreads. Ink both completely: panel borders, all figures, key props. Where you can't ink fast enough, drop in an AI asset and ink the OUTLINE so it reads as part of your hand. Save both pages. Compare them — does your hand feel consistent?</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">02.4</span><span class="session-title">Asset Library — Browse, Tag, Insert</span><span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">WORKFLOW</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Asset Library lives in the editor sidebar. Everything you make, generate, or buy lands here. Students learn the tagging system, how to insert assets directly into panels, and how to keep the library navigable as it grows.</p>
+      <h5>Student Activity</h5>
+      <p>Open the Asset Library. Tag your Week 2 AI generations into 3 buckets: BG, CHAR, PROP. Then drop one of your saved characters into a panel that doesn't have one yet. Resize, position. The asset is now part of your story — not just a reference.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">02.5</span>
-        <span class="session-title">Inks Critique</span>
-        <span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">CRITIQUE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Gallery walk. Students display 2 inked pages side-by-side. Class moves with sticky notes — "Strongest panel is ___" and "I want more of ___." Teacher anchors critique on consistency: do both pages feel like the same artist drew them?</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">02.5</span><span class="session-title">First Page Critique</span><span class="session-type" style="background:rgba(168,85,247,0.15);color:var(--w2)">CRITIQUE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Gallery walk. Students display 2 built pages side-by-side. Class moves with sticky notes — "Strongest panel is ___" and "I want more of ___." Teacher anchors critique on layer hygiene: open one student's Layers Panel publicly — is the work organized?</p>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 02 · Student Deliverable" style="--accent:var(--w2)">
-      <h3>2 INKED PAGES WITH CUSTOM PANELS</h3>
-      <p>You have your first real pages now — composed in Layout Mode, drawn in Ink Mode with INKBLADE, supported by AI reference dropped through the Asset Browser.</p>
+      <h3>2 BUILT PAGES WITH CUSTOM PANELS &amp; AI ASSETS</h3>
+      <p>You have your first real pages now — composed with the Panel tool, drawn with Draw + Erase, layered cleanly, populated with AI assets, organized in your Asset Library.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>2 spreads composed with at least 1 custom polygon panel each</li>
-        <li><span class="check"></span>2 fully-inked pages — borders, figures, key props</li>
-        <li><span class="check"></span>Asset Browser organized into BG / CHAR / PROP buckets</li>
-        <li><span class="check"></span>At least 1 AI asset integrated under inks</li>
-        <li><span class="check"></span>Creator reflection — vector or raster, which is YOUR style?</li>
+        <li><span class="check"></span>4-page layout with at least 1 custom polygon per page</li>
+        <li><span class="check"></span>2 pages with at least 3 organized layers each</li>
+        <li><span class="check"></span>4 AI-generated assets used in panels</li>
+        <li><span class="check"></span>Asset Library tagged into BG / CHAR / PROP buckets</li>
+        <li><span class="check"></span>Creator reflection — which tool felt most natural to YOU?</li>
       </ul>
     </div>
   </div>
@@ -1386,12 +1258,12 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(255,230,0,0.06)">03</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w3)">🎨 Week 03 · Color &amp; FX · Mid-Course Rubric</div>
-      <div class="week-title">LOCK<br>THE LOOK</div>
-      <p class="week-desc">Color Mode, Comic Image Filters, FX Mode, and the FX Browser combine into a single decision: what does YOUR comic look like? Students leave this week with a Style Look Book — pages with locked color, filter, and FX treatment.</p>
+      <div class="week-tag" style="color:var(--w3)">🎨 Week 03 · Style the Page · Mid-Course Rubric</div>
+      <div class="week-title">FILTERS<br>OVERLAYS<br>LOCK STYLE</div>
+      <p class="week-desc">CoMiXX ships 17 Comic Image Filters and a full halftone/screentone/grain/paper overlay system. Students cycle their pages through the filters, layer in overlays, use the Properties Panel to dial in the look, and lock the style across all pages.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Color · Filters · FX · FX Browser</div>
+        <div class="meta-item"><strong>Tools</strong>17 Comic Filters · Overlays · Properties Panel</div>
         <div class="meta-item"><strong>Deliverable</strong>Style Look Book (Mid-Course Rubric)</div>
         <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
       </div>
@@ -1402,112 +1274,67 @@ body.student-mode .teacher-only { display: none !important; }
     <div class="platform-callout">
       <span style="font-size:24px;">🎨</span>
       <div>
-        <div class="url" style="color:var(--w3)">CoMiXX → Color Mode + Comic Filters + FX Mode</div>
-        <p>Three layers of style stacked on top of your inks. Color carries emotion. Filter carries era. FX carries momentum.</p>
+        <div class="url" style="color:var(--w3)">CoMiXX Editor → Filters + Overlays + Properties Panel</div>
+        <p>Same line art, dramatically different comics. Filter is your era. Overlay is your texture. Properties Panel is your dial.</p>
       </div>
     </div>
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">03.1</span>
-        <span class="session-title">Color Mode — Fills, Gradients, Palettes</span>
-        <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">COLOR LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Color Mode is more than fill buckets. Students learn flat fills vs gradient fills, build a managed 6-color palette for their story (lead, support, accent, shadow, highlight, background), and apply it consistently across panels. Color discipline is what separates amateur from pro.</p>
-        <h5>Student Activity</h5>
-        <p>Build your 6-color palette. Save it as a named palette in Color Mode. Color one of your inked pages from Week 2 using ONLY those 6 colors. No exceptions. Save. The palette is now your story's signature.</p>
-        <div class="quote-bar" style="border-color:var(--w3)">SIX COLORS. NO MORE. THAT'S A STYLE.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">03.1</span><span class="session-title">17 Comic Image Filters — Pick Your Era</span><span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">FILTER LAB</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Tour every filter: Classic Comic, Vintage Comic, Ink &amp; Paper, Newsprint, Pop Art, Manga, Noir, and ten more. Students cycle the same page through every filter, then pick the ONE that matches their story's tone. Each filter is a promise to the reader about what kind of book this is.</p>
+      <h5>Student Activity</h5>
+      <p>Take one of your built pages. Apply each of the 17 filters in turn and screenshot each version. End with 17 versions of the same page side-by-side. Pick THE one that fits your story. In your log, write WHY: what does this filter promise the reader?</p>
+      <div class="quote-bar" style="border-color:var(--w3)">YOUR FILTER IS YOUR ERA. PICK ONE. LIVE THERE.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">03.2</span>
-        <span class="session-title">Comic Image Filters — Classic, Noir, Manga, Watercolor</span>
-        <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">FILTER LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Comic Image Filters apply era-defining looks across whole pages — Classic Comic, Vintage, Noir, Manga screentone, Watercolor. Students cycle their colored page through every filter and pick the ONE that matches their story's tone.</p>
-        <h5>Student Activity</h5>
-        <p>Take your colored page. Apply each filter in turn — screenshot each one. You should end with 5 versions of the same page. Pick the one that fits your story. In your log, write WHY: what does this filter promise the reader about your tone?</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">03.2</span><span class="session-title">Overlays — Halftone, Screentone, Grain, Paper</span><span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">TEXTURE LAB</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Overlays are the second style layer: halftone (3 grades — fine, normal, bold), screentone, grain, and paper texture. Where the filter sets the era, the overlay adds the FEEL. Students try every overlay, often combining 2 (e.g., halftone-bold + paper) for a layered look.</p>
+      <h5>Student Activity</h5>
+      <p>On your filtered page, cycle every overlay. Pick 1–2 to combine. Screenshot the result. Compare with a partner — do their overlays feel right for your filter? Save your final choice.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">03.3</span>
-        <span class="session-title">FX Mode + FX Browser — Cinematic Overlays</span>
-        <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">FX LAB</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>FX Mode is your post-processing layer — speed lines, motion accents, smears, light flares, halftones, manga screentones. The FX Browser is a searchable drawer of FX synced LIVE from the FX Studio at pscomixx.online. Students learn to drop FX surgically, not everywhere.</p>
-        <h5>Student Activity</h5>
-        <p>On your filtered page, add FX from the FX Browser to ONE panel only — the most important moment. The rule: if you can remove the FX and the panel still works, you don't need the FX. Save. Show a partner — can they tell which panel is the climax?</p>
-        <div class="quote-bar" style="border-color:var(--w3)">FX IS SALT. NOT SOUP.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">03.3</span><span class="session-title">Properties Panel — Dial It In</span><span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">CONTROL</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Properties Panel is context-aware — click on a panel and it shows transform + filter controls; click on a text element and it shows text styles. Students learn to use Properties to tune intensity, swap filters per-panel for emphasis, and lock down the exact look they want.</p>
+      <h5>Student Activity</h5>
+      <p>On your styled page, use the Properties Panel to <strong>change the filter on ONE panel only</strong> — make the climax panel use a different filter than the rest of the page. Subtle but powerful. Save. Show a partner — can they spot which panel is the climax?</p>
+      <div class="quote-bar" style="border-color:var(--w3)">SAME PAGE. DIFFERENT FILTER ON ONE PANEL. MAGIC.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">03.4</span>
-        <span class="session-title">Style Pass — Lock the Look</span>
-        <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">PRODUCTION</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Production day. Students apply their locked palette + filter + FX treatment to BOTH inked pages from Week 2. Both pages must look like the same comic. Teacher conferences with each student to confirm style consistency.</p>
-        <h5>Student Activity</h5>
-        <p>Color, filter, and FX both pages. Side-by-side, they must read as the same book. Save. Screenshot both for the Friday gallery.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">03.4</span><span class="session-title">Style Lock — Apply Across All Pages</span><span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">PRODUCTION</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Production day. Students apply their locked filter + overlay combo to ALL their pages. Both/all pages must look like the same comic. Teacher conferences with each student. Consistency = professionalism.</p>
+      <h5>Student Activity</h5>
+      <p>Apply the SAME filter + overlay treatment to every page in your project. Side-by-side they must read as one comic. Save. Screenshot all pages for the Friday gallery.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">03.5</span>
-        <span class="session-title">Look Book Review — Mid-Course Rubric</span>
-        <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">RUBRIC</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Mid-course assessment. Each student presents their Style Look Book — 2 pages, full color + filter + FX — and explains their style choices. Teacher scores against the mid-course rubric below.</p>
-        <h5>Mid-Course Rubric</h5>
-        <table class="rubric-table teacher-only">
-          <thead><tr><th>Criterion</th><th>Exemplary (4)</th><th>Proficient (3)</th><th>Developing (2)</th><th>Beginning (1)</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Color Discipline</strong></td><td>Strict 6-color palette, used with restraint</td><td>Mostly within palette, some drift</td><td>Palette set but inconsistent use</td><td>No defined palette</td></tr>
-            <tr><td><strong>Filter Choice</strong></td><td>Filter clearly supports story tone</td><td>Filter chosen with intent</td><td>Filter applied without rationale</td><td>No filter or random</td></tr>
-            <tr><td><strong>FX Restraint</strong></td><td>FX on the right panel only</td><td>FX intentional, mostly restrained</td><td>FX overused or scattered</td><td>FX everywhere or none</td></tr>
-            <tr><td><strong>Style Consistency</strong></td><td>Both pages clearly same comic</td><td>Mostly consistent</td><td>Some style drift</td><td>Pages feel like different comics</td></tr>
-            <tr><td><strong>Pitch / Reflection</strong></td><td>Articulates choices clearly</td><td>Explains most choices</td><td>Vague rationale</td><td>Cannot defend choices</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">03.5</span><span class="session-title">Look Book Review — Mid-Course Rubric</span><span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">RUBRIC</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Mid-course assessment. Each student presents their Style Look Book — all pages with locked filter + overlay — and explains their style choices. Teacher scores against the mid-course rubric below.</p>
+      <h5>Mid-Course Rubric</h5>
+      <table class="rubric-table teacher-only">
+        <thead><tr><th>Criterion</th><th>Exemplary (4)</th><th>Proficient (3)</th><th>Developing (2)</th><th>Beginning (1)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Filter Choice</strong></td><td>Filter clearly supports tone, defended in writing</td><td>Filter chosen with intent</td><td>Filter chosen but unexplained</td><td>No filter or random</td></tr>
+          <tr><td><strong>Overlay Use</strong></td><td>1–2 overlays that complement the filter</td><td>Overlay applied with thought</td><td>Overlay random or overdone</td><td>No overlay</td></tr>
+          <tr><td><strong>Properties Mastery</strong></td><td>Per-panel filter swap on climax</td><td>Properties used for tuning</td><td>Properties barely touched</td><td>Properties Panel unused</td></tr>
+          <tr><td><strong>Style Consistency</strong></td><td>All pages clearly same comic</td><td>Mostly consistent</td><td>Some style drift</td><td>Pages feel like different comics</td></tr>
+          <tr><td><strong>Pitch / Reflection</strong></td><td>Articulates filter + overlay choices clearly</td><td>Explains most choices</td><td>Vague rationale</td><td>Cannot defend choices</td></tr>
+        </tbody>
+      </table>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 03 · Mid-Course Deliverable" style="--accent:var(--w3)">
       <h3>STYLE LOOK BOOK — LOCKED</h3>
-      <p>Your comic now has a LOOK. Two finished-style pages, a saved palette, a chosen filter, and FX deployed only where it matters. From here forward, every new page hits this same standard.</p>
+      <p>Your comic now has a LOOK. A chosen filter, a chosen overlay combo, a Properties-tuned climax panel, and consistency across every page. From here forward, every new page hits this exact standard.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>6-color palette saved and named</li>
-        <li><span class="check"></span>Filter chosen with written rationale</li>
-        <li><span class="check"></span>FX placed on climax panels only</li>
-        <li><span class="check"></span>2 fully-styled pages — color + filter + FX</li>
+        <li><span class="check"></span>Filter chosen from the 17 with written rationale</li>
+        <li><span class="check"></span>1–2 overlays selected and combined</li>
+        <li><span class="check"></span>Per-panel filter swap on at least 1 climax panel</li>
+        <li><span class="check"></span>All pages locked to the same style</li>
         <li><span class="check"></span>Style defended in 2-min presentation</li>
       </ul>
     </div>
@@ -1522,13 +1349,13 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(0,255,136,0.06)">04</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w4)">💬 Week 04 · Voice &amp; Bubbles</div>
-      <div class="week-title">GIVE IT<br>A VOICE</div>
-      <p class="week-desc">Text Mode, Graffiti FX, and the Asset Lab combine to give your comic its voice. Students build reusable bubble + SFX assets, drop dialogue across all pages, and learn that lettering is half the storytelling.</p>
+      <div class="week-tag" style="color:var(--w4)">💬 Week 04 · Voice the Page</div>
+      <div class="week-title">TEXT<br>BUBBLES<br>ASSET LAB</div>
+      <p class="week-desc">CoMiXX ships 15 bubble styles and 13 text effects out of the box, plus the Asset Lab for building your own custom bubbles + SFX. Students learn the Text tool, drop dialogue across all pages, and walk away with a reusable voice library.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Text · Graffiti FX · Asset Lab · Script Import</div>
-        <div class="meta-item"><strong>Deliverable</strong>Bubble Library + Lettered Pages</div>
+        <div class="meta-item"><strong>Tools</strong>Text · 15 Bubbles · 13 Effects · Asset Lab</div>
+        <div class="meta-item"><strong>Deliverable</strong>Lettered Pages + Custom Bubble Library</div>
         <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
       </div>
     </div>
@@ -1538,101 +1365,56 @@ body.student-mode .teacher-only { display: none !important; }
     <div class="platform-callout">
       <span style="font-size:24px;">💬</span>
       <div>
-        <div class="url" style="color:var(--w4)">CoMiXX → Text Mode + Asset Lab</div>
-        <p>Bubbles. Captions. SFX. Graffiti. Build them once in the Asset Lab, reuse them forever.</p>
+        <div class="url" style="color:var(--w4)">CoMiXX Editor → Text tool · Asset Lab (AssetBuilder)</div>
+        <p>Lettering is half the storytelling. CoMiXX gives you 15 ready-to-use bubble styles + 13 text effects, plus the Asset Lab for building your own.</p>
       </div>
     </div>
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">04.1</span>
-        <span class="session-title">Text Mode — Bubbles, Captions &amp; SFX</span>
-        <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">LETTERING</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Text Mode covers all on-page text: speech bubbles (round, jagged for shouting, cloud for thoughts), captions (yellow boxes for narration), and SFX (sound effects integrated INTO art). Students learn the unwritten rules: tail points to mouth, never cross tails, caption corners stay rectangular.</p>
-        <h5>Student Activity</h5>
-        <p>On your styled page, add 1 speech bubble, 1 thought bubble, 1 caption box, and 1 SFX. Read the page aloud — does the eye flow left-to-right, top-to-bottom? If not, move the bubbles. Save.</p>
-        <div class="quote-bar" style="border-color:var(--w4)">LETTERING IS 50% OF YOUR STORY. ACT LIKE IT.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">04.1</span><span class="session-title">Text Tool — Captions + 13 Text Effects</span><span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">LETTERING</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Text tool places captions and on-page text. CoMiXX ships 13 text effects: outline, shadow, glow, 3d, emboss, neon, comic, retro, fire, ice, gold, chrome, and more. Students learn when each effect fits — neon for sci-fi captions, fire for SFX, gold for chapter cards, and so on.</p>
+      <h5>Student Activity</h5>
+      <p>On your styled page, place 1 caption box (with the "comic" effect) and 1 SFX text (with "fire" or "neon" or "3d"). Effects should support tone, not fight it. Save.</p>
+      <div class="quote-bar" style="border-color:var(--w4)">EFFECTS ARE COSTUMES. PICK ONE THAT FITS THE CHARACTER.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">04.2</span>
-        <span class="session-title">Graffiti FX — Outlines, Glows, 3D Text</span>
-        <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">TEXT FX</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Graffiti FX turns plain text into title-card art. Outlines, glows, drop shadows, 3D extrusion, distress textures. Students learn to use Graffiti FX for SFX (BOOM, KRAKK, ZZZAP) and chapter-title cards — never for normal dialogue.</p>
-        <h5>Student Activity</h5>
-        <p>Build a Graffiti SFX for the loudest moment in your comic. Outline + glow + 3D minimum. Drop it onto the right panel. The SFX should look like it's PART of the panel, not stuck on top.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">04.2</span><span class="session-title">15 Bubble Styles — Voice for Every Character</span><span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">BUBBLES</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>CoMiXX ships 15 bubble styles: speech, thought, shout, whisper, burst, scream, robot, drip, glitch, retro, neon, graffiti, caption, starburst. Each is a CHARACTER VOICE. Students learn the unwritten rules: tail points to mouth, never cross tails, captions stay rectangular.</p>
+      <h5>Student Activity</h5>
+      <p>Pick at least 4 different bubble styles for your characters: 1 speech, 1 thought, 1 SHOUT (for a yelling moment), 1 special (robot/glitch/graffiti — whichever fits). Drop them on a page. Read it aloud — does the voice change as you switch bubbles? Save.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">04.3</span>
-        <span class="session-title">Asset Lab — Build Reusable Bubble + SFX Assets</span>
-        <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">WORKSHOP</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>The Asset Lab is the workshop where you build reusable assets that save into your private library and can be re-dropped from the Asset Browser anywhere. Students build their own custom speech bubble (your character's signature tail style) and 2 SFX sprites that match their style.</p>
-        <h5>Student Activity</h5>
-        <p>Build 3 reusable assets in the Asset Lab: 1 signature speech bubble, 1 hard-impact SFX, 1 ambient SFX. Save them with clear names. Open the Asset Browser — they should show up under your library. Drop one into a fresh page to confirm reuse works.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">04.3</span><span class="session-title">Asset Lab — Build Your Own Bubbles + SFX</span><span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">WORKSHOP</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Asset Lab (AssetBuilder) is a dedicated page for building reusable assets — vector bubble shape generator, SFX preset editor (POW, BOOM), custom tail direction/size controls. Output saves to your Asset Library and shows up in the editor sidebar forever.</p>
+      <h5>Student Activity</h5>
+      <p>Open Asset Lab. Build 3 custom assets: 1 signature bubble shape (your character's signature tail), 1 hard-impact SFX (POW/CRACK/SLAM), 1 ambient SFX (whoosh/buzz). Save with clear names. Open the editor — confirm they show in your Asset Library and can be dropped into a panel.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">04.4</span>
-        <span class="session-title">Script Pass — Drop Dialogue Across Pages</span>
-        <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">PRODUCTION</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Production day. Students take their original script from Week 1 and drop ALL dialogue + captions + SFX across both styled pages, using their own custom bubble assets from Asset Lab. By end of session, both pages are reading like a published comic.</p>
-        <h5>Student Activity</h5>
-        <p>Letter both pages completely — every line of dialogue, every caption, every SFX. Use YOUR custom bubble + SFX assets from the Asset Lab. Read both pages out loud — pacing should feel right.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">04.4</span><span class="session-title">Lettering Pass — Drop Dialogue Across All Pages</span><span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">PRODUCTION</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Production day. Students take their original script from Week 1 and drop ALL dialogue + captions + SFX across every page, mixing the 15 built-in bubbles with their own custom bubbles from Asset Lab. By end of session, every page reads like a published comic.</p>
+      <h5>Student Activity</h5>
+      <p>Letter every page completely — dialogue, captions, SFX. Use both built-in bubbles and your Asset Lab originals. Read the comic aloud — does pacing feel right? Eye flow left-right, top-bottom?</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">04.5</span>
-        <span class="session-title">Voice Critique</span>
-        <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">CRITIQUE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Read-aloud critique. Each student passes their lettered pages to a partner. The partner reads them ALOUD. Does the dialogue sound like a real person? Do bubble placements pull the eye correctly? Class scores each comic on "voice clarity" 1–5.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">04.5</span><span class="session-title">Voice Critique</span><span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">CRITIQUE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Read-aloud critique. Each student passes their lettered comic to a partner. The partner reads it ALOUD. Does the dialogue sound like a real person? Do bubble placements pull the eye correctly? Class scores each comic on "voice clarity" 1–5.</p>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 04 · Student Deliverable" style="--accent:var(--w4)">
-      <h3>BUBBLE LIBRARY + LETTERED PAGES</h3>
-      <p>Your comic now talks. Custom bubbles, SFX in your style, dialogue dropped, eye flow tested. Letter once, reuse forever.</p>
+      <h3>LETTERED PAGES + CUSTOM BUBBLE LIBRARY</h3>
+      <p>Your comic now talks. Built-in bubbles, custom bubbles in your style, dialogue dropped, eye flow tested.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>3 reusable assets in Asset Lab — bubble + 2 SFX</li>
-        <li><span class="check"></span>Both pages fully lettered — dialogue, captions, SFX</li>
-        <li><span class="check"></span>At least 1 Graffiti FX SFX deployed</li>
-        <li><span class="check"></span>Pages read aloud cleanly by a partner</li>
-        <li><span class="check"></span>Voice critique score recorded</li>
+        <li><span class="check"></span>At least 4 different bubble styles used purposefully</li>
+        <li><span class="check"></span>3 custom assets built in Asset Lab — bubble + 2 SFX</li>
+        <li><span class="check"></span>All pages fully lettered</li>
+        <li><span class="check"></span>At least 2 text effects deployed with intent</li>
+        <li><span class="check"></span>Comic reads cleanly aloud by a partner</li>
       </ul>
     </div>
   </div>
@@ -1646,13 +1428,13 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(176,106,255,0.07)">05</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w5)">🎬 Week 05 · Motion &amp; Expanded Formats</div>
-      <div class="week-title">BEYOND<br>THE PAGE</div>
-      <p class="week-desc">Comic pages are just one shape your story takes. Students learn Motion Mode in-editor, the Motion Studio timeline, the HOP Creator for vertical-scroll mobile, the Card Creator for TCG, and preview the VN Creator and CYOA Builder for branching narratives.</p>
+      <div class="week-tag" style="color:var(--w5)">🚀 Week 05 · Expand the Format</div>
+      <div class="week-title">COVER<br>HOP CARD<br>MOTION VN CYOA</div>
+      <p class="week-desc">Comic pages are one shape your story takes. Students cycle through every other CoMiXX surface in one week: Cover Creator, HOP Builder, Card Creator, Motion Studio, VN Creator, CYOA Builder. Same characters, six different formats.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Motion · Motion Studio · HOP · Card · VN · CYOA</div>
-        <div class="meta-item"><strong>Deliverable</strong>Motion Piece + HOP + Trading Card</div>
+        <div class="meta-item"><strong>Surfaces</strong>Cover · HOP · Card · Motion Studio · VN · CYOA</div>
+        <div class="meta-item"><strong>Deliverable</strong>Cover + HOP + Card (+ stretch: Motion / VN / CYOA)</div>
         <div class="meta-item"><strong>Skill Level</strong>Intermediate → Advanced</div>
       </div>
     </div>
@@ -1660,108 +1442,60 @@ body.student-mode .teacher-only { display: none !important; }
 
   <div class="content-area">
     <div class="platform-callout">
-      <span style="font-size:24px;">🎬</span>
+      <span style="font-size:24px;">🚀</span>
       <div>
-        <div class="url" style="color:var(--w5)">CoMiXX → Motion Mode + Motion Studio + HOP + Card + VN + CYOA</div>
-        <p>Five surfaces, one story universe. Students stop thinking in pages and start thinking in formats.</p>
+        <div class="url" style="color:var(--w5)">CoMiXX → Cover · HOP · Card · Motion · VN · CYOA</div>
+        <p>Six surfaces, one universe. Students stop thinking in pages and start thinking in formats. This is what an IP looks like.</p>
       </div>
     </div>
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">05.1</span>
-        <span class="session-title">Motion Mode — In-Editor Keyframes</span>
-        <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">ANIMATION</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Motion Mode lives inside the comic editor and adds simple keyframe animation directly to panels — fade in, pan, zoom, layer slide. Students learn keyframe basics and add subtle motion to ONE panel of their existing comic without breaking the page.</p>
-        <h5>Student Activity</h5>
-        <p>Pick the climax panel from your styled pages. Add motion in Motion Mode: layer slide, zoom-in, or pan. Keep it under 2 seconds. Preview. Save. The motion should INTENSIFY the moment, not distract from it.</p>
-        <div class="quote-bar" style="border-color:var(--w5)">MOTION IS A WHISPER. NOT A SHOUT.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">05.1</span><span class="session-title">Cover Creator — Genre Templates + Spine + Back Cover</span><span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Cover Creator is its own page. Genre templates (Sci-Fi, Fantasy, etc.), filter presets (halftone, grain), spine and back-cover design tools, plus pro feature discovery. Students take their best AI character or hand-drawn portrait and build a full front + back cover.</p>
+      <h5>Student Activity</h5>
+      <p>Open Cover Creator. Pick a genre template that fits your story. Place your hero art, set the title, add ISSUE 01 + creator name. Switch to back cover — write a 1-paragraph blurb, drop your creator photo or logo. Save both. This is the cover that ships in Week 6.</p>
+      <div class="quote-bar" style="border-color:var(--w5)">YOUR COVER IS YOUR HANDSHAKE. CRUSH IT.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">05.2</span>
-        <span class="session-title">Motion Studio — Timeline Animation Suite</span>
-        <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Motion Studio is the standalone timeline-based animation suite for full motion comics and short clips. Students send a panel to Motion Studio (via SendTo), build a 5–10 second motion comic with audio cues, and export as GIF or WebM.</p>
-        <h5>Student Activity</h5>
-        <p>Use SendTo to push your climax panel into Motion Studio. Build a 5–10 second motion comic with at least 3 keyframes and one audio cue marker. Export as GIF. Save. Drop the GIF back into your Asset Browser.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">05.2</span><span class="session-title">HOP Builder — Vertical Webtoon with Sound</span><span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>HOP Builder makes mobile-first vertical-scroll experiences with scene timeline, transitions (Glitch, Iris), camera presets (Pan, Drift, Zoom), parallax layers, and sound packs/waveform support. Students convert one styled page into a HOP scene with motion + sound.</p>
+      <h5>Student Activity</h5>
+      <p>Open HOP Builder. Build at least 3 scenes from your story. Pick a transition between each scene. Add a camera preset (pan or zoom). Pick a sound pack. Preview on phone simulator. Bonus: open it on your actual phone — does it feel like a webtoon?</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">05.3</span>
-        <span class="session-title">HOP Creator — Vertical Pan/Zoom HOPs</span>
-        <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>HOPs are mobile-first vertical-scroll experiences with pan/zoom + audio sync — the format webtoons + TikTok comics live in. Students convert one of their styled pages into a HOP with a pan path that guides the reader's eye top-to-bottom.</p>
-        <h5>Student Activity</h5>
-        <p>Send your styled page to HOP Creator. Define a pan path that flows top-to-bottom across panels. Add at least 1 zoom-in moment and 1 audio cue. Preview on phone simulator. Save. Bonus: open it on your actual phone — does it feel like a webtoon?</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">05.3</span><span class="session-title">Card Creator — TCG / Sports / Pack Opening</span><span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Card Creator builds trading cards with TCG templates (MTG-style, Pokémon-style, Yu-Gi-Oh-style), a rarity system with glow effects, sports card sub-types, and a pack opening simulator. Pure brand extension: every story franchise has cards.</p>
+      <h5>Student Activity</h5>
+      <p>Build a trading card for your main character. Pick a template (TCG or Sports). Add: name, art, stats, ability, rarity tier (Common / Rare / Legendary — see the glow change). Save. Open the pack opening simulator and watch your card reveal. Screenshot for the gallery.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">05.4</span>
-        <span class="session-title">Card Creator — TCG / Trading Cards</span>
-        <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Card Creator builds trading cards with stats, rarity tiers, and customizable frames. Students take their main character and make a TCG card — name, art, stats, ability, rarity. Pure brand extension: every comic franchise has cards.</p>
-        <h5>Student Activity</h5>
-        <p>Build a trading card for your main character. Required fields: name, art (use your AI gen or inked portrait), 3 stats, 1 ability, rarity tier (Common / Rare / Legendary). Save. Print or screenshot for the gallery.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">05.4</span><span class="session-title">Motion Studio — Keyframe Animation</span><span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Motion Studio is the standalone keyframe-based animation suite — keyframe timeline, easing presets (Bounce, Elastic), vector vs. raster drawing modes, blend mode support. Students animate one panel of their comic into a 3–5 second motion piece.</p>
+      <h5>Student Activity</h5>
+      <p>Open Motion Studio. Bring in your climax panel. Add at least 3 keyframes with an easing preset. Build a 3–5 second motion piece. Try one blend mode. Export. The motion should INTENSIFY the moment, not distract from it.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">05.5</span>
-        <span class="session-title">Format Showcase — Pick Your Path (VN / CYOA Preview)</span>
-        <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">EXPLORE + CRITIQUE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Showcase day. Students display their motion piece + HOP + card. Teacher then introduces the VN Creator (visual novel branching dialogue) and the CYOA Builder (graph-based choose-your-own-adventure flowchart). Students who finish early can begin a VN or CYOA scene as a stretch goal that carries into Week 6.</p>
-        <h5>Stretch Goals (advanced)</h5>
-        <ul>
-          <li><strong>VN Creator</strong> — build a 3-scene visual novel with branching dialogue + character sprites</li>
-          <li><strong>CYOA Builder</strong> — design a 5-node flowchart with at least one branch that loops back</li>
-        </ul>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">05.5</span><span class="session-title">VN + CYOA — Branching Narrative Surfaces</span><span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">SURFACE + CRITIQUE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Two more standalone surfaces. <strong>VN Creator</strong> — branching narrative canvas, character sprite management, ADV/NVL text modes. <strong>CYOA Builder</strong> — infinite node-based story canvas, variable effects (Set/Add/Toggle), choice conditions (logic gates), interactive previewer. Students get a guided tour of both, then build a small scene in whichever fits their story better.</p>
+      <h5>Student Activity</h5>
+      <p>Pick ONE: VN or CYOA. <strong>VN path:</strong> build a 3-scene visual novel with branching dialogue + at least 1 character sprite. <strong>CYOA path:</strong> build a 5-node flowchart with at least one branch that loops back. Save. Preview the interactive flow.</p>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 05 · Student Deliverable" style="--accent:var(--w5)">
-      <h3>MOTION + HOP + CARD</h3>
-      <p>Your story now exists in 4 formats: comic page, motion comic, HOP scroll, trading card. Same universe, different surfaces. That's an IP, not a comic.</p>
+      <h3>COVER + HOP + CARD (+ MOTION OR VN/CYOA)</h3>
+      <p>Your story now lives across multiple CoMiXX surfaces. Same universe, different formats. That's an IP, not a comic.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>1 panel with Motion Mode keyframes</li>
-        <li><span class="check"></span>1 motion comic exported as GIF/WebM from Motion Studio</li>
-        <li><span class="check"></span>1 HOP with pan path + audio cue</li>
+        <li><span class="check"></span>Front + back cover finished in Cover Creator</li>
+        <li><span class="check"></span>3-scene HOP with transitions + sound</li>
         <li><span class="check"></span>1 trading card from Card Creator</li>
-        <li><span class="check"></span>(Stretch) VN or CYOA scene started</li>
+        <li><span class="check"></span>1 Motion Studio piece (or 1 VN scene or 1 CYOA flow)</li>
+        <li><span class="check"></span>All saved into your Skill Passport portfolio</li>
       </ul>
     </div>
   </div>
@@ -1775,12 +1509,12 @@ body.student-mode .teacher-only { display: none !important; }
   <div class="week-header">
     <div class="week-num-big" style="color:rgba(255,140,0,0.07)">06</div>
     <div class="week-header-content">
-      <div class="week-tag" style="color:var(--w6)">🚀 Week 06 · Ship It · Final Rubric</div>
-      <div class="week-title">COVER<br>PROMO<br>SHIP</div>
-      <p class="week-desc">Cover Creator finishes the front + back cover at print resolution. Promo Lab makes the school-safe promo page. SendTo connects everything. Marketplace lists it. Public Passport publishes the creator. Friday is launch day.</p>
+      <div class="week-tag" style="color:var(--w6)">🏁 Week 06 · Ship It · Final Rubric</div>
+      <div class="week-title">PROMO<br>SENDTO<br>READER · MARKET · PASSPORT</div>
+      <p class="week-desc">The journey ends with publishing. Promo Lab makes the school-safe promo page. SendTo bridges to other apps and the LMS. Comic Reader is what readers actually see. Marketplace lists the work. Skill Passport verifies the creator. Friday is launch day.</p>
       <div class="week-meta">
         <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
-        <div class="meta-item"><strong>Modes Used</strong>Cover · Promo Lab · SendTo · Marketplace · Passport</div>
+        <div class="meta-item"><strong>Surfaces</strong>Promo Lab · SendTo · Comic Reader · Marketplace · Skill Passport</div>
         <div class="meta-item"><strong>Deliverable</strong>Final Ship Pack (Final Rubric)</div>
         <div class="meta-item"><strong>Skill Level</strong>Capstone</div>
       </div>
@@ -1789,118 +1523,73 @@ body.student-mode .teacher-only { display: none !important; }
 
   <div class="content-area">
     <div class="platform-callout">
-      <span style="font-size:24px;">🚀</span>
+      <span style="font-size:24px;">🏁</span>
       <div>
-        <div class="url" style="color:var(--w6)">CoMiXX → Cover · Promo Lab · SendTo · Marketplace · Passport</div>
-        <p>Five last surfaces. The work becomes a product. The student becomes a creator with a verified portfolio.</p>
+        <div class="url" style="color:var(--w6)">CoMiXX → Promo Lab · SendTo · Reader · Marketplace · Skill Passport (pressstart.space)</div>
+        <p>Five last surfaces. The work becomes a product. The student becomes a verified creator with a public portfolio.</p>
       </div>
     </div>
 
     <div class="sessions-label">5 Sessions — Click to expand</div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">06.1</span>
-        <span class="session-title">Cover Creator — Front + Back at Print Resolution</span>
-        <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">FINAL DESIGN</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Back to Cover Creator. This time it's final. Students take their best Week 1 cover rough and finish it: full art, locked title typography, ISSUE 01 badge, barcode area, back-cover blurb. Print-resolution PNG + PDF.</p>
-        <h5>Student Activity</h5>
-        <p>Build the final front cover AND a back cover. Front cover: art + title + creator name + ISSUE 01. Back cover: 1-paragraph blurb + creator photo or logo + barcode placeholder. Export both at print resolution. Save.</p>
-        <div class="quote-bar" style="border-color:var(--w6)">YOUR COVER IS YOUR HANDSHAKE. CRUSH IT.</div>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">06.1</span><span class="session-title">Promo Lab — School-Safe Promo Pages</span><span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">MARKETING</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Promo Lab (PromoPageStudio) is the template materializer for promo pages with insert-to-comic flow + custom data injection. Students build a promo page for their comic — cover image, tagline, "read now" CTA, QR code — and a creator promo about themselves. Both queue for school-safe approval.</p>
+      <h5>Student Activity</h5>
+      <p>Open Promo Lab. Pick a template. Inject: your cover, your tagline, a "read now" CTA, your creator handle. Insert it as the LAST page of your comic project (so it appears at the back). Then build a second Promo Page about you, the creator. Submit both for school-safe review.</p>
+      <div class="quote-bar" style="border-color:var(--w6)">A COMIC WITHOUT A PROMO IS A SECRET.</div>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">06.2</span>
-        <span class="session-title">Promo Lab — School-Safe Promo Pages</span>
-        <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">MARKETING</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Promo Lab (Promo Page Studio) builds school-safe promo pages — landing pages, in-comic ads, and creator promos that meet classroom-safe content standards. Students design a promo page for their own comic and a Creator Promo for themselves.</p>
-        <h5>Student Activity</h5>
-        <p>Build 2 promo pages in Promo Lab: 1 promoting your comic (cover + tagline + read CTA + QR) and 1 Creator Promo about you (name, what you make, what's next). Both must pass school-safe review. Save and queue for admin approval.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">06.2</span><span class="session-title">SendTo — Cross-App Handoff + LMS Submission</span><span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PIPELINE</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>SendTo is the cross-app handoff modal in CoMiXX. It can route an asset to FX Studio, PS Streaming, the LMS as an assignment submission, the Community Library as a publish, or save into the shared Asset Library. Students use SendTo to submit their comic to the class LMS and publish to the Community Library.</p>
+      <h5>Student Activity</h5>
+      <p>From your finished comic, open SendTo. Submit to LMS as your Week 6 assignment. Publish to Community Library so other students can read it. Save the cover to Asset Library so others can remix.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">06.3</span>
-        <span class="session-title">SendTo + VN/CYOA Bonus — Cross-App Workflow</span>
-        <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PIPELINE</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>SendTo is the handoff tool that teleports an asset between any two CoMiXX surfaces — Comic → Motion, Comic → HOP, Comic → Card, Comic → VN, Comic → CYOA. Students do at least 2 SendTo handoffs to stitch their work into a multi-format set. Stretch students finish VN/CYOA scenes started in Week 5.</p>
-        <h5>Student Activity</h5>
-        <p>Do at least 2 SendTo handoffs that result in something new: e.g., send your character to Card Creator → tweaked card, or send a panel to VN Creator → 3-scene visual novel. Save everything. The same character should now exist across 3+ CoMiXX surfaces.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">06.3</span><span class="session-title">Comic Reader — How Readers See Your Work</span><span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">QA</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Comic Reader is the public-facing read experience: dual view modes (scroll vs page), interactive endings if your story has CYOA branches, comments, bookmarks, and links to your creator profile. Students open their published comic in Comic Reader as if they were a fan and check everything: pacing in scroll, pacing in page, branches if any, comments enabled.</p>
+      <h5>Student Activity</h5>
+      <p>Open your published comic in Comic Reader. Read it in Scroll mode. Then in Page mode. Spot anything broken? Test bookmarks, test the comment system, test the link to your creator profile. Fix any issues by going back to the project.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">06.4</span>
-        <span class="session-title">Marketplace + Public Passport — Sell &amp; Showcase</span>
-        <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PUBLISH</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Marketplace is where finished work and reusable assets get listed. Public Passport (pressstart.space) is the verified portfolio that aggregates everything: comics, HOPs, cards, motion pieces, plus XP and certifications earned across the course. Students publish.</p>
-        <h5>Student Activity</h5>
-        <p>List your comic + at least 1 reusable asset on Marketplace (free or paid, your call). Then publish your Public Passport with: 6-week project gallery, the cover, the HOP, the card, the motion comic, and your creator promo. Share the public link with your family or feed.</p>
-      </div>
-    </div>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">06.4</span><span class="session-title">Marketplace — List, Submit a Pack, Press Start Originals</span><span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PUBLISH</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Marketplace is where finished comics + reusable assets get listed. Category filters (Characters, Backgrounds, etc.), Press Start Originals boutique, Paid/Free toggle, "Submit a Pack" seller flow. Students list their comic + at least one Asset Lab asset.</p>
+      <h5>Student Activity</h5>
+      <p>List your comic on Marketplace (free or paid — your call). Then list at least 1 reusable asset from your Asset Lab (a custom bubble, an SFX, a character sprite). Pick category + tags. Submit.</p>
+    </div></div>
 
-    <div class="session-card">
-      <div class="session-head" onclick="toggleSession(this)">
-        <span class="session-num">06.5</span>
-        <span class="session-title">Launch Day — Full Showcase &amp; Final Rubric</span>
-        <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">SHIP</span>
-        <span class="session-duration">55 min</span>
-        <span class="chevron">▶</span>
-      </div>
-      <div class="session-body">
-        <h5>Session Summary</h5>
-        <p>Capstone showcase. Each student presents their full ship pack — comic spread, cover, HOP, motion piece, card, promo, Marketplace listing, Public Passport — in a 3-minute pitch. Teacher scores against the final rubric. Optional: invite parents, admin, local press.</p>
+    <div class="session-card"><div class="session-head" onclick="toggleSession(this)"><span class="session-num">06.5</span><span class="session-title">Skill Passport + Launch Day — Final Rubric</span><span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">SHIP</span><span class="session-duration">55 min</span><span class="chevron">▶</span></div><div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Skill Passport (pressstart.space) verifies the creator: XP/Level progression, tool usage radar charts, Creator Class / Ecosystem roles, social activity feed. Students publish their Passport with their Week 6 portfolio and pitch the full ship pack in 3 minutes. Teacher scores against the final rubric. Optional: invite parents, admin, local press.</p>
 
-        <h5>Final Rubric</h5>
-        <table class="rubric-table teacher-only">
-          <thead><tr><th>Criterion</th><th>Exemplary (4)</th><th>Proficient (3)</th><th>Developing (2)</th><th>Beginning (1)</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Mode Coverage</strong></td><td>15+ CoMiXX modes used effectively</td><td>10–14 modes used</td><td>6–9 modes used</td><td>Fewer than 6 modes</td></tr>
-            <tr><td><strong>Story Coherence</strong></td><td>Same universe across every surface</td><td>Mostly coherent across surfaces</td><td>Some surfaces feel disconnected</td><td>Surfaces feel like different projects</td></tr>
-            <tr><td><strong>Style Consistency</strong></td><td>Locked palette + filter + FX held throughout</td><td>Mostly consistent</td><td>Style drift visible</td><td>No identifiable style</td></tr>
-            <tr><td><strong>Cover &amp; Promo Quality</strong></td><td>Cover + Promo could be published as-is</td><td>Strong, with minor polish needed</td><td>Functional but rough</td><td>Incomplete or missing</td></tr>
-            <tr><td><strong>Multi-Format Stretch</strong></td><td>Comic + Motion + HOP + Card + VN/CYOA</td><td>Comic + 3 surfaces</td><td>Comic + 2 surfaces</td><td>Comic only</td></tr>
-            <tr><td><strong>Marketplace + Passport</strong></td><td>Listed and published with quality copy</td><td>Listed and published</td><td>One of the two complete</td><td>Neither complete</td></tr>
-            <tr><td><strong>Pitch &amp; Reflection</strong></td><td>Articulates creative + technical choices</td><td>Explains most decisions</td><td>Vague or partial</td><td>Cannot defend work</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <h5>Final Rubric</h5>
+      <table class="rubric-table teacher-only">
+        <thead><tr><th>Criterion</th><th>Exemplary (4)</th><th>Proficient (3)</th><th>Developing (2)</th><th>Beginning (1)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Surface Coverage</strong></td><td>Comic + Cover + HOP + Card + 1 stretch (Motion/VN/CYOA)</td><td>Comic + Cover + HOP + Card</td><td>Comic + 2 surfaces</td><td>Comic only</td></tr>
+          <tr><td><strong>Style Consistency</strong></td><td>Filter + overlay + bubbles held throughout</td><td>Mostly consistent</td><td>Style drift visible</td><td>No identifiable style</td></tr>
+          <tr><td><strong>Editor Mastery</strong></td><td>All 6 tools + Layers + Properties used effectively</td><td>5 of 6 tools used well</td><td>Only basic tools</td><td>Only one tool</td></tr>
+          <tr><td><strong>Voice &amp; Lettering</strong></td><td>4+ bubble styles + custom Asset Lab bubble in use</td><td>3 bubble styles + 1 custom</td><td>2 bubble styles</td><td>Only default bubble</td></tr>
+          <tr><td><strong>Promo + Reader QA</strong></td><td>Promo approved, Reader fully tested in both modes</td><td>Promo done, Reader checked</td><td>One of the two complete</td><td>Neither complete</td></tr>
+          <tr><td><strong>Marketplace + Passport</strong></td><td>Listing live + Passport published with portfolio</td><td>Listing live, Passport partial</td><td>One of the two complete</td><td>Neither complete</td></tr>
+          <tr><td><strong>Pitch &amp; Reflection</strong></td><td>Articulates the full journey from First Login to Ship</td><td>Explains most decisions</td><td>Vague or partial</td><td>Cannot defend work</td></tr>
+        </tbody>
+      </table>
+    </div></div>
 
     <div class="challenge-block" data-label="Week 06 · Final Deliverable" style="--accent:var(--w6)">
       <h3>FINAL SHIP PACK</h3>
-      <p>You shipped. A finished comic, a cover, a HOP, a motion piece, a trading card, a promo page, a Marketplace listing, and a Public Passport profile that proves it. You're not a student of CoMiXX. You're a CoMiXX creator.</p>
+      <p>You shipped. A finished comic, a cover, a HOP, a card, optional motion/VN/CYOA, a Promo Lab page, a SendTo handoff, a tested Comic Reader experience, a Marketplace listing, and a Skill Passport that proves it. You're not a student of CoMiXX. You're a CoMiXX creator.</p>
       <ul class="deliverable-list">
-        <li><span class="check"></span>Final cover — front + back, print resolution</li>
-        <li><span class="check"></span>2 promo pages in Promo Lab — comic + creator</li>
-        <li><span class="check"></span>2+ SendTo cross-app handoffs completed</li>
-        <li><span class="check"></span>Marketplace listing live (comic + 1 asset)</li>
-        <li><span class="check"></span>Public Passport published with full gallery</li>
-        <li><span class="check"></span>3-minute capstone pitch delivered</li>
+        <li><span class="check"></span>2 Promo Lab pages — comic promo + creator promo (school-safe approved)</li>
+        <li><span class="check"></span>SendTo handoff — LMS submission + Community Library publish</li>
+        <li><span class="check"></span>Comic Reader QA passed — Scroll &amp; Page modes both clean</li>
+        <li><span class="check"></span>Marketplace listing — comic + 1 Asset Lab asset</li>
+        <li><span class="check"></span>Skill Passport published with full Week 1–6 portfolio</li>
+        <li><span class="check"></span>3-minute capstone pitch delivered — full journey narrated</li>
       </ul>
     </div>
   </div>
