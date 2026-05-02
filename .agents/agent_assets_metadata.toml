@@ -257,3 +257,9 @@ id = "vytKYKkptf0K9YDh12808"
 uri = "file://.local/notes/ecosystem-sync-spec.md"
 type = "text"
 title = "Ecosystem Sync Spec — Note for Streaming + LMS"
+
+[[outputs]]
+id = "zrrRV4o6Awsnf8GYypfv0"
+uri = "file://attached_assets/fx-studio-curriculum.zip"
+type = "unspecified"
+title = "FX Studio Curriculum (HTML, zipped)"
