@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX Studio Creator — 6-Week Curriculum | Press Start Gaming Inc.</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #0a0a0a;
+  --dark: #111111;
+  --panel: #181818;
+  --border: #2a2a2a;
+  --white: #f5f5f0;
+  --dim: #888;
+  --cyan: #00e5ff;
+  --pink: #ff2d78;
+  --yellow: #ffe600;
+  --green: #00ff88;
+
+  --w1: #00e5ff;
+  --w2: #ff2d78;
+  --w3: #ffe600;
+  --w4: #00ff88;
+  --w5: #b06aff;
+  --w6: #ff8c00;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'IBM Plex Sans', sans-serif;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: var(--dark);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-logo .brand {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: var(--white);
+  line-height: 1;
+}
+
+.sidebar-logo .sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.sidebar-logo .pill {
+  display: inline-block;
+  background: var(--pink);
+  color: var(--black);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+/* View toggle */
+.view-toggle {
+  display: flex;
+  padding: 12px 16px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: var(--white);
+  color: var(--black);
+  border-color: var(--white);
+}
+
+/* Week nav */
+.week-nav {
+  flex: 1;
+  padding: 8px 0;
+}
+
+.week-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--dim);
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+
+.week-nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+.week-nav-item.active { color: var(--white); border-left-color: var(--accent); }
+
+.week-nav-item .num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  opacity: 0.5;
+  width: 20px;
+}
+
+.week-nav-item .label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.week-nav-item .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-left: auto;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.week-nav-item.active .dot { opacity: 1; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer p {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+}
+
+/* ===== MAIN ===== */
+.main {
+  margin-left: 260px;
+  flex: 1;
+  padding: 0;
+}
+
+/* ===== HERO ===== */
+.hero {
+  padding: 80px 64px 64px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: 'FX';
+  position: absolute;
+  right: -20px; top: -40px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 360px;
+  color: rgba(255,255,255,0.025);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.hero-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--pink);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 96px;
+  letter-spacing: 4px;
+  line-height: 0.95;
+  margin-bottom: 24px;
+}
+
+.hero h1 span { color: var(--pink); }
+
+.hero-desc {
+  font-size: 16px;
+  color: #aaa;
+  line-height: 1.6;
+  max-width: 620px;
+  margin-bottom: 40px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  max-width: 760px;
+}
+
+.hero-stat {
+  background: var(--dark);
+  padding: 16px;
+  text-align: center;
+}
+
+.hero-stat .val {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--white);
+}
+
+.hero-stat .key {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ===== SECTION ===== */
+.week-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.week-header {
+  padding: 64px 64px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+.week-num-big {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 120px;
+  line-height: 0.9;
+  color: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.week-header-content { flex: 1; }
+
+.week-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.week-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 56px;
+  letter-spacing: 3px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.week-desc {
+  font-size: 14px;
+  color: #aaa;
+  line-height: 1.6;
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+
+.week-meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.meta-item strong {
+  color: var(--white);
+  display: block;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+/* ===== TEACHER / STUDENT PANELS ===== */
+.content-area {
+  padding: 0 64px 64px;
+}
+
+body.teacher-mode .student-only { display: none !important; }
+body.student-mode .teacher-only { display: none !important; }
+
+/* ===== OBJECTIVES BLOCK ===== */
+.obj-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+.obj-cell {
+  background: var(--dark);
+  padding: 24px;
+}
+
+.obj-cell h4 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.obj-cell ul { list-style: none; }
+
+.obj-cell ul li {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+  color: #ccc;
+}
+
+.obj-cell ul li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 10px;
+  top: 5px;
+}
+
+/* ===== MODE GRID ===== */
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 28px 0;
+}
+
+.mode-cell {
+  background: var(--dark);
+  padding: 18px 16px;
+}
+
+.mode-cell .mname {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--white);
+}
+
+.mode-cell .mpath {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.mode-cell .mdesc {
+  font-size: 11px;
+  color: #aaa;
+  line-height: 1.5;
+}
+
+/* ===== SESSION CARDS ===== */
+.sessions-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 32px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.session-card {
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.session-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--panel);
+  cursor: pointer;
+  user-select: none;
+}
+
+.session-head:hover { background: #1f1f1f; }
+
+.session-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--dim);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.session-title {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.session-duration {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+.session-type {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 3px 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.session-body {
+  display: none;
+  padding: 24px;
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+}
+
+.session-body.open { display: block; }
+
+.session-body h5 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 20px 0 10px;
+}
+
+.session-body h5:first-child { margin-top: 0; }
+
+.session-body p {
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.65;
+  margin-bottom: 8px;
+}
+
+.session-body ul { list-style: none; margin-bottom: 12px; }
+
+.session-body ul li {
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.5;
+  padding: 3px 0 3px 16px;
+  position: relative;
+}
+
+.session-body ul li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.timing-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.timing-table tr { border-bottom: 1px solid var(--border); }
+.timing-table tr:last-child { border-bottom: none; }
+.timing-table td {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.timing-table td:first-child {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  width: 70px;
+  white-space: nowrap;
+}
+
+/* ===== CHALLENGE BLOCK ===== */
+.challenge-block {
+  border: 1px solid var(--accent);
+  padding: 28px;
+  margin: 32px 0;
+  position: relative;
+}
+
+.challenge-block::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -10px; left: 20px;
+  background: var(--black);
+  padding: 0 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.challenge-block h3 {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 36px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.challenge-block p {
+  font-size: 13px;
+  color: #bbb;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.deliverable-list { list-style: none; margin-top: 16px; }
+
+.deliverable-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: #ccc;
+}
+
+.deliverable-list li .check {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ===== RUBRIC TABLE ===== */
+.rubric-wrap { overflow-x: auto; margin: 24px 0; }
+
+.rubric {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rubric th {
+  background: var(--panel);
+  padding: 10px 14px;
+  text-align: left;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--border);
+}
+
+.rubric th:first-child { color: var(--accent); }
+
+.rubric td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  color: #ccc;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.rubric tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+/* ===== STANDARDS BOX ===== */
+.standards-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+
+.standards-box h4 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.standard-tag {
+  display: inline-block;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #aaa;
+  margin: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* ===== TOOL BADGE ===== */
+.tool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--white);
+  margin: 4px 4px 4px 0;
+  letter-spacing: 0.5px;
+}
+
+.tool-badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ===== QUOTE BAR ===== */
+.quote-bar {
+  border-left: 3px solid var(--accent);
+  padding: 12px 20px;
+  margin: 20px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.3px;
+}
+
+/* ===== OVERVIEW TIMELINE ===== */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+.tl-week {
+  background: var(--dark);
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tl-week:hover { background: var(--panel); }
+
+.tl-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.tl-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 20px;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.tl-sessions {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+
+.tl-bar {
+  height: 3px;
+  margin-top: 12px;
+}
+
+/* ===== PLATFORM CALLOUT ===== */
+.platform-callout {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  margin: 24px 0;
+}
+
+.platform-callout .url {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.platform-callout p {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+/* ===== STICKY JUMP ===== */
+.jump-bar {
+  position: sticky;
+  top: 0;
+  background: rgba(10,10,10,0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 64px;
+  display: flex;
+  gap: 0;
+  z-index: 50;
+  overflow-x: auto;
+}
+
+.jump-item {
+  padding: 14px 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.jump-item:hover { color: var(--white); }
+.jump-item.w1 { color: var(--w1); }
+.jump-item.w2 { color: var(--w2); }
+.jump-item.w3 { color: var(--w3); }
+.jump-item.w4 { color: var(--w4); }
+.jump-item.w5 { color: var(--w5); }
+.jump-item.w6 { color: var(--w6); }
+
+/* ===== SCROLL ARROW ===== */
+.chevron {
+  transition: transform 0.2s;
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.session-head.open .chevron { transform: rotate(90deg); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-260px); }
+  .main { margin-left: 0; }
+  .hero, .week-header, .content-area { padding-left: 24px; padding-right: 24px; }
+  .jump-bar { padding: 0 16px; }
+  .hero h1 { font-size: 60px; }
+  .timeline { grid-template-columns: 1fr 1fr; }
+  .obj-grid { grid-template-columns: 1fr; }
+  .mode-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body class="teacher-mode">
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">FX STUDIO</div>
+    <div class="sub">Creator Curriculum</div>
+    <div class="pill">6-WEEK · GRADES 6–12</div>
+  </div>
+
+  <div class="view-toggle">
+    <button class="toggle-btn active" onclick="setMode('teacher')">TEACHER</button>
+    <button class="toggle-btn" onclick="setMode('student')">STUDENT</button>
+  </div>
+
+  <div class="week-nav">
+    <a href="#overview" class="week-nav-item" style="--accent:var(--pink)">
+      <span class="num">00</span>
+      <span class="label">Overview</span>
+      <span class="dot"></span>
+    </a>
+    <a href="#week1" class="week-nav-item" style="--accent:var(--w1)">
+      <span class="num">01</span>
+      <span class="label">Script</span>
+      <span class="dot" style="background:var(--w1)"></span>
+    </a>
+    <a href="#week2" class="week-nav-item" style="--accent:var(--w2)">
+      <span class="num">02</span>
+      <span class="label">Character</span>
+      <span class="dot" style="background:var(--w2)"></span>
+    </a>
+    <a href="#week3" class="week-nav-item" style="--accent:var(--w3)">
+      <span class="num">03</span>
+      <span class="label">Look &amp; FX</span>
+      <span class="dot" style="background:var(--w3)"></span>
+    </a>
+    <a href="#week4" class="week-nav-item" style="--accent:var(--w4)">
+      <span class="num">04</span>
+      <span class="label">Worldbuild</span>
+      <span class="dot" style="background:var(--w4)"></span>
+    </a>
+    <a href="#week5" class="week-nav-item" style="--accent:var(--w5)">
+      <span class="num">05</span>
+      <span class="label">Brand Kit</span>
+      <span class="dot" style="background:var(--w5)"></span>
+    </a>
+    <a href="#week6" class="week-nav-item" style="--accent:var(--w6)">
+      <span class="num">06</span>
+      <span class="label">Launch</span>
+      <span class="dot" style="background:var(--w6)"></span>
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <p>
+      Curriculum by<br>
+      <strong style="color:#fff">Press Start Gaming Inc.</strong><br>
+      Delivered by MADMIXEDMEDIA LLC<br><br>
+      pscomixx.online<br>
+      pscomixx.com<br>
+      pressstart.space
+    </p>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+
+<!-- HERO -->
+<section id="overview">
+<div class="hero">
+  <div class="hero-tag">Press Start Gaming Inc. · CTE Creative Technology</div>
+  <h1>FX STUDIO<br><span>CREATOR</span><br>CURRICULUM</h1>
+  <p class="hero-desc">A six-week, project-based creative technology course that takes students through every mode of the FX Studio creative engine — from Script to Cover, Graffiti to HOPs — and ends with a published comic, promo page, and short-form motion piece on Press Start.</p>
+
+  <div class="hero-grid">
+    <div class="hero-stat"><div class="val">6</div><div class="key">Weeks</div></div>
+    <div class="hero-stat"><div class="val">30</div><div class="key">Sessions</div></div>
+    <div class="hero-stat"><div class="val">14</div><div class="key">Modes</div></div>
+    <div class="hero-stat"><div class="val">2</div><div class="key">Labs</div></div>
+    <div class="hero-stat"><div class="val">6–12</div><div class="key">Grade</div></div>
+    <div class="hero-stat"><div class="val">∞</div><div class="key">Output</div></div>
+  </div>
+</div>
+
+<!-- Jump bar -->
+<div class="jump-bar">
+  <a href="#week1" class="jump-item w1">01 · Script</a>
+  <a href="#week2" class="jump-item w2">02 · Character</a>
+  <a href="#week3" class="jump-item w3">03 · Look &amp; FX</a>
+  <a href="#week4" class="jump-item w4">04 · Worldbuild</a>
+  <a href="#week5" class="jump-item w5">05 · Brand Kit</a>
+  <a href="#week6" class="jump-item w6">06 · Launch</a>
+</div>
+
+<div class="content-area">
+
+  <!-- Course overview -->
+  <div style="padding-top:40px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:16px;">Course Overview</div>
+
+    <div class="timeline">
+      <div class="tl-week" onclick="location.href='#week1'">
+        <div class="tl-num">WEEK 01</div>
+        <div class="tl-title" style="color:var(--w1)">SCRIPT</div>
+        <div class="tl-sessions">Script Mode<br>Title concepts<br>Comic / Screenplay<br>Novel / Kids modes<br>60-sec story pitch</div>
+        <div class="tl-bar" style="background:var(--w1)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week2'">
+        <div class="tl-num">WEEK 02</div>
+        <div class="tl-title" style="color:var(--w2)">CHARACTER</div>
+        <div class="tl-sessions">Character Creator<br>Portrait Mode<br>Bubble basics<br>Cast sheet build<br>Voice through shape</div>
+        <div class="tl-bar" style="background:var(--w2)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week3'">
+        <div class="tl-num">WEEK 03</div>
+        <div class="tl-title" style="color:var(--w3)">LOOK &amp; FX</div>
+        <div class="tl-sessions">Filter Editor<br>Graffiti Mode<br>FX Studio engine<br>Style lock<br>Look book review</div>
+        <div class="tl-bar" style="background:var(--w3)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week4'">
+        <div class="tl-num">WEEK 04</div>
+        <div class="tl-title" style="color:var(--w4)">WORLDBUILD</div>
+        <div class="tl-sessions">BG FX Builder<br>Overlay Mode<br>Layout Editor<br>3-spread world<br>World critique</div>
+        <div class="tl-bar" style="background:var(--w4)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week5'">
+        <div class="tl-num">WEEK 05</div>
+        <div class="tl-title" style="color:var(--w5)">BRAND KIT</div>
+        <div class="tl-sessions">Title Mode deep<br>Bubble advanced<br>Price Tag Maker<br>Asset Lab<br>Brand kit review</div>
+        <div class="tl-bar" style="background:var(--w5)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week6'">
+        <div class="tl-num">WEEK 06</div>
+        <div class="tl-title" style="color:var(--w6)">LAUNCH</div>
+        <div class="tl-sessions">Cover designer<br>Promo Lab<br>HOP Builder<br>Export &amp; sync<br>Launch day</div>
+        <div class="tl-bar" style="background:var(--w6)"></div>
+      </div>
+    </div>
+
+    <!-- Modes coverage map -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">All FX Studio Modes — Covered Across the Course</div>
+
+    <div class="mode-grid" style="--accent:var(--pink)">
+      <div class="mode-cell"><div class="mname">SCRIPT</div><div class="mpath">/script · Wk 1</div><div class="mdesc">Multi-format script editor — Comic, Screenplay, Novel, Kids Book.</div></div>
+      <div class="mode-cell"><div class="mname">TITLE</div><div class="mpath">/title · Wk 1 + 5</div><div class="mdesc">Title cards, chapter headers, drop-in display type with FX.</div></div>
+      <div class="mode-cell"><div class="mname">CHARACTER</div><div class="mpath">/character · Wk 2</div><div class="mdesc">Modular character builder — Sketch, Chibi, Creature styles.</div></div>
+      <div class="mode-cell"><div class="mname">PORTRAIT</div><div class="mpath">/portrait · Wk 2</div><div class="mdesc">Headshots, expression swaps, color tints for character cards.</div></div>
+      <div class="mode-cell"><div class="mname">BUBBLE</div><div class="mpath">/bubble · Wk 2 + 5</div><div class="mdesc">Speech, shout, thought, whisper, burst — voice through shape.</div></div>
+      <div class="mode-cell"><div class="mname">FILTER</div><div class="mpath">/filter · Wk 3</div><div class="mdesc">Stackable real-time filters: halftone, glitch, posterize, more.</div></div>
+      <div class="mode-cell"><div class="mname">GRAFFITI</div><div class="mpath">/graffiti · Wk 3</div><div class="mdesc">Digital spray paint with drip physics + stencil layers.</div></div>
+      <div class="mode-cell"><div class="mname">FX</div><div class="mpath">/ · Wk 3</div><div class="mdesc">Main FX engine — animated overlays, motion stamps, sound FX.</div></div>
+      <div class="mode-cell"><div class="mname">BG FX</div><div class="mpath">/bgfx · Wk 4</div><div class="mdesc">Procedural backgrounds — speed lines, starfields, halftone fields.</div></div>
+      <div class="mode-cell"><div class="mname">OVERLAY</div><div class="mpath">/overlay · Wk 4</div><div class="mdesc">Transparent FX layers that drop on top of any panel.</div></div>
+      <div class="mode-cell"><div class="mname">LAYOUT</div><div class="mpath">/layout · Wk 4</div><div class="mdesc">Full page spreads &amp; book layouts — 300 DPI print templates.</div></div>
+      <div class="mode-cell"><div class="mname">PRICE TAG</div><div class="mpath">/price-tag · Wk 5</div><div class="mdesc">Vintage retail tags — generated barcodes, retro typography.</div></div>
+      <div class="mode-cell"><div class="mname">ASSET LAB</div><div class="mpath">integrated · Wk 5</div><div class="mdesc">Save, tag, and reuse every asset across every mode.</div></div>
+      <div class="mode-cell"><div class="mname">COVER</div><div class="mpath">/cover · Wk 6</div><div class="mdesc">Front cover, back cover, spine — print &amp; web.</div></div>
+      <div class="mode-cell"><div class="mname">PROMO LAB</div><div class="mpath">integrated · Wk 6</div><div class="mdesc">School-safe promo pages, ad banners, launch graphics.</div></div>
+      <div class="mode-cell"><div class="mname">HOPS</div><div class="mpath">/hops · Wk 6</div><div class="mdesc">Short-form looping motion — TikTok-meets-After-Effects.</div></div>
+    </div>
+
+    <!-- Platforms -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Platforms Used</div>
+    <div style="margin-bottom:32px;">
+      <span class="tool-badge" style="--accent:var(--pink)"><span class="dot" style="background:var(--pink)"></span>pscomixx.online — FX Studio</span>
+      <span class="tool-badge" style="--accent:var(--cyan)"><span class="dot" style="background:var(--cyan)"></span>pscomixx.com — CoMiXX Sync</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>pressstart.space — HOP &amp; Portfolio</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--yellow)"></span>Phone / Camera (optional reference shots)</span>
+    </div>
+
+    <!-- Standards overview -->
+    <div class="standards-box teacher-only">
+      <h4>California CTE Standards Alignment — Arts, Media &amp; Entertainment Pathway</h4>
+      <span class="standard-tag">AME 1.0 — Creativity</span>
+      <span class="standard-tag">AME 2.0 — Visual Arts</span>
+      <span class="standard-tag">AME 3.0 — Digital Media</span>
+      <span class="standard-tag">AME 4.0 — Production Workflow</span>
+      <span class="standard-tag">AME 5.0 — Industry/Community</span>
+      <span class="standard-tag">CCSS.ELA.W.6-12 — Narrative Writing</span>
+      <span class="standard-tag">CCSS.ELA.SL — Presentation</span>
+      <span class="standard-tag">NGSS — Iterative Design Process</span>
+    </div>
+
+    <div class="obj-grid teacher-only">
+      <div class="obj-cell">
+        <h4>Course Objectives</h4>
+        <ul>
+          <li>Students draft an original comic script using the FX Studio Script mode</li>
+          <li>Students produce custom characters, portraits, and a personal brand kit</li>
+          <li>Students apply stacked filters, graffiti, and FX overlays intentionally</li>
+          <li>Students compose 300 DPI page spreads in the Layout editor</li>
+          <li>Students design a cover, promo page, and short-form HOP from one IP</li>
+          <li>Students sync their FX Studio work back into a published CoMiXX project</li>
+        </ul>
+      </div>
+      <div class="obj-cell">
+        <h4>Assessment Overview</h4>
+        <ul>
+          <li>Weekly deliverable — script, cast sheet, look book, world set, brand kit, launch pack</li>
+          <li>Peer critique — structured gallery walk every Friday</li>
+          <li>Mid-course check — Week 3 Look Book rubric</li>
+          <li>Final assessment — published comic + cover + promo + HOP (Week 6)</li>
+          <li>Participation — daily creator log (student-facing)</li>
+          <li>Self-assessment — "Creator reflection" each week</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div><!-- /content-area -->
+</section>
+
+<!-- ======================================================
+     WEEK 1 — SCRIPT
+     ====================================================== -->
+<section class="week-section" id="week1" style="--accent:var(--w1)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(0,229,255,0.08)">01</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w1)">📝 Week 01 · Script</div>
+    <div class="week-title">WRITE THE<br>WORLD</div>
+    <p class="week-desc">Every great visual starts with a great line. Students open the Script mode and learn how to draft for four formats — Comic, Screenplay, Novel, Kids Book — then concept their story title and pitch the universe in 60 seconds.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>Script · Title</div>
+      <div class="meta-item"><strong>Deliverable</strong>Story Bible + Title Concepts</div>
+      <div class="meta-item"><strong>Skill Level</strong>Beginner — No prior experience</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+
+  <div class="platform-callout">
+    <span style="font-size:24px;">📝</span>
+    <div>
+      <div class="url" style="color:var(--w1)">pscomixx.online/script · pscomixx.online/title</div>
+      <p>Write the script first. Name the world. Pitch it out loud. Visuals come next — and they come faster when the script is solid.</p>
+    </div>
+  </div>
+
+  <div class="obj-grid teacher-only">
+    <div class="obj-cell">
+      <h4>Learning Objectives</h4>
+      <ul>
+        <li>Open and navigate the Script mode in FX Studio</li>
+        <li>Write in Comic format using panel + caption structure</li>
+        <li>Compare Comic, Screenplay, Novel, and Kids Book modes</li>
+        <li>Concept a title and design first-pass title cards</li>
+        <li>Deliver a 60-second story pitch out loud</li>
+      </ul>
+    </div>
+    <div class="obj-cell">
+      <h4>Teacher Setup Notes</h4>
+      <ul>
+        <li>Pre-load pscomixx.online on student devices and verify login</li>
+        <li>Prepare 2–3 short comic page scripts as printed examples</li>
+        <li>Have students enable autosave; show them where drafts live</li>
+        <li>Print the "4 Script Formats Compared" reference (Session 1)</li>
+        <li>Plan time for 3–4 students to pitch live each Friday</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 01.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.1</span>
+      <span class="session-title">Why Write First — The 4 Script Modes Tour</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">LECTURE + DEMO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Open with two side-by-side comic pages: one drafted from a script, one improvised. Ask: "Which one tells the story cleanly?" Walk through the four Script mode formats — Comic, Screenplay, Novel, Kids Book — and show what each one is for. Students draft a 1-page test in any format.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Hook — script-vs-improv comparison projected (5 min)</td></tr>
+        <tr><td>0:05</td><td>Direct instruction — the 4 formats with examples (15 min)</td></tr>
+        <tr><td>0:20</td><td>Live demo — teacher writes a 4-panel scene in Comic mode (10 min)</td></tr>
+        <tr><td>0:30</td><td>Student practice — pick a format, draft 1 page (20 min)</td></tr>
+        <tr><td>0:50</td><td>Share-out — 3 volunteers read their drafts aloud (5 min)</td></tr>
+      </table>
+
+      <h5>Student Activity</h5>
+      <p>Open the Script mode at pscomixx.online/script. Pick any format (Comic, Screenplay, Novel, or Kids Book). Write 1 page about a character making one important choice. Save your draft. In your creator log, write one sentence: which format felt most natural to you, and why?</p>
+
+      <div class="quote-bar" style="border-color:var(--w1)">THE SCRIPT IS THE CHEAPEST PART OF THE COMIC. WASTE IT EARLY.</div>
+
+      <h5>Resources</h5>
+      <ul>
+        <li>4 Script Formats Compared — printable reference card</li>
+        <li>FX Studio Script mode quick-start guide</li>
+        <li>Sample 1-page comic script (PDF)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 01.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.2</span>
+      <span class="session-title">Comic Script Format — Beats, Panels, Captions</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">WRITING LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Deep dive on the Comic format. Vocabulary: BEAT, PANEL, CAPTION, BALLOON, SFX. Students study a real one-shot script, then draft a 6-panel scene of their own following the structure. Emphasis: every panel must do one job.</p>
+
+      <h5>Student Activity</h5>
+      <p>Draft a 6-panel comic scene in Script mode. Each panel needs: a one-line action description, who is in it, and the dialogue or caption. Number every panel. Save it. Re-read it — could an artist draw this without asking you a single question?</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Vocab review — beat / panel / caption / balloon / SFX (10 min)</td></tr>
+        <tr><td>0:10</td><td>Read-aloud — sample one-shot script projected (10 min)</td></tr>
+        <tr><td>0:20</td><td>Student draft — 6-panel scene in Comic format (30 min)</td></tr>
+        <tr><td>0:50</td><td>Pair swap — partner reads, asks one question (5 min)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 01.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.3</span>
+      <span class="session-title">Screenplay &amp; Novel Modes — Choosing the Right Frame</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">WRITING LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The same scene — written three ways. Students take their Day 2 comic scene and re-write it once in Screenplay format and once in Novel format using the FX Studio mode switcher. Discussion: what changes? What stays the same? When would you pick each format?</p>
+
+      <h5>Student Activity</h5>
+      <p>Take your 6-panel comic from yesterday. Switch the Script mode to Screenplay format and rewrite the scene. Then switch to Novel format and rewrite it again. Save all three drafts side-by-side. Which version pulls you in the hardest? In your log, explain why.</p>
+    </div>
+  </div>
+
+  <!-- 01.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.4</span>
+      <span class="session-title">Title Card Concepts — Name Your Universe</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">BRAND DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>First touch of the Title mode. A great title is a promise. Students brainstorm 10 candidate titles for their story, then test the top 3 in the Title mode using different display fonts and FX treatments — no full design yet, just concept cards.</p>
+
+      <h5>Student Activity</h5>
+      <p>Brainstorm 10 possible titles for your story. Pick your top 3. Open pscomixx.online/title. Build a quick-pass title card for each — pick a font, pick a color, hit one effect (glow, shadow, distress). Save all three. Which one makes a stranger want to read your comic?</p>
+      <div class="quote-bar" style="border-color:var(--w1)">A TITLE IS A PROMISE. BREAK IT AND THEY WALK.</div>
+    </div>
+  </div>
+
+  <!-- 01.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.5</span>
+      <span class="session-title">Pitch Day — 60-Second Story Pitch</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">CRITIQUE + PITCH</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Every student pitches their story in 60 seconds: title, world, main character, central conflict. Class gives warm feedback. Teacher anchors the practice in industry: this is exactly how comics get pitched to publishers and platforms.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Pitch structure mini-lesson — title / world / hero / problem (10 min)</td></tr>
+        <tr><td>0:10</td><td>Pair rehearsal — each student pitches to a partner twice (10 min)</td></tr>
+        <tr><td>0:20</td><td>Live pitches — 60 sec each, class of 20 ≈ 30 min (30 min)</td></tr>
+        <tr><td>0:50</td><td>Closing — class names 3 favorite story hooks (5 min)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 01 · Student Deliverable" style="--accent:var(--w1)">
+    <h3>STORY BIBLE + 3 TITLE CONCEPTS</h3>
+    <p>You now have a written world, three possible names for it, and a pitch you can deliver out loud. Everything else this course builds sits on top of this.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>One 6-panel scene drafted in Comic Script format</li>
+      <li><span class="check"></span>Same scene re-written in Screenplay and Novel formats</li>
+      <li><span class="check"></span>3 title concepts saved in the Title mode</li>
+      <li><span class="check"></span>60-second pitch delivered (live or recorded)</li>
+      <li><span class="check"></span>Creator reflection — which format and which title felt right?</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 2 — CHARACTER
+     ====================================================== -->
+<section class="week-section" id="week2" style="--accent:var(--w2)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,45,120,0.08)">02</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w2)">🎭 Week 02 · Character</div>
+    <div class="week-title">CAST<br>YOUR STORY</div>
+    <p class="week-desc">Students move into the Character Creator and Portrait mode to build a full cast — Hero, Foil, Wildcard. They get their first taste of the Bubble editor, learning how shape and line carry voice as much as words do.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>Character · Portrait · Bubble</div>
+      <div class="meta-item"><strong>Deliverable</strong>3-Character Cast Sheet</div>
+      <div class="meta-item"><strong>Skill Level</strong>Beginner → Intermediate</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+
+  <div class="platform-callout">
+    <span style="font-size:24px;">🎭</span>
+    <div>
+      <div class="url" style="color:var(--w2)">pscomixx.online/character · /portrait · /bubble</div>
+      <p>Three modes, one cast. Build the bodies in Character. Lock the faces in Portrait. Give them voices in Bubble.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 02.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.1</span>
+      <span class="session-title">Character Creator — Sketch / Chibi / Creature Styles</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">TOOL INTRO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Full walkthrough of the Character mode — Sketch, Chibi, and Creature style families. Students learn the layer system (silhouette → base → costume → accessory → expression) and build their first hero in the style that fits their story.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/character. Pick a style family that matches your story's vibe. Build your hero from the silhouette out: body type, costume, signature accessory, default expression. Export a transparent PNG and save it to the Asset Lab. This is your protagonist.</p>
+      <div class="quote-bar" style="border-color:var(--w2)">SILHOUETTE FIRST. IF I CAN'T NAME THEM IN BLACK, I CAN'T NAME THEM IN COLOR.</div>
+    </div>
+  </div>
+
+  <!-- 02.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.2</span>
+      <span class="session-title">Portrait Mode — Headshots, Expressions, Tints</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">DESIGN LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Portraits are emotional shorthand. Students take their hero into the Portrait mode and build a 4-expression set: Calm, Angry, Sad, Surprised. They learn how color tint and lighting on a portrait change the emotional read more than the expression itself.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/portrait and pull in your hero. Build 4 expression portraits — Calm, Angry, Sad, Surprised. Then pick one and tint it 3 ways: warm tint (hopeful), cool tint (sad), red tint (rage). Save all variants. These become your reaction shots.</p>
+    </div>
+  </div>
+
+  <!-- 02.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.3</span>
+      <span class="session-title">Build Your Cast — Hero, Foil, Wildcard</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>A story needs more than a hero. Students design two more characters in the Character mode: a FOIL (the opposite of the hero) and a WILDCARD (a character you can't predict). Same Character + Portrait pipeline, applied across the cast.</p>
+      <h5>Student Activity</h5>
+      <p>Build two more characters: a FOIL and a WILDCARD. Each gets a full Character Creator pass + at least 2 Portrait expressions. By end of session, you should have 3 transparent character PNGs and 6+ portrait variants saved. This is your cast sheet.</p>
+    </div>
+  </div>
+
+  <!-- 02.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.4</span>
+      <span class="session-title">Bubble Editor 101 — Voice Through Shape</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">TYPE DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>First touch of the Bubble mode. Round = friendly. Jagged = shouting. Cloud = thought. Rectangular caption = narrator. Students give each of their 3 characters a signature bubble style and a signature font, then place one line of dialogue from each into a sample frame.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/bubble. Assign each character a signature bubble style (shape) and font (voice). Drop one line of dialogue per character — straight from your Week 1 script. Save each as a transparent bubble PNG. Stack the three bubbles in one test layout. Can you tell who's talking just by the bubble shape?</p>
+      <div class="quote-bar" style="border-color:var(--w2)">THE BUBBLE IS NOT DECORATION. IT'S VOICE.</div>
+    </div>
+  </div>
+
+  <!-- 02.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.5</span>
+      <span class="session-title">Cast Sheet Review</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Each student presents their 3-character cast sheet: name, one-line bio, signature bubble + line of dialogue. Class gives one strength + one suggestion per cast. Teacher connects the practice to industry "model sheets" used by every animation and comic studio.</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 02 · Student Deliverable" style="--accent:var(--w2)">
+    <h3>3-CHARACTER CAST SHEET</h3>
+    <p>You have a hero, a foil, and a wildcard. Each one looks like themselves. Each one talks like themselves. Your story has people in it now.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>3 characters built in Character mode — exported as transparent PNGs</li>
+      <li><span class="check"></span>4 expression portraits per character (12 total minimum)</li>
+      <li><span class="check"></span>1 signature bubble + dialogue line per character</li>
+      <li><span class="check"></span>Cast sheet — names, 1-line bios, hero pose for each</li>
+      <li><span class="check"></span>Creator reflection — who is your favorite character to write?</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 3 — LOOK & FX
+     ====================================================== -->
+<section class="week-section" id="week3" style="--accent:var(--w3)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,230,0,0.06)">03</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w3)">✨ Week 03 · Look &amp; FX</div>
+    <div class="week-title">FIND<br>YOUR LOOK</div>
+    <p class="week-desc">Students take their cast through the visual style toolkit — Filter, Graffiti, and the main FX engine — and lock a "house style" for their comic. By Friday they have a Look Book that proves their world has a signature.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>Filter · Graffiti · FX</div>
+      <div class="meta-item"><strong>Deliverable</strong>Style Look Book + Locked Filter Recipe</div>
+      <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">⚡</span>
+    <div>
+      <div class="url" style="color:var(--w3)">pscomixx.online/filter · /graffiti · / (main FX)</div>
+      <p>Three modes that change how everything else looks. Stack filters. Spray graffiti. Drop animated FX. Every story deserves a signature.</p>
+    </div>
+  </div>
+
+  <div class="obj-grid teacher-only">
+    <div class="obj-cell">
+      <h4>Learning Objectives</h4>
+      <ul>
+        <li>Stack filters in the Filter editor — order matters, opacity matters</li>
+        <li>Use the Graffiti mode for stylized hand-drawn FX</li>
+        <li>Apply the main FX engine for animated overlays and motion stamps</li>
+        <li>Lock a reusable filter recipe and save it to the Asset Lab</li>
+        <li>Critique a peer Look Book using consistent vocabulary</li>
+      </ul>
+    </div>
+    <div class="obj-cell">
+      <h4>Teacher Setup Notes</h4>
+      <ul>
+        <li>Pre-bookmark Filter, Graffiti, and main FX URLs on student devices</li>
+        <li>Project a "5 great comic looks" reference montage Day 1</li>
+        <li>Mid-week checkpoint: review every student's filter stack on Wed</li>
+        <li>Reserve Friday for full Look Book gallery walk + rubric scoring</li>
+        <li>Have students name their style — gives them ownership</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 03.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.1</span>
+      <span class="session-title">Filter Editor — The Stack</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">TOOL INTRO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Filters are not Instagram presets — in FX Studio they STACK. Students learn the filter library (halftone, glitch, posterize, ink wash, scanline, color shift) and discover how stacking 2–3 filters at different opacities creates entirely new looks.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/filter. Drop in your hero portrait. Apply ONE filter. Then add a second. Then a third — different opacity each time. Build 4 different stacks. Export a strip of "the same character, four looks." Which look feels like YOUR story?</p>
+      <div class="quote-bar" style="border-color:var(--w3)">A FILTER IS NOT A SETTING. IT'S A SENTENCE.</div>
+    </div>
+  </div>
+
+  <!-- 03.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.2</span>
+      <span class="session-title">Graffiti Mode — Spray, Drip, Stencil</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">CREATIVE LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Graffiti mode is a digital spray paint canvas with drip physics and stencil layers. Students learn how to use spray, drip, and stencil to create hand-drawn FX — tags, marks, signatures, energy bursts, blood splatters, paint splashes — that no preset filter can fake.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/graffiti. Pick a stencil shape (star burst, heart, splash, drip). Spray it 3 different ways: fast (light), slow (heavy), with pulled drips. Then make ONE custom mark — your signature tag, your hero's emblem, or a story symbol. Save them all as transparent PNGs.</p>
+    </div>
+  </div>
+
+  <!-- 03.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.3</span>
+      <span class="session-title">FX Studio Main Engine — Layered FX &amp; Motion Stamps</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">FX LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The main FX engine is where animated overlays live — motion stamps, sound FX bursts, glow flares, smoke plumes, light leaks. Students stack 2–3 FX layers on a test panel and learn how layer order changes the read of the scene.</p>
+      <h5>Student Activity</h5>
+      <p>Open the main FX studio. Drop your hero portrait on the canvas. Stack 3 FX layers: one weather (rain/smoke), one motion (speed lines/burst), one light (glow/flare). Reorder them — see how the front layer dominates. Export your favorite stack. Save it as your "house FX recipe."</p>
+    </div>
+  </div>
+
+  <!-- 03.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.4</span>
+      <span class="session-title">Style Pass — Lock Your Look</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Locking the look. Students pick their favorite filter stack + favorite graffiti mark + favorite FX recipe and apply them as a single house style across all 3 characters and 1 sample background. Save the recipe to the Asset Lab so it's reusable for the rest of the course.</p>
+      <h5>Student Activity</h5>
+      <p>Apply your locked style to your full cast. Export 3 character portraits using the same filter stack, the same graffiti accent, and the same FX recipe. Then save the recipe in the Asset Lab tagged "house-style." From now on, this is what your story looks like.</p>
+    </div>
+  </div>
+
+  <!-- 03.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.5</span>
+      <span class="session-title">Mid-Course Look Book Review</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Mid-course milestone. Each student displays a 5-image Look Book: 3 styled characters + 1 styled background + 1 close-up of their custom graffiti mark. Class scores using the rubric. Teacher conferences with anyone whose look isn't reading as consistent yet.</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 03 · Student Deliverable" style="--accent:var(--w3)">
+    <h3>STYLE LOOK BOOK + LOCKED FILTER RECIPE</h3>
+    <p>This is the mid-point check. Your story has a face now — a consistent filter stack, a custom mark, and a signature FX recipe that lives in the Asset Lab.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>5-image Look Book — 3 characters + 1 background + 1 graffiti mark</li>
+      <li><span class="check"></span>Locked filter recipe saved to Asset Lab as "house-style"</li>
+      <li><span class="check"></span>1 custom graffiti mark unique to your story</li>
+      <li><span class="check"></span>1 named FX recipe (e.g., "rain + neon + flare")</li>
+      <li><span class="check"></span>Creator reflection — what does your world FEEL like now?</li>
+    </ul>
+  </div>
+
+  <div class="teacher-only">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Week 03 — Mid-Course Rubric</div>
+    <div class="rubric-wrap">
+      <table class="rubric">
+        <thead>
+          <tr><th>Criteria</th><th>4</th><th>3</th><th>2</th><th>1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Filter Stack</td><td>3+ filters intentionally layered with opacity tuning; recipe saved to Asset Lab</td><td>2 filters stacked; clear visual intent</td><td>1 filter applied; reads as default</td><td>No filter applied</td></tr>
+          <tr><td>Graffiti Mark</td><td>Original custom mark — unique to the story, reusable across pages</td><td>Stencil + drip used intentionally; mark has personality</td><td>Stencil used as-is, no customization</td><td>Mode not used</td></tr>
+          <tr><td>FX Recipe</td><td>3 FX layers in considered order; named and saved as a recipe</td><td>2 FX layers stacked; mood is clear</td><td>1 FX applied; feels accidental</td><td>No FX applied</td></tr>
+          <tr><td>Style Consistency</td><td>House style reads identically across all 3 characters + background</td><td>Style reads on 4 of 5 Look Book images</td><td>Style reads on 2-3 images; rest feel mismatched</td><td>No consistent style across the Look Book</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 4 — WORLDBUILD
+     ====================================================== -->
+<section class="week-section" id="week4" style="--accent:var(--w4)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(0,255,136,0.06)">04</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w4)">🌍 Week 04 · Worldbuild</div>
+    <div class="week-title">BUILD<br>THE WORLD</div>
+    <p class="week-desc">Backgrounds, overlays, layouts. Students use BG FX to generate procedural worlds, drop transparent Overlay FX on top, and arrange the result into 300 DPI page spreads in the Layout editor.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>BG FX · Overlay · Layout</div>
+      <div class="meta-item"><strong>Deliverable</strong>3-Spread World Set</div>
+      <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">🌍</span>
+    <div>
+      <div class="url" style="color:var(--w4)">pscomixx.online/bgfx · /overlay · /layout</div>
+      <p>Generate the world. Drop the atmosphere. Arrange the page. Three modes, three jobs, one polished spread.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 04.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.1</span>
+      <span class="session-title">BG FX Builder — Speed Lines, Starfields, Halftone</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">TOOL INTRO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>BG FX is a procedural background generator: speed lines, starfields, halftone fields, radial bursts, gradient skies. Students learn the parameter controls (density, angle, color) and generate a small library of backgrounds tagged by mood: ACTION, CALM, COSMIC, NOIR.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/bgfx. Generate at least 4 backgrounds, one per mood category: ACTION (speed lines / radial burst), CALM (gradient sky / soft halftone), COSMIC (starfield / nebula), NOIR (dense halftone / dark gradient). Save all 4 to the Asset Lab. These are your story's worlds.</p>
+      <div class="quote-bar" style="border-color:var(--w4)">YOU DON'T NEED TO TRAVEL. YOU NEED TO GENERATE.</div>
+    </div>
+  </div>
+
+  <!-- 04.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.2</span>
+      <span class="session-title">Overlay Mode — Transparent FX Layers</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">FX LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Overlay mode produces transparent FX layers that drop on top of any panel — rain sheets, smoke plumes, lens flares, dust particles, bokeh, paper distress. Students learn the workflow: build the overlay alone first (transparent canvas), then drop it onto an existing scene.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/overlay. Build 3 overlay layers — one weather (rain or snow), one light (lens flare or god rays), one texture (dust grain or paper distress). Each one must be saved as a transparent PNG. Then drop all 3 on top of one of your BG FX backgrounds. The world should now feel ALIVE.</p>
+    </div>
+  </div>
+
+  <!-- 04.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.3</span>
+      <span class="session-title">Layout Editor — Page Spreads at 300 DPI</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">LAYOUT LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Layout editor is the page-spread workspace at print resolution (300 DPI). Students learn the panel-grid system, gutter spacing, bleed area, and the difference between single-page and double-page layouts. They lay out their first real page using their cast + backgrounds.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/layout. Pick a 6-panel layout template. Drop in: your hero (Wk 2) + a BG FX background (today) + an overlay (today). Don't add dialogue yet — just compose the spread visually. Export a low-res preview. Print it if you can. Tape it to the wall.</p>
+    </div>
+  </div>
+
+  <!-- 04.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.4</span>
+      <span class="session-title">World Pass — Backgrounds × Overlays × Layout</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Full production day. Students build 3 complete spreads using the BG FX → Overlay → Layout pipeline, applying their Week 3 house style to keep the look consistent. Teacher floats and conferences. Goal: by end of session, every student has 3 full layout spreads exported as PNG.</p>
+      <h5>Student Activity</h5>
+      <p>Build 3 page spreads today. Each spread = BG FX background + at least 1 overlay + your cast + your locked filter recipe. Each spread should be from a different beat in your script: Opening, Middle, Cliffhanger. Export all three. These are real comic pages.</p>
+    </div>
+  </div>
+
+  <!-- 04.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.5</span>
+      <span class="session-title">World Critique — Does It Feel Real?</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Gallery walk. Students post their 3 spreads side-by-side. Class moves through the room with sticky notes giving structured feedback: "This world feels ___" and "I want to see more of ___." Teacher anchors the critique on continuity: do the 3 spreads belong to the same world?</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 04 · Student Deliverable" style="--accent:var(--w4)">
+    <h3>3-SPREAD WORLD SET</h3>
+    <p>You have a real world now — backgrounds you generated, overlays you placed, panels you composed. Three spreads that prove your comic exists in space.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>4 BG FX backgrounds tagged by mood in Asset Lab</li>
+      <li><span class="check"></span>3 transparent overlay PNGs (weather, light, texture)</li>
+      <li><span class="check"></span>3 layout spreads — opening, middle, cliffhanger</li>
+      <li><span class="check"></span>House style applied consistently across all 3 spreads</li>
+      <li><span class="check"></span>Creator reflection — what does your world look like from a stranger's eyes?</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 5 — BRAND KIT
+     ====================================================== -->
+<section class="week-section" id="week5" style="--accent:var(--w5)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(176,106,255,0.07)">05</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w5)">💎 Week 05 · Brand Kit</div>
+    <div class="week-title">BRAND<br>&amp; ORGANIZE</div>
+    <p class="week-desc">Title, Bubble, Price Tag, and Asset Lab. Students go deep on every type-and-graphic mode, build a personal brand kit, and learn to use the Asset Lab so nothing they make is ever lost again.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>Title · Bubble · Price Tag · Asset Lab</div>
+      <div class="meta-item"><strong>Deliverable</strong>Full Brand Kit + Organized Asset Lab</div>
+      <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">💎</span>
+    <div>
+      <div class="url" style="color:var(--w5)">pscomixx.online/title · /bubble · /price-tag · Asset Lab</div>
+      <p>Lock the typography, lock the voice bubbles, lock the retail tags, and put it all where you can find it. This is the week you become a brand.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 05.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.1</span>
+      <span class="session-title">Title Mode Deep Dive — Hero, Chapter, Drop</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">BRAND DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Back to the Title mode — this time for keeps. Students take their best Week 1 title concept and build a full 3-size title set: HERO (cover-size lockup), CHAPTER (page-break header), and DROP (small social/share size). Same identity, three sizes, one brand.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/title. Take your favorite Week 1 title. Build it three ways: HERO (huge, full-bleed, all FX on), CHAPTER (medium, restrained, just the wordmark), DROP (small, stripped down, readable at thumbnail size). Export all 3 as transparent PNGs. Tag them in the Asset Lab as "title-set."</p>
+      <div class="quote-bar" style="border-color:var(--w5)">YOUR TITLE IS YOUR LOGO. EARN IT.</div>
+    </div>
+  </div>
+
+  <!-- 05.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.2</span>
+      <span class="session-title">Bubble Editor Advanced — SFX, Whisper, Burst</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">TYPE DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Bubble mode — second pass. Students build the rest of the dialogue toolkit: SFX bursts (POW, CRACK, BOOM with custom typography), whisper bubbles (dotted outlines), narration captions (rectangular, restrained), thought clouds. Goal: a complete reusable bubble library.</p>
+      <h5>Student Activity</h5>
+      <p>Build a bubble library: 1 standard speech bubble (each character), 1 SFX burst (custom-styled to your story — not "POW" — make up your own word), 1 whisper, 1 narration caption, 1 thought cloud. Save all of them tagged "bubbles" in the Asset Lab. From now on, you reuse, not rebuild.</p>
+    </div>
+  </div>
+
+  <!-- 05.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.3</span>
+      <span class="session-title">Price Tag Maker — Vintage Retail Stack</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">PROMO DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Price Tag Maker is small but mighty — vintage retail stickers with generated barcodes, retro typography, and starbursts. Students build a full retail set: Issue 01 price tag, "NEW RELEASE" launch badge, and a "LIMITED RUN" starburst. This is what makes a comic feel SOLD.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/price-tag. Build a 3-piece retail set in your story's colors: (1) "$4.99 // ISSUE 01" classic price tag, (2) "NEW RELEASE" starburst, (3) "LIMITED RUN" badge. Pick the typography that matches your title set. Export all 3. Save tagged "retail" in Asset Lab.</p>
+      <div class="quote-bar" style="border-color:var(--w5)">IF IT'S GOOD ENOUGH TO MAKE, IT'S GOOD ENOUGH TO SELL.</div>
+    </div>
+  </div>
+
+  <!-- 05.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.4</span>
+      <span class="session-title">Asset Lab — Tag, Save, Reuse</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">WORKFLOW</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Asset Lab is the librarian inside FX Studio. Students audit everything they've made over 4 weeks (characters, portraits, bubbles, filter recipes, BG FX, overlays, titles, retail) and tag them into clean buckets: CAST, BUBBLES, BACKGROUNDS, OVERLAYS, TITLES, RETAIL, RECIPES. From now on, every search returns instantly.</p>
+      <h5>Student Activity</h5>
+      <p>Open the Asset Lab. Audit your library. Re-tag everything into 7 buckets: CAST, BUBBLES, BACKGROUNDS, OVERLAYS, TITLES, RETAIL, RECIPES. Delete anything you'd never use again. Add a thumbnail note to your top 5 favorites. By end of session you should be able to find any asset in 3 clicks.</p>
+    </div>
+  </div>
+
+  <!-- 05.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.5</span>
+      <span class="session-title">Brand Kit Review</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Brand kit show-and-tell. Each student displays a single sheet containing: title set (3 sizes), bubble library, retail set, and a screenshot of their organized Asset Lab. Class scores: is the brand consistent? Could a stranger pick this kit out of a lineup?</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 05 · Student Deliverable" style="--accent:var(--w5)">
+    <h3>FULL BRAND KIT</h3>
+    <p>You have a logo set, a voice library, a retail pack, and an organized Asset Lab. This is the difference between a hobbyist and a creator: your stuff is FILED.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>Title set — Hero / Chapter / Drop sizes saved</li>
+      <li><span class="check"></span>Bubble library — speech, SFX, whisper, narration, thought</li>
+      <li><span class="check"></span>Retail set — price tag, NEW RELEASE, LIMITED RUN</li>
+      <li><span class="check"></span>Asset Lab organized into 7 tagged buckets</li>
+      <li><span class="check"></span>Brand kit one-sheet — single PNG showing the whole identity</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 6 — LAUNCH
+     ====================================================== -->
+<section class="week-section" id="week6" style="--accent:var(--w6)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,140,0,0.07)">06</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w6)">🚀 Week 06 · Launch</div>
+    <div class="week-title">SHIP<br>IT</div>
+    <p class="week-desc">Final week. Cover designer, Promo Lab, and HOP Builder. Students build a finished cover, a school-safe promo page, and a short-form motion HOP — then sync everything back to a CoMiXX project for publishing.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Modes Used</strong>Cover · Promo Lab · HOPs · Sync</div>
+      <div class="meta-item"><strong>Deliverable</strong>Cover + Promo Page + HOP + Synced Project</div>
+      <div class="meta-item"><strong>Skill Level</strong>All — final production</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">🚀</span>
+    <div>
+      <div class="url" style="color:var(--w6)">pscomixx.online/cover · Promo Lab · /hops · → CoMiXX sync</div>
+      <p>Build the cover. Build the promo. Build the HOP. Sync the whole thing back to CoMiXX and ship a real comic with a real launch package.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- 06.1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.1</span>
+      <span class="session-title">Cover Designer — Front, Back, Spine</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Cover designer assembles the front cover, back cover, and (optionally) spine using the Asset Lab brand kit. Students build a publication-ready cover: hero pose + title-set HERO + issue number + creator credit + tagline. Print-resolution export.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/cover. Drop in: your hero character pose, your HERO title (Wk 5), "ISSUE 01," your creator name, and a one-line tagline. Apply your locked filter recipe. Build the back cover next: bio + barcode-style price tag + back-cover blurb. Export both at print resolution.</p>
+      <div class="quote-bar" style="border-color:var(--w6)">A COVER IS A HANDSHAKE. MAKE IT FIRM.</div>
+    </div>
+  </div>
+
+  <!-- 06.2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.2</span>
+      <span class="session-title">Promo Lab — School-Safe Promo Pages</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PROMO DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The Promo Lab generates school-safe promo pages — full-page launch ads that combine title, hero pose, retail set, and a hook line into a single readable layout. Students pick a Promo Lab template, materialize it, then customize until it fits their story.</p>
+      <h5>Student Activity</h5>
+      <p>Open the Promo Lab. Pick a vintage promo template (Hero Ad / Triple Feature / Mail-Order). Materialize it into your project. Replace the template content with YOUR brand: your title HERO, your hero pose, your retail set, your hook line. Apply your house style. Export full-resolution. This is your launch ad.</p>
+    </div>
+  </div>
+
+  <!-- 06.3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.3</span>
+      <span class="session-title">HOP Builder — Short-Form Looping Motion</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">MOTION LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>HOPs (High-Octane Plays) are the short-form motion side of the platform — TikTok-meets-After-Effects in a single editor. Students build a 3-scene HOP using their cast + cover + tagline: text animation, vibe filter, beat sync, viewport mode. Export as looping vertical video.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online/hops. Build a 3-scene HOP: Scene 1 = title reveal, Scene 2 = hero pose with one tagline line, Scene 3 = cover image with "ISSUE 01 OUT NOW." Pick one Vibe Mode (Cyberpunk / Golden Hour / Noir). Add text animation. Set 9:16 vertical. Export. You just made a trailer.</p>
+      <div class="quote-bar" style="border-color:var(--w6)">A HOP IS A TRAILER YOU FILMED IN ONE PERIOD.</div>
+    </div>
+  </div>
+
+  <!-- 06.4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.4</span>
+      <span class="session-title">Export &amp; Sync — Send Everything Back to CoMiXX</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">EXPORT LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The CoMiXX sync handshake. Students push their FX Studio assets — cover, layouts, promo page, HOP — back into a CoMiXX comic project where they can publish. Discussion: how the two platforms work together, why FX is the studio and CoMiXX is the publisher.</p>
+      <h5>Student Activity</h5>
+      <p>From FX Studio, sync your assets to a new CoMiXX project: cover (front + back), 3 layout spreads (Wk 4), promo page (today), and your HOP link. In CoMiXX, arrange the spreads in reading order, add your title HERO to the cover slot, and run a final preview. Set the project to public when you're ready.</p>
+    </div>
+  </div>
+
+  <!-- 06.5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.5</span>
+      <span class="session-title">Launch Day Showcase</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PRESENTATION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Creator Launch Day. Each student gets 2 minutes: show the cover, play the HOP, share the synced CoMiXX project link. Class votes for Best Cover, Best HOP, Best Brand Kit. Optional: invite parents, other classes, or admin. Certificates awarded.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Setup — devices open to FX Studio + CoMiXX project + HOP (5 min)</td></tr>
+        <tr><td>0:05</td><td>Presentations — 2 min each, class of 20 ≈ 40 min (40 min)</td></tr>
+        <tr><td>0:45</td><td>Class vote — Best Cover, Best HOP, Best Brand Kit (5 min)</td></tr>
+        <tr><td>0:50</td><td>Certificates + course closing (5 min)</td></tr>
+      </table>
+
+      <div class="quote-bar" style="border-color:var(--w6)">YOU OPENED THE STUDIO. YOU SHIPPED THE WORK. YOU ARE NOW A CREATOR.</div>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 06 · Final Deliverable" style="--accent:var(--w6)">
+    <h3>COVER + PROMO + HOP + SYNCED COMIC</h3>
+    <p>This is the final. Four pieces that prove you ran a creative engine end-to-end and shipped a real launch package.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>Cover (front + back) at print resolution</li>
+      <li><span class="check"></span>Promo Lab launch page — full resolution PNG</li>
+      <li><span class="check"></span>3-scene HOP exported as 9:16 vertical video</li>
+      <li><span class="check"></span>CoMiXX project synced and set to public</li>
+      <li><span class="check"></span>2-minute creator presentation delivered</li>
+    </ul>
+  </div>
+
+  <!-- Final Rubric -->
+  <div class="teacher-only">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Final Assessment Rubric — Week 06</div>
+    <div class="rubric-wrap">
+      <table class="rubric">
+        <thead>
+          <tr><th>Criteria</th><th>4</th><th>3</th><th>2</th><th>1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Script &amp; Story</td><td>Clear arc; original scene drafted across multiple Script formats</td><td>Story is complete with beginning / middle / end</td><td>Story implied but incomplete</td><td>No discernible narrative</td></tr>
+          <tr><td>Character &amp; Portrait</td><td>3 fully-built characters with portrait sets and signature bubbles</td><td>3 characters built; 1 has full portrait set</td><td>1-2 characters; portraits incomplete</td><td>No character pipeline used</td></tr>
+          <tr><td>Look &amp; FX</td><td>Locked house style applied across all spreads + cover; recipe saved to Asset Lab</td><td>Style consistent across most spreads</td><td>Style applied but inconsistent</td><td>No style locked</td></tr>
+          <tr><td>World &amp; Layout</td><td>3 spreads composed in Layout editor with BG FX + overlays</td><td>2-3 spreads composed; layouts read clearly</td><td>1 spread or layout problems visible</td><td>No layout work submitted</td></tr>
+          <tr><td>Brand Kit &amp; Asset Lab</td><td>Full title set + bubble library + retail; Asset Lab organized in 7 buckets</td><td>Brand kit complete; Asset Lab tagged but loose</td><td>Some brand pieces; Asset Lab disorganized</td><td>No brand kit; assets scattered</td></tr>
+          <tr><td>Launch Pack</td><td>Cover + Promo + HOP + synced CoMiXX project all complete and on-brand</td><td>3 of 4 launch pieces complete and on-brand</td><td>2 launch pieces complete</td><td>1 or fewer launch pieces</td></tr>
+          <tr><td>Presentation</td><td>Confident, clear 2-min presentation; clearly articulates story and process</td><td>Completes presentation; communicates story</td><td>Presents with support; partial communication</td><td>Does not present or cannot explain the work</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Standards alignment -->
+  <div class="standards-box teacher-only" style="margin-top:32px;">
+    <h4>Final Standards Alignment — California CTE Arts, Media &amp; Entertainment</h4>
+    <span class="standard-tag">AME 1.1 — Demonstrate creative process in digital media</span>
+    <span class="standard-tag">AME 2.0 — Apply principles of visual design</span>
+    <span class="standard-tag">AME 3.2 — Use industry-standard digital production tools</span>
+    <span class="standard-tag">AME 4.1 — Manage a multi-stage production pipeline</span>
+    <span class="standard-tag">AME 5.1 — Produce content for distribution and audience</span>
+    <span class="standard-tag">CCSS.ELA.W.3 — Narrative writing with structure</span>
+    <span class="standard-tag">CCSS.ELA.SL.4 — Present information clearly</span>
+  </div>
+
+  <!-- Final footer -->
+  <div style="margin-top:48px; padding:32px; border:1px solid var(--border); text-align:center;">
+    <div style="font-family:'Bebas Neue',cursive;font-size:48px;letter-spacing:4px;margin-bottom:8px;">PRESS START</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--dim);margin-bottom:20px;">GAMING INC. · CURRICULUM DELIVERED BY MADMIXEDMEDIA LLC</div>
+    <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
+      <span class="tool-badge"><span class="dot" style="background:var(--pink)"></span>pscomixx.online</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--cyan)"></span>pscomixx.com</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>pressstart.space</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--yellow)"></span>madmixedmedia.com</span>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--dim);margin-top:20px;line-height:1.8;">
+      Curriculum IP owned by Press Start Gaming Inc. (501c3) · Contracts executed by MADMIXEDMEDIA LLC<br>
+      Perkins V Eligible · California CTE Standards Aligned · Grades 6–12
+    </div>
+  </div>
+
+</div>
+</section>
+
+</main>
+
+<script>
+function toggleSession(el) {
+  const body = el.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  el.classList.toggle('open', !isOpen);
+}
+
+function setMode(mode) {
+  document.body.className = mode + '-mode';
+  document.querySelectorAll('.toggle-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && mode === 'teacher') || (i === 1 && mode === 'student'));
+  });
+}
+
+// Highlight active week in nav on scroll
+const weekIds = ['overview','week1','week2','week3','week4','week5','week6'];
+const navItems = document.querySelectorAll('.week-nav-item');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.15 });
+
+weekIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) observer.observe(el);
+});
+</script>
+
+</body>
+</html>
