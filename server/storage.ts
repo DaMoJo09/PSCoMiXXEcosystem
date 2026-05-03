@@ -182,8 +182,10 @@ export interface IStorage {
 
   // Asset operations
   getAsset(id: string): Promise<Asset | undefined>;
-  getUserAssets(userId: string): Promise<Asset[]>;
-  getProjectAssets(projectId: string): Promise<Asset[]>;
+  getUserAssets(userId: string, opts?: { limit?: number; offset?: number }): Promise<Asset[]>;
+  getProjectAssets(projectId: string, opts?: { limit?: number; offset?: number }): Promise<Asset[]>;
+  countUserAssets(userId: string): Promise<number>;
+  countProjectAssets(projectId: string): Promise<number>;
   createAsset(asset: InsertAsset): Promise<Asset>;
   updateAsset(id: string, updates: Partial<InsertAsset>): Promise<Asset | undefined>;
   deleteAsset(id: string): Promise<boolean>;
@@ -744,20 +746,36 @@ export class DatabaseStorage implements IStorage {
     return asset || undefined;
   }
   
-  async getUserAssets(userId: string): Promise<Asset[]> {
+  async getUserAssets(userId: string, opts: { limit?: number; offset?: number } = {}): Promise<Asset[]> {
+    const limit = Math.min(Math.max(opts.limit ?? 500, 1), 500);
+    const offset = Math.max(opts.offset ?? 0, 0);
     return db.select()
       .from(assets)
       .where(eq(assets.userId, userId))
       .orderBy(desc(assets.createdAt))
-      .limit(500);
+      .limit(limit)
+      .offset(offset);
   }
-  
-  async getProjectAssets(projectId: string): Promise<Asset[]> {
+
+  async getProjectAssets(projectId: string, opts: { limit?: number; offset?: number } = {}): Promise<Asset[]> {
+    const limit = Math.min(Math.max(opts.limit ?? 500, 1), 500);
+    const offset = Math.max(opts.offset ?? 0, 0);
     return db.select()
       .from(assets)
       .where(eq(assets.projectId, projectId))
       .orderBy(desc(assets.createdAt))
-      .limit(500);
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async countUserAssets(userId: string): Promise<number> {
+    const [row] = await db.select({ c: count() }).from(assets).where(eq(assets.userId, userId));
+    return Number(row?.c ?? 0);
+  }
+
+  async countProjectAssets(projectId: string): Promise<number> {
+    const [row] = await db.select({ c: count() }).from(assets).where(eq(assets.projectId, projectId));
+    return Number(row?.c ?? 0);
   }
   
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {

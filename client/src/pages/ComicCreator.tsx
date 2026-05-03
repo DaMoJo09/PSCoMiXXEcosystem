@@ -24,6 +24,7 @@ import { TransformableElement, TransformState } from "@/components/tools/Transfo
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
+import { safeSet } from "@/lib/safeStorage";
 import { SendHorizonal, Rocket, Briefcase, Bold, Italic, AlignLeft, AlignCenter, AlignRight, AlignJustify, CaseSensitive, Package, Crown, X as XIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -7122,13 +7123,14 @@ export default function ComicCreator() {
               {activeMode === "motion" && selectedPanel && panelPage && (
                 <button
                   onClick={() => {
-                    sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                    const ok = safeSet('panel_edit_data', JSON.stringify({
                       panelId: selectedPanel.id,
                       contents: selectedPanel.contents,
                       page: panelPage,
                       spreadIndex: currentSpreadIndex,
                       projectId: effectiveProjectId
-                    }));
+                    }), { kind: 'session', maxBytes: 4_500_000 });
+                    if (!ok) return;
                     navigate(`/creator/motion?panel=${selectedPanel.id}&return=${encodeURIComponent(location)}`);
                   }}
                   className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400"
@@ -7708,13 +7710,14 @@ export default function ComicCreator() {
                         onClick={() => {
                           const panel = currentSpread.leftPage.find(p => p.id === selectedPanelId);
                           if (panel) {
-                            sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                            const ok = safeSet('panel_edit_data', JSON.stringify({
                               panelId: panel.id,
                               contents: panel.contents,
                               page: "left",
                               spreadIndex: currentSpreadIndex,
                               projectId: effectiveProjectId
-                            }));
+                            }), { kind: 'session', maxBytes: 4_500_000 });
+                            if (!ok) return;
                             navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
                           }
                         }} 
@@ -7997,13 +8000,14 @@ export default function ComicCreator() {
                         onClick={() => {
                           const panel = currentSpread.rightPage.find(p => p.id === selectedPanelId);
                           if (panel) {
-                            sessionStorage.setItem('panel_edit_data', JSON.stringify({
+                            const ok = safeSet('panel_edit_data', JSON.stringify({
                               panelId: panel.id,
                               contents: panel.contents,
                               page: "right",
                               spreadIndex: currentSpreadIndex,
                               projectId: effectiveProjectId
-                            }));
+                            }), { kind: 'session', maxBytes: 4_500_000 });
+                            if (!ok) return;
                             navigate(`/creator/motion?panel=${panel.id}&return=${encodeURIComponent(location)}`);
                           }
                         }} 

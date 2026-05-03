@@ -6,6 +6,31 @@ PSCoMiXX Creator is an AI-assisted web application designed as a creative studio
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Production Stability — Stage 1 Hardening (May 2026)
+
+After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`), four fixes were shipped to take the app from intermittently crashing to production-stable.
+
+**Crash classes addressed**
+1. **Server OOM** — `/api/assets` was returning every asset (with inline base64 blobs) in a single 15–20s response, exhausting the 2GB heap.
+2. **Stale chunk crashes** — after every deploy, browsers with cached `index.html` tried to load JS chunks (`ComicCreator-*.js`, `CreatorProfilePage-*.js`) that no longer existed → React error boundary.
+3. **`sessionStorage` quota crash** — "Send to Motion Studio" handoff in the Comic Creator wrote `panel_edit_data` without a try/catch; payloads >5MB triggered `QuotaExceededError`.
+4. **pg/neon driver crash** — WebSocket error handler in `@neondatabase/serverless` threw `TypeError: Cannot set property message of #<wu> which has only a getter`, taking the whole process down.
+
+**Fixes**
+- `server/routes.ts` — `GET /api/assets` now paginates (`?limit=200&offset=0`, max 500), strips inline `data`/`blob` fields from list payloads, sets `X-Total-Count`. Single asset still fetched via `GET /api/assets/:id`.
+- `client/src/lib/lazyWithRetry.ts` — drop-in replacement for `React.lazy` that catches "Failed to fetch dynamically imported module" / "ChunkLoadError" / "Importing a module script failed" and triggers a one-shot `window.location.reload()` (capped at 2 attempts per 60s window via `sessionStorage` to prevent reload loops). Also installs global `error` + `unhandledrejection` listeners. Used everywhere via `import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry"` in `client/src/App.tsx`.
+- `client/src/lib/safeStorage.ts` — `safeSet/safeGet/safeRemove` helpers. `safeSet` enforces optional `maxBytes`, catches `QuotaExceededError`, optionally prunes by prefix, and surfaces a Sonner toast on failure. All three `panel_edit_data` writes in `client/src/pages/ComicCreator.tsx` now route through `safeSet({ maxBytes: 4_500_000 })` and abort the navigation if storage fails.
+- `server/db.ts` — adds `pool.on('error')` to absorb idle-client/WebSocket failures, plus a `process.on('uncaughtException')` whitelist that swallows known-recoverable driver errors (`Cannot set property message`, `WebSocket was closed before`, `Connection terminated unexpectedly`, `read ECONNRESET`, `terminating connection due to administrator command`) and re-throws everything else for proper restart.
+
+**Deferred to deploy time**
+- Production heap bump from `--max-old-space-size=2048` → `4096` lives in `.replit` `[deployment].run` and must be applied via the deployment skill / publish flow (direct `.replit` edits are blocked).
+
+**Still on the production-stability backlog**
+- Dead "Sign up with Google" button at `client/src/pages/AuthPage.tsx` L330–358 (no handler).
+- React + browser autofill password field bug (login page).
+- Audit other `localStorage.setItem` / `sessionStorage.setItem` call sites and migrate to `safeSet`.
+- Confirm `getUserAssets` / `getProjectAssets` queries themselves are indexed; consider DB-level `LIMIT/OFFSET` instead of in-memory slice for users with very large libraries.
+
 ## System Architecture
 
 ### UI/UX Design

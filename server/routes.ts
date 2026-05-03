@@ -1999,15 +1999,28 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   });
 
   // Asset routes
+  // NOTE: lists are paginated + base64 `data` blobs are stripped from listings
+  // to keep response payloads bounded. Use GET /api/assets/:id to fetch a
+  // single asset with its full data field.
   app.get("/api/assets", isAuthenticated, async (req, res) => {
     try {
       const projectId = req.query.projectId as string | undefined;
-      
+      const rawLimit = parseInt(String(req.query.limit ?? "500"), 10);
+      const rawOffset = parseInt(String(req.query.offset ?? "0"), 10);
+      const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 500, 1), 500);
+      const offset = Math.max(Number.isFinite(rawOffset) ? rawOffset : 0, 0);
+
       const prepareForListing = (assetList: any[]) =>
-        assetList.map((asset) => ({
-          ...asset,
-          url: asset.url || "",
-        }));
+        assetList.map((asset) => {
+          // Strip large inline payloads from list responses; clients can fetch
+          // a single asset by id when they actually need the bytes.
+          const { data: _omitData, blob: _omitBlob, ...rest } = asset || {};
+          return {
+            ...rest,
+            url: asset?.url || "",
+            hasInlineData: Boolean(_omitData || _omitBlob),
+          };
+        });
 
       if (projectId) {
         const project = await storage.getProject(projectId);
@@ -2017,12 +2030,20 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         if (project.userId !== req.user!.id && req.user!.role !== "admin") {
           return res.status(403).json({ message: "Forbidden" });
         }
-        const assets = await storage.getProjectAssets(projectId);
-        return res.json(prepareForListing(assets));
+        const [pageRows, total] = await Promise.all([
+          storage.getProjectAssets(projectId, { limit, offset }),
+          storage.countProjectAssets(projectId),
+        ]);
+        res.set("X-Total-Count", String(total));
+        return res.json(prepareForListing(pageRows));
       }
-      
-      const assets = await storage.getUserAssets(req.user!.id);
-      res.json(prepareForListing(assets));
+
+      const [pageRows, total] = await Promise.all([
+        storage.getUserAssets(req.user!.id, { limit, offset }),
+        storage.countUserAssets(req.user!.id),
+      ]);
+      res.set("X-Total-Count", String(total));
+      res.json(prepareForListing(pageRows));
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
