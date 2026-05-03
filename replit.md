@@ -6,6 +6,39 @@ PSCoMiXX Creator is an AI-assisted web application designed as a creative studio
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Desktop Hub (Tauri 2) — May 2026
+
+PSCoMiXX now ships as a downloadable native desktop app for Mac/Windows/Linux alongside the web app. The desktop app is a **thin Tauri 2 shell** pointing at `https://pscomixx.com` — same backend, same auth, same DB. Web changes appear in the desktop app on next launch with no re-release; desktop re-releases only when native behavior changes (window chrome, tray, file associations).
+
+**Layout**
+- `desktop/` — Tauri source (gitignored target/, gen/, icons/)
+  - `desktop/src-tauri/tauri.conf.json` — window 1440×900, dark theme, NSIS+MSI+DMG+AppImage+deb bundle targets, updater enabled, identifier `com.pscomixx.desktop`
+  - `desktop/src-tauri/src/lib.rs` — Tauri Builder with shell + updater + os + process plugins
+  - `desktop/src-tauri/capabilities/default.json` — Tauri 2 permission manifest (locked to main window)
+  - `desktop/dist/index.html` — fallback splash if remote URL unreachable; production window URL is `https://pscomixx.com`
+  - `desktop/README.md` — full build/release/code-signing instructions
+- `.github/workflows/desktop-release.yml` — builds on `macos-latest` (universal Intel+ARM), `ubuntu-22.04`, `windows-latest` when a `desktop-v*` tag is pushed; uses `tauri-apps/tauri-action`; auto-creates GitHub Release with installers attached + `latest.json` updater manifest
+- `client/src/pages/DownloadPage.tsx` (`/download` route) — public page with OS detection, fetches latest release from GitHub API, primary CTA defaults to user's OS, "All Platforms" grid for the rest, graceful empty state when no release exists yet
+
+**Release flow**
+1. Bump `version` in `desktop/package.json` AND `desktop/src-tauri/tauri.conf.json`
+2. `git tag desktop-v0.X.Y && git push origin desktop-v0.X.Y`
+3. GitHub Actions builds installers for all 3 OSes and publishes a Release
+4. Existing installs auto-update via `latest.json` on next launch
+
+**Pre-launch one-time setup (NOT done in Replit — needs real laptop)**
+- Generate icons: `cd desktop && npm run icon -- ../client/public/icon-512.png`
+- Generate updater keypair: `npx @tauri-apps/cli signer generate -w ~/.tauri/pscomixx-updater.key`
+  - Replace `REPLACE_WITH_GENERATED_PUBLIC_KEY` in `tauri.conf.json` with the printed public key
+  - Add private key + password to GitHub repo secrets: `TAURI_SIGNING_PRIVATE_KEY` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+  - **Losing the private key = permanently breaking auto-update for existing installs.** Back it up to a password manager.
+- GitHub repo: `damojo09/pscomixx-desktop` (referenced in updater endpoint + DownloadPage). If named differently, update `DownloadPage.tsx` constants and `tauri.conf.json` updater endpoint.
+
+**Code signing (Phase 3, optional, ~$400/yr total)**
+- Apple Developer Program ($99/yr): set GitHub secrets `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` — workflow already wires these
+- Windows EV cert (~$300/yr from SSL.com or Sectigo): set `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`
+- Without certs the apps still run; users see one OS warning on first launch
+
 ## Production Stability — Stage 1 Hardening (May 2026)
 
 After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`), four fixes were shipped to take the app from intermittently crashing to production-stable.

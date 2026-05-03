@@ -44,6 +44,7 @@ const LibraryPage = lazy(() => import("@/pages/LibraryPage"));
 const ExhibitionsPage = lazy(() => import("@/pages/ExhibitionsPage"));
 const BlogPage = lazy(() => import("@/pages/BlogPage"));
 const ContactPage = lazy(() => import("@/pages/ContactPage"));
+const DownloadPage = lazy(() => import("@/pages/DownloadPage"));
 const ShopPage = lazy(() => import("@/pages/ShopPage"));
 const ArtistPage = lazy(() => import("@/pages/ArtistPage"));
 const EcosystemHub = lazy(() => import("@/pages/EcosystemHub"));
@@ -147,7 +148,7 @@ function ProtectedRouter() {
     return <Suspense fallback={<LazyFallback />}><SSOCallbackPage /></Suspense>;
   }
 
-  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/", "/contact"];
+  const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/", "/contact", "/download"];
   const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
@@ -166,6 +167,7 @@ function ProtectedRouter() {
           <Route path="/accessibility-statement" component={AccessibilityPage} />
           <Route path="/security" component={SecurityPage} />
           <Route path="/contact" component={ContactPage} />
+          <Route path="/download" component={DownloadPage} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>
@@ -208,6 +210,7 @@ function ProtectedRouter() {
         <Route path="/exhibitions" component={ExhibitionsPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/contact" component={ContactPage} />
+        <Route path="/download" component={DownloadPage} />
         <Route path="/shop" component={ShopPage} />
         <Route path="/artist" component={ArtistPage} />
         <Route path="/settings" component={SettingsPage} />

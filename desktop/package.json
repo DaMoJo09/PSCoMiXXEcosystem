@@ -1,0 +1,15 @@
+{
+  "name": "pscomixx-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PSCoMiXX desktop hub — Tauri 2 thin shell for pscomixx.com",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri",
+    "icon": "tauri icon"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

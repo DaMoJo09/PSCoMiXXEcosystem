@@ -132,7 +132,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https://image.pollinations.ai", "https://*.supabase.co"],
       mediaSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "https://text.pollinations.ai", "https://image.pollinations.ai", "https://*.supabase.co", "https://*.stripe.com", "https://pscomixx.online", "https://www.pscomixx.online", "https://psstreaming.online", "https://pressstart.tech", "https://madmixedmedia.com", ...(isDev ? ["ws:", "wss:"] : [])],
+      connectSrc: ["'self'", "https://text.pollinations.ai", "https://image.pollinations.ai", "https://*.supabase.co", "https://*.stripe.com", "https://pscomixx.online", "https://www.pscomixx.online", "https://psstreaming.online", "https://pressstart.tech", "https://madmixedmedia.com", "https://api.github.com", "https://github.com", "https://objects.githubusercontent.com", ...(isDev ? ["ws:", "wss:"] : [])],
       frameSrc: ["'self'", "https://*.stripe.com"],
       frameAncestors: ["'self'", "https://*.replit.dev", "https://*.replit.app", "https://*.repl.co", "https://replit.com"],
       objectSrc: ["'none'"],
