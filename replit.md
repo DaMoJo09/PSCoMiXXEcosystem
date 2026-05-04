@@ -58,11 +58,16 @@ After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`)
 **Deferred to deploy time**
 - Production heap bump from `--max-old-space-size=2048` → `4096` lives in `.replit` `[deployment].run` and must be applied via the deployment skill / publish flow (direct `.replit` edits are blocked).
 
-**Still on the production-stability backlog**
+**Tier 1 — Real App Features (May 2026)**
+- **Stripe customer portal**: `POST /api/stripe/portal` (already existed) + new "Billing & Subscription" section in `client/src/pages/SettingsPage.tsx` with "Manage Billing" button that redirects to Stripe's hosted portal for invoices, plan changes, card updates, cancellation.
+- **Asset library pagination**: `client/src/contexts/AssetLibraryContext.tsx` now fetches in pages of 200 (`?limit=200&offset=N`), reads `X-Total-Count` header, exposes `totalAssets`, `hasMore`, `loadMore()`. Users with 500+ assets no longer see truncated libraries — they can load more pages.
+- **Email (Resend)**: Already wired — `server/email.ts` sends welcome, assignment, submission, grade, purchase, subscription, new-chapter, and bug-report emails via Resend integration.
+
+**Still on the backlog**
 - Dead "Sign up with Google" button at `client/src/pages/AuthPage.tsx` L330–358 (no handler).
 - React + browser autofill password field bug (login page).
 - Audit other `localStorage.setItem` / `sessionStorage.setItem` call sites and migrate to `safeSet`.
-- Confirm `getUserAssets` / `getProjectAssets` queries themselves are indexed; consider DB-level `LIMIT/OFFSET` instead of in-memory slice for users with very large libraries.
+- Error tracking (Sentry/PostHog) — no production error aggregation yet.
 
 ## System Architecture
 

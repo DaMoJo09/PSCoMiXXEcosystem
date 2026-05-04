@@ -36,6 +36,9 @@ interface AssetLibraryContextType {
   folders: AssetFolder[];
   selectedFolderId: string | null;
   isLoading: boolean;
+  totalAssets: number;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
   addAsset: (asset: Omit<Asset, "id" | "createdAt">) => Promise<Asset | null>;
   addAssets: (assets: Omit<Asset, "id" | "createdAt">[]) => Promise<Asset[]>;
   removeAsset: (id: string) => Promise<void>;
@@ -62,37 +65,54 @@ const DEFAULT_FOLDERS: AssetFolder[] = [
   { id: "bubbles", name: "Speech Bubbles", createdAt: new Date() },
 ];
 
+const PAGE_SIZE = 200;
+
+function mapAsset(a: any): Asset {
+  return {
+    id: a.id,
+    name: a.filename || a.name || "Untitled",
+    type: a.type || "image",
+    url: a.url || "",
+    thumbnail: a.thumbnail || a.url || "",
+    createdAt: new Date(a.createdAt),
+    projectId: a.projectId,
+    folderId: a.folderId,
+    sortOrder: a.sortOrder,
+    tags: a.metadata?.tags || [],
+    bubbleData: a.metadata?.bubbleData,
+  };
+}
+
 export function AssetLibraryProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [folders, setFolders] = useState<AssetFolder[]>(DEFAULT_FOLDERS);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalAssets, setTotalAssets] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
 
-  const refreshAssets = useCallback(async () => {
+  const fetchPage = useCallback(async (offset: number, append: boolean) => {
     if (!user) {
       setAssets([]);
+      setTotalAssets(0);
+      setHasMore(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/assets", { credentials: "include" });
+      const response = await fetch(`/api/assets?limit=${PAGE_SIZE}&offset=${offset}`, { credentials: "include" });
       if (response.ok) {
+        const total = parseInt(response.headers.get("X-Total-Count") || "0", 10);
         const data = await response.json();
-        setAssets(data.map((a: any) => ({
-          id: a.id,
-          name: a.filename || a.name || "Untitled",
-          type: a.type || "image",
-          url: a.url || "",
-          thumbnail: a.thumbnail || a.url || "",
-          createdAt: new Date(a.createdAt),
-          projectId: a.projectId,
-          folderId: a.folderId,
-          sortOrder: a.sortOrder,
-          tags: a.metadata?.tags || [],
-          bubbleData: a.metadata?.bubbleData,
-        })));
+        const mapped = data.map(mapAsset);
+        setTotalAssets(total);
+        setAssets(prev => append ? [...prev, ...mapped] : mapped);
+        const nextOffset = offset + mapped.length;
+        setCurrentOffset(nextOffset);
+        setHasMore(nextOffset < total);
       }
     } catch (error) {
       console.error("Failed to fetch assets:", error);
@@ -100,6 +120,16 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, [user]);
+
+  const refreshAssets = useCallback(async () => {
+    setCurrentOffset(0);
+    await fetchPage(0, false);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || isLoading) return;
+    await fetchPage(currentOffset, true);
+  }, [fetchPage, currentOffset, hasMore, isLoading]);
 
   useEffect(() => {
     refreshAssets();
@@ -358,6 +388,9 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
         folders,
         selectedFolderId,
         isLoading,
+        totalAssets,
+        hasMore,
+        loadMore,
         addAsset,
         addAssets,
         removeAsset,

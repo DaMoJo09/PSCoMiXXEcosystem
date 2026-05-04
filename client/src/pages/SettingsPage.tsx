@@ -262,6 +262,47 @@ export default function SettingsPage() {
 
           <section className="space-y-4">
             <div className="flex items-center gap-2 border-b-2 border-white pb-2">
+              <Crown className="w-5 h-5" />
+              <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Billing & Subscription</h2>
+            </div>
+
+            <div className="p-6 border-4 border-white bg-zinc-900 space-y-4">
+              <div>
+                <h3 className="font-bold">Manage Your Subscription</h3>
+                <p className="text-sm text-zinc-400">
+                  View invoices, update payment method, change plan, or cancel your subscription through our secure billing portal.
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/stripe/portal", {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.url) window.location.href = data.url;
+                    } else {
+                      const err = await res.json().catch(() => ({ message: "Unknown error" }));
+                      toast.error(err.message || "Could not open billing portal");
+                    }
+                  } catch {
+                    toast.error("Could not connect to billing service");
+                  }
+                }}
+                className="px-4 py-2 bg-white text-black font-black text-sm border-2 border-white hover:bg-zinc-200 flex items-center gap-2 uppercase"
+                data-testid="button-manage-billing"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Manage Billing
+              </button>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 border-b-2 border-white pb-2">
               <Sparkles className="w-5 h-5" />
               <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Text AI Provider</h2>
             </div>
