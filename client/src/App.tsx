@@ -49,6 +49,7 @@ const ShopPage = lazy(() => import("@/pages/ShopPage"));
 const ArtistPage = lazy(() => import("@/pages/ArtistPage"));
 const EcosystemHub = lazy(() => import("@/pages/EcosystemHub"));
 const LearnModule = lazy(() => import("@/pages/LearnModule"));
+const CurriculumViewer = lazy(() => import("@/pages/CurriculumViewer"));
 const CollaborateModule = lazy(() => import("@/pages/CollaborateModule"));
 const EarnModule = lazy(() => import("@/pages/EarnModule"));
 const EventsModule = lazy(() => import("@/pages/EventsModule"));
@@ -227,6 +228,7 @@ function ProtectedRouter() {
         <Route path="/admin-login" component={AdminLogin} />
         <Route path="/ecosystem" component={EcosystemHub} />
         <Route path="/ecosystem/learn" component={LearnModule} />
+        <Route path="/ecosystem/learn/curriculum/:slug" component={CurriculumViewer} />
         <Route path="/ecosystem/collaborate" component={CollaborateModule} />
         <Route path="/ecosystem/earn" component={EarnModule} />
         <Route path="/ecosystem/events" component={EventsModule} />

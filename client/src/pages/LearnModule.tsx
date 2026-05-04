@@ -21,8 +21,13 @@ import {
   Star,
   ChevronRight,
   GraduationCap,
-  Zap
+  Zap,
+  Camera,
+  Palette,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
+import { Link } from "wouter";
 
 interface Pathway {
   id: string;
@@ -563,6 +568,91 @@ export default function LearnModule() {
                 </Dialog>
               </div>
             )}
+          </div>
+
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <GraduationCap className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                CURRICULA
+              </h2>
+              <Badge variant="outline" className="text-xs border-zinc-600 text-zinc-400 ml-2">6-WEEK COURSES</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Link href="/ecosystem/learn/curriculum/comixx-main">
+                <div className="group border-2 border-zinc-800 hover:border-[#00e5ff] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-comixx-main">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#00e5ff", color: "#00e5ff" }}>
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base" style={{ color: "#00e5ff" }}>CoMiXX Creator</h3>
+                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Photography-Based Comics</p>
+                    </div>
+                  </div>
+                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Use phone photography, real environments, and the CoMiXX + FX platforms to produce publish-ready comics and promo assets.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
+                      <span>6 Weeks</span>
+                      <span>30 Sessions</span>
+                      <span>Gr 6-12</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#00e5ff] transition-colors" />
+                  </div>
+                </div>
+              </Link>
+              <Link href="/ecosystem/learn/curriculum/comixx-creator">
+                <div className="group border-2 border-zinc-800 hover:border-[#a855f7] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-comixx-creator">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#a855f7", color: "#a855f7" }}>
+                      <Palette className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base" style={{ color: "#a855f7" }}>CoMiXX Creator</h3>
+                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Digital Comics & Platform</p>
+                    </div>
+                  </div>
+                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Master the full PSCoMiXX platform — scripting, layout, inking, color, motion formats, and cross-app publishing workflows.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
+                      <span>6 Weeks</span>
+                      <span>30 Sessions</span>
+                      <span>Gr 6-12</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#a855f7] transition-colors" />
+                  </div>
+                </div>
+              </Link>
+              <Link href="/ecosystem/learn/curriculum/fx-studio">
+                <div className="group border-2 border-zinc-800 hover:border-[#ff2d78] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-fx-studio">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#ff2d78", color: "#ff2d78" }}>
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base" style={{ color: "#ff2d78" }}>FX Studio</h3>
+                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Visual Effects & Compositing</p>
+                    </div>
+                  </div>
+                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Build cinematic scenes with layers, compositing, FX effects, character art, worldbuilding, and brand kits in FX Studio.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
+                      <span>6 Weeks</span>
+                      <span>30 Sessions</span>
+                      <span>Gr 6-12</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#ff2d78] transition-colors" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-6">
+            <BookOpen className="w-6 h-6" />
+            <h2 className="text-2xl font-black tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              PATHWAYS
+            </h2>
           </div>
 
           {pathwaysLoading ? (

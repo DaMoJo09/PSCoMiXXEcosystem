@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoMiXX Creator — 6-Week Curriculum | Press Start Gaming Inc.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&display=optional" rel="stylesheet">
+<style>
+:root {
+  --black: #0a0a0a;
+  --dark: #111111;
+  --panel: #181818;
+  --border: #2a2a2a;
+  --white: #f5f5f0;
+  --dim: #888;
+  --cyan: #00e5ff;
+  --pink: #ff2d78;
+  --yellow: #ffe600;
+  --green: #00ff88;
+
+  --w1: #00e5ff;
+  --w2: #ff2d78;
+  --w3: #ffe600;
+  --w4: #00ff88;
+  --w5: #b06aff;
+  --w6: #ff8c00;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: var(--dark);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-logo .brand {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: var(--white);
+  line-height: 1;
+}
+
+.sidebar-logo .sub {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.sidebar-logo .pill {
+  display: inline-block;
+  background: var(--cyan);
+  color: var(--black);
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+/* View toggle */
+.view-toggle {
+  display: flex;
+  padding: 12px 16px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: var(--white);
+  color: var(--black);
+  border-color: var(--white);
+}
+
+/* Week nav */
+.week-nav {
+  flex: 1;
+  padding: 8px 0;
+}
+
+.week-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--dim);
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+
+.week-nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+.week-nav-item.active { color: var(--white); border-left-color: var(--accent); }
+
+.week-nav-item .num {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  opacity: 0.5;
+  width: 20px;
+}
+
+.week-nav-item .label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.week-nav-item .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-left: auto;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.week-nav-item.active .dot { opacity: 1; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer p {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--dim);
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+}
+
+/* ===== MAIN ===== */
+.main {
+  margin-left: 260px;
+  flex: 1;
+  padding: 0;
+}
+
+/* ===== HERO ===== */
+.hero {
+  padding: 80px 64px 64px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: 'CoMiXX';
+  position: absolute;
+  right: -20px; top: -40px;
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 280px;
+  color: rgba(255,255,255,0.02);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.hero-tag {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 96px;
+  letter-spacing: 4px;
+  line-height: 0.95;
+  margin-bottom: 24px;
+}
+
+.hero h1 span { color: var(--cyan); }
+
+.hero-desc {
+  font-size: 16px;
+  color: #aaa;
+  line-height: 1.6;
+  max-width: 560px;
+  margin-bottom: 40px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  max-width: 700px;
+}
+
+.hero-stat {
+  background: var(--dark);
+  padding: 16px;
+  text-align: center;
+}
+
+.hero-stat .val {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--white);
+}
+
+.hero-stat .key {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ===== SECTION ===== */
+.week-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.week-header {
+  padding: 64px 64px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+.week-num-big {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 120px;
+  line-height: 0.9;
+  color: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.week-header-content { flex: 1; }
+
+.week-tag {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.week-title {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 56px;
+  letter-spacing: 3px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.week-desc {
+  font-size: 14px;
+  color: #aaa;
+  line-height: 1.6;
+  max-width: 600px;
+  margin-bottom: 20px;
+}
+
+.week-meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.meta-item strong {
+  color: var(--white);
+  display: block;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+/* ===== TEACHER / STUDENT PANELS ===== */
+.content-area {
+  padding: 0 64px 64px;
+}
+
+/* Teacher-only and student-only views */
+body.teacher-mode .student-only { display: none !important; }
+body.student-mode .teacher-only { display: none !important; }
+
+/* ===== OBJECTIVES BLOCK ===== */
+.obj-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+.obj-cell {
+  background: var(--dark);
+  padding: 24px;
+}
+
+.obj-cell h4 {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.obj-cell ul {
+  list-style: none;
+}
+
+.obj-cell ul li {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+  color: #ccc;
+}
+
+.obj-cell ul li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 10px;
+  top: 5px;
+}
+
+/* ===== SESSION CARDS ===== */
+.sessions-label {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding: 32px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.session-card {
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.session-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--panel);
+  cursor: pointer;
+  user-select: none;
+}
+
+.session-head:hover { background: #1f1f1f; }
+
+.session-num {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--dim);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.session-title {
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.session-duration {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+.session-type {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  padding: 3px 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.session-body {
+  display: none;
+  padding: 24px;
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+}
+
+.session-body.open { display: block; }
+
+.session-body h5 {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 20px 0 10px;
+}
+
+.session-body h5:first-child { margin-top: 0; }
+
+.session-body p {
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.65;
+  margin-bottom: 8px;
+}
+
+.session-body ul {
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.session-body ul li {
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.5;
+  padding: 3px 0 3px 16px;
+  position: relative;
+}
+
+.session-body ul li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.timing-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.timing-table tr { border-bottom: 1px solid var(--border); }
+.timing-table tr:last-child { border-bottom: none; }
+.timing-table td {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.timing-table td:first-child {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--accent);
+  width: 70px;
+  white-space: nowrap;
+}
+
+/* ===== CHALLENGE BLOCK ===== */
+.challenge-block {
+  border: 1px solid var(--accent);
+  padding: 28px;
+  margin: 32px 0;
+  position: relative;
+}
+
+.challenge-block::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -10px; left: 20px;
+  background: var(--black);
+  padding: 0 10px;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.challenge-block h3 {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 36px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.challenge-block p {
+  font-size: 13px;
+  color: #bbb;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.deliverable-list {
+  list-style: none;
+  margin-top: 16px;
+}
+
+.deliverable-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: #ccc;
+}
+
+.deliverable-list li .check {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ===== RUBRIC TABLE ===== */
+.rubric-wrap {
+  overflow-x: auto;
+  margin: 24px 0;
+}
+
+.rubric {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rubric th {
+  background: var(--panel);
+  padding: 10px 14px;
+  text-align: left;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--border);
+}
+
+.rubric th:first-child { color: var(--accent); }
+
+.rubric td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  color: #ccc;
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.rubric tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+/* ===== STANDARDS BOX ===== */
+.standards-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+
+.standards-box h4 {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.standard-tag {
+  display: inline-block;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: #aaa;
+  margin: 3px;
+  letter-spacing: 0.5px;
+}
+
+/* ===== TOOL BADGE ===== */
+.tool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--white);
+  margin: 4px 4px 4px 0;
+  letter-spacing: 0.5px;
+}
+
+.tool-badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ===== QUOTE BAR ===== */
+.quote-bar {
+  border-left: 3px solid var(--accent);
+  padding: 12px 20px;
+  margin: 20px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.3px;
+}
+
+/* ===== OVERVIEW TIMELINE ===== */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+.tl-week {
+  background: var(--dark);
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tl-week:hover { background: var(--panel); }
+
+.tl-num {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.tl-title {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', Arial, sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.tl-sessions {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+
+.tl-bar {
+  height: 3px;
+  margin-top: 12px;
+}
+
+/* ===== PLATFORM CALLOUT ===== */
+.platform-callout {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  margin: 24px 0;
+}
+
+.platform-callout .url {
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.platform-callout p {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+/* ===== SECTION DIVIDER ===== */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+/* ===== STICKY JUMP ===== */
+.jump-bar {
+  position: sticky;
+  top: 0;
+  background: rgba(10,10,10,0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 64px;
+  display: flex;
+  gap: 0;
+  z-index: 50;
+  overflow-x: auto;
+}
+
+.jump-item {
+  padding: 14px 20px;
+  font-family: 'IBM Plex Mono', 'Courier New', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.jump-item:hover { color: var(--white); }
+.jump-item.w1 { color: var(--w1); }
+.jump-item.w2 { color: var(--w2); }
+.jump-item.w3 { color: var(--w3); }
+.jump-item.w4 { color: var(--w4); }
+.jump-item.w5 { color: var(--w5); }
+.jump-item.w6 { color: var(--w6); }
+
+/* ===== SCROLL ARROW ===== */
+.chevron {
+  transition: transform 0.2s;
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.session-head.open .chevron { transform: rotate(90deg); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-260px); }
+  .main { margin-left: 0; }
+  .hero, .week-header, .content-area { padding-left: 24px; padding-right: 24px; }
+  .jump-bar { padding: 0 16px; }
+  .hero h1 { font-size: 60px; }
+  .timeline { grid-template-columns: 1fr 1fr; }
+  .obj-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body class="teacher-mode">
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">CoMiXX</div>
+    <div class="sub">Creator Curriculum</div>
+    <div class="pill">6-WEEK · GRADES 6–12</div>
+  </div>
+
+  <div class="view-toggle">
+    <button class="toggle-btn active" onclick="setMode('teacher')">TEACHER</button>
+    <button class="toggle-btn" onclick="setMode('student')">STUDENT</button>
+  </div>
+
+  <div class="week-nav">
+    <a href="#overview" class="week-nav-item" style="--accent:var(--cyan)">
+      <span class="num">00</span>
+      <span class="label">Overview</span>
+      <span class="dot"></span>
+    </a>
+    <a href="#week1" class="week-nav-item" style="--accent:var(--w1)">
+      <span class="num">01</span>
+      <span class="label">Capture</span>
+      <span class="dot" style="background:var(--w1)"></span>
+    </a>
+    <a href="#week2" class="week-nav-item" style="--accent:var(--w2)">
+      <span class="num">02</span>
+      <span class="label">Character</span>
+      <span class="dot" style="background:var(--w2)"></span>
+    </a>
+    <a href="#week3" class="week-nav-item" style="--accent:var(--w3)">
+      <span class="num">03</span>
+      <span class="label">FX Studio</span>
+      <span class="dot" style="background:var(--w3)"></span>
+    </a>
+    <a href="#week4" class="week-nav-item" style="--accent:var(--w4)">
+      <span class="num">04</span>
+      <span class="label">Elements</span>
+      <span class="dot" style="background:var(--w4)"></span>
+    </a>
+    <a href="#week5" class="week-nav-item" style="--accent:var(--w5)">
+      <span class="num">05</span>
+      <span class="label">Story</span>
+      <span class="dot" style="background:var(--w5)"></span>
+    </a>
+    <a href="#week6" class="week-nav-item" style="--accent:var(--w6)">
+      <span class="num">06</span>
+      <span class="label">Export &amp; Publish</span>
+      <span class="dot" style="background:var(--w6)"></span>
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <p>
+      Curriculum by<br>
+      <strong style="color:#fff">Press Start Gaming Inc.</strong><br>
+      Delivered by MADMIXEDMEDIA LLC<br><br>
+      pscomixx.com<br>
+      pscomixx.online<br>
+      pressstart.space
+    </p>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+
+<!-- HERO -->
+<section id="overview">
+<div class="hero">
+  <div class="hero-tag">Press Start Gaming Inc. · CTE Creative Technology</div>
+  <h1>COMIXX<br><span>CREATOR</span><br>CURRICULUM</h1>
+  <p class="hero-desc">A six-week, project-based creative technology course where students use their phones, their environment, and the CoMiXX + FX platforms to produce real comics, animated content, and publish-ready promo assets.</p>
+
+  <div class="hero-grid">
+    <div class="hero-stat"><div class="val">6</div><div class="key">Weeks</div></div>
+    <div class="hero-stat"><div class="val">30</div><div class="key">Sessions</div></div>
+    <div class="hero-stat"><div class="val">2</div><div class="key">Platforms</div></div>
+    <div class="hero-stat"><div class="val">6–12</div><div class="key">Grade</div></div>
+    <div class="hero-stat"><div class="val">CTE</div><div class="key">Pathway</div></div>
+    <div class="hero-stat"><div class="val">∞</div><div class="key">Stories</div></div>
+  </div>
+</div>
+
+<!-- Jump bar -->
+<div class="jump-bar">
+  <a href="#week1" class="jump-item w1">01 · Capture</a>
+  <a href="#week2" class="jump-item w2">02 · Character</a>
+  <a href="#week3" class="jump-item w3">03 · FX Studio</a>
+  <a href="#week4" class="jump-item w4">04 · Elements</a>
+  <a href="#week5" class="jump-item w5">05 · Story</a>
+  <a href="#week6" class="jump-item w6">06 · Export</a>
+</div>
+
+<div class="content-area">
+
+  <!-- Course overview -->
+  <div style="padding-top:40px;">
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:16px;">Course Overview</div>
+
+    <div class="timeline">
+      <div class="tl-week" onclick="location.href='#week1'">
+        <div class="tl-num">WEEK 01</div>
+        <div class="tl-title" style="color:var(--w1)">CAPTURE</div>
+        <div class="tl-sessions">Shoot Your Scene<br>Phone photography<br>Composition & angle<br>Lighting basics<br>Background selection</div>
+        <div class="tl-bar" style="background:var(--w1)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week2'">
+        <div class="tl-num">WEEK 02</div>
+        <div class="tl-title" style="color:var(--w2)">CHARACTER</div>
+        <div class="tl-sessions">Shoot Your Cast<br>Posing & performance<br>Cutout techniques<br>Greenscreen basics<br>Character placement</div>
+        <div class="tl-bar" style="background:var(--w2)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week3'">
+        <div class="tl-num">WEEK 03</div>
+        <div class="tl-title" style="color:var(--w3)">FX STUDIO</div>
+        <div class="tl-sessions">pscomixx.online<br>Layers & compositing<br>FX effects suite<br>Filters & tone<br>Scene building</div>
+        <div class="tl-bar" style="background:var(--w3)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week4'">
+        <div class="tl-num">WEEK 04</div>
+        <div class="tl-title" style="color:var(--w4)">ELEMENTS</div>
+        <div class="tl-sessions">Bubbles & dialogue<br>Titles & headers<br>Price tags<br>Promo graphics<br>Brand elements</div>
+        <div class="tl-bar" style="background:var(--w4)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week5'">
+        <div class="tl-num">WEEK 05</div>
+        <div class="tl-title" style="color:var(--w5)">STORY</div>
+        <div class="tl-sessions">Panel layout<br>Narrative arc<br>Dialogue writing<br>Pacing & rhythm<br>Scene arrangement</div>
+        <div class="tl-bar" style="background:var(--w5)"></div>
+      </div>
+      <div class="tl-week" onclick="location.href='#week6'">
+        <div class="tl-num">WEEK 06</div>
+        <div class="tl-title" style="color:var(--w6)">EXPORT</div>
+        <div class="tl-sessions">Promo pages<br>HOP creation<br>Social export<br>Community share<br>Portfolio build</div>
+        <div class="tl-bar" style="background:var(--w6)"></div>
+      </div>
+    </div>
+
+    <!-- Platforms -->
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Platforms Used</div>
+    <div style="margin-bottom:32px;">
+      <span class="tool-badge" style="--accent:var(--cyan)"><span class="dot" style="background:var(--cyan)"></span>pscomixx.com — CoMiXX Creator</span>
+      <span class="tool-badge" style="--accent:var(--pink)"><span class="dot" style="background:var(--pink)"></span>pscomixx.online — FX Studio</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--yellow)"></span>Phone Camera (any device)</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>pressstart.space — HOP Builder</span>
+    </div>
+
+    <!-- Standards overview -->
+    <div class="standards-box teacher-only">
+      <h4>California CTE Standards Alignment — Arts, Media & Entertainment Pathway</h4>
+      <span class="standard-tag">AME 1.0 — Creativity</span>
+      <span class="standard-tag">AME 2.0 — Visual Arts</span>
+      <span class="standard-tag">AME 3.0 — Digital Media</span>
+      <span class="standard-tag">AME 5.0 — Industry/Community</span>
+      <span class="standard-tag">CCSS.ELA.W.6-12 — Narrative Writing</span>
+      <span class="standard-tag">CCSS.ELA.SL — Presentation</span>
+      <span class="standard-tag">NGSS — Design Process</span>
+    </div>
+
+    <div class="obj-grid teacher-only">
+      <div class="obj-cell">
+        <h4>Course Objectives</h4>
+        <ul>
+          <li>Students produce original digital comics using real photography</li>
+          <li>Students apply visual composition principles to phone photography</li>
+          <li>Students use professional browser-based creative tools</li>
+          <li>Students write and sequence narrative stories in panel format</li>
+          <li>Students create publish-ready promo and marketing assets</li>
+          <li>Students build a personal creator portfolio via HOP</li>
+        </ul>
+      </div>
+      <div class="obj-cell">
+        <h4>Assessment Overview</h4>
+        <ul>
+          <li>Weekly deliverable — photo set, character sheet, scene, or comic page</li>
+          <li>Peer critique — structured gallery walk each Friday</li>
+          <li>Mid-course check — Week 3 scene composite rubric</li>
+          <li>Final project — published promo comic + HOP (Week 6)</li>
+          <li>Participation — daily creation log (student-facing)</li>
+          <li>Self-assessment — "Creator reflection" each week</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div><!-- /content-area -->
+</section>
+
+<!-- ======================================================
+     WEEK 1 — CAPTURE
+     ====================================================== -->
+<section class="week-section" id="week1" style="--accent:var(--w1)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(0,229,255,0.08)">01</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w1)">📷 Week 01 · Capture</div>
+    <div class="week-title">SHOOT YOUR<br>SCENE</div>
+    <p class="week-desc">Students learn to see their environment as a set. Using nothing but their phone, they discover how angle, lighting, and framing transform ordinary spaces into dramatic backdrops for their stories.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>Phone Camera + pscomixx.com</div>
+      <div class="meta-item"><strong>Deliverable</strong>5-shot Scene Collection</div>
+      <div class="meta-item"><strong>Skill Level</strong>Beginner — No prior experience</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+
+  <div class="platform-callout">
+    <span style="font-size:24px;">📷</span>
+    <div>
+      <div class="url">Phone Camera → pscomixx.com</div>
+      <p>No special equipment needed. Every phone is a production camera. The classroom, hallway, yard, or street is the set.</p>
+    </div>
+  </div>
+
+  <div class="obj-grid teacher-only">
+    <div class="obj-cell">
+      <h4>Learning Objectives</h4>
+      <ul>
+        <li>Apply the rule of thirds to phone photography</li>
+        <li>Identify dramatic angles: low, high, Dutch tilt</li>
+        <li>Use natural and artificial light intentionally</li>
+        <li>Select backgrounds that support mood and story</li>
+        <li>Upload and organize assets in pscomixx.com</li>
+      </ul>
+    </div>
+    <div class="obj-cell">
+      <h4>Teacher Setup Notes</h4>
+      <ul>
+        <li>Pre-load pscomixx.com on student devices — verify login</li>
+        <li>Scout 3–4 locations on campus students can shoot freely</li>
+        <li>Print or display the "7 Shot Types" reference sheet (Session 1)</li>
+        <li>Have students enable gridlines on phone cameras (rule of thirds)</li>
+        <li>Pair students for peer photography if needed (one shoots, one poses)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <!-- Session 1 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.1</span>
+      <span class="session-title">See Like a Director — 7 Shot Types Intro</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">LECTURE + DEMO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Open with 3 side-by-side photo pairs: same subject, completely different angles. Ask: "Which one tells a better story? Why?" Introduce the 7 shot types: Extreme Wide, Wide, Medium, Close-Up, Extreme Close-Up, Low Angle, High Angle. Students take 7 test shots of the same object in the room using each type.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Hook — 3 photo comparison pairs projected (5 min)</td></tr>
+        <tr><td>0:05</td><td>Direct instruction — 7 shot types with examples (15 min)</td></tr>
+        <tr><td>0:20</td><td>Demo — Teacher shoots 7 shots of same object live (10 min)</td></tr>
+        <tr><td>0:30</td><td>Student practice — Shoot 7 shots of assigned object (20 min)</td></tr>
+        <tr><td>0:50</td><td>Gallery share — 3 volunteers show best shot + explain why (5 min)</td></tr>
+      </table>
+
+      <h5>Student Activity</h5>
+      <p>Pick any object in the room. Shoot it 7 times — once for each shot type. Upload your favorites to pscomixx.com. In your creation log, write one sentence about which angle felt the most dramatic and why.</p>
+
+      <div class="quote-bar" style="border-color:var(--w1)">THIS ISN'T JUST A PHOTO. IT'S YOUR BACKGROUND.</div>
+
+      <h5>Resources</h5>
+      <ul>
+        <li>7 Shot Types reference card (printable — included below)</li>
+        <li>pscomixx.com upload guide</li>
+        <li>Camera gridline enable instructions (iOS + Android)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Session 2 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.2</span>
+      <span class="session-title">Light Is Everything — Natural vs. Controlled Lighting</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">STUDIO PRACTICE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students explore how light direction changes mood. Using window light, overhead light, and phone flashlights as tools, they shoot the same scene three different ways. Key vocabulary: backlight, sidelight, flat light, dramatic shadow.</p>
+
+      <h5>Student Activity</h5>
+      <p>Find a spot in the school with interesting natural light (window, doorway, shadow pattern). Shoot your scene THREE times: with light behind your subject, with light to the side, and with flat overhead light. Upload all three. Label them in pscomixx.com. Which version feels like a thriller? Which feels like daytime TV?</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Opening comparison — same scene in 3 lighting conditions (5 min)</td></tr>
+        <tr><td>0:05</td><td>Vocabulary intro — backlight, sidelight, flat light (10 min)</td></tr>
+        <tr><td>0:15</td><td>Teacher demo — shoot scene in 3 conditions live (10 min)</td></tr>
+        <tr><td>0:25</td><td>Student shoot — 3 lighting versions of their chosen scene (25 min)</td></tr>
+        <tr><td>0:50</td><td>Pair share — swap phones, explain your favorite (5 min)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Session 3 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.3</span>
+      <span class="session-title">Texture Hunting — Walls, Floors, Sky & Shadow</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">LOCATION SHOOT</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Textures make scenes feel real. Students go on a "texture hunt" around campus — cracked asphalt, brick, chain link, sunlight through leaves. These become background plates for future compositing. Students collect a minimum of 8 texture shots categorized by mood: Gritty, Clean, Mysterious, Natural.</p>
+
+      <h5>Student Activity</h5>
+      <p>You're building a texture library. Walk your campus and shoot 8 textures — at least 2 from each mood category: GRITTY (asphalt, concrete, rust), CLEAN (smooth walls, tiles, glass), MYSTERIOUS (shadows, dim corners, patterns), NATURAL (plants, sky, ground). Upload and tag them in pscomixx.com by mood. These become YOUR personal scene backgrounds.</p>
+    </div>
+  </div>
+
+  <!-- Session 4 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.4</span>
+      <span class="session-title">Scene Design — Choosing Your World</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">PLANNING + SHOOT</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students begin pre-production planning for their final comic concept. They choose a "world" (post-apocalyptic, futuristic city, supernatural small town, etc.) and shoot scenes that match. This is the first day students use their Shot List template — a planning tool they'll carry through the course.</p>
+
+      <h5>Student Activity</h5>
+      <p>Decide on your comic's world. Pick 3 scenes that exist on campus that COULD become part of your world with FX. Fill out your Shot List: World name, 5 scenes you'll shoot, time of day for each, mood for each. Then go shoot your 5 scenes. Remember: you're looking for the angle, not the perfect location — the FX Studio will do the rest.</p>
+
+      <h5>Resources</h5>
+      <ul>
+        <li>Shot List Template (fillable PDF or printed worksheet)</li>
+        <li>World-Type Reference: 8 genre visual styles with example photos</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Session 5 -->
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">01.5</span>
+      <span class="session-title">Scene Collection Review + Peer Critique</span>
+      <span class="session-type" style="background:rgba(0,229,255,0.15);color:var(--w1)">CRITIQUE + GALLERY</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Gallery walk: Students display their 5-shot Scene Collection on devices or printed contact sheets. Structured peer critique using "2 Stars + 1 Direction" format. Teacher leads discussion connecting student work to professional comic and film cinematography.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Students display work — arrange gallery on desks/screens (10 min)</td></tr>
+        <tr><td>0:10</td><td>Silent gallery walk — sticky note feedback (15 min)</td></tr>
+        <tr><td>0:25</td><td>2 Stars + 1 Direction — 4 students share (10 min)</td></tr>
+        <tr><td>0:35</td><td>Teacher connects work to professional references (10 min)</td></tr>
+        <tr><td>0:45</td><td>Creator reflection log — written self-assessment (10 min)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Week 1 challenge -->
+  <div class="challenge-block" data-label="Week 01 · Student Deliverable" style="--accent:var(--w1)">
+    <h3>5-SHOT SCENE COLLECTION</h3>
+    <p>By Friday, you've got 5 shots that could become the world of your comic. Each one shows a different scene, angle, or mood. These are uploaded and organized in pscomixx.com — ready for the FX Studio in Week 3.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>5 uploaded scene photos in pscomixx.com — organized by mood</li>
+      <li><span class="check"></span>Shot List with world concept + 5 scene descriptions</li>
+      <li><span class="check"></span>Texture library — minimum 8 shots in 4 mood categories</li>
+      <li><span class="check"></span>Creator reflection: 3 sentences on what you discovered about your eye</li>
+    </ul>
+  </div>
+
+  <!-- Week 1 Rubric -->
+  <div class="teacher-only">
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Week 01 — Assessment Rubric</div>
+    <div class="rubric-wrap">
+      <table class="rubric">
+        <thead>
+          <tr>
+            <th>Criteria</th><th>4 — Exceeds</th><th>3 — Meets</th><th>2 — Approaching</th><th>1 — Beginning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Composition</td><td>Uses 3+ shot types intentionally; clear visual hierarchy</td><td>Uses 2 shot types; strong framing in most shots</td><td>Some intentional framing; angles feel random</td><td>All shots are eye-level; no framing awareness</td></tr>
+          <tr><td>Lighting</td><td>Dramatic use of light and shadow; mood is clear</td><td>Light direction is intentional in most shots</td><td>Light considered but inconsistent</td><td>Flat, accidental lighting throughout</td></tr>
+          <tr><td>World Concept</td><td>Shot List shows clear, original world with specific visual identity</td><td>World is defined; shots support the concept</td><td>Concept is vague but present</td><td>No clear world concept; shots are random</td></tr>
+          <tr><td>Completeness</td><td>All deliverables complete and exceeded</td><td>All deliverables complete</td><td>3–4 deliverables complete</td><td>1–2 deliverables complete</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /content-area week 1 -->
+</section>
+
+
+<!-- ======================================================
+     WEEK 2 — CHARACTER
+     ====================================================== -->
+<section class="week-section" id="week2" style="--accent:var(--w2)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,45,120,0.08)">02</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w2)">🎭 Week 02 · Character</div>
+    <div class="week-title">SHOOT YOUR<br>CHARACTER</div>
+    <p class="week-desc">Students become the cast. They learn to shoot themselves, classmates, or friends with poses that translate into comic panels — plus basic cutout and greenscreen techniques that make characters pop off any background.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>Phone Camera + pscomixx.com</div>
+      <div class="meta-item"><strong>Deliverable</strong>Character Sheet — 8 Poses</div>
+      <div class="meta-item"><strong>Skill Level</strong>Beginner — builds on Week 1</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">🎭</span>
+    <div>
+      <div class="url" style="color:var(--w2)">Phone Camera → pscomixx.com Cutout Tool</div>
+      <p>You — or your friends, family, even pets — become the cast. Blank walls and soft light make cutouts clean.</p>
+    </div>
+  </div>
+
+  <div class="obj-grid teacher-only">
+    <div class="obj-cell">
+      <h4>Learning Objectives</h4>
+      <ul>
+        <li>Direct a subject into expressive, story-driven poses</li>
+        <li>Identify optimal camera distance for character cutouts</li>
+        <li>Use blank backgrounds or greenscreen for clean isolation</li>
+        <li>Apply the CoMiXX cutout tool to extract character from background</li>
+        <li>Develop a personal character with a consistent visual identity</li>
+      </ul>
+    </div>
+    <div class="obj-cell">
+      <h4>Teacher Setup Notes</h4>
+      <ul>
+        <li>Designate a character shoot zone — plain wall or hang butcher paper</li>
+        <li>Green or blue fabric (or large sheet of paper) for greenscreen option</li>
+        <li>Confirm pscomixx.com cutout tool works on student devices</li>
+        <li>Print the "8 Hero Poses" reference sheet for students</li>
+        <li>Discuss consent — students shoot each other, must agree to be photographed</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.1</span>
+      <span class="session-title">The 8 Hero Poses — Reading Body Language in Comics</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">LECTURE + PRACTICE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Study how comic artists convey emotion through body posture and gesture. Students analyze reference panels from different comic styles. They then practice directing each other into 8 key poses: Action, Reaction, Threat, Fear, Confidence, Defeat, Discovery, Celebration.</p>
+      <h5>Student Activity</h5>
+      <p>Using the 8 Hero Poses sheet, take turns as director and subject. Your subject must hit each pose — you shoot it. Then switch. Upload your 8 shots. Which pose felt most natural? Which was hardest to make "readable"?</p>
+      <div class="quote-bar" style="border-color:var(--w2)">YOU ARE NOW PART OF THE SCENE.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.2</span>
+      <span class="session-title">Clean Cutouts — The Art of the Isolated Character</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">TOOL LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Introduction to the pscomixx.com cutout tool. Students learn what makes a photo "cuttable" — distance from background, contrast, soft edges. They practice cutting out their best 3 character shots and placing them on a solid color to evaluate quality.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.com. Upload your 3 best character shots. Use the cutout tool on each. Place your cutout on a red background and zoom in — are there fuzzy edges? Halos? Fix them using the eraser refinement. Save your cleanest cutout. That's your character sprite.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.3</span>
+      <span class="session-title">Costume, Props & Context — Building Visual Character</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">CREATIVE SHOOT</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students build visual character identity using what's available — a jacket, backpack, hat, sunglasses, pen, phone. Props define characters instantly in comics. Students shoot their character 4 times with different "costume states" to represent emotional or situational shifts.</p>
+      <h5>Student Activity</h5>
+      <p>Your character needs a look. Using only what's in your bag or around the classroom, build 2 different "states" for your character — one for regular life, one for their story-moment. Shoot both. Cut them out. Name your character in your creation log. Give them one line of dialogue that tells us who they are.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.4</span>
+      <span class="session-title">Character Meets Scene — First Composite</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">PRODUCTION LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students drop their character cutout onto one of their Week 1 scene backgrounds in pscomixx.com. First composite! Key skills: scaling, positioning, shadow awareness, perspective matching. Students discover which scenes and characters naturally "fit" and which feel off.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.com. Load your best background from Week 1. Drop in your character cutout. Scale it to fit the perspective — does your character look like they BELONG in this world? Adjust until they do. Save your first composite. This is your first panel.</p>
+      <div class="quote-bar" style="border-color:var(--w2)">YOUR BACKYARD IS NOW A BATTLE SCENE.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">02.5</span>
+      <span class="session-title">Character Sheet Review + Story Pitch</span>
+      <span class="session-type" style="background:rgba(255,45,120,0.15);color:var(--w2)">CRITIQUE + PITCH</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students present their character and share a 60-second story pitch: Who is this character? What world do they live in? What problem do they face? Class provides warm feedback. Teacher connects character design to comics industry practice (model sheets, turnaround refs).</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 02 · Student Deliverable" style="--accent:var(--w2)">
+    <h3>CHARACTER SHEET — 8 POSES</h3>
+    <p>You now have a character — a real photo of a real person — cut out, posed, and placed in your world. This is your cast sheet.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>8 character poses — uploaded and cut out in pscomixx.com</li>
+      <li><span class="check"></span>First composite — character placed in 1 scene background</li>
+      <li><span class="check"></span>Character name + 1-line bio in creation log</li>
+      <li><span class="check"></span>60-second story pitch delivered (or recorded)</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 3 — FX STUDIO
+     ====================================================== -->
+<section class="week-section" id="week3" style="--accent:var(--w3)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,230,0,0.06)">03</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w3)">✨ Week 03 · FX Studio</div>
+    <div class="week-title">BUILD THE<br>SCENE</div>
+    <p class="week-desc">Students move into pscomixx.online — the FX Studio. Here they composite characters into backgrounds, apply cinematic filters, add atmospheric FX layers, and push scenes from photos into full illustrated worlds.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>pscomixx.online — FX Studio</div>
+      <div class="meta-item"><strong>Deliverable</strong>3 Fully Composited Scenes</div>
+      <div class="meta-item"><strong>Skill Level</strong>Intermediate — builds on Weeks 1+2</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">⚡</span>
+    <div>
+      <div class="url" style="color:var(--w3)">pscomixx.online — FX Studio</div>
+      <p>Layer-based compositing, cinematic filters, paper manipulation FX, atmospheric overlays, and motion effects. This is where ordinary photos become scenes.</p>
+    </div>
+  </div>
+
+  <div class="obj-grid teacher-only">
+    <div class="obj-cell">
+      <h4>Learning Objectives</h4>
+      <ul>
+        <li>Navigate the FX Studio layer system (background, subject, FX, text)</li>
+        <li>Apply and stack multiple FX filters on a single composition</li>
+        <li>Use atmospheric effects: smoke, rain, dust, glow, distress</li>
+        <li>Match character lighting to scene lighting using tone correction</li>
+        <li>Export composited scenes as panel-ready images</li>
+      </ul>
+    </div>
+    <div class="obj-cell">
+      <h4>Teacher Setup Notes</h4>
+      <ul>
+        <li>Walk through pscomixx.online interface Day 1 — projected live demo</li>
+        <li>Have students bookmark pscomixx.online before class starts</li>
+        <li>Pair stronger tech students with beginners for Days 1–2</li>
+        <li>Keep a reference poster of FX layer order: BG → Subject → FX → Text</li>
+        <li>Checkpoint: review all composites before session 3.3 to catch issues early</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.1</span>
+      <span class="session-title">FX Studio Orientation — Layers, Controls & First Filter</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">TOOL INTRO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Full walkthrough of pscomixx.online FX Studio. Students learn the layer stack: background plate → character cutout → FX overlays → text/graphics. They apply their first filter (comic halftone or ink wash) to a test composite and save.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online. Load your best Week 1 background as your base. Add your Week 2 character cutout. Apply ONE filter — try "Ink Wash" or "Halftone Grit." Adjust opacity until it looks like a printed comic panel. Export and save to your project folder. You just made your first real comic panel.</p>
+      <div class="quote-bar" style="border-color:var(--w3)">YOUR YARD ISN'T YOUR YARD ANYMORE. IT'S A SCENE.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.2</span>
+      <span class="session-title">Atmosphere Lab — Smoke, Rain, Glow & Distress FX</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">FX LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students explore the atmospheric FX suite in pscomixx.online: rain, smoke, dust particles, glitch lines, glow halos, torn paper edge. They stack 2–3 FX layers on their composites, discovering how each combination changes mood.</p>
+      <h5>Student Activity</h5>
+      <p>Pick one of your composites from yesterday. Stack THREE atmospheric effects — one weather effect (rain/smoke), one texture effect (dust/grain), one light effect (glow/flare). Export it. Then make a second version with totally different FX. Which version fits your world? Add both to your project folder with labels.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.3</span>
+      <span class="session-title">Color & Tone — Setting the Mood of Your World</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">COLOR THEORY</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Color grading as storytelling. Students learn how to use the tone/color controls in pscomixx.online to shift their scene into different emotional registers. Key example: the same scene — desaturated cyan tint = horror / warm orange = western / high-contrast B&W = noir.</p>
+      <h5>Student Activity</h5>
+      <p>Take one of your composites and color-grade it THREE ways: one warm (afternoon light, hopeful), one cold (blue/gray, tense), one high-contrast B&W (dramatic, noir). Use only the Tone and Color controls in FX Studio. Export all three. Write in your log: which version best matches your story's mood?</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.4</span>
+      <span class="session-title">Scene #2 & #3 — Full Production Run</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students build scenes 2 and 3 of their comic story using the full FX Studio workflow. Teacher conferences with individual students on scene continuity, tone consistency, and story logic. Students begin connecting scenes into a sequence.</p>
+      <h5>Student Activity</h5>
+      <p>Build 2 more composited scenes today using the full workflow: background → character → FX stack → color grade. Each scene should connect to your story — think of it as your comic's middle section. When finished, line up all 3 scenes. Do they feel like they belong to the same story?</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">03.5</span>
+      <span class="session-title">Mid-Course Review — Scene Critique & Story Check</span>
+      <span class="session-type" style="background:rgba(255,230,0,0.12);color:var(--w3)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Mid-course milestone review. Students display 3 composited scenes. Teacher and peers assess: Does the tone match? Does the character feel like they belong? Is there a visual story developing? Rubric-based assessment provided this week.</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 03 · Student Deliverable" style="--accent:var(--w3)">
+    <h3>3 COMPOSITED SCENES — MID-COURSE</h3>
+    <p>This is the mid-point check. You have a world, a character, and now three scenes that could be comic panels. These three scenes are the backbone of your final story.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>3 exported composites — character in scene with FX stack applied</li>
+      <li><span class="check"></span>At least 2 different color grades attempted per scene</li>
+      <li><span class="check"></span>Scene sequence — 3 images that could tell a beginning, middle, end</li>
+      <li><span class="check"></span>Creator reflection — what does your world look and feel like now?</li>
+    </ul>
+  </div>
+
+  <div class="teacher-only">
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Week 03 — Mid-Course Rubric</div>
+    <div class="rubric-wrap">
+      <table class="rubric">
+        <thead>
+          <tr><th>Criteria</th><th>4</th><th>3</th><th>2</th><th>1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Compositing Quality</td><td>Character fully integrated; lighting matches; no visible halos</td><td>Solid cutout; mostly integrated into scene</td><td>Character placed but visible issues with edges or scale</td><td>Character dropped in without integration attempt</td></tr>
+          <tr><td>FX Application</td><td>3+ FX layers stacked intentionally; cohesive mood created</td><td>2 FX layers; mood is generally clear</td><td>1 FX applied; feels accidental</td><td>No FX applied beyond base filter</td></tr>
+          <tr><td>Color / Tone</td><td>Consistent color grade across all 3 scenes; clear emotional intent</td><td>2 of 3 scenes have intentional tone</td><td>Color used but inconsistent across scenes</td><td>No color grading applied</td></tr>
+          <tr><td>Story Progression</td><td>3 scenes clearly suggest a beginning, middle, and story direction</td><td>3 scenes feel related; story implied</td><td>Scenes feel disconnected</td><td>No narrative connection between scenes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 4 — ELEMENTS
+     ====================================================== -->
+<section class="week-section" id="week4" style="--accent:var(--w4)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(0,255,136,0.06)">04</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w4)">💬 Week 04 · Elements</div>
+    <div class="week-title">BUBBLES,<br>TITLES &amp;<br>PROMO DESIGN</div>
+    <p class="week-desc">Students master the design elements that make comics feel like comics — speech bubbles, thought clouds, SFX text, title cards, price tags, and promotional graphic elements. They'll build a personal brand toolkit and design their first promo page.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>pscomixx.com + pscomixx.online</div>
+      <div class="meta-item"><strong>Deliverable</strong>Brand Element Kit + 1 Promo Page</div>
+      <div class="meta-item"><strong>Skill Level</strong>Intermediate</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">💬</span>
+    <div>
+      <div class="url" style="color:var(--w4)">pscomixx.com Element Tools + pscomixx.online FX Studio</div>
+      <p>Speech bubbles, SFX bursts, title cards, price tags, banners — the full graphic design layer that makes your story readable and sellable.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.1</span>
+      <span class="session-title">Speech Bubbles & Thought Clouds — The Voice of the Page</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">DESIGN LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>The anatomy of a speech bubble: shape communicates tone. Round = friendly. Jagged = shouting. Cloud = thought. Whisper lines = quiet. Students study 20 examples from different comic genres, then use pscomixx.com's bubble tool to add dialogue to their 3 composited scenes.</p>
+      <h5>Student Activity</h5>
+      <p>Add speech bubbles to all 3 of your composited scenes. Use at least 3 different bubble styles across the 3 scenes. The character's voice should come through in the font AND the bubble shape. Dialogue must be original — minimum 1 line per scene. Save panel versions with and without bubbles.</p>
+      <div class="quote-bar" style="border-color:var(--w4)">THE BUBBLE IS NOT DECORATION. IT'S VOICE.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.2</span>
+      <span class="session-title">SFX Text & Action Words — POW, CRASH, STATIC, GLITCH</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">TYPE DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Sound effects as visual design. Students study how comic SFX typography works — how the font, size, color, and angle of "CRASH" communicates the sound. Using pscomixx.online's FX text tool, students create custom SFX words for their scenes. They also explore glitch text, neon glow text, and distressed ink text styles.</p>
+      <h5>Student Activity</h5>
+      <p>Pick your most action-packed scene. Add a SFX word that matches the moment — don't use generic words. Make up a new one that fits YOUR story's world. (Example: In a tech world, instead of "POW" try "CRASHED" or "SIGNAL_LOST"). Style it using 2 FX text effects. Make it feel like it grew out of the scene.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.3</span>
+      <span class="session-title">Title Cards & Chapter Headers — The Cover Mindset</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">BRAND DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Great comics have a visual identity — a consistent title treatment, chapter header style, and color system. Students design their comic's title card: the logo-level treatment of their comic's name that will appear on the cover and chapter breaks.</p>
+      <h5>Student Activity</h5>
+      <p>Design your comic's title card. This is the LOGO of your story. Choose 1 display font from the FX Studio font library. Pick your 2 primary story colors. Apply at least one text effect (glow, shadow, distress, or outline). Make 3 versions — different sizes — for cover, chapter break, and social post. Save all three.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.4</span>
+      <span class="session-title">Price Tags & Promo Graphics — The Creator Economy Layer</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">PROMO DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Real creators sell their work. Students learn to design price tags, issue labels, promo badges, and starburst callouts — the same design language used on magazine covers, indie comics, and creator stores. Using pscomixx.online's element library, they design a full set of promo graphic assets for their comic.</p>
+      <h5>Student Activity</h5>
+      <p>Design a promo set for your comic's "launch." You'll build: (1) A price tag in your story colors — "$4.99 // Issue 01" (2) A launch badge — "NEW RELEASE" or "LIMITED RUN" starburst (3) A promo banner — your title card + your best scene + price tag combined. This is what you'd use if you were selling this at a zine fair or on your creator page.</p>
+      <div class="quote-bar" style="border-color:var(--w4)">IF IT'S GOOD ENOUGH TO MAKE, IT'S GOOD ENOUGH TO SELL.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">04.5</span>
+      <span class="session-title">Promo Page Build + Peer Brand Review</span>
+      <span class="session-type" style="background:rgba(0,255,136,0.12);color:var(--w4)">BUILD + CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students assemble their first complete promo page — a single-image layout combining title card, best scene, character, dialogue, price tag, and launch badge. This is a standalone promotional asset they could post online or print. Peer review focused on: Is the brand clear? Is it readable at a glance?</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.online. Build one promo page using everything from this week: title card, best composited scene, character pose, speech bubble OR SFX word, price tag, and launch badge. It should be readable in 3 seconds. Export at full resolution. This is a deliverable you can use for real.</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 04 · Student Deliverable" style="--accent:var(--w4)">
+    <h3>BRAND ELEMENT KIT + PROMO PAGE</h3>
+    <p>By the end of this week, you have a visual brand for your comic. Everything it needs to look like a real published series — and a promo asset ready to share.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>3 scenes with speech bubbles and dialogue added</li>
+      <li><span class="check"></span>Custom SFX word designed and placed in action scene</li>
+      <li><span class="check"></span>Title card in 3 sizes (cover, chapter, social)</li>
+      <li><span class="check"></span>Promo set: price tag + launch badge + promo banner</li>
+      <li><span class="check"></span>1 complete promo page — export at full resolution</li>
+    </ul>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 5 — STORY
+     ====================================================== -->
+<section class="week-section" id="week5" style="--accent:var(--w5)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(176,106,255,0.07)">05</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w5)">📖 Week 05 · Story</div>
+    <div class="week-title">BUILD YOUR<br>STORY</div>
+    <p class="week-desc">Students arrange their scenes, add dialogue, and build a complete short comic — 6 to 12 panels with a clear arc. They learn panel layout, pacing, the art of the cliffhanger, and how to use CoMiXX's panel builder to sequence their story.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>pscomixx.com Panel Builder</div>
+      <div class="meta-item"><strong>Deliverable</strong>6–12 Panel Comic — Draft</div>
+      <div class="meta-item"><strong>Skill Level</strong>All levels</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">📖</span>
+    <div>
+      <div class="url" style="color:var(--w5)">pscomixx.com — Panel Builder</div>
+      <p>Drop your scenes into panels. Add dialogue. Arrange the moments. Re-cut until the rhythm hits. Turn moments into stories.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.1</span>
+      <span class="session-title">Story Structure — The 3-Act Framework for Comics</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">WRITING</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Applied narrative structure: Setup, Confrontation, Resolution — adapted for short-form comics. Students map their 3 existing scenes onto the 3-act framework, identify what's missing, and plan 3–6 additional panels needed to complete the story.</p>
+      <h5>Student Activity</h5>
+      <p>Map your 3 composited scenes: which is your setup? Which is your confrontation? Which (if you have it) is your resolution? Fill in the Story Map template: identify 3 gap moments — things that need to happen between your existing scenes to make the story work. These become your new panels to build this week.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.2</span>
+      <span class="session-title">Panel Layout — Rhythm, Size & Sequence</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">LAYOUT DESIGN</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Panel size communicates time and importance. Wide panels = slow moments, epic scale. Small panels = fast cuts, rapid action. Full-page panels = the big reveal. Students study layout examples from manga, Western comics, and indie zines, then draft their page layouts using the pscomixx.com panel builder.</p>
+      <h5>Student Activity</h5>
+      <p>Open pscomixx.com Panel Builder. Set up your 6–12 panel layout. Don't fill content yet — just set the SIZE and SHAPE of each panel to match the pacing you want. Your biggest panel should be your most important moment. Your smallest panels should be your fastest cuts. Screenshot your blank layout. This is your storyboard.</p>
+      <div class="quote-bar" style="border-color:var(--w5)">TURN MOMENTS INTO STORIES.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.3</span>
+      <span class="session-title">Fill the Panels — Placing Scenes, Characters & Dialogue</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students drop their composited scenes into the panel layout, add dialogue from their creation logs, and shoot or build any missing gap panels. Teacher facilitates "read-through" check — students read each other's comics aloud to test if the story tracks.</p>
+      <h5>Student Activity</h5>
+      <p>Populate your panel layout with your scenes and dialogue. If you have gaps — panels with no scene yet — either use an existing scene at a different crop, or build a simple new composite quickly. When done, hand your device to a partner. They read your comic aloud. Do they understand the story? What confused them?</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.4</span>
+      <span class="session-title">Revise & Recut — The Edit Pass</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">EDITING</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Editing is where good stories become great stories. Students revise dialogue, reorder panels, cut panels that slow the pace, and refine the comic's ending. Focus on: Is the ending satisfying? Does every panel earn its place? Is there one moment that lands emotionally?</p>
+      <h5>Student Activity</h5>
+      <p>Read your comic from the top. Mark every panel where the story slows down or feels confusing. Fix those panels — rewrite dialogue, swap the scene, cut it entirely. Then read it again. Repeat until every panel pulls you forward. Write in your log: what did you cut and why?</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">05.5</span>
+      <span class="session-title">Story Draft Review — Read-Around</span>
+      <span class="session-type" style="background:rgba(176,106,255,0.15);color:var(--w5)">CRITIQUE</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Full class read-around: every student's comic draft is read by at least 2 peers. Feedback is structured: What was the strongest panel? What moment could be clearer? What would make you want to read issue 2? Students receive written feedback cards.</p>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 05 · Student Deliverable" style="--accent:var(--w5)">
+    <h3>6–12 PANEL COMIC DRAFT</h3>
+    <p>You now have a full comic draft. It's not final yet — but it has a beginning, a middle, and an end. Next week you make it publish-ready.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>Complete comic — 6–12 panels in pscomixx.com panel builder</li>
+      <li><span class="check"></span>Dialogue in every panel — original writing</li>
+      <li><span class="check"></span>At least one full-page or splash panel</li>
+      <li><span class="check"></span>Peer feedback received — 2 reader response cards</li>
+      <li><span class="check"></span>Creator reflection: what does your story actually say?</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     WEEK 6 — EXPORT & PUBLISH
+     ====================================================== -->
+<section class="week-section" id="week6" style="--accent:var(--w6)">
+<div class="week-header">
+  <div class="week-num-big" style="color:rgba(255,140,0,0.07)">06</div>
+  <div class="week-header-content">
+    <div class="week-tag" style="color:var(--w6)">🚀 Week 06 · Export &amp; Publish</div>
+    <div class="week-title">BRING IT<br>TO LIFE</div>
+    <p class="week-desc">Final week. Students polish their comics, build a complete promo page, create a HOP (Highlight of Progress) on Press Start, export to social formats, and share their work with a real audience. This is launch week.</p>
+    <div class="week-meta">
+      <div class="meta-item"><strong>5 Sessions</strong>Mon–Fri, 55 min each</div>
+      <div class="meta-item"><strong>Platform</strong>pscomixx.com + pressstart.space HOP</div>
+      <div class="meta-item"><strong>Deliverable</strong>Published Comic + HOP + Promo Page</div>
+      <div class="meta-item"><strong>Skill Level</strong>All — final production</div>
+    </div>
+  </div>
+</div>
+
+<div class="content-area">
+  <div class="platform-callout">
+    <span style="font-size:24px;">🚀</span>
+    <div>
+      <div class="url" style="color:var(--w6)">pscomixx.com · pressstart.space HOP Builder</div>
+      <p>Export Comic → Create HOP → Share to Community → Download. This week students go from creator to publisher.</p>
+    </div>
+  </div>
+
+  <div class="sessions-label">5 Sessions — Click to expand</div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.1</span>
+      <span class="session-title">Final Polish — Cover Design & Last Panel Refinements</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PRODUCTION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students design their comic cover — a full-page image using their best scene composite, title card, issue number, and creator credit. They also do a final pass on interior panels: consistent bubble styling, no spelling errors, smooth FX tone. Cover is the first impression — make it count.</p>
+      <h5>Student Activity</h5>
+      <p>Build your cover in pscomixx.online: best composite + title card + "Issue 01" + your creator name. Then do a final read of your interior pages — fix any spelling, tighten any dialogue, adjust any panel that feels off. When you're done, export the full comic as a PDF or image sequence.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.2</span>
+      <span class="session-title">Social Export — Format for Instagram, TikTok & Web</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">EXPORT LAB</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Different platforms need different formats. Students export their comic and promo assets in 3 formats: 1:1 square (Instagram), 9:16 vertical (Stories/TikTok), and 16:9 wide (web/banner). They write captions for each format and understand how to "tease" content without giving everything away.</p>
+      <h5>Student Activity</h5>
+      <p>Export your best panel in 3 formats: square crop, vertical crop, wide crop. For each, write a 1–2 sentence caption that makes someone want to read the full comic. Don't give away the ending. Make them click. These are real social posts — you could post them today.</p>
+      <div class="quote-bar" style="border-color:var(--w6)">FNISHED. ANIMATED. SHARED. DOWNLOADED.</div>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.3</span>
+      <span class="session-title">Final Promo Page — Your Comic's Sales Sheet</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PROMO BUILD</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Students build their final promo page — a polished single-image layout that tells someone everything they need to know about the comic in 3 seconds: title, character, world, price, and one hook line. This is a real asset they can use at fairs, on social, or in a portfolio.</p>
+      <h5>Student Activity</h5>
+      <p>Build your final promo page using everything from Week 4 plus your final cover. It needs: your title card, your best character pose, your price tag, your launch badge, and ONE hook line — the single sentence that makes someone want to read this. Export at print resolution (300 DPI if possible).</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.4</span>
+      <span class="session-title">HOP Build — Your Creator Portfolio on Press Start</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PORTFOLIO</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>HOP = Highlight of Progress. Students build their HOP on pressstart.space — a creator portfolio page that houses their comic, promo assets, and creation log highlights. This becomes their first public-facing creator portfolio and can be linked from any social profile.</p>
+      <h5>Student Activity</h5>
+      <p>Go to pressstart.space and build your HOP. Upload: your comic cover, 3 best interior panels, your promo page, and your creator bio (3 sentences: who you are, what your comic is about, what you're working on next). Set your HOP to public and copy your link. That's your creator page.</p>
+    </div>
+  </div>
+
+  <div class="session-card">
+    <div class="session-head" onclick="toggleSession(this)">
+      <span class="session-num">06.5</span>
+      <span class="session-title">Final Showcase — Creator Launch Day</span>
+      <span class="session-type" style="background:rgba(255,140,0,0.15);color:var(--w6)">PRESENTATION</span>
+      <span class="session-duration">55 min</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="session-body">
+      <h5>Session Summary</h5>
+      <p>Creator Launch Day. Students present their completed comic, promo page, and HOP link to the class — and optionally to an invited audience (other classes, parents, admin). Each creator gets 2 minutes: show your comic, say what it's about, share your HOP link. Class celebrates. Certificates awarded.</p>
+
+      <h5>Timing (Teacher View)</h5>
+      <table class="timing-table teacher-only">
+        <tr><td>0:00</td><td>Setup — devices open to HOP, comic displayed (5 min)</td></tr>
+        <tr><td>0:05</td><td>Presentations — 2 min each, class of 20 = ~40 min (40 min)</td></tr>
+        <tr><td>0:45</td><td>Class vote — Best Cover, Best Story, Best Character (5 min)</td></tr>
+        <tr><td>0:50</td><td>Certificates + course closing (5 min)</td></tr>
+      </table>
+
+      <div class="quote-bar" style="border-color:var(--w6)">YOU ARE NOW A CREATOR. ACT LIKE IT.</div>
+    </div>
+  </div>
+
+  <div class="challenge-block" data-label="Week 06 · Final Deliverable" style="--accent:var(--w6)">
+    <h3>PUBLISHED COMIC + HOP + PROMO PAGE</h3>
+    <p>This is the final. Three things that prove you built something real. Three things you can share with the world today.</p>
+    <ul class="deliverable-list">
+      <li><span class="check"></span>Complete comic — cover + 6–12 panels — exported as PDF or image set</li>
+      <li><span class="check"></span>Social exports — 3 formats (square, vertical, wide) with captions</li>
+      <li><span class="check"></span>Final promo page — print-resolution, launch-ready</li>
+      <li><span class="check"></span>HOP built and set to public on pressstart.space</li>
+      <li><span class="check"></span>2-minute creator presentation delivered</li>
+    </ul>
+  </div>
+
+  <!-- Final Rubric -->
+  <div class="teacher-only">
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Final Assessment Rubric — Week 06</div>
+    <div class="rubric-wrap">
+      <table class="rubric">
+        <thead>
+          <tr><th>Criteria</th><th>4</th><th>3</th><th>2</th><th>1</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Story — Narrative Arc</td><td>Clear 3-act structure; satisfying ending; every panel earns its place</td><td>Story is complete with beginning/middle/end</td><td>Story implied but incomplete or unclear</td><td>No discernible narrative</td></tr>
+          <tr><td>Design — Visual Identity</td><td>Consistent brand across cover, interior, and promo; professional feel</td><td>Consistent visual style throughout the comic</td><td>Some consistency; style feels scattered in places</td><td>No visual consistency; elements feel random</td></tr>
+          <tr><td>Technical — FX & Compositing</td><td>Seamless composites; intentional FX; character fully integrated in all scenes</td><td>Strong compositing in most panels; FX intentional</td><td>Compositing visible in some panels; FX accidental</td><td>Minimal compositing; characters feel pasted</td></tr>
+          <tr><td>Writing — Dialogue & Voice</td><td>Original, specific dialogue; character voice is distinct and consistent</td><td>Dialogue is original and mostly consistent</td><td>Dialogue present but generic or inconsistent</td><td>Minimal or copied dialogue</td></tr>
+          <tr><td>Portfolio — HOP & Promo</td><td>HOP is complete, public, and tells a clear creator story; promo is launch-ready</td><td>HOP complete and public; promo page exported</td><td>HOP incomplete or private; promo missing elements</td><td>HOP not built; no promo page</td></tr>
+          <tr><td>Presentation</td><td>Confident, clear 2-min presentation; clearly articulates story and intent</td><td>Completes presentation; communicates story</td><td>Presents with support; story partially communicated</td><td>Does not present or cannot explain the work</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Standards alignment -->
+  <div class="standards-box teacher-only" style="margin-top:32px;">
+    <h4>Final Standards Alignment — California CTE Arts, Media & Entertainment</h4>
+    <span class="standard-tag">AME 1.1 — Demonstrate creative process in digital media</span>
+    <span class="standard-tag">AME 2.0 — Apply principles of visual design</span>
+    <span class="standard-tag">AME 3.2 — Use industry-standard digital production tools</span>
+    <span class="standard-tag">AME 5.1 — Produce content for distribution and audience</span>
+    <span class="standard-tag">CCSS.ELA.W.3 — Narrative writing with structure</span>
+    <span class="standard-tag">CCSS.ELA.SL.4 — Present information clearly</span>
+  </div>
+
+  <!-- Final footer -->
+  <div style="margin-top:48px; padding:32px; border:1px solid var(--border); text-align:center;">
+    <div style="font-family:'Bebas Neue',Impact,'Arial Narrow',Arial,sans-serif;font-size:48px;letter-spacing:4px;margin-bottom:8px;">PRESS START</div>
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:10px;letter-spacing:3px;color:var(--dim);margin-bottom:20px;">GAMING INC. · CURRICULUM DELIVERED BY MADMIXEDMEDIA LLC</div>
+    <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
+      <span class="tool-badge"><span class="dot" style="background:var(--cyan)"></span>pscomixx.com</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--pink)"></span>pscomixx.online</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--yellow)"></span>pressstart.space</span>
+      <span class="tool-badge"><span class="dot" style="background:var(--green)"></span>madmixedmedia.com</span>
+    </div>
+    <div style="font-family:'IBM Plex Mono','Courier New',Menlo,Consolas,monospace;font-size:9px;color:var(--dim);margin-top:20px;line-height:1.8;">
+      Curriculum IP owned by Press Start Gaming Inc. (501c3) · Contracts executed by MADMIXEDMEDIA LLC<br>
+      Perkins V Eligible · California CTE Standards Aligned · Grades 6–12
+    </div>
+  </div>
+
+</div>
+</section>
+
+</main>
+
+<script>
+function toggleSession(el) {
+  const body = el.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  el.classList.toggle('open', !isOpen);
+}
+
+function setMode(mode) {
+  document.body.className = mode + '-mode';
+  document.querySelectorAll('.toggle-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && mode === 'teacher') || (i === 1 && mode === 'student'));
+  });
+}
+
+// Highlight active week in nav on scroll
+const weekIds = ['overview','week1','week2','week3','week4','week5','week6'];
+const navItems = document.querySelectorAll('.week-nav-item');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.15 });
+
+weekIds.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) observer.observe(el);
+});
+</script>
+
+</body>
+</html>

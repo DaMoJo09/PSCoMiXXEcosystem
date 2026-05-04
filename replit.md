@@ -70,6 +70,8 @@ After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`)
 - **CYOA Builder mapping mode overhaul**: Node cards enlarged (380x340), redesigned with accent-colored borders, prominent image display (40% height), START/END badges, choice list with condition indicators, variable/audio badges, and modern visual hierarchy. Graph view uses the same black InfiniteCanvas.
 - **HOPs scaling fix**: Layer positions converted from absolute pixels to percentage-based CSS (`calc(50% + X%)` instead of `calc(50% + Xpx)`), fixing drift/displacement when canvas renders at sizes different from viewport dimensions. Background layers also use percentage-based transforms.
 
+- **Curricula in Learn section**: Three 6-week curriculum HTML files (CoMiXX Main photography-based, CoMiXX Creator digital comics, FX Studio VFX) served from `client/public/curricula/`. New `CurriculumViewer` page at `/ecosystem/learn/curriculum/:slug` embeds them in iframes with back nav, fullscreen toggle, and open-in-new-tab. Learn module shows curriculum cards with accent-colored icons above the existing pathways grid.
+
 **Still on the backlog**
 - React + browser autofill password field bug (login page).
 - Audit other `localStorage.setItem` / `sessionStorage.setItem` call sites and migrate to `safeSet`.
