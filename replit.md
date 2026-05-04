@@ -65,6 +65,10 @@ After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`)
 - **Dead Google sign-in removed**: Removed non-functional Google OAuth button from AuthPage (no backend route `/api/login` existed, no `passport-google-oauth20` was installed). Login is email/password + Ecosystem SSO.
 - **Ecosystem Hub cards**: Dashboard Ecosystem section upgraded from plain link cards to rich app-hub cards with status indicators (ACTIVE/LINKED/VISIT), version badges, SSO-enabled launch, accent colors, and hover effects. Apps: PSCoMiXX Studio, PS Streaming, Press Start LMS, Mad Mixed Media.
 - **Desktop App in sidebar**: Added "Desktop App" nav link to sidebar pointing to `/download` page.
+- **Mapping mode 1:1 nodes**: Comic Creator mapping mode now renders ALL panel contents (images, text, drawings) with proper transforms and z-ordering, matching the actual editor view. Previously only showed first image OR first text.
+- **All canvases black**: Every creative workspace canvas (Comic Creator, CYOA Builder, VN Creator, Card Creator, HOPs, InkBlade, Cover Editor, Drawing Workspace, InfiniteCanvas) now uses pure black (#000000) backgrounds for consistent visual experience.
+- **CYOA Builder mapping mode overhaul**: Node cards enlarged (380x340), redesigned with accent-colored borders, prominent image display (40% height), START/END badges, choice list with condition indicators, variable/audio badges, and modern visual hierarchy. Graph view uses the same black InfiniteCanvas.
+- **HOPs scaling fix**: Layer positions converted from absolute pixels to percentage-based CSS (`calc(50% + X%)` instead of `calc(50% + Xpx)`), fixing drift/displacement when canvas renders at sizes different from viewport dimensions. Background layers also use percentage-based transforms.
 
 **Still on the backlog**
 - React + browser autofill password field bug (login page).

@@ -1380,7 +1380,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-white" data-testid="cover-editor-panel">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white" data-testid="cover-editor-panel">
       <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900 flex-shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="p-2 hover:bg-zinc-800" data-testid="button-cover-back">
@@ -2034,7 +2034,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
 
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <div ref={canvasRef} className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative">
+            <div ref={canvasRef} className="flex-1 bg-black flex items-center justify-center p-4 relative">
               <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
                 style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
 

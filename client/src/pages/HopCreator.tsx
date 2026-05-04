@@ -1252,8 +1252,8 @@ export default function HopCreator() {
             ...beatAnim,
           } : {
             position: "absolute",
-            left: `calc(50% + ${layer.positionX}px)`,
-            top: `calc(50% + ${layer.positionY + parallaxShift}px)`,
+            left: `calc(50% + ${(layer.positionX / viewport.w) * 100}%)`,
+            top: `calc(50% + ${((layer.positionY + parallaxShift) / viewport.h) * 100}%)`,
             transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`,
             overflow: canBleed ? "visible" : undefined,
             opacity: layer.opacity,
@@ -1286,7 +1286,7 @@ export default function HopCreator() {
             if (isBgLayer) {
               return (
                 <div key={layer.id} style={shellStyle} onClick={onLayerClick} {...layerDataAttr}>
-                  <div style={{ width: viewport.w, height: viewport.h, transform: `translate(${layer.positionX}px, ${layer.positionY}px) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center" }}>
+                  <div style={{ width: '100%', height: '100%', transform: `translate(${(layer.positionX / viewport.w) * 100}%, ${(layer.positionY / viewport.h) * 100}%) rotate(${layer.rotation}deg) scale(${layer.scale / 100})`, transformOrigin: "center center" }}>
                     {isVideo ? (
                       <video src={layer.dataUrl} className="w-full h-full" style={{ objectFit: layer.objectFit || "contain" }} autoPlay loop muted playsInline draggable={false} />
                     ) : (

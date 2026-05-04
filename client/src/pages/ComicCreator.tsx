@@ -878,23 +878,46 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
                   top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
                   width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
                   height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
-                  transform: `rotate(${content.transform.rotation}deg)`,
+                  transform: `rotate(${content.transform.rotation}deg) scaleX(${content.transform.scaleX ?? 1}) scaleY(${content.transform.scaleY ?? 1})`,
                   zIndex: content.zIndex,
                 }}>
                   {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                  {content.type === "text" && content.data.text && (
+                    <div className="w-full h-full flex items-center justify-center overflow-hidden p-0.5">
+                      <span className="text-center line-clamp-3 leading-tight" style={{ fontSize: Math.max(4, Math.round(8 * (pageW / 650))), color: content.data.color || "#fff", fontFamily: content.data.fontFamily || "inherit" }}>{content.data.text}</span>
+                    </div>
+                  )}
                   {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
                 </div>
               ))}
             </>
           ) : (
             <>
-              {regularImg && <img src={regularImg} className="w-full h-full object-cover" draggable={false} loading="lazy" />}
-              {!regularImg && txt && (
-                <div className="w-full h-full flex items-center justify-center p-0.5 overflow-hidden">
-                  <span className="leading-tight text-center line-clamp-3" style={{
-                    fontSize: Math.max(5, Math.round(10 * (pageW / 650))),
-                    color: "#666",
-                  }}>{txt}</span>
+              {panel.contents.filter(c => !c.hidden).map(content => (
+                <div key={content.id} className="absolute" style={{
+                  left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
+                  top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
+                  width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
+                  height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
+                  transform: `rotate(${content.transform.rotation}deg) scaleX(${content.transform.scaleX ?? 1}) scaleY(${content.transform.scaleY ?? 1})`,
+                  zIndex: content.zIndex,
+                }}>
+                  {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                  {content.type === "text" && content.data.text && (
+                    <div className="w-full h-full flex items-center justify-center overflow-hidden p-0.5">
+                      <span className="text-center line-clamp-4 leading-tight" style={{
+                        fontSize: Math.max(4, Math.round(8 * (pageW / 650))),
+                        color: content.data.color || "#000",
+                        fontFamily: content.data.fontFamily || "inherit",
+                      }}>{content.data.text}</span>
+                    </div>
+                  )}
+                  {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
+                </div>
+              ))}
+              {panel.contents.filter(c => !c.hidden).length === 0 && (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-[8px] text-zinc-400 font-mono">Empty</span>
                 </div>
               )}
             </>
@@ -1043,10 +1066,15 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
                 top: `${edPanelH > 0 ? (content.transform.y / edPanelH) * 100 : 0}%`,
                 width: `${edPanelW > 0 ? (content.transform.width / edPanelW) * 100 : 100}%`,
                 height: `${edPanelH > 0 ? (content.transform.height / edPanelH) * 100 : 100}%`,
-                transform: `rotate(${content.transform.rotation}deg)`,
+                transform: `rotate(${content.transform.rotation}deg) scaleX(${content.transform.scaleX ?? 1}) scaleY(${content.transform.scaleY ?? 1})`,
                 zIndex: content.zIndex,
               }}>
                 {content.type === "image" && content.data.url && <img src={content.data.url} className="w-full h-full object-cover" draggable={false} />}
+                {content.type === "text" && content.data.text && (
+                  <div className="w-full h-full flex items-center justify-center overflow-hidden p-0.5">
+                    <span className="text-center line-clamp-3 leading-tight" style={{ fontSize: Math.max(4, Math.round(8 * (pageW / 650))), color: content.data.color || "#fff", fontFamily: content.data.fontFamily || "inherit" }}>{content.data.text}</span>
+                  </div>
+                )}
                 {content.type === "drawing" && (content.data.drawingData || (content.data as any).isMotion) && <MotionDrawing drawingData={content.data.drawingData} motionFrames={(content.data as any).motionFrames} isMotion={(content.data as any).isMotion} className="w-full h-full object-fill" />}
               </div>
             ))}
@@ -6722,7 +6750,7 @@ export default function ComicCreator() {
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+      <div className="h-screen flex flex-col bg-black text-white">
         {(() => {
           const _tickRef = exportReminderTick;
           const _pid = projectId || createdProjectId;
@@ -7271,7 +7299,7 @@ export default function ComicCreator() {
           </aside>
           )}
 
-          <main className={`flex-1 overflow-auto flex flex-col items-center justify-center relative ${canvasOverview ? 'p-0' : 'p-4'}`} style={{ background: '#1e1e1e' }}>
+          <main className={`flex-1 overflow-auto flex flex-col items-center justify-center relative ${canvasOverview ? 'p-0' : 'p-4'}`} style={{ background: '#000000' }}>
             {canvasOverview ? (
               <ComicCanvasOverview
                 spreads={spreads}
@@ -9083,7 +9111,7 @@ export default function ComicCreator() {
               </div>
             </div>
             
-            <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950">
+            <div className="flex-1 flex items-center justify-center p-8 bg-black">
               <div className="relative" style={{ perspective: "2000px" }}>
                 {previewPage === 0 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">

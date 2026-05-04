@@ -43,7 +43,7 @@ export default function InkbladeSandbox() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-screen bg-zinc-950 text-white font-mono">
+      <div className="flex flex-col h-screen bg-black text-white font-mono">
         <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
           <div className="flex items-center gap-3">
             <PenTool className="w-5 h-5" />

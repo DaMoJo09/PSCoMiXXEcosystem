@@ -554,7 +554,7 @@ export default function HopWaveformTimeline({
   const selectedClip = audioClips.find(c => c.id === selectedClipId);
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950" data-testid="hop-waveform-timeline">
+    <div className="flex flex-col h-full bg-black" data-testid="hop-waveform-timeline">
       <div className="flex items-center gap-1 px-2 py-1 bg-zinc-900/80 border-b border-white/10 shrink-0">
         <button onClick={onPlayToggle} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 transition" data-testid="waveform-play">
           {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}

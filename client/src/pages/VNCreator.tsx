@@ -392,7 +392,7 @@ function TextLog({ log, onClose }: { log: { speaker: string; text: string; color
 
 function ScriptView({ scenes, characters, backgrounds }: { scenes: VNScene[]; characters: VNCharacter[]; backgrounds: VNBackground[] }) {
   return (
-    <div className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed bg-zinc-950">
+    <div className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed bg-black">
       <div className="text-zinc-600 mb-4">
         {characters.map(c => (
           <div key={c.id}>
@@ -1277,7 +1277,7 @@ if(S.length>0)showS(0);
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+      <div className="h-screen flex flex-col bg-black text-white">
         <style>{`
           .vn-transition-fade{animation:vnFade 0.8s ease-in-out}.vn-transition-dissolve{animation:vnDissolve 1s ease-in-out}
           .vn-transition-slide-left{animation:vnSlideLeft 0.6s ease-out}.vn-transition-slide-right{animation:vnSlideRight 0.6s ease-out}
@@ -1528,7 +1528,7 @@ if(S.length>0)showS(0);
           </div>
 
           {vnViewMode === "flowchart" ? (
-            <div className="flex-1 bg-zinc-950 relative">
+            <div className="flex-1 bg-black relative">
               <InfiniteCanvas
                 nodes={vnCanvasNodes}
                 connections={vnCanvasConnections}

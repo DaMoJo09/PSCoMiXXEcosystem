@@ -349,7 +349,7 @@ export default function HopStudioCanvas({
   const selectedSticky = stickyNotes.find(n => n.id === selectedStickyId);
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950" data-testid="hop-studio-canvas">
+    <div className="flex flex-col h-full bg-black" data-testid="hop-studio-canvas">
       <div className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border-b border-white/10 shrink-0">
         <span className="text-[9px] text-zinc-500 font-bold mr-2">TOOLS</span>
         {([

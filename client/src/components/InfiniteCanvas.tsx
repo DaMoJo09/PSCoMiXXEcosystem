@@ -342,7 +342,7 @@ export function InfiniteCanvas({
         isPanning && "cursor-grabbing",
         className
       )}
-      style={{ background: '#1e1e1e' }}
+      style={{ background: '#000000' }}
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

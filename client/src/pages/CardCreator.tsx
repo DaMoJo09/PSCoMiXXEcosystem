@@ -1014,7 +1014,7 @@ export default function CardCreator() {
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+      <div className="h-screen flex flex-col bg-black text-white">
         <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
           <div className="flex items-center gap-4">
             <Link href="/">
@@ -2500,7 +2500,7 @@ export default function CardCreator() {
 
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <div className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative">
+              <div className="flex-1 bg-black flex items-center justify-center p-4 relative">
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                      style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
             

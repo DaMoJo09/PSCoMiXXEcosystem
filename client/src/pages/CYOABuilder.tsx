@@ -4,7 +4,7 @@ import {
   Save, Download, GitBranch, Plus, AlertCircle, Link as LinkIcon,
   ArrowLeft, Play, Copy, RefreshCw, ChevronRight, Trash2, Image as ImageIcon,
   Upload, Wand2, X, Edit, Search, Maximize2, Minimize2, Map as MapIcon,
-  Variable, Filter, Eye, EyeOff, Code, Sparkles, Film, Flag
+  Variable, Filter, Eye, EyeOff, Code, Sparkles, Film, Flag, Volume2
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
@@ -82,11 +82,11 @@ const NODE_COLORS: Record<NodeColor, { bg: string; border: string; label: string
   purple: { bg: "bg-purple-950", border: "border-purple-500", label: "Special" },
 };
 
-const NODE_CARD_W = 280;
-const NODE_CARD_H = 200;
-const NODE_GAP_X = 60;
-const NODE_GAP_Y = 40;
-const COLS = 4;
+const NODE_CARD_W = 380;
+const NODE_CARD_H = 340;
+const NODE_GAP_X = 80;
+const NODE_GAP_Y = 60;
+const COLS = 3;
 
 const CYOA_TEMPLATES = [
   {
@@ -253,34 +253,68 @@ function NodeGraph({ nodes, selectedNodeId, onSelectNode, onEditNode, nodePositi
     const colorScheme = NODE_COLORS[node.color || (node.isEnding ? "green" : "default")];
     const hasEffects = node.effects && node.effects.length > 0;
     const hasCondChoices = node.choices.some(c => c.condition);
+    const isStart = nodes.length > 0 && nodes[0].id === node.id;
+    const accentColor = node.isEnding
+      ? (node.endingType === "good" ? "#22c55e" : node.endingType === "bad" ? "#ef4444" : "#eab308")
+      : node.color === "blue" ? "#3b82f6" : node.color === "red" ? "#ef4444" : node.color === "green" ? "#22c55e" : node.color === "yellow" ? "#eab308" : node.color === "purple" ? "#a855f7" : "#52525b";
+
     return (
-      <div className={`w-full h-full p-3 border-2 shadow-lg cursor-pointer transition-all hover:shadow-xl ${colorScheme.bg} ${node.isEnding ? "border-green-500" : colorScheme.border}`}>
-        {node.image && <div className="absolute inset-0 opacity-20 overflow-hidden rounded"><img src={node.image} className="w-full h-full object-cover" /></div>}
-        <div className="relative z-10 h-full flex flex-col">
-          <div className="flex justify-between items-start mb-1">
-            <span className="font-bold text-xs uppercase truncate flex-1">{node.title || (node.isEnding ? "ENDING" : node.id)}</span>
-            <div className="flex gap-0.5 ml-1">
-              {hasEffects && <Variable className="w-3 h-3 text-purple-400" />}
-              {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" />}
-            </div>
+      <div className="w-full h-full flex flex-col overflow-hidden cursor-pointer transition-all hover:shadow-xl" style={{
+        border: `2px solid ${accentColor}`,
+        background: "#0a0a0a",
+        boxShadow: `0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03)`,
+      }}>
+        <div className="h-1" style={{ background: accentColor }} />
+
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/10" style={{ background: "rgba(255,255,255,0.03)" }}>
+          {isStart && <span className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider bg-cyan-500 text-black rounded-sm">START</span>}
+          {node.isEnding && <span className="px-1.5 py-0.5 text-[7px] font-bold tracking-wider rounded-sm" style={{ backgroundColor: accentColor, color: "#000" }}>{(node.endingType || "END").toUpperCase()}</span>}
+          <span className="font-bold text-[11px] text-white truncate flex-1 tracking-wide uppercase">{node.title || node.id}</span>
+          <div className="flex gap-1 items-center">
+            {hasEffects && <Variable className="w-3 h-3 text-purple-400" />}
+            {hasCondChoices && <Filter className="w-3 h-3 text-amber-400" />}
+            {node.audioUrl && <Volume2 className="w-3 h-3 text-emerald-400" />}
           </div>
-          <p className="text-[11px] font-mono text-zinc-400 line-clamp-4 flex-1">{node.text}</p>
-          {node.choices.length > 0 && (
-            <div className="mt-auto pt-2 border-t border-zinc-700/50 space-y-0.5">
-              {node.choices.slice(0, 3).map((choice, i) => (
-                <div key={i} className="text-[9px] text-zinc-500 flex items-center gap-1 truncate">
-                  {choice.condition ? <Filter className="w-2 h-2 flex-shrink-0 text-amber-400" /> : <LinkIcon className="w-2 h-2 flex-shrink-0" />}
-                  <span className="truncate">{choice.label}</span>
-                </div>
-              ))}
-              {node.choices.length > 3 && <div className="text-[9px] text-zinc-600">+{node.choices.length - 3} more</div>}
-            </div>
-          )}
-          {node.isEnding && <div className={`text-[9px] font-bold uppercase mt-1 ${node.endingType === "good" ? "text-green-400" : node.endingType === "bad" ? "text-red-400" : "text-yellow-400"}`}>{node.endingType || "neutral"} ending</div>}
         </div>
+
+        {node.image ? (
+          <div className="relative shrink-0" style={{ height: "40%" }}>
+            <img src={node.image} className="w-full h-full object-cover" draggable={false} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(transparent 50%, rgba(10,10,10,0.9) 100%)" }} />
+          </div>
+        ) : (
+          <div className="shrink-0 flex items-center justify-center" style={{ height: "20%", background: `linear-gradient(135deg, ${accentColor}10, transparent)` }}>
+            <GitBranch className="w-6 h-6" style={{ color: `${accentColor}40` }} />
+          </div>
+        )}
+
+        <div className="flex-1 px-3 py-2 overflow-hidden">
+          <p className="text-[11px] text-zinc-300 leading-relaxed line-clamp-4">{node.text}</p>
+        </div>
+
+        {node.choices.length > 0 && (
+          <div className="px-3 py-2 border-t border-white/5 space-y-1" style={{ background: "rgba(255,255,255,0.02)" }}>
+            <div className="text-[8px] text-zinc-600 font-bold tracking-wider mb-1">CHOICES · {node.choices.length}</div>
+            {node.choices.slice(0, 4).map((choice, i) => (
+              <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-sm transition-colors" style={{ background: "rgba(255,255,255,0.03)", border: choice.condition ? "1px solid rgba(168,85,247,0.3)" : "1px solid rgba(255,255,255,0.05)" }}>
+                {choice.condition ? <Filter className="w-2.5 h-2.5 flex-shrink-0 text-amber-400" /> : <ChevronRight className="w-2.5 h-2.5 flex-shrink-0 text-zinc-600" />}
+                <span className="text-[10px] text-zinc-400 truncate flex-1">{choice.label}</span>
+                {choice.effects && choice.effects.length > 0 && <Sparkles className="w-2.5 h-2.5 flex-shrink-0 text-purple-400" />}
+              </div>
+            ))}
+            {node.choices.length > 4 && <div className="text-[9px] text-zinc-600 text-center">+{node.choices.length - 4} more choices</div>}
+          </div>
+        )}
+
+        {node.isEnding && node.choices.length === 0 && (
+          <div className="px-3 py-2 border-t border-white/5 flex items-center gap-2" style={{ background: `${accentColor}10` }}>
+            <Flag className="w-3 h-3" style={{ color: accentColor }} />
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: accentColor }}>{node.endingType || "neutral"} ending</span>
+          </div>
+        )}
       </div>
     );
-  }, [nodeMap]);
+  }, [nodeMap, nodes]);
 
   return (
     <InfiniteCanvas
@@ -344,7 +378,7 @@ function ConditionEditor({ condition, variables, onChange, onRemove }: { conditi
 
 function ScriptView({ nodes, variables }: { nodes: CYOANode[]; variables: StoryVariable[] }) {
   return (
-    <div className="absolute inset-0 overflow-auto p-4 font-mono text-sm leading-relaxed bg-zinc-950">
+    <div className="absolute inset-0 overflow-auto p-4 font-mono text-sm leading-relaxed bg-black">
       {variables.length > 0 && (
         <div className="text-zinc-600 mb-4">
           {variables.map(v => (
@@ -992,7 +1026,7 @@ if(N.length>0)showN(N[0].id);
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col bg-zinc-950 text-white">
+      <div className="h-screen flex flex-col bg-black text-white">
         <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-6" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/"><button className="p-2 hover:bg-zinc-800" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></button></Link>
@@ -1209,7 +1243,7 @@ if(N.length>0)showN(N[0].id);
 
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div className="flex-1 relative overflow-hidden" style={{ background: '#1e1e1e' }}>
+                <div className="flex-1 relative overflow-hidden" style={{ background: '#000000' }}>
                   {nodes.length > 0 && !editingNode && (
                     <div className="absolute top-4 right-4 z-20 flex gap-2">
                       <button onClick={() => setViewMode("cards")} className={`px-3 py-1 text-xs font-bold rounded-lg ${viewMode === "cards" ? "bg-white text-black" : "bg-zinc-800 text-white border border-zinc-700"}`}>Cards</button>

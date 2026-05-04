@@ -539,7 +539,7 @@ export function DrawingWorkspace({
   }, [mode, selectedPathId, isPenCreating, undo, redo, deleteSelectedPath, finishPenPath]);
   
   return (
-    <div className={`flex flex-col bg-zinc-950 border border-white/20 ${className}`}>
+    <div className={`flex flex-col bg-black border border-white/20 ${className}`}>
       <div className="flex items-center justify-between p-2 border-b border-white/10 bg-zinc-900">
         <div className="flex items-center gap-2">
           <DropdownMenu>
