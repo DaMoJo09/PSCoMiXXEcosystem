@@ -3642,3 +3642,21 @@ export const insertPromoReviewSchema = createInsertSchema(promoReviews).omit({
 });
 export type InsertPromoReview = z.infer<typeof insertPromoReviewSchema>;
 export type PromoReview = typeof promoReviews.$inferSelect;
+
+export const curriculumProgress = pgTable("curriculum_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  curriculumId: text("curriculum_id").notNull(),
+  objectiveId: text("objective_id").notNull(),
+  weekNumber: integer("week_number").notNull(),
+  xpAwarded: integer("xp_awarded").notNull().default(0),
+  autoCompleted: boolean("auto_completed").notNull().default(false),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+});
+
+export const insertCurriculumProgressSchema = createInsertSchema(curriculumProgress).omit({
+  id: true,
+  completedAt: true,
+});
+export type InsertCurriculumProgress = z.infer<typeof insertCurriculumProgressSchema>;
+export type CurriculumProgress = typeof curriculumProgress.$inferSelect;

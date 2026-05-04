@@ -34,6 +34,8 @@ import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage 
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification, sendBugReportNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
+import { checkAndCompleteObjectives, manualCompleteObjective, getUserCurriculumProgress } from "./curriculumEngine";
+import { CURRICULA, getCurriculum, getTotalXpForCurriculum } from "@shared/curriculumData";
 import { achievements, userAchievements, rewards, userRewards, contentPacks, userEntitlements, progressionNotifications, levelThresholds as levelThresholdsTable, certifications, userCertifications, badges, userBadges } from "@shared/schema";
 import type { InsertPromoTemplate } from "@shared/schema";
 
@@ -826,6 +828,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       const result = await processProgressionEvent(userId, normalizedAction, referenceId, referenceType);
       
+      let curriculumCompleted: any = null;
+      try {
+        curriculumCompleted = await checkAndCompleteObjectives(userId, normalizedAction);
+      } catch (err) {
+        console.error('[curriculum] Auto-check error:', err);
+      }
+
       const user = await storage.getUser(userId);
       if (user) broadcastXpToEcosystem(user.email, result.xpAwarded, normalizedAction, {
         totalXp: result.newXp,
@@ -843,6 +852,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         levelTitle: result.levelTitle,
         achievementsUnlocked: result.achievementsUnlocked,
         rewardsUnlocked: result.rewardsUnlocked,
+        curriculumCompleted,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -1189,6 +1199,66 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         currentStreak,
         nextUnlock,
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/curriculum", isAuthenticated, async (req, res) => {
+    try {
+      const summaries = await Promise.all(CURRICULA.map(async (curr) => {
+        const progress = await getUserCurriculumProgress(req.user!.id, curr.id);
+        return {
+          id: curr.id,
+          title: curr.title,
+          subtitle: curr.subtitle,
+          accent: curr.accent,
+          icon: curr.icon,
+          totalWeeks: curr.weeks.length,
+          totalObjectives: progress.totalObjectives,
+          completedObjectives: progress.completedObjectives.length,
+          totalXpAvailable: getTotalXpForCurriculum(curr.id),
+          totalXpEarned: progress.totalXpEarned,
+          weekProgress: progress.weekProgress,
+        };
+      }));
+      res.json(summaries);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/curriculum/:id", isAuthenticated, async (req, res) => {
+    try {
+      const curr = getCurriculum(req.params.id);
+      if (!curr) return res.status(404).json({ message: "Curriculum not found" });
+
+      const progress = await getUserCurriculumProgress(req.user!.id, req.params.id);
+
+      res.json({
+        curriculum: curr,
+        progress: {
+          completedObjectives: progress.completedObjectives,
+          totalObjectives: progress.totalObjectives,
+          totalXpEarned: progress.totalXpEarned,
+          totalXpAvailable: getTotalXpForCurriculum(req.params.id),
+          weekProgress: progress.weekProgress,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/curriculum/:id/complete", isAuthenticated, async (req, res) => {
+    try {
+      const { objectiveId } = req.body;
+      if (!objectiveId) return res.status(400).json({ message: "objectiveId required" });
+
+      const result = await manualCompleteObjective(req.user!.id, req.params.id, objectiveId);
+      if (!result.success) return res.status(409).json({ message: "Already completed or not found" });
+
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

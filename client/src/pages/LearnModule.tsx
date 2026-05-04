@@ -25,7 +25,9 @@ import {
   Camera,
   Palette,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Trophy,
+  CheckCircle2
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -94,6 +96,15 @@ export default function LearnModule() {
     sortOrder: 0,
     hasChallenge: false,
     challengePrompt: ""
+  });
+
+  const { data: curriculumSummaries = [] } = useQuery({
+    queryKey: ["/api/curriculum"],
+    queryFn: async () => {
+      const res = await fetch("/api/curriculum", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
   });
 
   const { data: pathways = [], isLoading: pathwaysLoading } = useQuery({
@@ -579,72 +590,59 @@ export default function LearnModule() {
               <Badge variant="outline" className="text-xs border-zinc-600 text-zinc-400 ml-2">6-WEEK COURSES</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link href="/ecosystem/learn/curriculum/comixx-main">
-                <div className="group border-2 border-zinc-800 hover:border-[#00e5ff] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-comixx-main">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#00e5ff", color: "#00e5ff" }}>
-                      <Camera className="w-5 h-5" />
+              {(curriculumSummaries.length > 0 ? curriculumSummaries : [
+                { id: "comixx-main", title: "CoMiXX Creator", subtitle: "Photography-Based Comics", accent: "#00e5ff", icon: "Camera", completedObjectives: 0, totalObjectives: 0, totalXpEarned: 0, totalXpAvailable: 0 },
+                { id: "comixx-creator", title: "CoMiXX Creator", subtitle: "Digital Comics & Platform", accent: "#a855f7", icon: "Palette", completedObjectives: 0, totalObjectives: 0, totalXpEarned: 0, totalXpAvailable: 0 },
+                { id: "fx-studio", title: "FX Studio", subtitle: "Visual Effects & Compositing", accent: "#ff2d78", icon: "Sparkles", completedObjectives: 0, totalObjectives: 0, totalXpEarned: 0, totalXpAvailable: 0 },
+              ]).map((curr: any) => {
+                const IconComp = curr.icon === "Camera" ? Camera : curr.icon === "Palette" ? Palette : Sparkles;
+                const pct = curr.totalObjectives > 0 ? Math.round((curr.completedObjectives / curr.totalObjectives) * 100) : 0;
+                const descriptions: Record<string, string> = {
+                  "comixx-main": "Use phone photography, real environments, and the CoMiXX + FX platforms to produce publish-ready comics.",
+                  "comixx-creator": "Master the full PSCoMiXX platform — scripting, layout, inking, color, motion, and publishing workflows.",
+                  "fx-studio": "Build cinematic scenes with layers, compositing, FX effects, character art, and brand kits.",
+                };
+                return (
+                  <Link key={curr.id} href={`/ecosystem/learn/curriculum/${curr.id}`}>
+                    <div className="group border-2 border-zinc-800 bg-black p-6 cursor-pointer transition-all hover:border-opacity-100" style={{ ["--accent" as any]: curr.accent }} data-testid={`card-curriculum-${curr.id}`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: curr.accent, color: curr.accent }}>
+                          {pct === 100 ? <Trophy className="w-5 h-5" /> : <IconComp className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <h3 className="font-black text-base" style={{ color: curr.accent }}>{curr.title}</h3>
+                          <p className="text-[10px] text-zinc-500 tracking-widest uppercase">{curr.subtitle}</p>
+                        </div>
+                      </div>
+                      <p className="text-zinc-400 text-sm mb-3 leading-relaxed">{descriptions[curr.id] || ""}</p>
+                      {curr.totalObjectives > 0 && (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-[10px] mb-1">
+                            <span className="text-zinc-500 tracking-wider uppercase">{curr.completedObjectives}/{curr.totalObjectives} Objectives</span>
+                            <span style={{ color: curr.accent }} className="font-bold">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 bg-zinc-800 w-full">
+                            <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: curr.accent }} />
+                          </div>
+                          {curr.totalXpEarned > 0 && (
+                            <div className="flex items-center gap-1 mt-1.5 text-[10px]" style={{ color: curr.accent }}>
+                              <Zap className="w-3 h-3" />
+                              <span className="font-bold">{curr.totalXpEarned} XP earned</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
+                          <span>6 Weeks</span>
+                          <span>30 Sessions</span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-zinc-600 transition-colors" style={{ color: undefined }} />
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-black text-base" style={{ color: "#00e5ff" }}>CoMiXX Creator</h3>
-                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Photography-Based Comics</p>
-                    </div>
-                  </div>
-                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Use phone photography, real environments, and the CoMiXX + FX platforms to produce publish-ready comics and promo assets.</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
-                      <span>6 Weeks</span>
-                      <span>30 Sessions</span>
-                      <span>Gr 6-12</span>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#00e5ff] transition-colors" />
-                  </div>
-                </div>
-              </Link>
-              <Link href="/ecosystem/learn/curriculum/comixx-creator">
-                <div className="group border-2 border-zinc-800 hover:border-[#a855f7] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-comixx-creator">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#a855f7", color: "#a855f7" }}>
-                      <Palette className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-black text-base" style={{ color: "#a855f7" }}>CoMiXX Creator</h3>
-                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Digital Comics & Platform</p>
-                    </div>
-                  </div>
-                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Master the full PSCoMiXX platform — scripting, layout, inking, color, motion formats, and cross-app publishing workflows.</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
-                      <span>6 Weeks</span>
-                      <span>30 Sessions</span>
-                      <span>Gr 6-12</span>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#a855f7] transition-colors" />
-                  </div>
-                </div>
-              </Link>
-              <Link href="/ecosystem/learn/curriculum/fx-studio">
-                <div className="group border-2 border-zinc-800 hover:border-[#ff2d78] bg-black p-6 cursor-pointer transition-all" data-testid="card-curriculum-fx-studio">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: "#ff2d78", color: "#ff2d78" }}>
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-black text-base" style={{ color: "#ff2d78" }}>FX Studio</h3>
-                      <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Visual Effects & Compositing</p>
-                    </div>
-                  </div>
-                  <p className="text-zinc-400 text-sm mb-4 leading-relaxed">Build cinematic scenes with layers, compositing, FX effects, character art, worldbuilding, and brand kits in FX Studio.</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-3 text-[10px] text-zinc-500 tracking-wider uppercase">
-                      <span>6 Weeks</span>
-                      <span>30 Sessions</span>
-                      <span>Gr 6-12</span>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-[#ff2d78] transition-colors" />
-                  </div>
-                </div>
-              </Link>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
