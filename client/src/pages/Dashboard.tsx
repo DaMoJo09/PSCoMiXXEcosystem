@@ -1023,56 +1023,130 @@ export default function Dashboard() {
 
         <FeaturedOnStage />
 
-        <section>
-          <h2 className="text-xl font-display font-bold flex items-center gap-2 mb-4">
-            <Globe className="w-5 h-5" /> Ecosystem
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <a
-              href="https://pressstart.tech"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
-              data-testid="link-ecosystem-lms"
+        <section data-testid="section-ecosystem-hub">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2">
+              <Globe className="w-5 h-5" /> Ecosystem Hub
+            </h2>
+            <button
+              onClick={() => navigate("/ecosystem")}
+              className="text-sm text-cyan-400 hover:underline font-mono flex items-center gap-1"
+              data-testid="link-ecosystem-hub-all"
             >
-              <GraduationCap className="w-6 h-6 mb-2" />
-              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
-                Press Start LMS
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Courses, assignments & learning
-              </p>
-            </a>
-            <a
-              href="https://psstreaming.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
-              data-testid="link-ecosystem-streaming"
-            >
-              <Tv className="w-6 h-6 mb-2" />
-              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
-                PS Streaming
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Watch & stream creator content
-              </p>
-            </a>
-            <a
-              href="https://madmixedmedia.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block p-4 border border-border hover:border-primary hover:shadow-hard transition-all bg-card text-left rounded-xl"
-              data-testid="link-ecosystem-madmixed"
-            >
-              <Building2 className="w-6 h-6 mb-2" />
-              <h3 className="text-sm font-bold font-display uppercase group-hover:underline decoration-2 underline-offset-4">
-                Mad Mixed Media
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                The parent company & network
-              </p>
-            </a>
+              View all <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                name: "PSCoMiXX Studio",
+                desc: "Comics, cards, motion, visual novels & interactive stories",
+                icon: Palette,
+                href: "/",
+                status: "active",
+                accent: "border-cyan-500",
+                accentBg: "bg-cyan-500/10",
+                accentText: "text-cyan-400",
+                version: "2.0",
+                internal: true,
+              },
+              {
+                name: "PS Streaming",
+                desc: "Publish, stream & discover creator content on Your Stage",
+                icon: Tv,
+                href: "https://psstreaming.com",
+                status: "connected",
+                accent: "border-purple-500",
+                accentBg: "bg-purple-500/10",
+                accentText: "text-purple-400",
+                version: "1.0",
+                internal: false,
+                sso: "streaming",
+              },
+              {
+                name: "Press Start LMS",
+                desc: "Courses, certifications, skill pathways & assignments",
+                icon: GraduationCap,
+                href: "https://pressstart.tech",
+                status: "connected",
+                accent: "border-green-500",
+                accentBg: "bg-green-500/10",
+                accentText: "text-green-400",
+                version: "3.0",
+                internal: false,
+                sso: "lms",
+              },
+              {
+                name: "Mad Mixed Media",
+                desc: "The parent network — brand, partnerships & creator economy",
+                icon: Building2,
+                href: "https://madmixedmedia.com",
+                status: "available",
+                accent: "border-amber-500",
+                accentBg: "bg-amber-500/10",
+                accentText: "text-amber-400",
+                version: "",
+                internal: false,
+              },
+            ].map((app) => {
+              const AppIcon = app.icon;
+              return (
+                <div
+                  key={app.name}
+                  className={`group relative border-2 ${app.accent} bg-card rounded-xl overflow-hidden hover:shadow-hard transition-all cursor-pointer`}
+                  onClick={() => {
+                    if (app.internal) navigate(app.href);
+                    else if ((app as any).sso) {
+                      fetch(`/api/auth/sso/redirect?target=${(app as any).sso}`, { credentials: "include" })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(d => {
+                          if (d?.redirectUrl) window.open(d.redirectUrl, "_blank", "noopener,noreferrer");
+                          else window.open(app.href, "_blank", "noopener,noreferrer");
+                        })
+                        .catch(() => window.open(app.href, "_blank", "noopener,noreferrer"));
+                    } else {
+                      window.open(app.href, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  data-testid={`hub-app-${app.name.replace(/\s+/g, "-").toLowerCase()}`}
+                >
+                  <div className={`h-1.5 ${app.accent.replace("border-", "bg-")}`} />
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`p-2.5 rounded-lg border ${app.accent} ${app.accentBg}`}>
+                        <AppIcon className={`w-6 h-6 ${app.accentText}`} />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {app.version && (
+                          <span className="text-[9px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                            v{app.version}
+                          </span>
+                        )}
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                          app.status === "active" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" :
+                          app.status === "connected" ? "bg-green-500/20 text-green-400 border border-green-500/30" :
+                          "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                        }`} data-testid={`hub-app-status-${app.name.replace(/\s+/g, "-").toLowerCase()}`}>
+                          {app.status === "active" ? "ACTIVE" : app.status === "connected" ? "LINKED" : "VISIT"}
+                        </span>
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-black uppercase tracking-tight mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      {app.name}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {app.desc}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        {app.internal ? "You are here" : (app as any).sso ? "SSO enabled" : "External"}
+                      </span>
+                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 

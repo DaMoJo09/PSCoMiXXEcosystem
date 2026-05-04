@@ -60,11 +60,13 @@ After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`)
 
 **Tier 1 — Real App Features (May 2026)**
 - **Stripe customer portal**: `POST /api/stripe/portal` (already existed) + new "Billing & Subscription" section in `client/src/pages/SettingsPage.tsx` with "Manage Billing" button that redirects to Stripe's hosted portal for invoices, plan changes, card updates, cancellation.
-- **Asset library pagination**: `client/src/contexts/AssetLibraryContext.tsx` now fetches in pages of 200 (`?limit=200&offset=N`), reads `X-Total-Count` header, exposes `totalAssets`, `hasMore`, `loadMore()`. Users with 500+ assets no longer see truncated libraries — they can load more pages.
+- **Asset library pagination**: `client/src/contexts/AssetLibraryContext.tsx` auto-fetches all pages in background (PAGE_SIZE=200), reads `X-Total-Count` header, renders progressively. All consumers (ComicCreator, AssetBrowser, etc.) get the full list without code changes. AssetBrowser shows loading indicator during background fetch and displays "X of Y assets" count.
 - **Email (Resend)**: Already wired — `server/email.ts` sends welcome, assignment, submission, grade, purchase, subscription, new-chapter, and bug-report emails via Resend integration.
+- **Dead Google sign-in removed**: Removed non-functional Google OAuth button from AuthPage (no backend route `/api/login` existed, no `passport-google-oauth20` was installed). Login is email/password + Ecosystem SSO.
+- **Ecosystem Hub cards**: Dashboard Ecosystem section upgraded from plain link cards to rich app-hub cards with status indicators (ACTIVE/LINKED/VISIT), version badges, SSO-enabled launch, accent colors, and hover effects. Apps: PSCoMiXX Studio, PS Streaming, Press Start LMS, Mad Mixed Media.
+- **Desktop App in sidebar**: Added "Desktop App" nav link to sidebar pointing to `/download` page.
 
 **Still on the backlog**
-- Dead "Sign up with Google" button at `client/src/pages/AuthPage.tsx` L330–358 (no handler).
 - React + browser autofill password field bug (login page).
 - Audit other `localStorage.setItem` / `sessionStorage.setItem` call sites and migrate to `safeSet`.
 - Error tracking (Sentry/PostHog) — no production error aggregation yet.

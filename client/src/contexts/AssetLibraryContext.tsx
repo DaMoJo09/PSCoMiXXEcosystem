@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useRef, ReactNode, useCallback, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 import { validateImageFile } from "@/lib/imageValidation";
@@ -93,47 +93,70 @@ export function AssetLibraryProvider({ children }: { children: ReactNode }) {
   const [hasMore, setHasMore] = useState(false);
   const [currentOffset, setCurrentOffset] = useState(0);
 
-  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchAllPages = useCallback(async () => {
     if (!user) {
       setAssets([]);
       setTotalAssets(0);
       setHasMore(false);
+      setCurrentOffset(0);
       return;
     }
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
+    let offset = 0;
+    let allAssets: Asset[] = [];
+
     try {
-      const response = await fetch(`/api/assets?limit=${PAGE_SIZE}&offset=${offset}`, { credentials: "include" });
-      if (response.ok) {
+      while (true) {
+        if (controller.signal.aborted) return;
+        const response = await fetch(`/api/assets?limit=${PAGE_SIZE}&offset=${offset}`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          console.error("Failed to fetch assets page:", response.status);
+          break;
+        }
         const total = parseInt(response.headers.get("X-Total-Count") || "0", 10);
         const data = await response.json();
         const mapped = data.map(mapAsset);
+        allAssets = [...allAssets, ...mapped];
         setTotalAssets(total);
-        setAssets(prev => append ? [...prev, ...mapped] : mapped);
-        const nextOffset = offset + mapped.length;
-        setCurrentOffset(nextOffset);
-        setHasMore(nextOffset < total);
+        setAssets([...allAssets]);
+        offset += mapped.length;
+        setCurrentOffset(offset);
+        const more = offset < total && mapped.length > 0;
+        setHasMore(more);
+        if (!more) break;
       }
-    } catch (error) {
-      console.error("Failed to fetch assets:", error);
+    } catch (error: any) {
+      if (error?.name !== "AbortError") {
+        console.error("Failed to fetch assets:", error);
+      }
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 
   const refreshAssets = useCallback(async () => {
-    setCurrentOffset(0);
-    await fetchPage(0, false);
-  }, [fetchPage]);
+    await fetchAllPages();
+  }, [fetchAllPages]);
 
   const loadMore = useCallback(async () => {
-    if (!hasMore || isLoading) return;
-    await fetchPage(currentOffset, true);
-  }, [fetchPage, currentOffset, hasMore, isLoading]);
+  }, []);
 
   useEffect(() => {
-    refreshAssets();
-  }, [refreshAssets]);
+    fetchAllPages();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchAllPages]);
 
   const addAsset = useCallback(async (assetData: Omit<Asset, "id" | "createdAt">): Promise<Asset | null> => {
     if (!user) return null;

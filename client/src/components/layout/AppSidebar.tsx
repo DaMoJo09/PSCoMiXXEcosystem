@@ -577,6 +577,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
             <AppIconInline icon={Settings} active={location === "/settings"} />
             {isExpanded && "Settings"}
           </Link>
+          {renderNavLink({ icon: Download, label: "Desktop App", href: "/download" })}
           {user?.role === "admin" && (
             <Link 
               href="/admin"

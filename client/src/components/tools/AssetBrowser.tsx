@@ -314,7 +314,7 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
   const [showFilters, setShowFilters] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<AssetItem | null>(null);
   const [activeTab, setActiveTab] = useState<"built-in" | "my-library" | "fx-studio">("built-in");
-  const { assets: libraryAssets, folders: libraryFolders, getAssetsInFolder, removeAsset, updateAsset } = useAssetLibrary();
+  const { assets: libraryAssets, folders: libraryFolders, getAssetsInFolder, removeAsset, updateAsset, hasMore, loadMore, totalAssets, isLoading: isLibraryLoading } = useAssetLibrary();
   const [libSelectMode, setLibSelectMode] = useState(false);
   const [libSelectedIds, setLibSelectedIds] = useState<Set<string>>(new Set());
   const [libRenamingId, setLibRenamingId] = useState<string | null>(null);
@@ -552,8 +552,9 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                       <p className="text-zinc-600 text-sm">Import effects from FX Studio or upload custom assets</p>
                     </div>
                   ) : (
+                    <>
                     <div className="grid grid-cols-4 gap-4">
-                      {filtered.map(asset => (
+                      {filtered.map((asset: any) => (
                         <div
                           key={asset.id}
                           className={`group relative bg-[#1a1a1a] rounded-xl border overflow-hidden transition-all cursor-pointer ${
@@ -682,11 +683,23 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
                         </div>
                       ))}
                     </div>
+                    {isLibraryLoading && libraryAssets.length > 0 && (
+                      <div className="flex justify-center py-4">
+                        <div className="flex items-center gap-2 text-sm text-zinc-400">
+                          <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                          Loading more assets...
+                        </div>
+                      </div>
+                    )}
+                    </>
                   );
                 })()}
               </div>
               <div className="p-3 border-t border-[#252525] flex items-center justify-between text-sm text-zinc-500 shrink-0">
-                <span>{(selectedCategory === "all" ? libraryAssets : getAssetsInFolder(selectedCategory)).length} assets in library</span>
+                <span>
+                  {(selectedCategory === "all" ? libraryAssets : getAssetsInFolder(selectedCategory)).length}
+                  {totalAssets > 0 && selectedCategory === "all" ? ` of ${totalAssets}` : ""} assets
+                </span>
                 {libSelectMode && libSelectedIds.size > 0 && (
                   <span className="text-violet-400 text-xs">{libSelectedIds.size} selected</span>
                 )}
