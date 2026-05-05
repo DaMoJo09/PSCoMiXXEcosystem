@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useProject, useProjects, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { apiRequest } from "@/lib/queryClient";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
+import { usePscomixxFile } from "@/hooks/usePscomixxFile";
 import type { HopScene, HopData, Project } from "@shared/schema";
 import HopStudioCanvas from "@/components/hop/HopStudioCanvas";
 import { VersionHistory } from "@/components/projects/VersionHistory";
@@ -285,6 +286,7 @@ function generateVibeGradient(colors: string[]): string {
 
 export default function HopCreator() {
   const search = useSearch();
+  const isImporting = new URLSearchParams(search).get('import') === 'pending';
   const params = new URLSearchParams(search);
   const projectId = params.get("id");
 
@@ -453,6 +455,7 @@ export default function HopCreator() {
   }, [stopGaplessAudio]);
 
   useEffect(() => {
+    if (isImporting) return;
     if (existingProject) {
       setTitle(existingProject.title || "Untitled HOP");
       const data = existingProject.data as any;
@@ -481,7 +484,7 @@ export default function HopCreator() {
         if ((existingProject as any).description) setDescription((existingProject as any).description as string || "");
       }
     }
-  }, [existingProject]);
+  }, [existingProject, isImporting]);
 
   const buildHopData = useCallback((): HopData => ({
     type: hopType,
@@ -561,6 +564,37 @@ export default function HopCreator() {
       setSaving(false);
     }
   }, [buildHopData, title, effectiveProjectId, createProject, fireXpEvent]);
+
+  const { handleSaveToComputer: hopSaveToComputer, handleOpenFromComputer: hopOpenFromComputer } = usePscomixxFile<HopData>({
+    type: "hop",
+    route: "/creator/hop",
+    getSnapshot: () => ({ title, data: buildHopData() }),
+    applySnapshot: ({ title: newTitle, data }) => {
+      if (newTitle) setTitle(newTitle);
+      const d = data as any;
+      if (d?.type) setHopType(d.type);
+      if (d?.clipLengthMode) setClipLengthMode(d.clipLengthMode);
+      if (d?.loopMode) setLoopMode(d.loopMode);
+      if (Array.isArray(d?.scenes)) setScenes(d.scenes);
+      if (Array.isArray(d?.tags)) setTags(d.tags);
+      if (d?.visibility) setVisibility(d.visibility);
+      if (d?.audioTrack) setAudioTrack(d.audioTrack);
+      if (d?.sceneLayers) setSceneLayers(d.sceneLayers);
+      if (d?.sceneTextStyles) setSceneTextStyles(d.sceneTextStyles);
+      if (Array.isArray(d?.audioClips)) setAudioClips(d.audioClips);
+      if (d?.hopMode) setHopMode(d.hopMode);
+      if (d?.displayMode) setDisplayMode(d.displayMode);
+      if (Array.isArray(d?.stitchSegments)) setStitchSegments(d.stitchSegments);
+      if (Array.isArray(d?.parallaxLayers)) setParallaxLayers(d.parallaxLayers);
+      if (d?.panoramaUrl) {
+        setPanoramaUrl(d.panoramaUrl);
+        setPanoramaWidth(d.panoramaWidth || 0);
+      }
+      if (Array.isArray(d?.canvasNodes)) setCanvasNodes(d.canvasNodes);
+      if (Array.isArray(d?.canvasConnections)) setCanvasConnections(d.canvasConnections);
+    },
+    defaultTitle: "Untitled HOP",
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1482,6 +1516,12 @@ export default function HopCreator() {
           </span>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0" data-testid="button-publish-toolbar">Publish</button>
           <button onClick={handleSave} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">Save HOP</button>
+          <button onClick={hopSaveToComputer} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-cyan-700/50 text-cyan-300 hover:text-cyan-200 transition shrink-0 flex items-center gap-1" title="Save .pscomixx to your computer (works offline)" data-testid="button-save-to-computer">
+            <Download className="w-2.5 h-2.5" /> FILE
+          </button>
+          <button onClick={hopOpenFromComputer} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-cyan-700/50 text-cyan-300 hover:text-cyan-200 transition shrink-0 flex items-center gap-1" title="Open .pscomixx file from your computer" data-testid="button-open-from-computer">
+            <FolderOpen className="w-2.5 h-2.5" /> OPEN
+          </button>
           <button onClick={handleExportPng} disabled={exporting} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">GIF</button>
           <button onClick={() => setShowExportPanel(true)} className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">MP4</button>
           <Link href="/" className="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition shrink-0">CoMiXX</Link>

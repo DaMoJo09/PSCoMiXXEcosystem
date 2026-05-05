@@ -3,11 +3,12 @@ import { FirstProjectGuide } from "@/components/FirstProjectGuide";
 import { 
   Play, Plus, ArrowLeft, Save, Trash2, Image as ImageIcon, 
   MessageSquare, GitBranch, User, Upload, Wand2, X,
-  Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2,
+  Copy, Eye, EyeOff, Download, ArrowUp, ArrowDown, Maximize2, Minimize2, FolderOpen,
   BookOpen, SkipForward, Rewind, Code, Monitor, Volume2, Music,
   ChevronLeft, ChevronRight, FileText, Sparkles, Film, Map as MapIcon
 } from "lucide-react";
 import { useFxStudio } from "@/hooks/useFxStudio";
+import { usePscomixxFile } from "@/hooks/usePscomixxFile";
 import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import type { FxEffect } from "@/lib/api";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -477,6 +478,7 @@ function ScriptView({ scenes, characters, backgrounds }: { scenes: VNScene[]; ch
 export default function VNCreator() {
   const [, navigate] = useLocation();
   const search = useSearch();
+  const isImporting = new URLSearchParams(search).get('import') === 'pending';
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -557,6 +559,7 @@ export default function VNCreator() {
 
   useEffect(() => {
     if (projectId) { setIsCreating(false); return; }
+    if (isImporting) return;
     if (creationAttempted.current) return;
     creationAttempted.current = true;
     setIsCreating(true);
@@ -571,14 +574,17 @@ export default function VNCreator() {
           if (aHasData && !bHasData) return -1; if (!aHasData && bHasData) return 1;
           return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
         });
-        if (existing.length > 0) { clearTimeout(timeoutId); setCreatedProjectId(existing[0].id); setIsCreating(false); navigate(`/creator/vn?id=${existing[0].id}`, { replace: true }); return; }
-        return createProject.mutateAsync({ title: "Untitled Visual Novel", type: "vn", status: "draft", data: { scenes, characters, backgrounds } })
+        const justImported = sessionStorage.getItem('pscomixx:just-imported:vn');
+        if (justImported) sessionStorage.removeItem('pscomixx:just-imported:vn');
+        if (existing.length > 0 && !justImported) { clearTimeout(timeoutId); setCreatedProjectId(existing[0].id); setIsCreating(false); navigate(`/creator/vn?id=${existing[0].id}`, { replace: true }); return; }
+        return createProject.mutateAsync({ title, type: "vn", status: "draft", data: { scenes, characters, backgrounds, scenePositions } })
           .then((p) => { if (cancelled) return; clearTimeout(timeoutId); setCreatedProjectId(p.id); setIsCreating(false); navigate(`/creator/vn?id=${p.id}`, { replace: true }); });
       }).catch((err) => { if (cancelled) return; clearTimeout(timeoutId); toast.error(err?.message || "Failed"); setIsCreating(false); creationAttempted.current = false; });
     return () => { cancelled = true; clearTimeout(timeoutId); };
-  }, [projectId]);
+  }, [projectId, isImporting]);
 
   useEffect(() => {
+    if (isImporting) return;
     if (project) {
       setTitle(project.title);
       const data = project.data as any;
@@ -587,7 +593,7 @@ export default function VNCreator() {
       if (data?.backgrounds) setBackgrounds(data.backgrounds);
       if (data?.scenePositions) setScenePositions(data.scenePositions);
     }
-  }, [project]);
+  }, [project, isImporting]);
 
   useEffect(() => { if (scenes.length > 0 && !selectedScene) setSelectedScene(scenes[0].id); }, [scenes, selectedScene]);
 
@@ -724,7 +730,7 @@ export default function VNCreator() {
   latestDataRef.current = { title, scenes, characters, backgrounds, scenePositions, projectId: effectiveProjectId };
 
   useEffect(() => { if (project && !initialLoadDoneRef.current) initialLoadDoneRef.current = true; }, [project]);
-  useEffect(() => { if (!effectiveProjectId || !initialLoadDoneRef.current) return; pendingSaveRef.current = true; }, [scenes, characters, backgrounds, title, effectiveProjectId]);
+  useEffect(() => { if (!effectiveProjectId || !initialLoadDoneRef.current) return; pendingSaveRef.current = true; }, [scenes, characters, backgrounds, scenePositions, title, effectiveProjectId]);
 
   useEffect(() => {
     if (!effectiveProjectId || scenes.length === 0) return;
@@ -733,7 +739,7 @@ export default function VNCreator() {
       try { await updateProject.mutateAsync({ id: effectiveProjectId, data: { title, data: { scenes, characters, backgrounds, scenePositions } } }); pendingSaveRef.current = false; } catch {}
     }, 30000);
     return () => clearInterval(interval);
-  }, [effectiveProjectId, scenes, characters, backgrounds, title]);
+  }, [effectiveProjectId, scenes, characters, backgrounds, scenePositions, title]);
 
   useEffect(() => {
     return () => {
@@ -1008,6 +1014,20 @@ if(S.length>0)showS(0);
     [newDialogue[index], newDialogue[newIndex]] = [newDialogue[newIndex], newDialogue[index]];
     updateScene(sceneId, { dialogue: newDialogue });
   };
+
+  const { handleSaveToComputer: vnSaveToComputer, handleOpenFromComputer: vnOpenFromComputer } = usePscomixxFile({
+    type: "vn",
+    route: "/creator/vn",
+    getSnapshot: () => ({ title, data: { scenes, characters, backgrounds, scenePositions } }),
+    applySnapshot: ({ title: newTitle, data }) => {
+      if (newTitle) setTitle(newTitle);
+      if (Array.isArray((data as any)?.scenes)) setScenes((data as any).scenes);
+      if (Array.isArray((data as any)?.characters)) setCharacters((data as any).characters);
+      if (Array.isArray((data as any)?.backgrounds)) setBackgrounds((data as any).backgrounds);
+      if ((data as any)?.scenePositions) setScenePositions((data as any).scenePositions);
+    },
+    defaultTitle: "Untitled Visual Novel",
+  });
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -1373,6 +1393,12 @@ if(S.length>0)showS(0);
             </div>
             <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 rounded-lg" data-testid="button-save">
               <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save"}
+            </button>
+            <button onClick={vnSaveToComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2 rounded-lg" title="Save .pscomixx to your computer (works offline)" data-testid="button-save-to-computer">
+              <Download className="w-4 h-4" /> File
+            </button>
+            <button onClick={vnOpenFromComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2 rounded-lg" title="Open .pscomixx file from your computer" data-testid="button-open-from-computer">
+              <FolderOpen className="w-4 h-4" /> Open
             </button>
             <button onClick={startPlaytest} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 rounded-lg" data-testid="button-playtest">
               <Play className="w-4 h-4" /> Playtest

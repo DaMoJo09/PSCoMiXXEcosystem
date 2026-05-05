@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { captureElement } from "@/lib/canvasCapture";
 import { 
-  Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, 
+  Save, Download, RefreshCw, Sparkles, Package, RotateCw, ImageIcon, FolderOpen, 
   Wand2, ArrowLeft, Upload, Type, Palette, Settings, X, Plus, Trash2,
   Copy, Layers, Eye, Pen, Share2, Printer, Users, Trophy, Grid3X3, Film, Music, Volume2
 } from "lucide-react";
@@ -9,6 +9,7 @@ import { FxBrowserPanel } from "@/components/FxBrowserPanel";
 import { fxStudioApi } from "@/lib/api";
 import type { FxEffect } from "@/lib/api";
 import { useFxStudio } from "@/hooks/useFxStudio";
+import { usePscomixxFile } from "@/hooks/usePscomixxFile";
 import cardArt from "@assets/generated_images/cyberpunk_trading_card_art.png";
 import backCoverArt from "@assets/generated_images/noir_comic_panel.png";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -265,6 +266,7 @@ interface PackData {
 export default function CardCreator() {
   const [, navigate] = useLocation();
   const search = useSearch();
+  const isImporting = new URLSearchParams(search).get('import') === 'pending';
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -301,6 +303,16 @@ export default function CardCreator() {
 
   const fxStudio = useFxStudio({
     projectId: effectiveProjectId || undefined,
+  });
+
+  const { handleSaveToComputer: ccSaveToComputer, handleOpenFromComputer: ccOpenFromComputer } = usePscomixxFile<CardData>({
+    type: "card",
+    route: "/creator/card",
+    getSnapshot: () => ({ title: cardData.name || "Untitled Card", data: cardData }),
+    applySnapshot: ({ data }) => {
+      if (data && typeof data === "object") setCardData(data as CardData);
+    },
+    defaultTitle: "Untitled Card",
   });
 
   const switchCardMode = (newMode: "tcg" | "sports") => {
@@ -401,6 +413,7 @@ export default function CardCreator() {
       setIsCreating(false);
       return;
     }
+    if (isImporting) return;
     if (creationAttempted.current) return;
 
     creationAttempted.current = true;
@@ -426,7 +439,9 @@ export default function CardCreator() {
             if (!aHasData && bHasData) return 1;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           });
-        if (existing.length > 0) {
+        const justImported = sessionStorage.getItem('pscomixx:just-imported:card');
+        if (justImported) sessionStorage.removeItem('pscomixx:just-imported:card');
+        if (existing.length > 0 && !justImported) {
           clearTimeout(timeoutId);
           setCreatedProjectId(existing[0].id);
           setIsCreating(false);
@@ -457,14 +472,15 @@ export default function CardCreator() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [projectId]);
+  }, [projectId, isImporting]);
 
   useEffect(() => {
+    if (isImporting) return;
     if (project) {
       const data = project.data as CardData;
       if (data) setCardData(prev => ({ ...prev, ...data }));
     }
-  }, [project]);
+  }, [project, isImporting]);
 
   const cardClipboardRef = useRef<CardData | null>(null);
 
@@ -1068,6 +1084,12 @@ export default function CardCreator() {
             </button>
             <button onClick={handleExport} className="px-4 py-2 bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200" data-testid="button-export-card">
               <Download className="w-4 h-4" /> Export
+            </button>
+            <button onClick={ccSaveToComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2" title="Save .pscomixx to your computer (works offline)" data-testid="button-save-to-computer">
+              <Download className="w-4 h-4" /> File
+            </button>
+            <button onClick={ccOpenFromComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2" title="Open .pscomixx file from your computer" data-testid="button-open-from-computer">
+              <FolderOpen className="w-4 h-4" /> Open
             </button>
             <button
               onClick={async () => {

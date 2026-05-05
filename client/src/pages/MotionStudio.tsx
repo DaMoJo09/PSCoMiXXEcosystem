@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { 
   ArrowLeft, Play, Pause, SkipBack, SkipForward, Repeat,
-  Plus, Trash2, Copy, Save, Download, Upload,
+  Plus, Trash2, Copy, Save, Download, Upload, FolderOpen,
   Wand2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ZoomIn, ZoomOut, Maximize2,
   Sparkles, Film, Music,
@@ -35,6 +35,7 @@ import { BrushSettingsPanel } from "@/components/inkblade/BrushSettingsPanel";
 import { getBrush } from "@/lib/inkblade/brushes";
 import type { BrushProfile } from "@/lib/inkblade/types";
 import { saveProjectWithOfflineFallback } from "@/lib/offlineStorage";
+import { usePscomixxFile } from "@/hooks/usePscomixxFile";
 
 // Easing presets
 const EASING_PRESETS = [
@@ -401,6 +402,7 @@ function VirtualizedFrameList({
 export default function MotionStudio() {
   const [, navigate] = useLocation();
   const search = useSearch();
+  const isImporting = new URLSearchParams(search).get('import') === 'pending';
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
@@ -551,6 +553,19 @@ export default function MotionStudio() {
     projectId: effectiveProjectId || undefined,
     onAssetsUpdated: () => loadFxEffects(),
   });
+
+  const { handleSaveToComputer: msSaveToComputer, handleOpenFromComputer: msOpenFromComputer } = usePscomixxFile({
+    type: "motion",
+    route: "/creator/motion",
+    getSnapshot: () => ({ title, data: { frames, tracks, audioClips } }),
+    applySnapshot: ({ title: newTitle, data }) => {
+      if (newTitle) setTitle(newTitle);
+      if (Array.isArray((data as any)?.frames)) setFrames((data as any).frames);
+      if (Array.isArray((data as any)?.tracks)) setTracks((data as any).tracks);
+      if (Array.isArray((data as any)?.audioClips)) setAudioClips((data as any).audioClips);
+    },
+    defaultTitle: "Untitled Motion",
+  });
   
   // FX Studio Browser (www.pscomixx.online sync)
   const [showFxBrowser, setShowFxBrowser] = useState(false);
@@ -626,6 +641,7 @@ export default function MotionStudio() {
   const msCreationAttempted = useRef(false);
   useEffect(() => {
     if (projectId) return;
+    if (isImporting) return;
     if (msCreationAttempted.current || createProject.isPending) return;
     msCreationAttempted.current = true;
 
@@ -643,16 +659,18 @@ export default function MotionStudio() {
             if (!aHasData && bHasData) return 1;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           });
-        if (existing.length > 0) {
+        const justImported = sessionStorage.getItem('pscomixx:just-imported:motion');
+        if (justImported) sessionStorage.removeItem('pscomixx:just-imported:motion');
+        if (existing.length > 0 && !justImported) {
           setCreatedProjectId(existing[0].id);
           navigate(`/creator/motion?id=${existing[0].id}`, { replace: true });
           return;
         }
         return createProject.mutateAsync({
-          title: "Untitled Project",
+          title,
           type: "motion",
           status: "draft",
-          data: { frames: [], tracks: [] },
+          data: { frames, tracks, audioClips },
         }).then((newProject) => {
           if (cancelled) return;
           setCreatedProjectId(newProject.id);
@@ -665,7 +683,7 @@ export default function MotionStudio() {
       });
 
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, isImporting]);
 
   // Track whether we imported from comic panel so project load doesn't overwrite
   const importedFromPanelRef = useRef(false);
@@ -778,6 +796,7 @@ export default function MotionStudio() {
 
   // Load project data (skip if we imported from a comic panel)
   useEffect(() => {
+    if (isImporting) return;
     if (project && !importedFromPanelRef.current) {
       setTitle(project.title);
       const data = project.data as any;
@@ -790,7 +809,7 @@ export default function MotionStudio() {
     } else if (project && importedFromPanelRef.current) {
       setTitle(project.title);
     }
-  }, [project]);
+  }, [project, isImporting]);
 
   // Auto-save system for Motion Studio
   const msAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -820,7 +839,7 @@ export default function MotionStudio() {
     return () => {
       if (msAutoSaveTimerRef.current) clearTimeout(msAutoSaveTimerRef.current);
     };
-  }, [frames, title, effectiveProjectId, audioClips]);
+  }, [frames, tracks, title, effectiveProjectId, audioClips]);
 
   useEffect(() => {
     return () => {
@@ -3348,6 +3367,18 @@ export default function MotionStudio() {
             data-testid="button-save">
             <Save className="w-3.5 h-3.5" />
             {isSaving ? "..." : "Save"}
+          </button>
+          <button onClick={msSaveToComputer}
+            className="px-2 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-1.5 text-cyan-300"
+            title="Save .pscomixx to your computer (works offline)"
+            data-testid="button-save-to-computer">
+            <Download className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={msOpenFromComputer}
+            className="px-2 py-1.5 text-xs font-medium bg-[#1a1a1a] hover:bg-[#252525] rounded-lg transition-colors flex items-center gap-1.5 text-cyan-300"
+            title="Open .pscomixx file from your computer"
+            data-testid="button-open-from-computer">
+            <FolderOpen className="w-3.5 h-3.5" />
           </button>
           <button onClick={handleExport}
             className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-2"

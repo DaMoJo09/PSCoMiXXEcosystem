@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { captureElement } from "@/lib/canvasCapture";
 import { 
-  Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, 
+  Save, Download, ArrowLeft, Type, ImageIcon, Wand2, X, Upload, Eye, FolderOpen, 
   RotateCw, Palette, Settings, Layers, Plus, Trash2, Copy, Pen,
   Undo2, Redo2, Ruler, FileText, Film, Sparkles, Share2,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { fxStudioApi } from "@/lib/api";
 import { useFxStudio } from "@/hooks/useFxStudio";
+import { usePscomixxFile } from "@/hooks/usePscomixxFile";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { AIGenerator } from "@/components/tools/AIGenerator";
@@ -283,6 +284,7 @@ const defaultCover: CoverData = {
 export default function CoverCreator() {
   const [, navigate] = useLocation();
   const search = useSearch();
+  const isImporting = new URLSearchParams(search).get('import') === 'pending';
   const searchParams = new URLSearchParams(search);
   const projectId = searchParams.get('id');
   const comicId = searchParams.get('comicId');
@@ -398,6 +400,7 @@ export default function CoverCreator() {
       setIsCreating(false);
       return;
     }
+    if (isImporting) return;
     if (creationAttempted.current) return;
 
     creationAttempted.current = true;
@@ -423,7 +426,9 @@ export default function CoverCreator() {
             if (!aHasData && bHasData) return 1;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           });
-        if (existing.length > 0) {
+        const justImported = sessionStorage.getItem('pscomixx:just-imported:cover');
+        if (justImported) sessionStorage.removeItem('pscomixx:just-imported:cover');
+        if (existing.length > 0 && !justImported) {
           clearTimeout(timeoutId);
           setCreatedProjectId(existing[0].id);
           setIsCreating(false);
@@ -434,7 +439,7 @@ export default function CoverCreator() {
           title: "Untitled Cover",
           type: "cover",
           status: "draft",
-          data: defaultCover,
+          data: coverData,
         }).then((newProject) => {
           if (cancelled) return;
           clearTimeout(timeoutId);
@@ -454,9 +459,10 @@ export default function CoverCreator() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [projectId, isComicEmbedded]);
+  }, [projectId, isComicEmbedded, isImporting]);
 
   useEffect(() => {
+    if (isImporting) return;
     if (!project) return;
     if (isComicEmbedded) {
       const comicData = project.data as any;
@@ -475,7 +481,7 @@ export default function CoverCreator() {
       const data = project.data as CoverData;
       if (data) setCoverData(prev => ({ ...prev, ...data }));
     }
-  }, [project, isComicEmbedded]);
+  }, [project, isComicEmbedded, isImporting]);
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userEditCountRef = useRef(0);
@@ -932,6 +938,16 @@ export default function CoverCreator() {
     }
     queryClient.invalidateQueries({ queryKey: ["project", comicId] });
   };
+
+  const { handleSaveToComputer: cvSaveToComputer, handleOpenFromComputer: cvOpenFromComputer } = usePscomixxFile({
+    type: "cover",
+    route: "/creator/cover",
+    getSnapshot: () => ({ title: (coverData as any)?.title || "Untitled Cover", data: coverData }),
+    applySnapshot: ({ data }) => {
+      if (data && typeof data === "object") setCoverData(data as any);
+    },
+    defaultTitle: "Untitled Cover",
+  });
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -1815,6 +1831,12 @@ export default function CoverCreator() {
               data-testid="button-export-pdf"
             >
               <FileText className="w-4 h-4" /> PDF
+            </button>
+            <button onClick={cvSaveToComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2" title="Save .pscomixx to your computer (works offline)" data-testid="button-save-to-computer">
+              <Download className="w-4 h-4" /> File
+            </button>
+            <button onClick={cvOpenFromComputer} className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-cyan-700 text-cyan-300 text-sm font-medium flex items-center gap-2" title="Open .pscomixx file from your computer" data-testid="button-open-from-computer">
+              <FolderOpen className="w-4 h-4" /> Open
             </button>
           </div>
         </header>
