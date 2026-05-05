@@ -30,7 +30,7 @@ import { seedDemoContent } from "./seed-content";
 import { logPaymentEvent } from "./paymentAudit";
 import { validateApiKey, isAllowedWebhookUrl } from "./integrationAuth";
 import { getProjectExportData } from "./exportService";
-import { saveBase64File, getFile, getUserFiles, deleteFile, getUserStorageUsage } from "./fileStorage";
+import { saveBase64File, getFile, getFileRecord, getFileStream, getUserFiles, deleteFile, getUserStorageUsage, getUserQuota } from "./fileStorage";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification, sendBugReportNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
@@ -10701,7 +10701,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       const result = await saveBase64File(user.id, data, filename, mimeType, projectId);
       res.json(result);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      const status = error.statusCode || 400;
+      const payload: any = { message: error.message };
+      if (error.code) payload.code = error.code;
+      if (error.quota) payload.quota = error.quota;
+      res.status(status).json(payload);
     }
   });
 
@@ -10725,14 +10729,53 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     }
   });
 
+  app.get("/api/files/quota", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const quota = await getUserQuota(user.id);
+      res.json(quota);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/files/:id/download", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const record = await getFileRecord(req.params.id, user.id);
+      if (!record) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      res.setHeader("Content-Type", record.mimeType);
+      res.setHeader("Content-Length", String(record.sizeBytes));
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(record.originalName)}"`);
+      const stream = getFileStream(record.storagePath);
+      stream.on("error", (err) => {
+        console.error("File stream error:", err);
+        if (!res.headersSent) res.status(500).end();
+      });
+      stream.pipe(res);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/files/:id", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const file = await getFile(req.params.id, user.id);
-      if (!file) {
+      const record = await getFileRecord(req.params.id, user.id);
+      if (!record) {
         return res.status(404).json({ message: "File not found" });
       }
-      res.json(file);
+      res.setHeader("Content-Type", record.mimeType);
+      res.setHeader("Content-Length", String(record.sizeBytes));
+      res.setHeader("Cache-Control", "private, max-age=300");
+      const stream = getFileStream(record.storagePath);
+      stream.on("error", (err) => {
+        console.error("File stream error:", err);
+        if (!res.headersSent) res.status(500).end();
+      });
+      stream.pipe(res);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

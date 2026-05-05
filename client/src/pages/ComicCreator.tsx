@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { PostComposer } from "@/components/social/PostComposer";
 import { useAuth } from "@/contexts/AuthContext";
 import { saveProjectWithOfflineFallback, type SaveResult } from "@/lib/offlineStorage";
+import { isDesktop, saveProjectToFile, openProjectFromFile, PSCOMIXX_FORMAT_VERSION } from "@/lib/desktopBridge";
 import { fxStudioApi, type FxEffect } from "@/lib/api";
 import { shouldBlockDirectPayments } from "@/lib/platform";
 import { useSyncToCoMiXX } from "@/hooks/useSyncToCoMiXX";
@@ -4218,6 +4219,52 @@ export default function ComicCreator() {
     }
   };
 
+  const handleSaveToComputer = async () => {
+    try {
+      const result = await saveProjectToFile({
+        title: title || "Untitled Comic",
+        type: "comic",
+        formatVersion: PSCOMIXX_FORMAT_VERSION,
+        exportedAt: new Date().toISOString(),
+        data: { spreads, comicMeta, flowConnections },
+        meta: { tool: "comic-creator" },
+      });
+      if (result.saved) {
+        toast.success(
+          isDesktop()
+            ? `Saved to ${result.path || "your computer"}`
+            : "Project downloaded as .pscomixx file"
+        );
+        fireXpAction("export");
+        markProjectExported(projectId || createdProjectId);
+        setExportReminderDismissed(true);
+      }
+    } catch (err) {
+      console.error("Save to computer failed:", err);
+      toast.error("Failed to save project to your computer");
+    }
+  };
+
+  const handleOpenFromComputer = async () => {
+    try {
+      const project = await openProjectFromFile();
+      if (!project) return;
+      if (project.type !== "comic") {
+        toast.error(`This file is a "${project.type}" project, not a comic.`);
+        return;
+      }
+      const data = project.data || {};
+      if (Array.isArray(data.spreads)) setSpreads(data.spreads);
+      if (data.comicMeta) setComicMeta(data.comicMeta);
+      if (Array.isArray(data.flowConnections)) setFlowConnections(data.flowConnections);
+      if (project.title) setTitle(project.title);
+      toast.success(`Opened "${project.title}" from your computer`);
+    } catch (err) {
+      console.error("Open from computer failed:", err);
+      toast.error("Failed to open project file");
+    }
+  };
+
   const addSpread = () => {
     setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);
     setCurrentSpreadIndex(spreads.length);
@@ -7007,6 +7054,20 @@ export default function ComicCreator() {
                   <div>
                     <span>Project Data (JSON)</span>
                     <p className="text-[10px] text-zinc-500 mt-0.5">Backup project structure and content</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSaveToComputer} className="hover:bg-zinc-800 cursor-pointer text-cyan-300" data-testid="button-save-to-computer">
+                  <Download className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Save to My Computer (.pscomixx)</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{isDesktop() ? "Save full project + assets locally" : "Download portable project bundle"}</p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenFromComputer} className="hover:bg-zinc-800 cursor-pointer text-cyan-300" data-testid="button-open-from-computer">
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  <div>
+                    <span>Open from My Computer (.pscomixx)</span>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Restore a saved project bundle</p>
                   </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>

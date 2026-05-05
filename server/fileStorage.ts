@@ -1,30 +1,106 @@
-import * as fs from "fs";
-import * as path from "path";
 import * as crypto from "crypto";
+import * as path from "path";
 import { db } from "./db";
-import { exportedFiles } from "@shared/schema";
+import { exportedFiles, users, tierEntitlements, type TierName } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 
-const STORAGE_DIR = path.join(process.cwd(), "uploads");
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml",
   "application/pdf", "application/json",
   "video/mp4", "video/webm",
   "text/html", "text/plain",
-  "application/zip",
+  "application/zip", "application/octet-stream",
 ];
 
-function ensureStorageDir() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+function getPrivateDir(): string {
+  const dir = process.env.PRIVATE_OBJECT_DIR || "";
+  if (!dir) {
+    throw new Error(
+      "PRIVATE_OBJECT_DIR not set. Object Storage bucket is not configured."
+    );
   }
+  return dir;
+}
+
+function parseBucketAndPrefix(fullPath: string): { bucketName: string; prefix: string } {
+  const normalized = fullPath.startsWith("/") ? fullPath : `/${fullPath}`;
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length < 1) {
+    throw new Error(`Invalid PRIVATE_OBJECT_DIR: ${fullPath}`);
+  }
+  const bucketName = parts[0];
+  const prefix = parts.slice(1).join("/");
+  return { bucketName, prefix };
+}
+
+function buildObjectKey(prefix: string, userId: string, filename: string): string {
+  const segments = [prefix, "exports", userId, filename].filter((s) => s && s.length > 0);
+  return segments.join("/");
 }
 
 function generateFilename(originalName: string): string {
   const ext = path.extname(originalName) || ".bin";
   const hash = crypto.randomBytes(16).toString("hex");
   return `${Date.now()}-${hash}${ext}`;
+}
+
+export interface QuotaInfo {
+  usedBytes: number;
+  limitBytes: number;
+  remainingBytes: number;
+  percentUsed: number;
+  tier: string;
+  unlimited: boolean;
+}
+
+async function getUserTier(userId: string): Promise<TierName> {
+  const [user] = await db
+    .select({ tier: users.subscriptionTier })
+    .from(users)
+    .where(eq(users.id, userId));
+  const tier = (user?.tier as TierName) || "free";
+  return (tier in tierEntitlements ? tier : "free") as TierName;
+}
+
+export async function getUserQuota(userId: string): Promise<QuotaInfo> {
+  const tier = await getUserTier(userId);
+  const entitlements = tierEntitlements[tier];
+  const limitMb = entitlements.maxStorage;
+  const limitBytes = limitMb < 0 ? Number.MAX_SAFE_INTEGER : limitMb * 1024 * 1024;
+  const usedBytes = await getUserStorageUsage(userId);
+  const remainingBytes = Math.max(0, limitBytes - usedBytes);
+  const percentUsed = limitBytes > 0 && limitMb > 0
+    ? Math.min(100, Math.round((usedBytes / limitBytes) * 100))
+    : 0;
+  return {
+    usedBytes,
+    limitBytes,
+    remainingBytes,
+    percentUsed,
+    tier,
+    unlimited: limitMb < 0,
+  };
+}
+
+async function assertQuota(userId: string, incomingBytes: number): Promise<void> {
+  const quota = await getUserQuota(userId);
+  if (quota.unlimited) return;
+  if (quota.usedBytes + incomingBytes > quota.limitBytes) {
+    const limitMb = Math.round(quota.limitBytes / 1024 / 1024);
+    const usedMb = (quota.usedBytes / 1024 / 1024).toFixed(1);
+    const incomingMb = (incomingBytes / 1024 / 1024).toFixed(1);
+    const err: any = new Error(
+      `Storage quota exceeded. Your ${quota.tier} plan allows ${limitMb}MB ` +
+      `(currently using ${usedMb}MB). This file is ${incomingMb}MB. ` +
+      `Upgrade your plan or delete files to free space.`
+    );
+    err.statusCode = 413;
+    err.code = "QUOTA_EXCEEDED";
+    err.quota = quota;
+    throw err;
+  }
 }
 
 export async function saveFile(
@@ -34,8 +110,6 @@ export async function saveFile(
   mimeType: string,
   projectId?: string
 ): Promise<{ id: string; filename: string; url: string }> {
-  ensureStorageDir();
-
   if (fileBuffer.length > MAX_FILE_SIZE) {
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
@@ -44,10 +118,26 @@ export async function saveFile(
     throw new Error(`File type ${mimeType} is not allowed`);
   }
 
-  const filename = generateFilename(originalName);
-  const storagePath = path.join(STORAGE_DIR, filename);
+  await assertQuota(userId, fileBuffer.length);
 
-  fs.writeFileSync(storagePath, fileBuffer);
+  const filename = generateFilename(originalName);
+  const { bucketName, prefix } = parseBucketAndPrefix(getPrivateDir());
+  const objectKey = buildObjectKey(prefix, userId, filename);
+
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectKey);
+
+  await file.save(fileBuffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        userId,
+        projectId: projectId || "",
+        originalName,
+      },
+    },
+    resumable: false,
+  });
 
   const [record] = await db.insert(exportedFiles).values({
     userId,
@@ -56,7 +146,7 @@ export async function saveFile(
     originalName,
     mimeType,
     sizeBytes: fileBuffer.length,
-    storagePath,
+    storagePath: objectKey,
   }).returning();
 
   return {
@@ -79,23 +169,37 @@ export async function saveBase64File(
   return saveFile(userId, buffer, originalName, mimeType, projectId);
 }
 
-export async function getFile(fileId: string, userId?: string) {
+export async function getFileRecord(fileId: string, userId?: string) {
   const conditions = [eq(exportedFiles.id, fileId)];
   if (userId) {
     conditions.push(eq(exportedFiles.userId, userId));
   }
-
   const [record] = await db.select().from(exportedFiles).where(and(...conditions));
+  return record || null;
+}
+
+export async function getFile(fileId: string, userId?: string) {
+  const record = await getFileRecord(fileId, userId);
   if (!record) return null;
 
-  if (!fs.existsSync(record.storagePath)) {
+  try {
+    const { bucketName } = parseBucketAndPrefix(getPrivateDir());
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(record.storagePath);
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    const [buffer] = await file.download();
+    return { ...record, buffer };
+  } catch (err) {
+    console.error("getFile error:", err);
     return null;
   }
+}
 
-  return {
-    ...record,
-    buffer: fs.readFileSync(record.storagePath),
-  };
+export function getFileStream(storagePath: string) {
+  const { bucketName } = parseBucketAndPrefix(getPrivateDir());
+  const bucket = objectStorageClient.bucket(bucketName);
+  return bucket.file(storagePath).createReadStream();
 }
 
 export async function getUserFiles(userId: string) {
@@ -116,8 +220,16 @@ export async function deleteFile(fileId: string, userId: string): Promise<boolea
 
   if (!record) return false;
 
-  if (fs.existsSync(record.storagePath)) {
-    fs.unlinkSync(record.storagePath);
+  try {
+    const { bucketName } = parseBucketAndPrefix(getPrivateDir());
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(record.storagePath);
+    const [exists] = await file.exists();
+    if (exists) {
+      await file.delete({ ignoreNotFound: true });
+    }
+  } catch (err) {
+    console.error("deleteFile bucket error (continuing to delete DB row):", err);
   }
 
   await db.delete(exportedFiles)

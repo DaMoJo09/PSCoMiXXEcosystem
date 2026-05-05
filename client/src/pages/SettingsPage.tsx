@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { BlockedUsersSection } from "@/components/BlockedUsersSection";
+import { StorageQuotaCard } from "@/components/StorageQuotaCard";
 
 interface ApiKey {
   id: string;
@@ -208,6 +209,14 @@ export default function SettingsPage() {
         </header>
 
         <div className="max-w-3xl mx-auto p-8 space-y-8">
+          <section className="space-y-4" data-testid="section-storage">
+            <div className="flex items-center gap-2 border-b-2 border-white pb-2">
+              <Save className="w-5 h-5" />
+              <h2 className="font-black text-lg uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Cloud Storage</h2>
+            </div>
+            <StorageQuotaCard />
+          </section>
+
           <section className="space-y-4">
             <div className="flex items-center gap-2 border-b-2 border-white pb-2">
               <Crown className="w-5 h-5" />
