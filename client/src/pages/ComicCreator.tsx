@@ -4253,17 +4253,69 @@ export default function ComicCreator() {
         toast.error(`This file is a "${project.type}" project, not a comic.`);
         return;
       }
-      const data = project.data || {};
-      if (Array.isArray(data.spreads)) setSpreads(data.spreads);
-      if (data.comicMeta) setComicMeta(data.comicMeta);
-      if (Array.isArray(data.flowConnections)) setFlowConnections(data.flowConnections);
-      if (project.title) setTitle(project.title);
-      toast.success(`Opened "${project.title}" from your computer`);
+      // Stash the imported project in sessionStorage. Only navigate after a
+      // successful stash so we never strand the user in a blank new project.
+      try {
+        sessionStorage.setItem("pscomixx:pending-import", JSON.stringify({
+          source: "pscomixx-file",
+          type: project.type,
+          title: project.title,
+          data: project.data,
+          importedAt: new Date().toISOString(),
+        }));
+      } catch (storageErr) {
+        console.error("Could not stash import payload:", storageErr);
+        toast.error("Couldn't import: your browser blocked session storage. Try a different browser or disable private mode.");
+        return;
+      }
+      toast.success(`Opening "${project.title}" as a new project…`);
+      // Use the canonical /creator/comic route with no projectId so autosave
+      // creates a brand-new server project instead of overwriting the current one.
+      navigate("/creator/comic?import=pending");
     } catch (err) {
       console.error("Open from computer failed:", err);
       toast.error("Failed to open project file");
     }
   };
+
+  // Hydrate from sessionStorage when the URL carries ?import=pending. Reactive
+  // to `search` so it works whether the editor mounted fresh or wouter just
+  // updated the search string (no remount).
+  const importHydratedRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("import") !== "pending") return;
+    if (importHydratedRef.current) return;
+    try {
+      const raw = sessionStorage.getItem("pscomixx:pending-import");
+      if (!raw) {
+        // Clean the URL so the flag doesn't linger.
+        navigate("/creator/comic", { replace: true });
+        return;
+      }
+      const payload = JSON.parse(raw);
+      if (payload.type !== "comic") {
+        sessionStorage.removeItem("pscomixx:pending-import");
+        navigate("/creator/comic", { replace: true });
+        return;
+      }
+      const data = payload.data || {};
+      if (Array.isArray(data.spreads)) setSpreads(data.spreads);
+      if (data.comicMeta) setComicMeta(data.comicMeta);
+      if (Array.isArray(data.flowConnections)) setFlowConnections(data.flowConnections);
+      if (payload.title) setTitle(payload.title);
+      sessionStorage.removeItem("pscomixx:pending-import");
+      importHydratedRef.current = true;
+      toast.success(`Imported "${payload.title}" from .pscomixx file`);
+      // Strip the ?import=pending flag so a refresh doesn't loop.
+      navigate("/creator/comic", { replace: true });
+    } catch (err) {
+      console.error("Pending import hydration failed:", err);
+      toast.error("Could not load imported project");
+      navigate("/creator/comic", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const addSpread = () => {
     setSpreads([...spreads, { id: `spread_${Date.now()}`, leftPage: [], rightPage: [] }]);

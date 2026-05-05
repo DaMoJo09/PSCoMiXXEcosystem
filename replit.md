@@ -6,6 +6,29 @@ PSCoMiXX Creator is an AI-assisted web application designed as a creative studio
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## 3-Tier Durable Storage System — May 2026
+
+Critical autoscale-safety fix: the deployment is `autoscale` (multi-instance, ephemeral disk per instance), but uploads were previously written to local `./uploads/`. Files would have randomly disappeared as instances rotated. Migration shipped before any users hit the bug (file count was 0).
+
+**Tier 1 — Replit App Storage (Object Storage)**
+- `server/replit_integrations/object_storage/` — bucket SDK (`objectStorage.ts`) and ACL helpers (`objectAcl.ts`). The presigned-URL `routes.ts` was deliberately removed because uploads go through our existing authenticated `/api/files/upload` flow (avoids exposing an unauth `/objects/*` endpoint).
+- `server/fileStorage.ts` — same public API as before (`saveFile`, `saveBase64File`, `getFile`, `getFileStream`, `getUserFiles`, `deleteFile`, `getUserStorageUsage`, `getUserQuota`) but every read/write now goes to the bucket. `exported_files.storage_path` stores the bucket key (e.g. `<PRIVATE_OBJECT_DIR>/exports/<userId>/<filename>`).
+- `/api/files/:id` and `/api/files/:id/download` stream from the bucket via `streamFileFromBucket()` helper. Legacy local-disk paths (starting with `/`, `./`, or containing `\`) return 410 Gone instead of 500. Stream errors map "No such object" → 404.
+- Required env vars (auto-set by `setup_object_storage`): `DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, `PUBLIC_OBJECT_SEARCH_PATHS`.
+
+**Tier 2 — Per-user storage quotas**
+- `getUserTier()` reads the canonical `subscriptions` table — only `status === 'active' || 'trialing'` counts; everything else falls back to `free`.
+- Quotas come from `tierEntitlements[tier].maxStorage` (MB). `assertQuota()` runs inside `saveFile()` and throws a typed error (`statusCode: 413`, `code: 'QUOTA_EXCEEDED'`) when over limit; the upload route propagates that.
+- New endpoint `GET /api/files/quota` returns `{ usedBytes, limitBytes, remainingBytes, percentUsed, tier, unlimited }`.
+- `client/src/components/StorageQuotaCard.tsx` — progress bar, 80%/95% warnings, free-tier upgrade CTA. Wired into `SettingsPage.tsx` as the first section.
+
+**Tier 3 — Tauri "Save to My Computer" + .pscomixx file format**
+- `.pscomixx` = zip containing `manifest.json` + `project.json` + `assets/**` (built with `jszip`).
+- `client/src/lib/desktopBridge.ts` — generic helpers (`isDesktop`, `saveProjectToFile`, `openProjectFromFile`, `buildPscomixxZip`, `parsePscomixxZip`). On desktop uses `@tauri-apps/plugin-fs` + `plugin-dialog`; on web falls back to Blob download / `<input type=file>`. Format version is `PSCOMIXX_FORMAT_VERSION = 1`.
+- Tauri plugins added: `tauri-plugin-fs`, `tauri-plugin-dialog` (Cargo.toml + `lib.rs` registration). Capabilities scoped to `$DOCUMENT`, `$DOWNLOAD`, `$DESKTOP`, `$HOME/PSCoMiXX/**`.
+- Wired into `ComicCreator.tsx` dropdown menu. Open-from-computer **does not** mutate the currently loaded project: it stashes the import in `sessionStorage`, navigates to `/creator/comic?import=pending`, then a reactive `useEffect` (deps on `search` + `importHydratedRef` guard) hydrates state and strips the URL flag. This avoids the autosave-overwrite trap.
+- Same `desktopBridge.ts` is ready for any other tool (Slide creator, Animation studio, Trading Card creator, etc.) to wire in without changes.
+
 ## Desktop Hub (Tauri 2) — May 2026
 
 PSCoMiXX now ships as a downloadable native desktop app for Mac/Windows/Linux alongside the web app. The desktop app is a **thin Tauri 2 shell** pointing at `https://pscomixx.com` — same backend, same auth, same DB. Web changes appear in the desktop app on next launch with no re-release; desktop re-releases only when native behavior changes (window chrome, tray, file associations).

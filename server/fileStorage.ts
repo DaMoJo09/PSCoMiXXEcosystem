@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import * as path from "path";
 import { db } from "./db";
-import { exportedFiles, users, tierEntitlements, type TierName } from "@shared/schema";
+import { exportedFiles, subscriptions, tierEntitlements, type TierName } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 
@@ -56,12 +56,22 @@ export interface QuotaInfo {
 }
 
 async function getUserTier(userId: string): Promise<TierName> {
-  const [user] = await db
-    .select({ tier: users.subscriptionTier })
-    .from(users)
-    .where(eq(users.id, userId));
-  const tier = (user?.tier as TierName) || "free";
-  return (tier in tierEntitlements ? tier : "free") as TierName;
+  // Canonical source of tier is the subscriptions table; only honor active /
+  // trialing subscriptions. Anything else (canceled, past_due, missing) falls
+  // back to free.
+  try {
+    const [sub] = await db
+      .select({ tier: subscriptions.tier, status: subscriptions.status })
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId));
+    if (sub && (sub.status === "active" || sub.status === "trialing")) {
+      const tier = sub.tier as TierName;
+      if (tier && tier in tierEntitlements) return tier;
+    }
+  } catch (err) {
+    console.error("getUserTier subscription lookup failed:", err);
+  }
+  return "free";
 }
 
 export async function getUserQuota(userId: string): Promise<QuotaInfo> {

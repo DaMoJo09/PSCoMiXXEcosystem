@@ -10739,6 +10739,46 @@ Sitemap: https://pscomixx.com/sitemap.xml`
     }
   });
 
+  // Helper: stream a file record from object storage with stale-row safety.
+  const streamFileFromBucket = async (
+    res: any,
+    record: { storagePath: string; mimeType: string; sizeBytes: number; originalName: string },
+    asAttachment: boolean
+  ) => {
+    // Reject legacy local-disk paths from before the Object Storage migration.
+    if (record.storagePath.startsWith("/") || record.storagePath.includes("\\") || record.storagePath.startsWith("./")) {
+      return res.status(410).json({ message: "File no longer available (legacy storage). Please re-upload." });
+    }
+    let stream;
+    try {
+      stream = getFileStream(record.storagePath);
+    } catch (err: any) {
+      console.error("Failed to open file stream:", err);
+      return res.status(404).json({ message: "File not found" });
+    }
+    res.setHeader("Content-Type", record.mimeType);
+    res.setHeader("Content-Length", String(record.sizeBytes));
+    if (asAttachment) {
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(record.originalName)}"`);
+    } else {
+      res.setHeader("Cache-Control", "private, max-age=300");
+    }
+    let firstChunkSeen = false;
+    stream.on("data", () => { firstChunkSeen = true; });
+    stream.on("error", (err: any) => {
+      console.error("File stream error:", err);
+      if (!res.headersSent) {
+        const status = err?.code === 404 || /No such object/i.test(err?.message || "") ? 404 : 500;
+        res.status(status).json({ message: status === 404 ? "File not found" : "Stream error" });
+      } else if (!firstChunkSeen) {
+        res.end();
+      } else {
+        res.destroy(err);
+      }
+    });
+    stream.pipe(res);
+  };
+
   app.get("/api/files/:id/download", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -10746,17 +10786,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       if (!record) {
         return res.status(404).json({ message: "File not found" });
       }
-      res.setHeader("Content-Type", record.mimeType);
-      res.setHeader("Content-Length", String(record.sizeBytes));
-      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(record.originalName)}"`);
-      const stream = getFileStream(record.storagePath);
-      stream.on("error", (err) => {
-        console.error("File stream error:", err);
-        if (!res.headersSent) res.status(500).end();
-      });
-      stream.pipe(res);
+      await streamFileFromBucket(res, record, true);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      if (!res.headersSent) res.status(500).json({ message: error.message });
     }
   });
 
@@ -10767,17 +10799,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       if (!record) {
         return res.status(404).json({ message: "File not found" });
       }
-      res.setHeader("Content-Type", record.mimeType);
-      res.setHeader("Content-Length", String(record.sizeBytes));
-      res.setHeader("Cache-Control", "private, max-age=300");
-      const stream = getFileStream(record.storagePath);
-      stream.on("error", (err) => {
-        console.error("File stream error:", err);
-        if (!res.headersSent) res.status(500).end();
-      });
-      stream.pipe(res);
+      await streamFileFromBucket(res, record, false);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      if (!res.headersSent) res.status(500).json({ message: error.message });
     }
   });
 
