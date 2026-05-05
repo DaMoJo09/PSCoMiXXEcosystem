@@ -53,18 +53,26 @@ npm run icon -- ../client/public/icon-512.png
 
 This creates `src-tauri/icons/` with all platform-specific sizes. Don't commit the icons folder — it's regenerated from the source PNG.
 
-### 3. Generate the updater signing keys (one time, then guard with your life)
+### 3. Updater signing keys — ALREADY GENERATED
 
-```bash
-cd desktop
-npx @tauri-apps/cli signer generate -w ~/.tauri/pscomixx-updater.key
+Public key is already embedded in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`.
+
+The matching **private key** is stored locally (gitignored) at:
+```
+private_assets/desktop-signing/TAURI_SIGNING_PRIVATE_KEY.txt
 ```
 
-This prints a **public key** — copy it into `tauri.conf.json` under `plugins.updater.pubkey`, replacing `REPLACE_WITH_GENERATED_PUBLIC_KEY`.
+**To enable production releases, add this to your GitHub repo Secrets:**
 
-The **private key** stays on disk + needs to be added as a GitHub secret named `TAURI_SIGNING_PRIVATE_KEY` (and the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`).
+1. Open https://github.com/DaMoJo09/PSCoMiXXEcosystem/settings/secrets/actions
+2. Click "New repository secret"
+3. Name: `TAURI_SIGNING_PRIVATE_KEY`
+4. Value: paste the entire contents of `private_assets/desktop-signing/TAURI_SIGNING_PRIVATE_KEY.txt`
+5. (Password was empty during generation, so `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is **not required** — the workflow already handles a blank password.)
 
-⚠️ **If you lose this private key, you lose the ability to push updates to existing installs forever.** Back it up to a password manager.
+⚠️ **Back up the private key file to a password manager.** If you lose it, you can never push updates to existing installs again — they'll be permanently stranded on whatever version they have.
+
+After uploading to GitHub Secrets, you can safely delete the local copy if you want, BUT only after you've backed it up somewhere safe.
 
 ## Local development
 
@@ -92,6 +100,19 @@ Outputs installers to `src-tauri/target/release/bundle/`. These will be **unsign
    - Builds on `macos-latest`, `windows-latest`, `ubuntu-22.04`.
    - Creates a GitHub Release with `.dmg`, `.msi`, `.exe`, `.AppImage`, `.deb` attached.
    - Uploads `latest.json` updater manifest so existing installs auto-update.
+
+## How auto-updates actually work
+
+On every launch, the desktop app calls `check_for_updates()` (see `src-tauri/src/lib.rs`). That function:
+
+1. Hits `https://github.com/DaMoJo09/PSCoMiXXEcosystem/releases/latest/download/latest.json` (the manifest produced by `createUpdaterArtifacts: true`).
+2. If a newer version exists, verifies the cryptographic signature using the embedded public key.
+3. Downloads the platform-specific update package in the background.
+4. Installs it and restarts the app silently.
+
+So your update flow is: **bump version → tag → push → users get the update on next launch.** No manual user action.
+
+Note: this only updates the *native shell*. The web content (everything inside the window) updates instantly on every push to `pscomixx.com`. You only need a new desktop release when you change native behavior — window chrome, icon, signing key, plugins, etc.
 
 ## Code signing (optional, recommended before public launch)
 

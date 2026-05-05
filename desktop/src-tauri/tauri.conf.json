@@ -82,10 +82,9 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/damojo09/pscomixx-desktop/releases/latest/download/latest.json"
+        "https://github.com/DaMoJo09/PSCoMiXXEcosystem/releases/latest/download/latest.json"
       ],
-      "dialog": true,
-      "pubkey": "REPLACE_WITH_GENERATED_PUBLIC_KEY"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdGNjE0ODI3MjQ5OUMzREYKUldUZnc1a2tKMGhoZnkxM0V5VmJDMEpyd2p6UHowbjYvNjJJY1dNcW56TkdKNGNNdGJPZjVOQ0gK"
     }
   }
 }

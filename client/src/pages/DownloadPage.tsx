@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Apple, Monitor, Download, Check, Cpu, Cloud, Zap, Shield } from "lucide-react";
 import { Link } from "wouter";
 
-const GITHUB_OWNER = "damojo09";
-const GITHUB_REPO = "pscomixx-desktop";
+const GITHUB_OWNER = "DaMoJo09";
+const GITHUB_REPO = "PSCoMiXXEcosystem";
 const RELEASES_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 
 type OS = "mac" | "windows" | "linux" | "unknown";
