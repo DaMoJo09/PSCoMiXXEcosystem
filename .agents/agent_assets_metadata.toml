@@ -269,3 +269,21 @@ id = "huN5CZY0D1hCViPbADrKE"
 uri = "file://attached_assets/comixx-app-curriculum.zip"
 type = "unspecified"
 title = "CoMiXX Creator Journey — 6-Week Curriculum (rebuilt, app-only)"
+
+[[outputs]]
+id = "hSQsVfjenEJYUDW4XZ9w6"
+uri = "file://docs/desktop-setup/01-FX-STUDIO-pscomixx.online.md"
+type = "text"
+title = "FX Studio Desktop Setup (pscomixx.online)"
+
+[[outputs]]
+id = "J8Da2ywvudEqc4CRQM_Gv"
+uri = "file://docs/desktop-setup/02-PS-STREAMING-psstreaming.com.md"
+type = "text"
+title = "PS Streaming Desktop Setup (psstreaming.com)"
+
+[[outputs]]
+id = "CuQDtPjvbiYlYM5dbODyC"
+uri = "file://docs/desktop-setup/03-PRESS-START-LMS-pressstart.tech.md"
+type = "text"
+title = "Press Start LMS Desktop Setup (pressstart.tech)"
