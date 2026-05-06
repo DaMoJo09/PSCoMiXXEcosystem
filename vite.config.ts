@@ -41,6 +41,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
+      external: [/^@tauri-apps\//],
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
