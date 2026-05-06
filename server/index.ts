@@ -30,6 +30,48 @@ async function seedFeatureFlags() {
     { key: 'social_enabled', enabled: true, description: 'Show/hide Social features (feed, messaging, collabs, chains)' },
     { key: 'promo_pages_enabled', enabled: true, description: 'Show/hide Promo Page Studio in Comic Creator (school-safe in-comic ad/promo pages)' },
     { key: 'promo_sponsors_enabled', enabled: true, description: 'Allow sponsor-type promo templates (independent of promo_pages_enabled)' },
+
+    { key: 'creator_comic_enabled', enabled: true, description: 'Show/hide Comic Builder tab' },
+    { key: 'creator_card_enabled', enabled: true, description: 'Show/hide Card Creator tab' },
+    { key: 'creator_vn_enabled', enabled: true, description: 'Show/hide Visual Novel tab' },
+    { key: 'creator_cyoa_enabled', enabled: true, description: 'Show/hide CYOA Builder tab' },
+    { key: 'creator_hop_enabled', enabled: true, description: 'Show/hide HOP Creator tab' },
+    { key: 'creator_get_started_enabled', enabled: true, description: 'Show/hide the Get Started guide tab' },
+
+    { key: 'ai_prompt_factory_enabled', enabled: true, description: 'Show/hide Prompt Factory under AI Tools' },
+    { key: 'ai_story_forge_enabled', enabled: true, description: 'Show/hide Story Forge under AI Tools' },
+    { key: 'ai_import_center_enabled', enabled: true, description: 'Show/hide Import Center under AI Tools' },
+    { key: 'ai_fx_studio_enabled', enabled: true, description: 'Show/hide the FX Studio link under AI Tools' },
+
+    { key: 'gallery_library_enabled', enabled: true, description: 'Show/hide My Library' },
+    { key: 'gallery_portfolio_enabled', enabled: true, description: 'Show/hide My Portfolio' },
+
+    { key: 'ecosystem_hub_enabled', enabled: true, description: 'Show/hide Ecosystem Hub link' },
+    { key: 'ecosystem_publish_enabled', enabled: true, description: 'Show/hide Publish link in Community section' },
+    { key: 'ecosystem_collaborate_enabled', enabled: true, description: 'Show/hide Collaborate link' },
+    { key: 'ecosystem_events_enabled', enabled: true, description: 'Show/hide Events link' },
+    { key: 'ecosystem_achievements_enabled', enabled: true, description: 'Show/hide Achievements link' },
+    { key: 'ecosystem_certifications_enabled', enabled: true, description: 'Show/hide Certifications link' },
+    { key: 'ecosystem_rewards_enabled', enabled: true, description: 'Show/hide Rewards link' },
+    { key: 'ecosystem_pricing_enabled', enabled: true, description: 'Show/hide the Pricing link in sidebar' },
+    { key: 'ecosystem_learn_enabled', enabled: true, description: 'Show/hide Learn link' },
+    { key: 'ecosystem_pathways_enabled', enabled: true, description: 'Show/hide Pathways link' },
+    { key: 'ecosystem_passport_enabled', enabled: true, description: 'Show/hide Skill Passport link' },
+    { key: 'ecosystem_apprenticeship_enabled', enabled: true, description: 'Show/hide Apprenticeships link' },
+    { key: 'ecosystem_external_tools_enabled', enabled: true, description: 'Show/hide External Tools link' },
+    { key: 'ecosystem_streaming_enabled', enabled: true, description: 'Show/hide PS Streaming external link' },
+    { key: 'ecosystem_lms_enabled', enabled: true, description: 'Show/hide Press Start LMS external link' },
+
+    { key: 'social_feed_enabled', enabled: true, description: 'Show/hide Social Feed' },
+    { key: 'social_profile_enabled', enabled: true, description: 'Show/hide My Profile in social section' },
+    { key: 'social_messages_enabled', enabled: true, description: 'Show/hide Messages' },
+    { key: 'social_collab_enabled', enabled: true, description: 'Show/hide Collab Hub' },
+    { key: 'social_chains_enabled', enabled: true, description: 'Show/hide Community Chains' },
+    { key: 'social_notifications_enabled', enabled: true, description: 'Show/hide Notifications' },
+    { key: 'social_search_enabled', enabled: true, description: 'Show/hide Find Creators' },
+
+    { key: 'desktop_app_link_enabled', enabled: true, description: 'Show/hide the Desktop App link in the bottom of the sidebar' },
+    { key: 'your_stage_enabled', enabled: true, description: 'Show/hide the Your Stage panel for non-students' },
   ];
 
   try {

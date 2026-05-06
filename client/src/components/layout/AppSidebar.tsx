@@ -60,7 +60,7 @@ import { cn } from "@/lib/utils";
 import { AppIconInline } from "@/components/ui/app-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { useFeatureFlags } from "@/hooks/useFeatureFlag";
 import { shouldBlockDirectPayments } from "@/lib/platform";
 import { isOnline, onOnlineStatusChange, syncPendingChanges, getPendingSyncCount, getLastSyncTime, startBackgroundSync, subscribeSyncStatus, type SyncStatus, type ConflictInfo, resolveConflict } from "@/lib/offlineStorage";
 
@@ -71,27 +71,29 @@ interface AppSidebarProps {
   onMobileClose?: () => void;
 }
 
+// `flag` is the feature-flag key gating each link. Dashboard is unflagged
+// (always visible — it's the home base).
 const creatorTools = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Sparkles, label: "Get Started", href: "/get-started" },
-  { icon: PenTool, label: "Comic Builder", href: "/creator/comic" },
-  { icon: Film, label: "Motion Studio", href: "/creator/motion" },
-  { icon: CreditCard, label: "Card Creator", href: "/creator/card" },
-  { icon: BookOpen, label: "Visual Novel", href: "/creator/vn" },
-  { icon: GitBranch, label: "CYOA Builder", href: "/creator/cyoa" },
-  { icon: Zap, label: "HOP Creator", href: "/creator/hop" },
+  { icon: Sparkles, label: "Get Started", href: "/get-started", flag: "creator_get_started_enabled" },
+  { icon: PenTool, label: "Comic Builder", href: "/creator/comic", flag: "creator_comic_enabled" },
+  { icon: Film, label: "Motion Studio", href: "/creator/motion", flag: "motion_studio_enabled" },
+  { icon: CreditCard, label: "Card Creator", href: "/creator/card", flag: "creator_card_enabled" },
+  { icon: BookOpen, label: "Visual Novel", href: "/creator/vn", flag: "creator_vn_enabled" },
+  { icon: GitBranch, label: "CYOA Builder", href: "/creator/cyoa", flag: "creator_cyoa_enabled" },
+  { icon: Zap, label: "HOP Creator", href: "/creator/hop", flag: "creator_hop_enabled" },
 ];
 
 const aiTools = [
-  { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt" },
-  { icon: Sparkles, label: "Story Forge", href: "/tools/story" },
-  { icon: Download, label: "Import Center", href: "/tools/import" },
-  { icon: Zap, label: "FX Studio", href: "/fx-studio" },
+  { icon: Wand2, label: "Prompt Factory", href: "/tools/prompt", flag: "ai_prompt_factory_enabled" },
+  { icon: Sparkles, label: "Story Forge", href: "/tools/story", flag: "ai_story_forge_enabled" },
+  { icon: Download, label: "Import Center", href: "/tools/import", flag: "ai_import_center_enabled" },
+  { icon: Zap, label: "FX Studio", href: "/fx-studio", flag: "ai_fx_studio_enabled" },
 ];
 
 const galleryTools = [
-  { icon: Layers, label: "My Library", href: "/library" },
-  { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio" },
+  { icon: Layers, label: "My Library", href: "/library", flag: "gallery_library_enabled" },
+  { icon: GalleryHorizontal, label: "My Portfolio", href: "/portfolio", flag: "gallery_portfolio_enabled" },
 ];
 
 const communityTools = [
@@ -112,31 +114,31 @@ const printStudioTools = [
 ];
 
 const ecosystemToolsBase = [
-  { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem", studentOk: true },
-  { icon: Rocket, label: "Publish", href: "/ecosystem/publish", studentOk: true },
-  { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate", studentOk: true },
-  { icon: Trophy, label: "Events", href: "/ecosystem/events", studentOk: true },
-  { icon: Target, label: "Achievements", href: "/achievements", studentOk: true },
-  { icon: Award, label: "Certifications", href: "/certifications", studentOk: true },
-  { icon: Gift, label: "Rewards", href: "/rewards", studentOk: true },
-  { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false },
-  { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true },
-  { icon: BookOpen, label: "Pathways", href: "/ecosystem/pathways", studentOk: true },
-  { icon: Shield, label: "Skill Passport", href: "/ecosystem/passport", studentOk: true },
-  { icon: Briefcase, label: "Apprenticeships", href: "/ecosystem/apprenticeship", studentOk: false },
-  { icon: Package, label: "External Tools", href: "/ecosystem/external-tools", studentOk: true },
-  { icon: Monitor, label: "PS Streaming", href: "https://psstreaming.com", external: true, ssoTarget: "streaming", studentOk: false },
-  { icon: GraduationCap, label: "Press Start LMS", href: "https://pressstart.tech", external: true, ssoTarget: "lms", studentOk: true },
+  { icon: Globe, label: "Ecosystem Hub", href: "/ecosystem", studentOk: true, flag: "ecosystem_hub_enabled" },
+  { icon: Rocket, label: "Publish", href: "/ecosystem/publish", studentOk: true, flag: "ecosystem_publish_enabled" },
+  { icon: Users, label: "Collaborate", href: "/ecosystem/collaborate", studentOk: true, flag: "ecosystem_collaborate_enabled" },
+  { icon: Trophy, label: "Events", href: "/ecosystem/events", studentOk: true, flag: "ecosystem_events_enabled" },
+  { icon: Target, label: "Achievements", href: "/achievements", studentOk: true, flag: "ecosystem_achievements_enabled" },
+  { icon: Award, label: "Certifications", href: "/certifications", studentOk: true, flag: "ecosystem_certifications_enabled" },
+  { icon: Gift, label: "Rewards", href: "/rewards", studentOk: true, flag: "ecosystem_rewards_enabled" },
+  { icon: DollarSign, label: "Pricing", href: "/pricing", studentOk: false, flag: "ecosystem_pricing_enabled" },
+  { icon: GraduationCap, label: "Learn", href: "/ecosystem/learn", studentOk: true, flag: "ecosystem_learn_enabled" },
+  { icon: BookOpen, label: "Pathways", href: "/ecosystem/pathways", studentOk: true, flag: "ecosystem_pathways_enabled" },
+  { icon: Shield, label: "Skill Passport", href: "/ecosystem/passport", studentOk: true, flag: "ecosystem_passport_enabled" },
+  { icon: Briefcase, label: "Apprenticeships", href: "/ecosystem/apprenticeship", studentOk: false, flag: "ecosystem_apprenticeship_enabled" },
+  { icon: Package, label: "External Tools", href: "/ecosystem/external-tools", studentOk: true, flag: "ecosystem_external_tools_enabled" },
+  { icon: Monitor, label: "PS Streaming", href: "https://psstreaming.com", external: true, ssoTarget: "streaming", studentOk: false, flag: "ecosystem_streaming_enabled" },
+  { icon: GraduationCap, label: "Press Start LMS", href: "https://pressstart.tech", external: true, ssoTarget: "lms", studentOk: true, flag: "ecosystem_lms_enabled" },
 ];
 
 const socialTools = [
-  { icon: MessageCircle, label: "Social Feed", href: "/social" },
-  { icon: User, label: "My Profile", href: "/profile" },
-  { icon: Mail, label: "Messages", href: "/social/messages" },
-  { icon: Handshake, label: "Collab Hub", href: "/social/collab" },
-  { icon: Link2, label: "Community Chains", href: "/social/chains" },
-  { icon: Bell, label: "Notifications", href: "/social/notifications" },
-  { icon: Search, label: "Find Creators", href: "/social/search" },
+  { icon: MessageCircle, label: "Social Feed", href: "/social", flag: "social_feed_enabled" },
+  { icon: User, label: "My Profile", href: "/profile", flag: "social_profile_enabled" },
+  { icon: Mail, label: "Messages", href: "/social/messages", flag: "social_messages_enabled" },
+  { icon: Handshake, label: "Collab Hub", href: "/social/collab", flag: "social_collab_enabled" },
+  { icon: Link2, label: "Community Chains", href: "/social/chains", flag: "social_chains_enabled" },
+  { icon: Bell, label: "Notifications", href: "/social/notifications", flag: "social_notifications_enabled" },
+  { icon: Search, label: "Find Creators", href: "/social/search", flag: "social_search_enabled" },
 ];
 
 function useStageStats() {
@@ -279,12 +281,18 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
   const { theme, toggleTheme } = useTheme();
   const { canInstall, isInstalled, install } = useInstallPrompt();
   const { online, pendingSync, lastSyncTime, isSyncing, conflicts, handleResolveConflict } = useOnlineStatus();
-  const { enabled: marketplaceEnabled } = useFeatureFlag("marketplace_enabled");
-  const { enabled: printStudioEnabled } = useFeatureFlag("print_studio_enabled");
-  const { enabled: socialEnabled } = useFeatureFlag("social_enabled");
-  const { enabled: aiToolsEnabled } = useFeatureFlag("ai_tools_enabled");
-  const { enabled: communityEnabled } = useFeatureFlag("community_enabled");
-  const { enabled: motionStudioEnabled } = useFeatureFlag("motion_studio_enabled");
+  // Single bulk fetch for every per-tab flag — admins can toggle any of
+  // these from the Admin Console. Default fallback `true` while loading so
+  // the UI never flickers tabs in/out on slow networks.
+  const { isEnabled } = useFeatureFlags();
+  const flagOn = (key?: string) => (key ? isEnabled(key, true) : true);
+  const marketplaceEnabled = isEnabled("marketplace_enabled", true);
+  const printStudioEnabled = isEnabled("print_studio_enabled", true);
+  const socialEnabled = isEnabled("social_enabled", true);
+  const aiToolsEnabled = isEnabled("ai_tools_enabled", true);
+  const communityEnabled = isEnabled("community_enabled", true);
+  const yourStageEnabled = isEnabled("your_stage_enabled", true);
+  const desktopAppEnabled = isEnabled("desktop_app_link_enabled", true);
   const xpStatus = useXpStatus();
   const usageStatus = useUsageStatus();
   const stageStats = useStageStats();
@@ -460,9 +468,9 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
       )} role="navigation" aria-label="Site navigation">
         {isExpanded && <div className="text-[10px] font-bold uppercase text-muted-foreground px-4 py-2">Creator Tools</div>}
         {!isExpanded && <div className="h-2" />}
-        {creatorTools.filter(item => item.href !== "/creator/motion" || motionStudioEnabled).map((item) => renderNavLink(item))}
+        {creatorTools.filter(item => flagOn((item as any).flag)).map((item) => renderNavLink(item))}
 
-        {communityEnabled && !isStudent && (
+        {communityEnabled && !isStudent && yourStageEnabled && (
           isExpanded ? (
             <div className="mt-2 mx-2 border border-cyan-500/30 bg-cyan-500/5 p-3" data-testid="sidebar-your-stage">
               <div className="text-[10px] font-bold uppercase text-cyan-400 mb-2 flex items-center gap-1.5">
@@ -506,15 +514,19 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
           )
         )}
         
-        {aiToolsEnabled && (
+        {aiToolsEnabled && aiTools.some(item => flagOn(item.flag)) && (
           <>
             {renderSectionLabel("AI Tools")}
-            {aiTools.map((item) => renderNavLink(item))}
+            {aiTools.filter(item => flagOn(item.flag)).map((item) => renderNavLink(item))}
           </>
         )}
 
-        {renderSectionLabel("My Work")}
-        {galleryTools.map((item) => renderNavLink(item))}
+        {galleryTools.some(item => flagOn(item.flag)) && (
+          <>
+            {renderSectionLabel("My Work")}
+            {galleryTools.filter(item => flagOn(item.flag)).map((item) => renderNavLink(item))}
+          </>
+        )}
 
         {marketplaceEnabled && (
           <>
@@ -539,14 +551,15 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
               // Apple guideline 3.1.1: hide Pricing nav inside the iOS app —
               // subscriptions are managed externally on pscomixx.com.
               .filter(item => !(shouldBlockDirectPayments() && item.href === "/pricing"))
+              .filter(item => flagOn(item.flag))
               .map((item) => renderNavLink(item, true))}
           </>
         )}
 
-        {socialEnabled && (
+        {socialEnabled && socialTools.some(item => flagOn(item.flag)) && (
           <>
             {renderSectionLabel("Social", "social-nav-label")}
-            {socialTools.map((item) => renderNavLink(item, true))}
+            {socialTools.filter(item => flagOn(item.flag)).map((item) => renderNavLink(item, true))}
           </>
         )}
         
@@ -577,7 +590,7 @@ export function AppSidebar({ isExpanded, isPinned, onTogglePin, onMobileClose }:
             <AppIconInline icon={Settings} active={location === "/settings"} />
             {isExpanded && "Settings"}
           </Link>
-          {renderNavLink({ icon: Download, label: "Desktop App", href: "/download" })}
+          {desktopAppEnabled && renderNavLink({ icon: Download, label: "Desktop App", href: "/download" })}
           {user?.role === "admin" && (
             <Link 
               href="/admin"

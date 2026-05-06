@@ -5883,6 +5883,19 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
     }
   });
 
+  // Public bulk feature flag map — returns { key: enabled } for all flags so
+  // the sidebar (and any consumer needing many flags) avoids N+1 fetches.
+  app.get("/api/feature-flags", async (_req, res) => {
+    try {
+      const flags = await storage.getFeatureFlags();
+      const map: Record<string, boolean> = {};
+      for (const f of flags) map[f.key] = !!f.enabled;
+      res.json(map);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Waitlist
   app.get("/api/admin/waitlist", isAdmin, async (req, res) => {
     try {

@@ -57,6 +57,8 @@ interface UseFxStudioOptions {
 export function useFxStudio(options: UseFxStudioOptions = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [connected, setConnected] = useState(false);
+  const connectedRef = useRef(false);
+  connectedRef.current = connected;
   const [activeTarget, setActiveTarget] = useState<FxTarget>(null);
   const activeTargetRef = useRef<FxTarget>(null);
   activeTargetRef.current = activeTarget;
@@ -64,6 +66,13 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
   const studioOriginRef = useRef<string>(FX_STUDIO_BASE);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHandshakeTimeout = useCallback(() => {
+    if (handshakeTimeoutRef.current) {
+      clearTimeout(handshakeTimeoutRef.current);
+      handshakeTimeoutRef.current = null;
+    }
+  }, []);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -105,6 +114,7 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
             } catch {}
           }
           setConnected(true);
+          clearHandshakeTimeout();
           break;
 
         case "panel-fx-return": {
@@ -154,13 +164,17 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           studioWindowRef.current = null;
           studioOriginRef.current = FX_STUDIO_BASE;
           clearPing();
+          clearHandshakeTimeout();
           break;
       }
     };
 
     window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [clearPing]);
+    return () => {
+      window.removeEventListener("message", handler);
+      clearHandshakeTimeout();
+    };
+  }, [clearPing, clearHandshakeTimeout]);
 
   const sendPing = useCallback(() => {
     const win = studioWindowRef.current;
@@ -251,7 +265,22 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     studioOriginRef.current = FX_STUDIO_BASE;
     setIsOpen(true);
     setConnected(false);
-  }, []);
+
+    // Diagnostic: if FX Studio never sends the "fx-studio-ready" handshake
+    // within ~10s, the popup is up but the OTHER app at pscomixx.online is
+    // missing the handshake snippet. Surface a clear, actionable message
+    // instead of leaving the user staring at a yellow "Handshaking…" bar.
+    clearHandshakeTimeout();
+    handshakeTimeoutRef.current = setTimeout(() => {
+      handshakeTimeoutRef.current = null;
+      if (studioWindowRef.current && !studioWindowRef.current.closed && !connectedRef.current) {
+        toast.error(
+          "FX Studio opened but didn't respond. The FX Studio app at pscomixx.online needs the handshake snippet — see docs/desktop-setup/FX_STUDIO_HANDSHAKE.md.",
+          { duration: 10000 }
+        );
+      }
+    }, 10000);
+  }, [clearHandshakeTimeout]);
 
   const sendToFxStudio = useCallback((data: Record<string, unknown>) => {
     if (studioWindowRef.current && !studioWindowRef.current.closed) {
@@ -275,7 +304,8 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
     studioWindowRef.current = null;
     studioOriginRef.current = FX_STUDIO_BASE;
     clearPing();
-  }, [clearPing]);
+    clearHandshakeTimeout();
+  }, [clearPing, clearHandshakeTimeout]);
 
   const checkApiConnection = useCallback(async () => {
     try {

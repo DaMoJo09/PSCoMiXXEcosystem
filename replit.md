@@ -30,7 +30,7 @@ An AI-assisted web application for generating comics, trading cards, visual nove
 - **3-Tier Durable Storage:** Replit App Object Storage for primary files, per-user quotas, and Tauri local save for offline access and `.pscomixx` project files (zip format).
 - **Production Stability Hardening:** Implemented pagination for large asset lists, chunk-loading retry mechanism for stale deployments, `sessionStorage` quota handling with `safeStorage`, and robust error handling for the Neon DB driver.
 - **Desktop as Thin Tauri Shell:** The desktop app is a lightweight Tauri 2 wrapper loading the web app URL, allowing for instant web content updates without desktop re-releases. Native features are limited to window management and file system access.
-- **Dynamic Feature Management:** Database-driven feature flags and subscription tiers enable flexible feature gating and monetization.
+- **Dynamic Feature Management:** Database-driven feature flags and subscription tiers enable flexible feature gating and monetization. Every sidebar tab/link is individually flag-gated; admins toggle in `/admin` → Feature Flags. New flags are added by appending to the `defaults` list in `server/index.ts → seedFeatureFlags()` and wiring the `flag` field on the corresponding nav item in `client/src/components/layout/AppSidebar.tsx`. Bulk read endpoint `GET /api/feature-flags` returns the full key→enabled map (used by `useFeatureFlags()`).
 - **Ecosystem Integration:** JWT-based SSO and a queue-based sync engine facilitate seamless integration with Press Start LMS and PS Streaming platforms, forming a connected creative ecosystem.
 
 ## Product
@@ -49,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Local Backup Corruption:** Older project backups (pre-May 2026 fix) might have `__omitted_for_local_backup__` sentinels in image URLs due to a `safeWriteLocalBackup` bug; these will self-clean on next user save.
 - **Stale Chunk Crashes:** If deploying, remember to explicitly bump the production heap size for the deployment via the publish flow.
 - **Promo Page Image Allowlist:** Promo page images are restricted to a vetted host allowlist to prevent tracking pixels.
+- **FX Studio handshake:** The FX button opens `https://www.pscomixx.online` as a popup and waits for `fx-studio-ready` postMessage. The handshake snippet must be installed in the FX Studio app itself — see `docs/desktop-setup/FX_STUDIO_HANDSHAKE.md`. If the handshake never arrives within 10s, PSCoMiXX surfaces a toast pointing at that doc.
 - **Chromebook / small-screen layouts:** Creator canvases use `aspectRatio` + `maxWidth: calc((100vw - 360px) / 2)` instead of fixed `w-[Xpx] h-[Ypx]` so they shrink to fit. Editor headers use `overflow-x-auto` so toolbar buttons remain reachable on narrow screens. Side panels step down via `w-44 lg:w-52 xl:w-64`. When changing canvas dimensions, do NOT use `flex-shrink-0` — must allow shrinking.
 
 ## Pointers
