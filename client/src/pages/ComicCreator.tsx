@@ -2153,38 +2153,15 @@ export default function ComicCreator() {
   const effectiveProjectId = projectId || createdProjectId;
   const currentSpread = spreads[currentSpreadIndex];
 
-  // Auto-fit zoom on first render: pick a zoom level that fits the natural
-  // spread (or single promo page) inside the available canvas viewport.
-  // Runs once per session — after the user manually zooms, hasAutoFittedRef
-  // sticks at true and we never override their pick. We re-fit when the user
-  // toggles fullscreen mode because the available area changes.
+  // Auto-fit zoom: the canvas pages now use responsive CSS (aspectRatio +
+  // maxWidth/maxHeight) so they already shrink to fit the viewport at zoom
+  // 100. Default to 100; users can still adjust the zoom slider to zoom in
+  // or out beyond fit. Old hardcoded fit math was producing 50–70% on
+  // Chromebooks and *additionally* shrinking the already-fit canvas.
   useEffect(() => {
     if (hasAutoFittedRef.current) return;
-    const compute = () => {
-      const isPromo = !!currentSpread?.isPromoPage;
-      // Natural sizes: a regular spread = 2 pages (650 each) + 24px gap.
-      // Fullscreen = 800 each + 8px gap. Promo page = single 650 page.
-      const nW = isPromo ? 650 : (isFullscreen ? 1608 : 1324);
-      const nH = isFullscreen ? 1130 : 920;
-      // Available canvas area: subtract sidebar (~64px), optional layers
-      // panel (256px), and main paddings (~80px). Vertically: header +
-      // toolbar + breadcrumbs + bottom controls add up to ~280px.
-      const sidebar = 64;
-      const layersPanel = showLayers ? 256 : 0;
-      const hPad = 80;
-      const vPad = 280;
-      const availW = Math.max(320, window.innerWidth - sidebar - layersPanel - hPad);
-      const availH = Math.max(320, window.innerHeight - vPad);
-      const fit = Math.min(availW / nW, availH / nH, 1);
-      const pct = Math.max(25, Math.min(100, Math.floor(fit * 100)));
-      setZoom(pct);
-    };
-    // Defer one frame so the layout settles after spread switches.
-    const raf = requestAnimationFrame(() => {
-      compute();
-      hasAutoFittedRef.current = true;
-    });
-    return () => cancelAnimationFrame(raf);
+    setZoom(100);
+    hasAutoFittedRef.current = true;
   }, [currentSpread?.isPromoPage, isFullscreen, showLayers, refitNonce]);
 
   useEffect(() => {
@@ -6910,7 +6887,7 @@ export default function ComicCreator() {
             </div>
           </div>
         )}
-        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4" style={{ background: '#2d2d2d' }}>
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4 gap-2 overflow-x-auto flex-shrink-0" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/">
               <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
@@ -7689,8 +7666,12 @@ export default function ComicCreator() {
                 data-testid="promo-spread-canvas"
               >
                 <div
-                  className={`bg-white border-4 border-black relative shadow-2xl overflow-hidden ${isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"}`}
-                  style={{ maxHeight: 'calc(100vh - 180px)' }}
+                  className="bg-white border-4 border-black relative shadow-2xl overflow-hidden flex-shrink"
+                  style={{
+                    height: `min(${isFullscreen ? 1130 : 920}px, calc(100vh - 180px))`,
+                    aspectRatio: `${isFullscreen ? 800 : 650} / ${isFullscreen ? 1130 : 920}`,
+                    maxWidth: isFullscreen ? '90vw' : 'calc(100vw - 320px)',
+                  }}
                 >
                   <PromoPageRenderer
                     template={currentSpread.promoTemplateSnapshot}
@@ -7723,10 +7704,13 @@ export default function ComicCreator() {
                 <ContextMenuTrigger asChild>
                   <div 
                     ref={leftPageRef}
-                    className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
-                      isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
-                    }`}
-                    style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
+                    className="bg-white border-4 border-black relative select-none shadow-2xl flex-shrink"
+                    style={{
+                      height: `min(${isFullscreen ? 1130 : 920}px, calc(100vh - 180px))`,
+                      aspectRatio: `${isFullscreen ? 800 : 650} / ${isFullscreen ? 1130 : 920}`,
+                      maxWidth: isFullscreen ? '45vw' : 'calc((100vw - 360px) / 2)',
+                      minWidth: 0,
+                    }}
                     onMouseDown={(e) => handlePageMouseDown(e, "left", leftPageRef)}
                     onMouseMove={(e) => handlePageMouseMove(e, leftPageRef)}
                     onMouseUp={() => handlePageMouseUp("left")}
@@ -7994,10 +7978,13 @@ export default function ComicCreator() {
                 <ContextMenuTrigger asChild>
                   <div 
                     ref={rightPageRef}
-                    className={`bg-white border-4 border-black relative select-none shadow-2xl flex-shrink-0 ${
-                      isFullscreen ? "w-[800px] h-[1130px]" : "w-[650px] h-[920px]"
-                    }`}
-                    style={{ maxHeight: 'calc(100vh - 180px)', maxWidth: isFullscreen ? '45vw' : '40vw' }}
+                    className="bg-white border-4 border-black relative select-none shadow-2xl flex-shrink"
+                    style={{
+                      height: `min(${isFullscreen ? 1130 : 920}px, calc(100vh - 180px))`,
+                      aspectRatio: `${isFullscreen ? 800 : 650} / ${isFullscreen ? 1130 : 920}`,
+                      maxWidth: isFullscreen ? '45vw' : 'calc((100vw - 360px) / 2)',
+                      minWidth: 0,
+                    }}
                     onMouseDown={(e) => handlePageMouseDown(e, "right", rightPageRef)}
                     onMouseMove={(e) => handlePageMouseMove(e, rightPageRef)}
                     onMouseUp={() => handlePageMouseUp("right")}
@@ -8321,7 +8308,7 @@ export default function ComicCreator() {
           </main>
 
           {showLayers && !canvasOverview && (
-            <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col">
+            <aside className="w-48 lg:w-56 xl:w-64 flex-shrink-0 border-l border-zinc-800 bg-zinc-900 flex flex-col">
               <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2"><Layers className="w-4 h-4" /> Layers</span>
                 <button onClick={() => setShowLayers(false)} className="p-1 hover:bg-zinc-800">

@@ -1311,7 +1311,7 @@ if(S.length>0)showS(0);
           .vn-speaker-pop{animation:vnSpeakerPop 0.3s ease-out}
         `}</style>
 
-        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-6" style={{ background: '#2d2d2d' }}>
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-6 gap-2 overflow-x-auto flex-shrink-0" style={{ background: '#2d2d2d' }}>
           <div className="flex items-center gap-4">
             <Link href="/"><button className="p-2 hover:bg-zinc-800" data-testid="button-back"><ArrowLeft className="w-4 h-4" /></button></Link>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1" data-testid="input-vn-title" />

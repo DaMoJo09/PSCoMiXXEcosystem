@@ -49,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Local Backup Corruption:** Older project backups (pre-May 2026 fix) might have `__omitted_for_local_backup__` sentinels in image URLs due to a `safeWriteLocalBackup` bug; these will self-clean on next user save.
 - **Stale Chunk Crashes:** If deploying, remember to explicitly bump the production heap size for the deployment via the publish flow.
 - **Promo Page Image Allowlist:** Promo page images are restricted to a vetted host allowlist to prevent tracking pixels.
+- **Chromebook / small-screen layouts:** Creator canvases use `aspectRatio` + `maxWidth: calc((100vw - 360px) / 2)` instead of fixed `w-[Xpx] h-[Ypx]` so they shrink to fit. Editor headers use `overflow-x-auto` so toolbar buttons remain reachable on narrow screens. Side panels step down via `w-44 lg:w-52 xl:w-64`. When changing canvas dimensions, do NOT use `flex-shrink-0` — must allow shrinking.
 
 ## Pointers
 - **Skills:** `docs/PRODUCTION_READINESS.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/API_INTEGRATION.md`, `docs/PAYMENT_FLOW.md`, `ECOSYSTEM_INTEGRATION.md`

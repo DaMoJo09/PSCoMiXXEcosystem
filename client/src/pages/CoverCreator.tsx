@@ -1706,7 +1706,7 @@ export default function CoverCreator() {
   return (
     <Layout>
       <div className="h-screen flex flex-col bg-zinc-950 text-white">
-        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900">
+        <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900 gap-2 overflow-x-auto flex-shrink-0">
           <div className="flex items-center gap-4">
             <Link href={isComicEmbedded ? `/creator/comic?id=${comicId}` : "/"}>
               <button className="p-2 hover:bg-zinc-800" data-testid="button-back">

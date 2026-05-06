@@ -3162,7 +3162,7 @@ export default function MotionStudio() {
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] text-white overflow-hidden select-none">
       {/* Top Command Bar */}
-      <header className="h-12 bg-black border-b border-white/20 flex items-center justify-between px-3 shrink-0 relative">
+      <header className="h-12 bg-black border-b border-white/20 flex items-center justify-between px-3 shrink-0 relative gap-2 overflow-x-auto">
         {/* Subtle top highlight */}
         <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
         <div className="flex items-center gap-3">
@@ -3421,7 +3421,7 @@ export default function MotionStudio() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Tools Panel */}
         {showAssets && (
-          <aside className="w-64 bg-black border-r border-white/20 flex flex-col shrink-0">
+          <aside className="w-44 lg:w-52 xl:w-64 bg-black border-r border-white/20 flex flex-col shrink-0">
             <div className="p-3 border-b border-white/20 flex items-center justify-between">
               <span className="text-xs font-semibold text-white uppercase tracking-wider">Tools</span>
               <button onClick={() => setShowAssets(false)} className="p-1 hover:bg-[#252525] rounded">
@@ -4585,7 +4585,7 @@ export default function MotionStudio() {
 
         {/* Right Inspector Panel */}
         {showInspector && (
-          <aside className="w-64 bg-black border-l border-white/20 flex flex-col shrink-0">
+          <aside className="w-44 lg:w-52 xl:w-64 bg-black border-l border-white/20 flex flex-col shrink-0">
             <div className="p-3 border-b border-white/20 flex items-center justify-between">
               <span className="text-xs font-semibold text-white uppercase tracking-wider">Inspector</span>
               <button onClick={() => setShowInspector(false)} className="p-1 hover:bg-[#252525] rounded">
@@ -4961,7 +4961,7 @@ export default function MotionStudio() {
                   className="max-w-full max-h-[80vh] object-contain"
                 />
               ) : (
-                <div className="w-[640px] h-[360px] bg-zinc-900 flex items-center justify-center">
+                <div className="bg-zinc-900 flex items-center justify-center" style={{ width: 'min(640px, 70vw)', aspectRatio: '16 / 9' }}>
                   <span className="text-zinc-500">No content in this frame</span>
                 </div>
               )}
