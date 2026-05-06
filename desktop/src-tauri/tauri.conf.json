@@ -39,7 +39,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg", "msi", "nsis", "deb", "appimage"],
-    "category": "Graphics",
+    "category": "GraphicsAndDesign",
     "shortDescription": "PSCoMiXX creative studio",
     "longDescription": "Create comics, cards, motion art, visual novels, and more with the PSCoMiXX creative studio. Build your portfolio, stream to an audience, earn XP, and get certified.",
     "copyright": "Copyright © 2026 Press Start CoMiXX. All rights reserved.",
