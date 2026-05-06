@@ -1,282 +1,63 @@
 # PSCoMiXX Creator
+An AI-assisted web application for generating comics, trading cards, visual novels, and motion comics with integrated drawing tools and project management.
 
-## Overview
-PSCoMiXX Creator is an AI-assisted web application designed as a creative studio for generating diverse digital content like comics, trading cards, visual novels, and motion comics. It offers integrated drawing tools and comprehensive project management, aiming to be a central content creation hub for the PSCoMiXX ecosystem. The platform focuses on enhancing content discoverability, optimizing marketplace functionality, and providing scalable solutions for publishing, monetization, and community engagement.
+## Run & Operate
+- **Run:** `npm start`
+- **Build:** `npm run build`
+- **Typecheck:** `npm run check`
+- **Required Env Vars:** `DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, `PUBLIC_OBJECT_SEARCH_PATHS`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `ADMIN_PASSWORD`, `ECOSYSTEM_JWT_SECRET`
 
-## User Preferences
+## Stack
+- **Frontend:** React, TypeScript, Vite, Wouter, TailwindCSS v4, Radix UI, shadcn/ui
+- **Backend:** Express.js, Node.js
+- **Database:** PostgreSQL (Neon serverless), Drizzle ORM, Drizzle Kit for migrations
+- **Authentication:** Passport.js (local strategy, scrypt hashing), JWT-based SSO
+- **AI:** Pollinations.ai (image and text generation)
+- **Deployment:** Tauri 2 (Desktop App), Capacitor v8 (Mobile App)
+
+## Where things live
+- `/client`: Frontend source code
+- `/server`: Backend source code
+- `/desktop`: Tauri desktop application source code
+- `/shared`: Shared types and utilities
+- `/docs`: Project documentation
+- `server/shared/schema.ts`: Database schema definition
+- `server/routes.ts`: API routes and endpoints
+- `client/src/lib/portfolioTheme.ts`: Portfolio theme contracts and helpers
+- `client/public/marketplace/`: Seeded marketplace asset images
+
+## Architecture decisions
+- **3-Tier Durable Storage:** Replit App Object Storage for primary files, per-user quotas, and Tauri local save for offline access and `.pscomixx` project files (zip format).
+- **Production Stability Hardening:** Implemented pagination for large asset lists, chunk-loading retry mechanism for stale deployments, `sessionStorage` quota handling with `safeStorage`, and robust error handling for the Neon DB driver.
+- **Desktop as Thin Tauri Shell:** The desktop app is a lightweight Tauri 2 wrapper loading the web app URL, allowing for instant web content updates without desktop re-releases. Native features are limited to window management and file system access.
+- **Dynamic Feature Management:** Database-driven feature flags and subscription tiers enable flexible feature gating and monetization.
+- **Ecosystem Integration:** JWT-based SSO and a queue-based sync engine facilitate seamless integration with Press Start LMS and PS Streaming platforms, forming a connected creative ecosystem.
+
+## Product
+- **Content Creation Studios:** Dedicated workspaces for Comics, Visual Novels, CYOA, Cards, Motion, and HOPs (Hot One-Page Stories) with specialized tools.
+- **AI Assistance:** AI-powered image and text generation within creation workflows.
+- **Customizable Portfolios:** Users can personalize their public profile pages with themes, layouts, and content.
+- **Gamified Learning & Progression:** XP system, certifications, and structured curricula motivate users and track skill development.
+- **Creator Marketplace:** Platform for browsing, selling, and acquiring projects and asset packs.
+- **Cross-Platform Availability:** Web, Desktop (Mac/Windows/Linux), and Mobile (iOS/Android) access.
+
+## User preferences
 Preferred communication style: Simple, everyday language.
 
-## 3-Tier Durable Storage System — May 2026
+## Gotchas
+- **Tauri Signing Keys:** Losing the private key for Tauri auto-updates will permanently break auto-update functionality for existing installs. Back it up securely.
+- **Local Backup Corruption:** Older project backups (pre-May 2026 fix) might have `__omitted_for_local_backup__` sentinels in image URLs due to a `safeWriteLocalBackup` bug; these will self-clean on next user save.
+- **Stale Chunk Crashes:** If deploying, remember to explicitly bump the production heap size for the deployment via the publish flow.
+- **Promo Page Image Allowlist:** Promo page images are restricted to a vetted host allowlist to prevent tracking pixels.
 
-Critical autoscale-safety fix: the deployment is `autoscale` (multi-instance, ephemeral disk per instance), but uploads were previously written to local `./uploads/`. Files would have randomly disappeared as instances rotated. Migration shipped before any users hit the bug (file count was 0).
-
-**Tier 1 — Replit App Storage (Object Storage)**
-- `server/replit_integrations/object_storage/` — bucket SDK (`objectStorage.ts`) and ACL helpers (`objectAcl.ts`). The presigned-URL `routes.ts` was deliberately removed because uploads go through our existing authenticated `/api/files/upload` flow (avoids exposing an unauth `/objects/*` endpoint).
-- `server/fileStorage.ts` — same public API as before (`saveFile`, `saveBase64File`, `getFile`, `getFileStream`, `getUserFiles`, `deleteFile`, `getUserStorageUsage`, `getUserQuota`) but every read/write now goes to the bucket. `exported_files.storage_path` stores the bucket key (e.g. `<PRIVATE_OBJECT_DIR>/exports/<userId>/<filename>`).
-- `/api/files/:id` and `/api/files/:id/download` stream from the bucket via `streamFileFromBucket()` helper. Legacy local-disk paths (starting with `/`, `./`, or containing `\`) return 410 Gone instead of 500. Stream errors map "No such object" → 404.
-- Required env vars (auto-set by `setup_object_storage`): `DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, `PUBLIC_OBJECT_SEARCH_PATHS`.
-
-**Tier 2 — Per-user storage quotas**
-- `getUserTier()` reads the canonical `subscriptions` table — only `status === 'active' || 'trialing'` counts; everything else falls back to `free`.
-- Quotas come from `tierEntitlements[tier].maxStorage` (MB). `assertQuota()` runs inside `saveFile()` and throws a typed error (`statusCode: 413`, `code: 'QUOTA_EXCEEDED'`) when over limit; the upload route propagates that.
-- New endpoint `GET /api/files/quota` returns `{ usedBytes, limitBytes, remainingBytes, percentUsed, tier, unlimited }`.
-- `client/src/components/StorageQuotaCard.tsx` — progress bar, 80%/95% warnings, free-tier upgrade CTA. Wired into `SettingsPage.tsx` as the first section.
-
-**Tier 3 — Tauri "Save to My Computer" + .pscomixx file format**
-- `.pscomixx` = zip containing `manifest.json` + `project.json` + `assets/**` (built with `jszip`).
-- `client/src/lib/desktopBridge.ts` — generic helpers (`isDesktop`, `saveProjectToFile`, `openProjectFromFile`, `buildPscomixxZip`, `parsePscomixxZip`). On desktop uses `@tauri-apps/plugin-fs` + `plugin-dialog`; on web falls back to Blob download / `<input type=file>`. Format version is `PSCOMIXX_FORMAT_VERSION = 1`.
-- Tauri plugins added: `tauri-plugin-fs`, `tauri-plugin-dialog` (Cargo.toml + `lib.rs` registration). Capabilities scoped to `$DOCUMENT`, `$DOWNLOAD`, `$DESKTOP`, `$HOME/PSCoMiXX/**`.
-- Wired into `ComicCreator.tsx` dropdown menu. Open-from-computer **does not** mutate the currently loaded project: it stashes the import in `sessionStorage`, navigates to `/creator/comic?import=pending`, then a reactive `useEffect` (deps on `search` + `importHydratedRef` guard) hydrates state and strips the URL flag. This avoids the autosave-overwrite trap.
-- **Shared hook `client/src/hooks/usePscomixxFile.ts`** generalizes Save/Open across ALL 6 creators (Comic + Motion + Card + VN + Cover + Hop). Each creator's toolbar exposes File / Open buttons (data-testids `button-save-to-computer` / `button-open-from-computer`) wired through the hook with their own type/route/snapshot/applySnapshot. Open flow: stash → `?import=pending` → hydrate → strip URL → set sessionStorage marker `pscomixx:just-imported:<type>` so each creator's auto-create effect skips its "reuse existing project" branch exactly once and instead persists a fresh project from the imported state. All creators' auto-create + project-load effects are gated on `!isImporting` to prevent races during hydration.
-
-## Desktop Hub (Tauri 2) — May 2026
-
-PSCoMiXX now ships as a downloadable native desktop app for Mac/Windows/Linux alongside the web app. The desktop app is a **thin Tauri 2 shell** pointing at `https://pscomixx.com` — same backend, same auth, same DB. Web changes appear in the desktop app on next launch with no re-release; desktop re-releases only when native behavior changes (window chrome, tray, file associations).
-
-**Layout**
-- `desktop/` — Tauri source (gitignored target/, gen/, icons/)
-  - `desktop/src-tauri/tauri.conf.json` — window 1440×900, dark theme, NSIS+MSI+DMG+AppImage+deb bundle targets, updater enabled, identifier `com.pscomixx.desktop`
-  - `desktop/src-tauri/src/lib.rs` — Tauri Builder with shell + updater + os + process plugins
-  - `desktop/src-tauri/capabilities/default.json` — Tauri 2 permission manifest (locked to main window)
-  - `desktop/dist/index.html` — fallback splash if remote URL unreachable; production window URL is `https://pscomixx.com`
-  - `desktop/README.md` — full build/release/code-signing instructions
-- `.github/workflows/desktop-release.yml` — builds on `macos-latest` (universal Intel+ARM), `ubuntu-22.04`, `windows-latest` when a `desktop-v*` tag is pushed; uses `tauri-apps/tauri-action`; auto-creates GitHub Release with installers attached + `latest.json` updater manifest
-- `client/src/pages/DownloadPage.tsx` (`/download` route) — public page with OS detection, fetches latest release from GitHub API, primary CTA defaults to user's OS, "All Platforms" grid for the rest, graceful empty state when no release exists yet
-
-**Release flow**
-1. Bump `version` in `desktop/package.json` AND `desktop/src-tauri/tauri.conf.json`
-2. `git tag desktop-v0.X.Y && git push origin desktop-v0.X.Y`
-3. GitHub Actions builds installers for all 3 OSes and publishes a Release
-4. Existing installs auto-update via `latest.json` on next launch
-
-**Pre-launch one-time setup (NOT done in Replit — needs real laptop)**
-- Generate icons: `cd desktop && npm run icon -- ../client/public/icon-512.png`
-- Generate updater keypair: `npx @tauri-apps/cli signer generate -w ~/.tauri/pscomixx-updater.key`
-  - Replace `REPLACE_WITH_GENERATED_PUBLIC_KEY` in `tauri.conf.json` with the printed public key
-  - Add private key + password to GitHub repo secrets: `TAURI_SIGNING_PRIVATE_KEY` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-  - **Losing the private key = permanently breaking auto-update for existing installs.** Back it up to a password manager.
-- GitHub repo: `damojo09/pscomixx-desktop` (referenced in updater endpoint + DownloadPage). If named differently, update `DownloadPage.tsx` constants and `tauri.conf.json` updater endpoint.
-
-**Code signing (Phase 3, optional, ~$400/yr total)**
-- Apple Developer Program ($99/yr): set GitHub secrets `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` — workflow already wires these
-- Windows EV cert (~$300/yr from SSL.com or Sectigo): set `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`
-- Without certs the apps still run; users see one OS warning on first launch
-
-## Production Stability — Stage 1 Hardening (May 2026)
-
-After repeated production crashes ("Oh Snap" error boundaries on `pscomixx.com`), four fixes were shipped to take the app from intermittently crashing to production-stable.
-
-**Crash classes addressed**
-1. **Server OOM** — `/api/assets` was returning every asset (with inline base64 blobs) in a single 15–20s response, exhausting the 2GB heap.
-2. **Stale chunk crashes** — after every deploy, browsers with cached `index.html` tried to load JS chunks (`ComicCreator-*.js`, `CreatorProfilePage-*.js`) that no longer existed → React error boundary.
-3. **`sessionStorage` quota crash** — "Send to Motion Studio" handoff in the Comic Creator wrote `panel_edit_data` without a try/catch; payloads >5MB triggered `QuotaExceededError`.
-4. **pg/neon driver crash** — WebSocket error handler in `@neondatabase/serverless` threw `TypeError: Cannot set property message of #<wu> which has only a getter`, taking the whole process down.
-
-**Fixes**
-- `server/routes.ts` — `GET /api/assets` now paginates (`?limit=200&offset=0`, max 500), strips inline `data`/`blob` fields from list payloads, sets `X-Total-Count`. Single asset still fetched via `GET /api/assets/:id`.
-- `client/src/lib/lazyWithRetry.ts` — drop-in replacement for `React.lazy` that catches "Failed to fetch dynamically imported module" / "ChunkLoadError" / "Importing a module script failed" and triggers a one-shot `window.location.reload()` (capped at 2 attempts per 60s window via `sessionStorage` to prevent reload loops). Also installs global `error` + `unhandledrejection` listeners. Used everywhere via `import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry"` in `client/src/App.tsx`.
-- `client/src/lib/safeStorage.ts` — `safeSet/safeGet/safeRemove` helpers. `safeSet` enforces optional `maxBytes`, catches `QuotaExceededError`, optionally prunes by prefix, and surfaces a Sonner toast on failure. All three `panel_edit_data` writes in `client/src/pages/ComicCreator.tsx` now route through `safeSet({ maxBytes: 4_500_000 })` and abort the navigation if storage fails.
-- `server/db.ts` — adds `pool.on('error')` to absorb idle-client/WebSocket failures, plus a `process.on('uncaughtException')` whitelist that swallows known-recoverable driver errors (`Cannot set property message`, `WebSocket was closed before`, `Connection terminated unexpectedly`, `read ECONNRESET`, `terminating connection due to administrator command`) and re-throws everything else for proper restart.
-
-**Deferred to deploy time**
-- Production heap bump from `--max-old-space-size=2048` → `4096` lives in `.replit` `[deployment].run` and must be applied via the deployment skill / publish flow (direct `.replit` edits are blocked).
-
-**Tier 1 — Real App Features (May 2026)**
-- **Stripe customer portal**: `POST /api/stripe/portal` (already existed) + new "Billing & Subscription" section in `client/src/pages/SettingsPage.tsx` with "Manage Billing" button that redirects to Stripe's hosted portal for invoices, plan changes, card updates, cancellation.
-- **Asset library pagination**: `client/src/contexts/AssetLibraryContext.tsx` auto-fetches all pages in background (PAGE_SIZE=200), reads `X-Total-Count` header, renders progressively. All consumers (ComicCreator, AssetBrowser, etc.) get the full list without code changes. AssetBrowser shows loading indicator during background fetch and displays "X of Y assets" count.
-- **Email (Resend)**: Already wired — `server/email.ts` sends welcome, assignment, submission, grade, purchase, subscription, new-chapter, and bug-report emails via Resend integration.
-- **Dead Google sign-in removed**: Removed non-functional Google OAuth button from AuthPage (no backend route `/api/login` existed, no `passport-google-oauth20` was installed). Login is email/password + Ecosystem SSO.
-- **Ecosystem Hub cards**: Dashboard Ecosystem section upgraded from plain link cards to rich app-hub cards with status indicators (ACTIVE/LINKED/VISIT), version badges, SSO-enabled launch, accent colors, and hover effects. Apps: PSCoMiXX Studio, PS Streaming, Press Start LMS, Mad Mixed Media.
-- **Desktop App in sidebar**: Added "Desktop App" nav link to sidebar pointing to `/download` page.
-- **Mapping mode 1:1 nodes**: Comic Creator mapping mode now renders ALL panel contents (images, text, drawings) with proper transforms and z-ordering, matching the actual editor view. Previously only showed first image OR first text.
-- **All canvases black**: Every creative workspace canvas (Comic Creator, CYOA Builder, VN Creator, Card Creator, HOPs, InkBlade, Cover Editor, Drawing Workspace, InfiniteCanvas) now uses pure black (#000000) backgrounds for consistent visual experience.
-- **CYOA Builder mapping mode overhaul**: Node cards enlarged (380x340), redesigned with accent-colored borders, prominent image display (40% height), START/END badges, choice list with condition indicators, variable/audio badges, and modern visual hierarchy. Graph view uses the same black InfiniteCanvas.
-- **HOPs scaling fix**: Layer positions converted from absolute pixels to percentage-based CSS (`calc(50% + X%)` instead of `calc(50% + Xpx)`), fixing drift/displacement when canvas renders at sizes different from viewport dimensions. Background layers also use percentage-based transforms.
-
-- **Gamified Curriculum System**: Three 6-week curricula (CoMiXX Main, CoMiXX Creator, FX Studio) with structured objectives tied to real creator actions. `curriculum_progress` DB table tracks completed objectives per user. `curriculumEngine.ts` auto-completes objectives when creator actions fire (project_created, save, export, publish, ai_generation, hop_created), awarding the exact XP defined per objective. Weekly challenges auto-complete when all week objectives are done. Native React `CurriculumViewer` at `/ecosystem/learn/curriculum/:slug` shows week accordions, session cards, objective checklists with checkmarks, progress bars, XP indicators, and AUTO badges for auto-triggered objectives. Manual check-off available for non-auto objectives. Learn module cards show live progress bars and XP earned. Original HTML curricula still available via external link button. Unique DB index prevents duplicate completions; `onConflictDoNothing` ensures idempotent writes.
-
-- **Desktop Hub (Tauri 2 + auto-update)**: Native desktop app at `desktop/` is a Tauri 2 thin shell that loads `https://pscomixx.com` in a native window. Cross-platform (Mac universal, Windows x64, Linux AppImage/.deb). GitHub Actions workflow at `.github/workflows/desktop-release.yml` triggers on `desktop-v*` tags and publishes signed installers + `latest.json` updater manifest as a GitHub Release. `src-tauri/src/lib.rs` runs `check_for_updates()` on every launch — pings the manifest, verifies the cryptographic signature using the embedded public key, downloads the new package in the background, installs it, and silently restarts. Tauri signing keypair was generated; the public key is embedded in `src-tauri/tauri.conf.json` and the private key is gitignored at `private_assets/desktop-signing/TAURI_SIGNING_PRIVATE_KEY.txt` (must be uploaded as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Secret to enable releases). DownloadPage at `/download` auto-detects user OS and pulls latest installer from `DaMoJo09/PSCoMiXXEcosystem` GitHub Releases. Web content updates are instant (no desktop release needed); only re-release the desktop app when native behavior changes (window chrome, plugins, signing key, etc.).
-
-**Still on the backlog**
-- React + browser autofill password field bug (login page).
-- Audit other `localStorage.setItem` / `sessionStorage.setItem` call sites and migrate to `safeSet`.
-- Error tracking (Sentry/PostHog) — no production error aggregation yet.
-
-## System Architecture
-
-### UI/UX Design
-The application features a brutalist aesthetic with dark themes, hard shadows, and neon accents. Styling is implemented using TailwindCSS v4, Radix UI, and shadcn/ui. Typography utilizes Space Grotesk, Inter, and JetBrains Mono. Navigation includes a dynamic auto-hide sidebar. Mobile responsiveness is prioritized with a top header, hamburger menu, bottom navigation, and slide-in drawer. **Chromebook compatibility**: Touch-friendly 44px minimum hit targets on coarse-pointer devices (`@media (pointer: coarse)`), `touch-manipulation` on interactive elements, drawing canvas supports both mouse and touch events, Radix ContextMenu long-press support for right-click alternatives, `hover:none` fallback CSS activates group-hover effects on touch. All features work on ChromeOS/Chrome browser at 1366x768.
-
-### Frontend
-Built with React, TypeScript, Vite, and Wouter, the frontend uses TanStack Query and React Context for state management, emphasizing component composition and separation of concerns. It supports PWA features, offline mode, and accessibility standards.
-
-### Backend
-An Express.js server on Node.js provides RESTful endpoints. It uses session-based authentication with Passport.js (local strategy, scrypt hashing) and secures endpoints with middleware for authentication, role-based authorization, and rate limiting. A standardized event dispatch system with delivery logging and a retry queue supports various platform events via webhooks.
-
-### Data Storage
-PostgreSQL, hosted via Neon serverless, serves as the primary database, accessed through Drizzle ORM. The schema supports users, polymorphic projects, assets, versions, and audit logs. Drizzle Kit manages migrations.
-
-### Security
-The platform implements rate limiting (auth: 20/15min, community/store: 60/min, event tracking: 60/min), Helmet.js, strong password policies, secure session management, COPPA/FERPA compliance, content safety features (including content moderation using SHA-256 and perceptual hashing), AI resilience, audit logging, and SSO support.
-
-### Ecosystem Integration
-JWT-based Single Sign-On (SSO) is integrated across the PSCoMiXX ecosystem, with CoMiXX acting as the identity provider. The platform integrates with Press Start LMS for educational submissions and offers a robust export and publish pipeline for content bundling (PS Content Bundle v1), validation, and synchronization to the PSStreaming platform (psstreaming.com). Full bidirectional integration with FX Studio via `postMessage` for asset return and a dedicated `/fx-studio` route. **Target-aware FX protocol**: FX Studio postMessage now includes `target` context (cover, backCover, priceTag, panel) — when FX returns an asset it auto-applies to the selected element. `event.source` validation prevents cross-tab message injection. **Cross-App Asset Pipeline**: `SendToMenu` component (`client/src/components/ecosystem/SendToMenu.tsx`) provides "Send To" dropdown in creator pages (ComicCreator, HopCreator) targeting FX Studio, PS Streaming, Press Start LMS, and Asset Library via `useHandoff` hook (`client/src/hooks/useHandoff.ts`). **HOPs 3-Mode System**: Still/Pan/Video mode selector with mode-aware export filtering, Stitch Mode for panoramic world building (`client/src/components/hop/HopStitchMode.tsx`), Pan Player with parallax layers (`client/src/components/hop/HopPanPlayer.tsx`).
-
-### Feature Management & Monetization
-A database-driven feature flag system allows dynamic toggling of features. Subscription and usage tracking supports multiple tiers (Free, Creator, Pro, Studio, Lifetime, School) with server-side usage tracking and frontend feature gating for AI generations, exports, projects, and storage. An Admin Asset Store (`platform_assets` table) provides full CRUD management for curated platform assets (images, audio, fonts, templates, etc.) with free/paid pricing, category/tag organization, bulk import via JSON, and a public store endpoint that protects paid asset file URLs. Full asset governance model with rights metadata per asset: `sourceType` (original, licensed-restricted, creator-owned, etc.), `rightsClass` (safe-redistributable, system-use-only, embedded-output-only, etc.), `usageMode` (preview-only, system-use-and-export, publish-only, downloadable, admin-only), `unlockType` (free, xp, premium, hybrid, founders-pass), `allowedOutputs` (comic, hop, vn, cyoa, card, motion, cover), `schoolSafe` flag, and `licenseNotes`. Export validation endpoint (`POST /api/export/validate`) checks all asset permissions before export/publish: usage mode, rights class, student safety, XP requirements, unlock status, output type compatibility, and download/publish permissions.
-
-### Content Creation & Management
-The platform offers several creator tools:
-- **Comic Creator:** Drawing tools, CSS filters, text formatting, auto-save, undo/redo, offline saving, various export options, per-page narrator caption boxes, and per-spread theme music. **Default cover system**: first spread's left page auto-creates a front cover panel for new projects. **Mark Last Page**: tagging a spread as "last page" auto-provisions a back cover panel (placed on the right page or as a new spread). Unmarking removes auto-generated back covers. `isLastPage` flag stored per spread. **Canvas Overview**: Adobe XD-style infinite canvas showing all spreads with connection lines, zoom/pan controls, minimap. Single-click selects spread (layers panel updates), double-click opens for editing. Floating spread inspector shows panel counts, content items, and theme music info. Layers panel stays fully accessible in overview mode.
-- **Visual Novel Creator:** A Ren'Py-inspired engine with scenes, characters, dialogue, and transitions. **Canvas/Flowchart View**: infinite canvas showing all scenes as draggable connected nodes with choice-based branching lines; sidebar (scenes/characters/backgrounds tabs) stays fully visible in canvas view. Floating scene inspector shows dialogue count, character count, branching info, and transitions. Double-click to enter scene editor. Scene positions saved to project data. Purple accent color theme.
-- **CYOA Builder:** An interactive fiction engine with story generation, node editing, variables, conditional choices, and per-node background audio. **Infinite Canvas Graph**: Adobe XD-style open canvas with draggable nodes, bezier connection lines (dashed for conditional paths), zoom/pan controls, minimap. Floating node inspector shows choices, effects, ending type, and text preview. Node positions saved to project data.
-- **Card Creator:** Supports TCG and Sports modes with specific card types and a Pack Builder.
-- **Motion Studio:** Video/GIF export, drawing layers, selection/shape/fill tools, eyedropper, virtualized frame list, and a professional NLE-style timeline with draggable audio clips, keyframe editor, and track visibility/lock toggles.
-- **HOPs (Hot One-Page Stories):** A viral short-form content format for the streaming platform. Features: per-scene layer system (media/text/effect/caption), 10 vibe modes (one-tap color filters with canvas-generated gradients), 12 text animations (typewriter, fade, bounce, glitch, neon, etc.), beat react system (9 modes with BPM snap), Zone Out mode (full-screen immersive playback), viewport modes (16:9/9:16/4:3/1:1), standard/moving display toggle (pan animation), PNG export via `html-to-image`, scene duplication, auto-save to localStorage, keyboard shortcuts, audio with volume/loop/BPM, project import for scene assets. **Studio Canvas**: infinite pan/zoom mind-map canvas with 6 node types (idea/character/scene/theme/beat/reference), SVG connections, sticky notes, reference image board, freehand drawing/annotation layer (`client/src/components/hop/HopStudioCanvas.tsx`). **Waveform Timeline**: Web Audio API waveform visualization, peak-analysis beat detection, per-scene start/end times with snap-to-beat/fill sync modes, playhead scrubbing (`client/src/components/hop/HopWaveformTimeline.tsx`). **Full Export Pipeline**: video export (MediaRecorder WebM), image exports (cover art/poster/story card in multiple aspect ratios), QR code generation, tier-based watermark, auto-generated social copy with hashtags and platform links, export metadata (`client/src/components/hop/HopExportPanel.tsx`). **Scene Templates**: 10 presets (cinematic opener, action sequence, dialogue beat, musical climax, cool down, CYOA branch, montage, dream sequence, horror reveal, title card) with pre-configured duration/mood/camera/lighting/transition/sound pack. **Enhanced Scene Fields**: mood, camera angle, lighting, location, lyrics/narration segment, sound pack, sync mode per scene. **Sound Packs**: 10 ambient/SFX/mood packs with free/premium tiers. **Director/Producer Badges**: auto-awarded on save (5+ scenes = Director, music sync = Producer) via `POST /api/hop/check-badges`. **View Modes**: Builder (scene editor) / Canvas (mind map) / Timeline (waveform) toggle. Route: `/creator/hop?id=<projectId>`.
-
-### Free-Form Portfolio
-Each creator's Portfolio page (`client/src/pages/PortfolioPage.tsx`) is fully customizable so creators can express their own brand/feel. `users.portfolioTheme` (jsonb) holds preset, colors (accent/accent2/text/muted), background (solid/gradient/image/pattern with safe URL/hex regex), surface (color/border/radius/shadow), fonts (12-font roster, display+body), layout style (grid/magazine/reel/compact), heroStyle (split/centered/minimal), section visibility flags (showStats/showAbout/showSocial/showWorks/showArtworks), opt-in intro/featured block (`intro.enabled` + headline/body/imageUrl), and section ordering (`sections.order`). Customizer dialog (`client/src/components/portfolio/PortfolioCustomizer.tsx`) opens via the "CUSTOMIZE" button next to Edit/Share with 6 tabs: Presets/Colors/Fonts/Background/Layout/Sections. Theme helpers (`client/src/lib/portfolioTheme.ts`) provide 8 presets, 12 fonts, defaults, and CSS-var/background/surface helpers. Sections render in a flex column using CSS `order` based on `sectionOrder.indexOf(...)` — works/artworks split into separate galleries with helper components (`WorksHeader`/`EmptyGalleryCard`/`ProjectGallery`/`ArtworkGallery`). Public portfolio endpoint (`GET /api/portfolio/:userId/public`) returns the full theme + socialLinks + totalMinutes for parity with owner view. Server hardens user-controlled JSON via `sanitizePortfolioTheme()` in `server/routes.ts`: strict Zod schemas reject unknown keys, colors are regex-validated (hex/rgb/hsla), URLs must be `http(s)://...`, all enums whitelisted, numeric ranges clamped, text length capped (200/2000/2048), payload capped at 12KB (UTF-8 byte length), and `sections.order` normalized to a canonical permutation containing each of intro/about/works/artworks exactly once.
-
-### Publishing & Community
-Projects progress through draft, review, and publication stages. A Creator Marketplace allows for browsing, filtering, and selling projects or asset packs with content ratings and student filtering. The Marketplace page (`client/src/pages/MarketplacePage.tsx`) leads with a **Press Start Originals** section that surfaces curated `platformAssets` via `GET /api/platform-assets/store` with category tabs (Characters, Backgrounds, Items, Accessories, plus Music/Vocals/SFX as "Coming Soon" placeholders linking to the Submit a Pack flow). Free and Premium tiers render in separate sub-grids with green FREE / cyan price badges. A Community Marketplace section below shows user-listed `marketplaceListings`. Starter `platformAssets` are seeded idempotently on boot via `seedPlatformAssets()` in `server/index.ts` (4 characters + 4 backgrounds free, 2 items free + 2 paid $0.99, 2 accessories free + 2 paid $0.99) using stable `/marketplace/*.png` URLs served from `client/public/marketplace/`. Admin asset taxonomy in `AdminControlRoom.tsx` ASSET_CATEGORIES extended with `items`, `accessories`, `music`, `vocals`, `sfx`. A Community Library provides a multi-format browse page with type filter tabs (All, Comics, Novels, CYOA, Cards, HOPs), search, sorting, and dedicated viewers: comic reader, VN dialogue reader (keyboard + touch), CYOA branching player with back/restart, card collection viewer with stats, HOP slideshow player with progress bars and play/pause. Type-colored badges distinguish content. Bookmarking and view tracking. A Comic Series System groups comics into chapters with auto-numbering and subscriptions. A Print Studio provides a creation-to-print pipeline with an export dashboard and print quote requests. Demo content seeded via `/api/admin/seed-demo-content` (admin only) creates a full 10-page comic, 13-node CYOA, 10-scene VN, 5-card TCG deck, and 12-scene 90s HOP.
-
-### User Progression & Analytics
-An XP and Account system includes Student (6-17) and Creator (18+) accounts with an XP system for scaled leveling based on verified active time and action-based rewards. A Certification System ties project-based certifications to output. Admin-only Platform Analytics Dashboard provides 50+ KPIs, and an internal Platform Event Tracking system records user actions. A Teacher Dashboard provides features for student rosters, assignments, and submissions. New user onboarding is action-driven, guiding users through initial project creation and celebrating XP gains. **OnboardingWizard** (`client/src/components/OnboardingWizard.tsx`): 6 creator types (comic, vn, cyoa, card, motion, hop) with 3 quick-start modes (Blank/Template/AI). Glass morphism design with animated backgrounds. AI mode navigates to Story Forge (`/tools/story`). **Creator Flow Bar**: persistent "Create → Enhance → Publish" 3-step indicator on Dashboard, highlighting current stage based on user's projects. **Example/Remix Showcase**: "See What's Possible" section on Dashboard with 4 pre-built template examples (comic, CYOA, VN, card) that create real projects with template data via "Remix This" buttons. **FirstProjectGuide** (`client/src/components/FirstProjectGuide.tsx`): contextual step-by-step tutorial overlay per editor type (comic, vn, cyoa, card, motion, hop) with 3 guided steps each, minimizable floating panel, progress tracking via localStorage.
-
-### File Storage
-Local disk storage at `uploads/` directory with DB tracking via `exported_files` table, supporting base64 upload, max 50MB file size, and MIME type allowlist.
-
-### SEO
-Includes `robots.txt`, dynamic `sitemap.xml`, Open Graph (OG) image endpoints, and full SEO meta tags with JSON-LD structured data.
-
-## External Dependencies
-
-### AI Services
-- **AI Image Generation:** Pollinations.ai
-- **AI Text Generation:** Pollinations.ai
-
-### Databases & ORMs
-- `@neondatabase/serverless`
-- `drizzle-orm`
-
-### Authentication
-- `passport`
-
-### Security
-- `helmet` (CSP, security headers)
-- `express-rate-limit` (global: 200/min, auth: 10/15min, AI: 10/min)
-- Session cookies: httpOnly, secure in production, sameSite lax, 7-day expiry
-- Stripe webhook signature validation
-- Sensitive credentials stored as encrypted Replit Secrets (ADMIN_PASSWORD, PSSTREAMING_WEBHOOK_SECRET / legacy EMERGENT_WEBHOOK_SECRET, FX_STUDIO_API_KEY)
-
-### Code Quality
-- TypeScript strict mode with zero errors (`npm run check`)
-- Route-level lazy loading via React.lazy for all 60+ pages (except Dashboard, AuthPage, LandingPage)
-- Vendor code splitting: recharts/d3, jspdf, radix, tanstack-query in separate chunks (React stays in entry to preserve initialization order)
-- Service worker disabled (unregistered on load) after stale-cache production incident; can re-enable later with proper versioning
-- Duplicate backend methods consolidated (follow/unfollow/isFollowing)
-- Schema types reconciled between frontend, backend, and shared models
-- CI pipeline script: `scripts/ci.sh` (npm ci → typecheck → build → test)
-- Environment variable validation at server startup (`server/envValidation.ts`)
-- Payment transaction audit logging (`server/paymentAudit.ts`)
-
-### Partner Integration API
-- `GET /api/v1/integration/health` — health check
-- `GET /api/v1/integration/projects/:id` — fetch project data
-- `GET /api/v1/integration/projects/:id/export` — export project bundle
-- `POST /api/v1/integration/assets/import` — import external assets
-- `POST /api/v1/integration/webhook/test` — test webhook delivery
-- `POST /api/v1/integration/render-handoff` — render pipeline handoff (Reallusion/Unreal)
-- Auth via `X-API-Key` header or Bearer token, timing-safe comparison
-
-### MADMIXEDMEDIA Creative Workforce Ecosystem
-Three-platform connected creative education + publishing + workforce operating system:
-- **CoMiXX (this app):** Creator studio, XP engine, Skill Passport, project publishing
-- **Press Start LMS (pressstart.tech):** Learning pathways, lessons, certifications
-- **Press Start Streaming (psstreaming.com):** Content distribution, creator channels, school stations
-
-**Ecosystem Tables:** `xp_events`, `xp_balances`, `skill_tags`, `competencies`, `passport_entries`, `external_tools`, `external_submissions`, `role_eligibility_rules`, `apprenticeship_tracks`, `apprenticeship_applications`, `production_roles`, `mentor_reviews`, `bug_reports`, `creator_channels`, `school_stations`, `pathways`, `user_pathway_progress`, `sync_queue`, `sync_logs`, `sso_audit_log`, `school_safe_policies`, `districts`, `classrooms`, `classroom_memberships`, `policy_audit_log`, `workforce_signals`, `workforce_profiles`, `workforce_endorsements`, `xp_ingestion_rules`, `xp_ingestion_log`, `launch_tickets`
-
-**Ecosystem API Routes (`/api/ecosystem/`):**
-- XP: `POST /xp/event`, `GET /xp/breakdown`, `GET /xp/events`
-- Passport: `GET /passport/:userId?`, `POST /passport/entry`
-- Roles: `GET /roles/eligibility`, `GET /roles/rules`, `PUT /roles/rules/:id`
-- Apprenticeships: `GET /apprenticeships/tracks`, `POST /apprenticeships/tracks`, `GET /apprenticeships/applications`, `POST /apprenticeships/apply`, `PUT /apprenticeships/applications/:id/review`
-- External Tools: `GET /external-tools`, `POST /external-tools`, `GET /external-submissions`, `POST /external-submissions`, `PUT /external-submissions/:id/review`
-- Bug Reports: `GET /bug-reports`, `POST /bug-reports`, `PUT /bug-reports/:id`
-- Pathways: `GET /pathways`, `POST /pathways/:id/enroll`
-- Cross-platform Ingest: `POST /ingest/xp`, `POST /ingest/passport-entry` (JWT auth via ECOSYSTEM_JWT_SECRET)
-- Cross-platform Sync: `POST /api/ecosystem/sync` (queue-based with exponential backoff retries)
-- Sync Status: `GET /api/sync/status`, `GET /api/sync/history`, `POST /api/sync/retry/:id`
-- Admin Sync: `GET /api/admin/sync/dashboard`, `GET /api/admin/sync/health`, `GET /api/admin/sso/audit`
-
-**Sync Engine (`server/syncEngine.ts`):** Queue-based cross-platform sync with exponential backoff (2s base, 5min max), 5 retries, stale recovery, worker loop (10s interval). Functions: `enqueueSyncEvent()`, `startSyncWorker()`, `getSyncStatus()`, `getSyncHistory()`, `retrySyncEvent()`, `getSyncHealthMetrics()`, `logSSOAudit()`, `getSSOHealthMetrics()`.
-
-**SSO Hardening (`server/sso.ts`):** JWT tokens include `aud: "madmixedmedia-ecosystem"`, `jti`, `nbf` claims. Structured error responses with request IDs and elapsed timing. All SSO attempts audit-logged to `sso_audit_log` table. Error codes: TOKEN_MISSING, TOKEN_MALFORMED, TOKEN_SIGNATURE_INVALID, TOKEN_EXPIRED, TOKEN_NOT_YET_VALID, TOKEN_ISSUER_INVALID, TOKEN_AUDIENCE_INVALID, USER_NOT_FOUND, SESSION_ERROR, INTERNAL_ERROR.
-
-**Frontend Sync Components:** `SyncStatusIndicator` in Layout header (real-time sync status with retry controls), Sync Health tab and SSO Audit tab in EcosystemAdmin.
-
-**XP Engine (`server/xpEngine.ts`):** Event-based XP with deduplication, cooldown, source/tool tagging, balance rollup, role eligibility checks.
-
-**Ecosystem User Fields:** `ecosystemRole` (learner→lead), `conductScore`, `reliabilityScore`, `mentorId`
-
-**Frontend Pages:** SkillPassportPage (with Workforce tab), ApprenticeshipPage, ExternalToolSubmissions, EcosystemPathways, EcosystemAdmin, SchoolSafeAdmin (`/admin/school-safe`)
-
-**Phase 1 Engines:**
-- **School-Safe Policy Engine** (`server/schoolSafeEngine.ts`): District→school→classroom→user cascade policy resolution. Controls messaging, content categories, marketplace, publishing, profile visibility, remix/collab, moderation, external contact.
-- **Workforce Pipeline** (`server/workforceEngine.ts`): Signal recording, tier recomputation (exploring→professional), skill passport, endorsements. APIs: `/api/workforce/profile`, `/api/workforce/passport`, `/api/workforce/signal`, `/api/workforce/endorse`.
-- **XP Ingestion Rules Engine** (`server/xpIngestionEngine.ts`): Rules-based external XP processing with deduplication, cooldown, hold/deny/translate/award actions. Seed defaults at startup. Unified `/api/ecosystem/ingest/xp` route.
-- **App Handoff Flows** (`useHandoff.ts` hook): Secure launch tickets for CoMiXX↔FX Studio, CoMiXX→Streaming, LMS→CoMiXX. `POST /api/handoff/prepare` + `POST /api/handoff/consume`.
-- **Ecosystem Navigation** (`EcosystemNav.tsx`): Hub/CoMiXX/FX/Streaming/LMS bar with SSO-aware navigation, desktop hub mode detection.
-
-**XP Hooks:** HopCreator fires XP events on project create, save, export, and publish.
-
-### Documentation
-- `docs/PRODUCTION_READINESS.md` — checklist for production deployment
-- `docs/DEPLOYMENT_GUIDE.md` — step-by-step deployment + school/district guide
-- `docs/API_INTEGRATION.md` — partner API reference with examples
-- `docs/PAYMENT_FLOW.md` — payment system documentation + audit trail
-- `ECOSYSTEM_INTEGRATION.md` — cross-platform API reference for LMS and Streaming
-
-### UI/Utility Libraries
-- `react`, `typescript`, `vite`, `wouter`, `tailwindcss`
-
-### Font Resources
-- Google Fonts (Space Grotesk, Inter, JetBrains Mono)
-
-### Mobile App (Capacitor)
-- **Capacitor v8** configured for iOS and Android native wrapper
-- Bundle ID: `com.pscomixx.creator`
-- App Name: `Press Start CoMiXX`
-- Web dir: `dist/public`
-- Plugins: SplashScreen, StatusBar, Keyboard, Haptics, Share, Filesystem
-- **Platform detection** (`client/src/lib/platform.ts`): `isNativeApp()`, `shouldBlockDirectPayments()`, `getPlatform()`
-- **Payment compliance**: Pricing page shows read-only plan info in native apps (no direct Stripe checkout). Users manage subscriptions via website. UpgradeModal says "View Plans" instead of "Upgrade Now"
-- **Safe area handling**: CSS utilities for all four insets (`safe-area-top`, `safe-area-bottom`, `safe-area-x`, `native-top-offset`, `native-bottom-offset`). Mobile header and bottom nav use safe area classes
-- **Legal links in mobile drawer**: Privacy Policy, Terms of Service, Settings & Account, Support & Contact accessible from mobile hamburger menu
-- **Splash screen**: Native-feel loading with animated dots and branding, safe-area-aware padding
-- Build commands: `npm run build && npx cap sync ios/android`, `npx cap open ios/android`
-- iOS/Android project dirs not generated yet (need Xcode/Android Studio)
-
-### Other Integrations
-- **Resend:** Transactional emails.
-- **Stripe:** Payment processing (Stripe Checkout). Uses Replit Connector with env var fallback (`STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY`). Admin endpoint `POST /api/admin/seed-stripe-products` creates subscription products/prices. Product-to-tier mapping uses metadata `tier` key or product name matching.
-- **Mad Mixed Media:** Streaming platform for content and creator profile synchronization.
-- **Ecosystem Integration Points:** `pscomixx.com`, `comixx.website`, `www.pscomixx.online`, `psstreaming.online`.
-### App Store Readiness Progress (Apr 2026)
-- **Batch A (shipped)**: Global footer with Terms/Privacy/Contact/Get Started links on all non-creator pages. First-time-visitor redirect to `/get-started` for new users (gated on onboarding completion + projects fetch success, key scoped per `user.id`). Export reminder banner in ComicCreator (shows after 24h since last export, dismissed per project, reset on project switch). All 4 export handlers (PNG single/all, PDF, JSON) call `markProjectExported()`.
-- **Batch B (shipped)**: Crash telemetry — `window.error` + `unhandledrejection` handlers in App.tsx (throttled 5/min/source) post to `/api/client-error`; server endpoint logs via `console.error` (no blocking I/O), rate-limited 30/min, payloads truncated. Image upload pipeline hardening — shared `client/src/lib/imageValidation.ts` with HEIC detection (Safari OK, Chrome/Android shows "share as JPEG" guidance) and per-media caps (12MB image / 50MB video / 20MB audio). Refactored `ImageUpload`, `ComicCreator` thumbnail upload, and `AssetLibraryContext.importFromFile/importFromFiles` to use the shared validator.
-- **Classic Comic Starter (shipped)**: New "Start Now" remix card on Dashboard (`handleClassicComicStarter` in `client/src/pages/Dashboard.tsx`) builds a 6-spread project — front cover spread, 3 story spreads, a full-spread vintage promo/ad page (auto-fetches a vintage platform template snapshot from `/api/promo/templates`), 1 more story spread, and a back-cover spread tagged `isLastPage`. Equivalent to ~11 reading-page mini-comic. Front/back cover panels carry `coverRole` so the cover editor opens automatically. Falls back to an empty promo spread if the template fetch fails — the user can pick one in-creator.
-- **Vintage Promo Templates (shipped)**: Three new platform-type seed templates with mid-century comic-ad aesthetics (cream paper grain via inline SVG noise, fixed red/yellow palette, vintage display typography): `vintage-mail-order` (single hero illo + headline + body + mail-order coupon, "How to Hypnotize" style), `vintage-novelty` (yellow paper, two-column body, "Send No Money" CTA, X-Ray Spex style), `vintage-triple-feature` (three horizontal strips with cover-art slot + title + "ON SALE" badge per strip, Marvel monsters page style). `PromoPageRenderer` is now layout-aware — switches on `template.layoutStyle` between `ModernBody` (original) and the 3 vintage body components. The mandatory disclosure label and image allowlist still apply on top of every layout. Each seed ships with curated `images.unsplash.com` stock photos (allowlisted host) so users see a realistic populated ad on first open instead of empty illustration slots. Seed loop is now per-layoutStyle idempotent AND backfill-aware: on each boot it inserts new layoutStyles and refreshes empty image fields on platform-managed templates without overwriting any admin/creator edits.
-- **Comic Creator UX (shipped)**: 1) Auto-fit zoom — `ComicCreator.tsx` now picks an initial zoom on mount (and on fullscreen / layers-panel toggle / spread type change between regular and promo) that fits the natural spread inside the available canvas viewport, fixing a "page spill" issue where pages overflowed the canvas on smaller screens. The user keeps control: any manual +/- click flips a `hasAutoFittedRef` ref so subsequent re-fits never override their pick, and clicking the % readout (now a button) bumps a `refitNonce` state to force one re-fit. Auto-fit clamps to [25, 100] so it only ever scales DOWN. 2) Spread flex container now uses `justify-center` so pages center horizontally even when smaller than the canvas. 3) Right-click → "Insert Promo / Vintage Ad…" menu item added to BOTH page context menus (gated on `promoPagesEnabled`), opening the Promo Page Studio without forcing the user back to the bottom toolbar. 4) Layers panel got page tabs (`Left Page (n) | Right Page (n)`) so users can see both pages' panel counts and switch between them in one click — fixes the "super long empty layers panel" on cover spreads where the active page only has one panel. When a page has 0 panels, the layers list now shows a centered empty-state card with a tip ("Press P and drag to add a panel") and a one-click jump-to-other-page link instead of dead space.
-- **Promo Free-Form Layer (shipped)**: `PromoPageStudio.tsx` now lets creators add and free-transform unlimited text + image elements on top of any promo template — no more "fill these 4 fields" limitation. New `PromoElement` type + `freeElements?: PromoElement[]` on `PromoTemplateData`; all geometry stored as % of the page so it scales correctly across studio preview, comic-creator overview, and the export pipeline. `PromoPageRenderer` accepts an `editing` prop that suppresses its read-only `<FreeElementsLayer>` so the studio's interactive `<FreeFormCanvas>` renders the same elements with drag/resize/rotate handles. Editor supports: pointer-tracked drag (move) and 4-corner resize (resize-tl/tr/bl/br) with deltas converted from pixels to canvas %, top rotate handle that computes angle from element center, double-click text → contentEditable textarea (saves on blur, ESC cancels), Delete/Backspace to remove the selected element, and a side-panel `ElementPropertiesPanel` with font family/size/color/weight/italic/align for text and src/alt/fit for images plus precise X/Y/W/H/rotation inputs. Studio dialog widened to 95vw with a 3-column layout (gallery | big interactive canvas | side panel that toggles between the original "Layout" template fields and "Element" properties). Toolbar above the canvas: + Text, + From Assets (opens `<AssetBrowser>` which surfaces user library, built-in effects/bubbles, and FX Studio output — selecting any asset drops it as a free image element), bring forward / send backward / duplicate / delete. Layer ordering uses `moveLayer()` + `reindexZ()` to keep z-values contiguous and non-negative so the server normalizer never collapses layers. Server-side `sanitizePromoCustomData()` (re-used by both POST `/api/promo/projects/:projectId/instances` and PATCH `/api/promo/instances/:id`) validates each element with strict zod (kind whitelist, regex-validated hex color, bounded text/url/font lengths, finite numbers), clamps geometry, caps the array at 50 elements, and re-normalizes z by relative order (not per-element clamping) so save/reload always preserves the editor's layering. Image src goes through the existing `isPromoImageAllowed` allowlist at render time, and the read-only renderer paints "Image blocked" if a stale src no longer passes.
-- **Promo Materialization Pivot (shipped)**: Promo pages no longer have a separate free-form editor. They are now regular editable Comic Creator spreads. New `client/src/components/promo/promoMaterializer.ts` defines a declarative `MaterializeSpec` (text/image/shape items in % coords, with `{{token}}` resolution from the merged template+customData). On insert, `materializePromoTemplate(template, customData)` returns `leftPage`/`rightPage` `Panel[]` arrays the Comic Creator owns directly — the user edits with the same drag/resize/rotate/text/image/bubble toolset as any other spread. A locked yellow-on-black disclosure label (`SPONSORED PAGE` / `STUDENT-CREATED PROMO` / `CREATOR PROMO`) is auto-stamped onto the host panel as a `locked: true` text content for the three regulated types so it can't be removed or restyled. Both insertion paths in `ComicCreator.tsx` (`insertPromoPageAtCurrent`) and both export paths (CoMiXX sync + PDF) gate on `leftPage.length === 0 && rightPage.length === 0` to decide between the legacy `PromoPageRenderer` fallback and the regular spread render/export — so saved legacy promos still work, and new ones flow through the standard pipeline. Two new rich vintage seeds (`hero-ad-charles-atlas`, `treasure-chest-grid`) ship with detailed materializeSpec layouts (banner shapes, hero PNG, multiple text blocks, starbursts, framed feature cards) — picking one drops a fully-populated, fully-editable spread into the comic. The studio dialog itself was rolled back to a simple gallery + read-only preview + form fields layout (no in-dialog canvas, no element side panel, no AssetBrowser); editing happens in the comic, not in the picker. `PromoElement` / `FreeElementsLayer` / `freeElements` rendering is preserved on the renderer for backward compat with legacy saved promos.
-- **Promo Studio Look-and-Feel (shipped, partially superseded by Materialization Pivot)**: `PromoPageStudio.tsx` lets users customize the look of their promo pages. 1) **Image upload from device** — replaced the prior URL-only image fields with the project's standard `ImageUpload` component (drag-drop OR click; FileReader → data URL; goes through the shared HEIC-aware `validateImageFile` and the 12 MB image cap). The promo image-allowlist already accepts `data:` URIs, so uploaded images render inline with no backend storage and no host-allowlist worries. Hero image and Logo each get their own upload slot. The vintage-triple-feature layout shows three full strip editors instead — each with its own Title, Subtitle, Badge, and uploader. 2) **Vintage filter presets** — new `VINTAGE_FILTERS` map (Sepia, Black & White, Newsprint, Faded, Punchy Comic, Warm Comic, Cool Comic, Cyanotype, Noir Halftone) applied via CSS `filter:` to all images in the page through the `getPromoImageStyle(data)` helper. Wired into all 4 layout body components (`ModernBody`, `VintageMailOrderBody`, `VintageNoveltyBody`, `VintageTripleFeatureBody`). 3) **Image transform controls** — new sliders for Image Scale (25-250%) and Position X / Y (0-100%, mapped to `object-position` and `transform: scale()`), plus a "Reset look to defaults" link. 4) **Type extensions** — `PromoTemplateData` gained `imageFilter`, `imageScale`, `imagePositionX`, `imagePositionY`, and a typed `strips: PromoStrip[]` field; cleaned up the prior `as any` cast in `VintageTripleFeatureBody`. Server `templateJson` is `jsonb` so no schema migration was needed.
-- **Promo Page Studio (shipped)**: School-safe in-comic promo/ad page system with 4 types — platform (first-party), sponsor (vetted partners), student (classroom media-literacy assignments), creator (self-promotion). New tables `promoTemplates` / `promoInstances` / `promoReviews` (`shared/schema.ts`); storage CRUD in `server/storage.ts` (incl. `listPromoTemplatesForUser` audience-filter and `getPromoInstance` for ownership checks); routes `/api/promo/*` in `server/routes.ts`; centralized `checkPromoTemplateAccess(req, t)` enforces fail-closed feature flag (`promo_pages_enabled` MUST be explicit `true`), separate `promo_sponsors_enabled` flag for sponsor type, and the student safety contract — students can only ever see/use templates that are `status=approved` AND `isSchoolSafe=true` AND non-sponsor type. PATCH/DELETE on instances verify project ownership. Frontend: `client/src/components/promo/PromoPageStudio.tsx` (gallery + editor + `PromoPageRenderer`); the mandatory disclosure label ("SPONSORED PAGE" / "STUDENT-CREATED PROMO" / "CREATOR PROMO") uses HARDCODED yellow-on-black colors that cannot be overridden by template/custom data, so no editor can hide it via accent recoloring. Image URLs in promo pages are restricted to a vetted host allowlist (own infra, R2/S3, Unsplash/Pexels) to block tracking-pixel-style requests. ComicCreator integration: `Spread` interface extended with `isPromoPage`/`promoTemplateId`/`promoTemplateSnapshot`/`promoCustomData`; "+ Promo Page" button gated by feature flag; promo render branch over the spread canvas; `exportPromoToCanvas()` helper using html2canvas + react-dom/client wired into all-PNG sync export and full-PDF export so promo pages print inline; JSON export auto-includes promo metadata via spreads serialization. Admin moderation in `AdminControlRoom.tsx` Promo Pages tab — pending-review queue, approve/reject (writes `promo_reviews`), school-safe toggle, preview dialog. Four platform seed templates created on startup. No third-party tracking pixels, no behavioral targeting.
-- **Portfolio Free-Form Customization B1 (shipped)**: Each creator can now style their public Portfolio page to express their own brand. New `portfolioTheme` jsonb column on `users` (additive, non-destructive — added via direct SQL since drizzle-kit push hung on unrelated interactive prompt). Schema field added to `shared/schema.ts`; server allows the field through `PATCH /api/profile`, returns it from `GET /api/profile` and from the public `GET /api/portfolio/:userId/public` endpoint so visitors see the creator's styling. Theme contract lives in `client/src/lib/portfolioTheme.ts` — types, 8 presets (Cyber Noir / Vintage Pulp / Sunday Funnies / Indie Pastel / Brutalist Print / Noir Ink / Horror Vintage / Neon Arcade), 12 Google Font options with `ensureGoogleFonts()` injector, plus `mergeTheme`, `themeToCssVars`, `backgroundCss`, `surfaceCss`, `fontStack` helpers. UI: `client/src/components/portfolio/PortfolioCustomizer.tsx` is a 6-tab dialog (Presets / Colors / Fonts / Background / Layout / Sections) with color pickers, sliders, intro-block editor, and section show/hide + reorder. `PortfolioPage.tsx` rewired — outer wrapper applies CSS vars + theme background, hero supports `split`/`centered`/`minimal` styles using accent + display font, bio uses themed surface + accent left-border, sections render in `theme.sections.order` with show/hide gating, gallery split into separate Works (published projects) and Artworks (owner-only) sections each rendered via `ProjectGallery`/`ArtworkGallery` with 4 layout modes (`grid`/`magazine`/`reel`/`compact`). New owner-only "CUSTOMIZE" button next to Edit/Share opens the dialog. Add/edit artwork dialog hoisted to a standalone controlled `Dialog` (no longer inside the legacy gallery header). Public viewers automatically see the creator's saved theme; if no theme is set, a sensible "Cyber Noir" default matches the previous look so existing portfolios stay visually unchanged.
-- **Batch C (later)**: Apple-friendly first-run flow (theme → 3 photos → 3 panels → bubble → export), App Store-safe copy, splash/icons.
-- **Batch D**: Capacitor wrap + iOS/iPad test builds.
-- **Batch E**: Lovable/FX side + handshake completion (CoMiXX side already wired).
-- Out of scope for agent: App Store listing copy, screenshots, preview video, legal page actual text, App Store Connect submission.
-- **Image-corruption (broken-image icon) fix (shipped)**: Diagnosed via prod SQL audit — 49 image URLs across 7 comic projects had been overwritten with the literal string `__omitted_for_local_backup__`. Root cause: `safeWriteLocalBackup` falls back to `stripHeavyFields` (replaces base64 images >50KB with that sentinel) when the local payload exceeds 3.5 MB; hydration then preferred the newer local backup, loaded the stripped data into the editor, and the next save persisted sentinels back to the server, permanently destroying images. Fix in `client/src/pages/ComicCreator.tsx`: (1) extracted `STRIPPED_IMAGE_PLACEHOLDER` constant and `sanitizeStrippedPlaceholders()` recursive helper that walks objects/arrays and replaces sentinel strings with empty strings; (2) `safeWriteLocalBackup` now tags stripped backups with explicit `stripped: true` flag in the envelope; (3) hydration refuses any backup with `stripped:true` (uses server copy instead) — for legacy backups missing the flag, falls back to a raw `includes()` sniff (limited to legacy only, so user text containing the sentinel never false-positives a new backup); (4) hydrated `dataSource` is itself scrubbed so already-corrupted server projects render blank panels (the renderer's `content.data.url && <img>` short-circuit kicks in) instead of broken-image icons; (5) every server-write path scrubs through the helper before stringify+POST: flushSave/autosave, sendBeacon unmount, sendBeacon beforeunload, publish preflush, manual handleSave, handleCoverSave, compile-with-covers save, and handleRescueToNewProject — so sentinel can never re-enter the database. The 7 historical damaged projects will self-clean on next user save (no DB migration required). Architect re-review PASS.
-- **Sentinel-cleanup admin endpoints (shipped)**: Two admin-only routes added in `server/routes.ts` to clean up the 7 historically-damaged comic projects (49 sentinel hits) where embedded image URLs got overwritten with `__omitted_for_local_backup__` before the client-side scrub fix was in place. `GET /api/admin/sentinel-audit` returns `{damagedCount, totalSentinelHits, damaged:[{id,title,type,userId,hits}]}`. `POST /api/admin/sentinel-cleanup` runs the same scan and replaces every sentinel string with `""` so the renderer's empty-url short-circuit shows blank panels (defaults to `dryRun:true`; pass `{dryRun:false}` to actually write). Damaged projects are found via direct drizzle SQL `WHERE data::text LIKE '%__omitted_for_local_backup__%'` so the scan isn't bounded by `storage.getAllProjects()`'s 1000-row in-memory cap. Writes use optimistic concurrency: `UPDATE ... WHERE id = $1 AND updated_at = $original` — if a user edited the project between audit and write, the row count is 0 and the project is reported as `skipped` instead of being clobbered. Rollout: deploy → call audit (sanity-check counts match prior SQL audit: 7 projects, 49 hits) → call cleanup with `dryRun:true` → call cleanup with `dryRun:false`.
+## Pointers
+- **Skills:** `docs/PRODUCTION_READINESS.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/API_INTEGRATION.md`, `docs/PAYMENT_FLOW.md`, `ECOSYSTEM_INTEGRATION.md`
+- **External Docs:**
+    - Tauri Documentation: https://tauri.app/v2/guides/
+    - Capacitor Documentation: https://capacitorjs.com/docs/
+    - Drizzle ORM: https://orm.drizzle.team/
+    - TailwindCSS: https://tailwindcss.com/
+    - Radix UI: https://www.radix-ui.com/
+    - Neon Serverless Postgres: https://neon.tech/
+    - Stripe: https://stripe.com/
+    - Resend: https://resend.com/
