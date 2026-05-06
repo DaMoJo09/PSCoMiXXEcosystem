@@ -76,11 +76,11 @@
         "bundleMediaFramework": true
       }
     },
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": false
   },
   "plugins": {
     "updater": {
-      "active": true,
+      "active": false,
       "endpoints": [
         "https://github.com/damojo09/pscomixx-desktop/releases/latest/download/latest.json"
       ],
