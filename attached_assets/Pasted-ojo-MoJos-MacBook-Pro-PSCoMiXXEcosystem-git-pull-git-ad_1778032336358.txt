@@ -1,0 +1,76 @@
+ojo@MoJos-MacBook-Pro PSCoMiXXEcosystem % git pull
+git add .gitignore desktop/dist/index.html
+git commit -m "fix: include desktop/dist in build"
+git push
+git tag desktop-v0.1.1
+git push origin desktop-v0.1.1
+Already up to date.
+fatal: pathspec 'desktop/dist/index.html' did not match any files
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+Everything up-to-date
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0
+To https://github.com/DaMoJo09/PSCoMiXXEcosystem.git
+ * [new tag]         desktop-v0.1.1 -> desktop-v0.1.1
+mojo@MoJos-MacBook-Pro PSCoMiXXEcosystem % # 1. Add the gitignore exception
+printf '\n!desktop/dist/\n' >> .gitignore
+
+# 2. Create the splash file the build needs
+mkdir -p desktop/dist
+cat > desktop/dist/index.html <<'EOF'
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PSCoMiXX</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        display: flex; align-items: center; justify-content: center; flex-direction: column; }
+      .pulse { animation: pulse 1.4s ease-in-out infinite; opacity: 0.6; font-size: 14px;
+        letter-spacing: 0.18em; text-transform: uppercase; }
+      @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+      .brand { font-weight: 800; font-size: 28px; letter-spacing: -0.02em; margin-bottom: 24px; color: #a855f7; }
+    </style>
+  </head>
+  <body>
+    <div class="brand">PSCoMiXX</div>
+    <div class="pulse">Loading studio…</div>
+    <script>
+      setTimeout(function () {
+        if (location.hostname !== "pscomixx.com") {
+          location.replace("https://pscomixx.com");
+        }
+      }, 1500);
+    </script>
+  </body>
+</html>
+EOF
+
+# 3. Commit, push, and tag a fresh version
+git add .gitignore desktop/dist/index.html
+git commit -m "fix: include desktop/dist splash for build"
+git push
+git tag desktop-v0.1.2
+git push origin desktop-v0.1.2
+zsh: command not found: #
+zsh: command not found: #
+zsh: command not found: #
+[main 107f663] fix: include desktop/dist splash for build
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+ create mode 100644 desktop/dist/index.html
+Enumerating objects: 9, done.
+Counting objects: 100% (9/9), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (5/5), done.
+Writing objects: 100% (6/6), 1.05 KiB | 1.05 MiB/s, done.
+Total 6 (delta 3), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
+To https://github.com/DaMoJo09/PSCoMiXXEcosystem.git
+   1c3a5e2..107f663  main -> main
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0
+To https://github.com/DaMoJo09/PSCoMiXXEcosystem.git
+ * [new tag]         desktop-v0.1.2 -> desktop-v0.1.2
+mojo@MoJos-MacBook-Pro PSCoMiXXEcosystem % 
