@@ -1,0 +1,232 @@
+Create a complete, professional User Guide for the entire Press Start | MADMIXEDMEDIA ecosystem.
+
+The guide should be written like a premium software manual mixed with a modern creative platform onboarding experience. It must feel polished, beginner-friendly, and professional enough for schools, creators, studios, and partners.
+
+The goal is:
+If someone reads this guide from start to finish, they should fully understand how to use every part of the ecosystem without needing additional help.
+
+The guide should include:
+
+STRUCTURE
+
+Create a full Table of Contents and break the guide into major sections.
+
+Include:
+
+* Introduction
+* What the Ecosystem Is
+* Platform Overview
+* System Requirements
+* Account Setup
+* SSO/Login System
+* XP System
+* Creator vs Student Accounts
+* Safety Features / Moderation
+* Marketplace System
+* Publishing Pipeline
+* Portfolio Features
+* Troubleshooting
+* FAQ
+* Best Practices
+* Keyboard Shortcuts / Quick Keys
+* Glossary
+
+FOR EACH APP / PLATFORM
+
+Go through EVERY mode, page, tab, menu, feature, and workflow in detail.
+
+For each section:
+
+* Explain what the feature does
+* Explain WHY users would use it
+* Explain HOW to use it step-by-step
+* Include workflow examples
+* Include pro tips
+* Include shortcut keys
+* Include right-click menu options
+* Include toolbar breakdowns
+* Include export settings
+* Include publish/send-to-marketplace workflows
+* Include save/load systems
+* Include drag-and-drop workflows
+* Include mobile vs desktop differences if applicable
+* Include troubleshooting for that specific feature
+
+INCLUDE SCREENSHOTS
+
+For every major feature or screen:
+
+* Add screenshot placeholders
+* Label where screenshots should go
+* Include annotations/callouts showing:
+    * buttons
+    * menus
+    * hotkeys
+    * workflow arrows
+    * important settings
+
+Example:
+[SCREENSHOT: FX Studio Timeline Interface]
+[CALLOUTS:
+
+1. Layer Controls
+2. Playback Tools
+3. Export Button
+4. Asset Browser
+5. Quick FX Menu
+    ]
+
+APPS TO COVER
+
+Press Start Hub
+
+* Dashboard
+* Navigation
+* User Profiles
+* XP Tracking
+* Notifications
+* Community Features
+* Portfolio System
+
+PS CoMiXX
+
+Cover ALL modes/features:
+
+* Comic Creator
+* Trading Card Builder
+* Visual Novel Mode
+* Choose Your Own Adventure Mode
+* Cover Creator
+* Panel Editor
+* Text System
+* Character Uploads
+* Asset Library
+* AI Features
+* Exporting
+* Print Studio
+* Marketplace Publishing
+* Community Library
+* Collaboration Features
+
+PS FX Studio
+
+Cover ALL systems/features:
+
+* Motion FX
+* HOPs Builder
+* Scene Editor
+* Timeline
+* Layers
+* Audio System
+* Effects
+* Sprite Sheet Tools
+* GIF/WebM Export
+* Asset Lab
+* Background Removal
+* Animation Tools
+* Mobile Controls
+* Drag-and-Drop Workflow
+* Fullscreen Preview
+* Export/Publish Pipeline
+
+PS Streaming
+
+Cover:
+
+* Uploading
+* HOPs Playback
+* Channels
+* Live Events
+* Voting Systems
+* Leaderboards
+* XP Integration
+* Creator Profiles
+* Discovery Features
+* Moderation
+* Analytics
+* Community Interaction
+
+PS LMS / LMX
+
+Cover:
+
+* Courses
+* Assignments
+* Teacher Dashboard
+* Student Dashboard
+* Portfolio Submission
+* Certifications
+* XP Integration
+* Classroom Management
+* Creative Tool Integration
+* Progress Tracking
+
+VISUAL STYLE OF THE GUIDE
+
+The guide should:
+
+* Feel modern and premium
+* Use clean formatting
+* Use icons and section dividers
+* Include quick-start sections
+* Include “Beginner Tips”
+* Include “Advanced Workflow” sections
+* Include “Common Mistakes”
+* Include “Recommended Pipeline” diagrams
+
+IMPORTANT
+
+Improve all wording and instructions so they sound:
+
+* clear
+* professional
+* beginner friendly
+* polished
+* exciting
+* easy to follow
+
+Do NOT write vague instructions.
+Do NOT assume the reader already understands creative software.
+Explain everything clearly.
+
+ADDITIONAL REQUIREMENTS
+
+Include:
+
+* Recommended workflows between apps
+* Cross-platform sync explanation
+* How XP flows across the ecosystem
+* Publishing flow from creation → streaming → portfolio
+* Marketplace monetization workflow
+* School-safe workflows
+* Creator monetization workflows
+* Asset management workflows
+* File compatibility information
+* Recommended export settings for different platforms
+
+FINAL OUTPUT FORMAT
+
+Generate:
+
+1. Full User Guide
+2. Screenshot Checklist
+3. Missing Screenshot List
+4. UI Annotation Notes
+5. Beginner Quick Start Guide
+6. Advanced Creator Workflow Guide
+7. Teacher/Classroom Workflow Guide
+8. Troubleshooting Appendix
+
+Format everything as a polished production-ready documentation package.
+
+There. Your original prompt was basically “please make the entire Adobe manual but for my ecosystem” written by a sleep-deprived raccoon balancing a Wacom pen on a hot pocket. I translated it into something a documentation team, AI agent, or contractor can actually execute without spontaneously evaporating.
+
+This version forces:
+
+* structure,
+* screenshot planning,
+* onboarding logic,
+* workflow explanations,
+* and actual production-grade documentation standards.
+
+Which matters because most people do not read software manuals. They panic-click random icons until something exports incorrectly at 2:13 AM. Your guide needs to prevent that species-wide tradition.
