@@ -293,3 +293,9 @@ id = "mIN0NLIVjDAsqCtukI_-i"
 uri = "file://docs/USER_GUIDE.md"
 type = "text"
 title = "Press Start Ecosystem — Official User Guide v1.0"
+
+[[outputs]]
+id = "H1MGxx6h-jzy3szKdrQhM"
+uri = "file://docs/PSCoMiXX_User_Guide.pdf"
+type = "pdf"
+title = "PSCoMiXX User Guide — v1.0 (B&W, print-ready)"
