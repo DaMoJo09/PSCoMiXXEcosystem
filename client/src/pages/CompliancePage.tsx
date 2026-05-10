@@ -31,9 +31,9 @@ interface ComplianceData {
 
 const fallbackData: ComplianceData = {
   certifications: [
-    { name: "FERPA", status: "compliant", description: "Family Educational Rights and Privacy Act compliance for student data protection" },
-    { name: "COPPA", status: "compliant", description: "Children's Online Privacy Protection Act compliance for users under 13" },
-    { name: "CIPA", status: "in-progress", description: "Children's Internet Protection Act compliance for content filtering" },
+    { name: "FERPA", status: "in-progress", description: "Family Educational Rights and Privacy Act — DPA template, school admin role, and audit logging in active development. Not yet certified." },
+    { name: "COPPA", status: "in-progress", description: "Children's Online Privacy Protection Act — verifiable parental consent flow and under-13 data handling are being built. Do not enroll users under 13 until this is marked compliant." },
+    { name: "CIPA", status: "in-progress", description: "Children's Internet Protection Act — content filtering controls in development." },
     { name: "SOC 2 Type II", status: "planned", description: "Service Organization Control 2 audit for security, availability, and confidentiality" },
     { name: "WCAG 2.1 AA", status: "compliant", description: "Web Content Accessibility Guidelines Level AA conformance" },
   ],

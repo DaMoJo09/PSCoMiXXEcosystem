@@ -245,6 +245,20 @@ export function Layout({ children }: LayoutProps) {
               Privacy
             </Link>
             <Link
+              href="/dmca"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-dmca"
+            >
+              DMCA
+            </Link>
+            <Link
+              href="/settings"
+              className="hover:text-foreground transition-colors"
+              data-testid="footer-link-account-deletion"
+            >
+              Delete Account
+            </Link>
+            <Link
               href="/contact"
               className="hover:text-foreground transition-colors"
               data-testid="footer-link-contact"

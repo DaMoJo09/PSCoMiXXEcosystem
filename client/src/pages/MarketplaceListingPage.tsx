@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { ReportContentButton } from "@/components/ReportContentButton";
 import { ArrowLeft, ShoppingCart, Star, Eye, DollarSign, Package, User, Calendar, Tag, Download, Edit, Trash2, Gift, FolderOpen, CheckCircle, MessageSquare } from "lucide-react";
 import { marketplaceApi } from "@/lib/api";
 import { useLocation, useParams } from "wouter";
@@ -294,12 +295,15 @@ export default function MarketplaceListingPage() {
 
             <div className="space-y-6">
               <div className="border-2 border-border bg-card p-6 space-y-4">
-                <h1
-                  className="text-3xl font-display font-bold"
-                  data-testid="text-listing-title"
-                >
-                  {listing.title}
-                </h1>
+                <div className="flex items-start justify-between gap-3">
+                  <h1
+                    className="text-3xl font-display font-bold flex-1"
+                    data-testid="text-listing-title"
+                  >
+                    {listing.title}
+                  </h1>
+                  <ReportContentButton contentType="project" contentId={listing.id} variant="subtle" />
+                </div>
 
                 <div className="flex items-center gap-2">
                   {isFree ? (

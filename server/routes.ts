@@ -9306,9 +9306,9 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           ]
         },
         studentData: {
-          title: "Student Data Protection (COPPA/FERPA Compliance)",
+          title: "Student Data Protection (COPPA/FERPA — In Development)",
           items: [
-            "We comply with the Children's Online Privacy Protection Act (COPPA) and the Family Educational Rights and Privacy Act (FERPA) across all Ecosystem platforms",
+            "We are actively building toward full compliance with the Children's Online Privacy Protection Act (COPPA) and the Family Educational Rights and Privacy Act (FERPA). We do not yet certify full compliance and do not recommend enrolling users under 13 or accepting school district contracts until certification is complete",
             "We collect only the minimum data necessary to provide educational and creative services",
             "Verifiable parental consent is required before creating accounts for users under 13 years of age on any Ecosystem platform",
             "Student data is NEVER sold, rented, leased, or shared with third parties for advertising, marketing, or any non-educational purpose — this applies across all Ecosystem platforms without exception",
@@ -9442,7 +9442,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           "We provide the Institution with access to, and the ability to delete, student data across all Authorized Platforms upon request",
           "We notify the Institution within 72 hours of any data breach affecting student data on any Ecosystem platform",
           "We return or delete student data from all Ecosystem platforms within 30 days upon termination of the agreement",
-          "We comply with FERPA, COPPA, and applicable state student privacy laws across all Ecosystem platforms",
+          "We are actively building toward FERPA, COPPA, and applicable state student privacy law compliance across all Ecosystem platforms; full certification is in progress",
           "Cross-platform SSO for student accounts is restricted to Authorized Platforms only; students cannot access non-authorized Ecosystem platforms via SSO",
           "Student data shared between Authorized Platforms via SSO or integrations is limited to the minimum necessary for authentication and educational service delivery",
           "We maintain audit logs of all cross-platform student data access for institutional review"
@@ -9502,11 +9502,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
   app.get("/api/compliance/overview", (_req, res) => {
     res.json({
       certifications: [
-        { name: "FERPA", status: "compliant", description: "Family Educational Rights and Privacy Act - Student education records protected" },
-        { name: "COPPA", status: "compliant", description: "Children's Online Privacy Protection Act - Parental consent for users under 13" },
-        { name: "CIPA", status: "compliant", description: "Children's Internet Protection Act - Content filtering for school networks" },
-        { name: "SOC 2 Type II", status: "in_progress", description: "Service Organization Control - Security, availability, and confidentiality" },
-        { name: "WCAG 2.1 AA", status: "compliant", description: "Web Content Accessibility Guidelines - Accessible to users with disabilities" },
+        { name: "FERPA", status: "in-progress", description: "Family Educational Rights and Privacy Act — DPA template, school admin role, and audit logging in active development. Not yet certified." },
+        { name: "COPPA", status: "in-progress", description: "Children's Online Privacy Protection Act — verifiable parental consent flow and under-13 data handling are being built. Do not enroll users under 13 until this is marked compliant." },
+        { name: "CIPA", status: "in-progress", description: "Children's Internet Protection Act — content filtering controls in development." },
+        { name: "SOC 2 Type II", status: "planned", description: "Service Organization Control — Security, availability, and confidentiality. Not yet started." },
+        { name: "WCAG 2.1 AA", status: "compliant", description: "Web Content Accessibility Guidelines — Accessible to users with disabilities" },
       ],
       securityMeasures: [
         "End-to-end HTTPS/TLS encryption",

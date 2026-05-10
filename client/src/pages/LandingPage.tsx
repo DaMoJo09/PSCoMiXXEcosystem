@@ -118,7 +118,7 @@ const audienceSections = [
     icon: School, tag: "TEACHERS & SCHOOLS", title: "Turn students into creators with portfolios in 6 weeks.",
     accent: "border-green-500", accentBg: "bg-green-500",
     bullets: [
-      "COPPA/FERPA-compliant with full teacher dashboards",
+      "Built with student-data and parental-consent workflows for COPPA & FERPA alignment",
       "Curriculum-aligned to California CTE standards",
       "Track student progress with XP, levels, and certifications",
       "LMS integration — assign, collect, and grade creative work",
@@ -143,7 +143,7 @@ const ecosystemApps = [
 ];
 
 const trustSignals = [
-  { icon: Shield, label: "COPPA / FERPA Compliant" },
+  { icon: Shield, label: "Built for Student Privacy" },
   { icon: Award, label: "California CTE Aligned" },
   { icon: FileText, label: "Grant-Ready Documentation" },
   { icon: Monitor, label: "Works on Chromebooks & iPads" },
@@ -248,7 +248,7 @@ export default function LandingPage() {
             </button>
           </div>
 
-          <p className="text-[11px] text-zinc-600 font-mono uppercase tracking-wider mb-10">No credit card required. COPPA/FERPA compliant.</p>
+          <p className="text-[11px] text-zinc-600 font-mono uppercase tracking-wider mb-10">No credit card required.</p>
 
           <div className="w-full max-w-4xl">
             <EventCarousel featuredOnly={true} variant="dark" />

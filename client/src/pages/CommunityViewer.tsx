@@ -6,6 +6,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Play, Pause,
   BookOpen, GitBranch, Layers, Film, Eye, Heart
 } from "lucide-react";
+import { ReportContentButton } from "@/components/ReportContentButton";
 
 interface VNScene {
   id: string;
@@ -502,9 +503,9 @@ export default function CommunityViewer() {
             <button onClick={() => navigate("/community")} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-3 text-sm touch-manipulation" data-testid="btn-back-community">
               <ArrowLeft className="w-4 h-4" /> Back to Library
             </button>
-            <div className="flex items-center gap-3">
-              <TypeIcon className="w-6 h-6 text-cyan-400 flex-shrink-0" />
-              <div>
+            <div className="flex items-start gap-3">
+              <TypeIcon className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-1" />
+              <div className="flex-1">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }} data-testid="text-project-title">
                   {project.title}
                 </h1>
@@ -514,6 +515,7 @@ export default function CommunityViewer() {
                   {project.viewCount > 0 && <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {project.viewCount}</span>}
                 </div>
               </div>
+              <ReportContentButton contentType="project" contentId={project.id} variant="subtle" />
             </div>
           </div>
         </div>

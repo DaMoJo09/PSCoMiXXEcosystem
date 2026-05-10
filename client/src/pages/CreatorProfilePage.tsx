@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { ReportContentButton } from "@/components/ReportContentButton";
 import {
   Star,
   Users,
@@ -113,11 +114,14 @@ export default function CreatorProfilePage() {
                   <span className="text-3xl font-bold text-zinc-500">{creator.name.charAt(0).toUpperCase()}</span>
                 )}
               </div>
-              <div className="pb-1">
+              <div className="pb-1 flex-1">
                 <h1 className="text-2xl font-bold text-white" data-testid="text-creator-name">{creator.name}</h1>
                 {creator.username && (
                   <p className="text-sm text-zinc-400" data-testid="text-creator-username">@{creator.username}</p>
                 )}
+              </div>
+              <div className="pb-1">
+                <ReportContentButton contentType="user" contentId={creator.id} variant="subtle" />
               </div>
             </div>
 

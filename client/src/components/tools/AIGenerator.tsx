@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Wand2, Loader2, Info, Sparkles, Zap, Star, PenTool, Pencil, Palette, User, Smile, ChevronDown, ChevronUp, Check, Download, RefreshCw, Camera, Shapes, Grid3X3, Droplets, Shield } from "lucide-react";
 import { AI_MODELS, AIModel, generateImageUrl } from "@/lib/aiModels";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAiConsentContext } from "@/contexts/AiConsentContext";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -60,12 +62,19 @@ export function AIGenerator({ onImageGenerated, type }: AIGeneratorProps) {
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const hasAIAccess = true;
-  const { isStudent } = useAuth();
+  const { isStudent, isAuthenticated } = useAuth();
+  const { ensureConsent } = useAiConsentContext();
 
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[1];
 
   const generateImage = async () => {
     if (!prompt) return;
+    if (!isAuthenticated) {
+      toast.error("Please sign in to use AI tools");
+      return;
+    }
+    const consented = await ensureConsent();
+    if (!consented) return;
     setIsGenerating(true);
     setImageLoaded(false);
     setImageError(false);

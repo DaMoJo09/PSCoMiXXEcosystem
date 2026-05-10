@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { ReportContentButton } from "@/components/ReportContentButton";
 import { MotionDrawing } from "@/components/MotionDrawing";
 import { useRoute, useSearch, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -551,6 +552,9 @@ export default function ComicReader({ isPreview = false }: { isPreview?: boolean
                 <Eye className="w-3.5 h-3.5" />
                 <span data-testid="text-view-count">{comic.viewCount || 0}</span>
               </div>
+              {!isPreview && comicId && (
+                <ReportContentButton contentType="project" contentId={comicId} variant="ghost" />
+              )}
               <div className="hidden sm:flex border border-zinc-700 overflow-hidden">
                 <button
                   onClick={() => setViewMode("scroll")}

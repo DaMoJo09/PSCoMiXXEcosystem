@@ -40,7 +40,7 @@ const schoolPackage = {
     "Student portfolio keepsakes",
   ],
   valueProps: [
-    "COPPA-compliant workflow",
+    "Student-safe print workflow",
     "Teacher dashboard for approvals",
     "Curriculum-aligned templates",
     "Volume discounts for 100+ copies",
