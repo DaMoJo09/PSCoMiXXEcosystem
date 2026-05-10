@@ -74,7 +74,7 @@ jobs:
           projectPath: desktop
           tagName: ${{ github.ref_name }}
           releaseName: "PSCoMiXX Desktop ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download for your platform. Auto-update users will receive this version automatically on next launch."
+          releaseBody: "See the assets below to download for your platform."
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
