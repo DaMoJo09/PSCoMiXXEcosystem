@@ -8388,19 +8388,28 @@ export default function ComicCreator() {
                       active ? 'bg-zinc-600 text-white' : dimmed ? 'bg-zinc-850 text-zinc-500' : 'hover:bg-zinc-800'
                     } ${dragOver ? 'border-t-2 border-cyan-400' : 'border-t-2 border-transparent'}`;
                   const reorderPanels = (fromVisual: number, toVisual: number) => {
-                    const fromPanel = sortedPanels[fromVisual];
-                    const toPanel = sortedPanels[toVisual];
-                    if (!fromPanel || !toPanel) return;
-                    const fromArrayIdx = pagePanels.findIndex(p => p.id === fromPanel.id);
+                    if (fromVisual === toVisual) return;
+                    if (!sortedPanels[fromVisual] || !sortedPanels[toVisual]) return;
+                    // Reorder in visual space (top of list = visual idx 0), then
+                    // re-derive zIndex so that visual idx 0 has the HIGHEST zIndex.
+                    // Doing it this way avoids the off-by-one bugs that came from
+                    // splicing the underlying array (which is in arbitrary order)
+                    // and then re-assigning zIndex by array index.
+                    const newVisual = [...sortedPanels];
+                    const [moved] = newVisual.splice(fromVisual, 1);
+                    newVisual.splice(toVisual, 0, moved);
+                    const N = newVisual.length;
+                    const idToZ = new Map(newVisual.map((p, i) => [p.id, N - 1 - i] as const));
                     setSpreads(prev => prev.map((spread, si) => {
                       if (si !== currentSpreadIndex) return spread;
                       const key = selectedPage === "left" ? "leftPage" : "rightPage";
-                      const panels = [...spread[key]].map(p => ({ ...p }));
-                      const [moved] = panels.splice(fromArrayIdx, 1);
-                      const newToIdx = panels.findIndex(p => p.id === toPanel.id);
-                      panels.splice(fromVisual < toVisual ? newToIdx + 1 : newToIdx, 0, moved);
-                      panels.forEach((p, pi) => { p.zIndex = pi; });
-                      return { ...spread, [key]: panels };
+                      return {
+                        ...spread,
+                        [key]: spread[key].map(p => ({
+                          ...p,
+                          zIndex: idToZ.has(p.id) ? idToZ.get(p.id)! : p.zIndex,
+                        })),
+                      };
                     }));
                   };
                   const panelById = new Map(sortedPanels.map(p => [p.id, p] as const));
