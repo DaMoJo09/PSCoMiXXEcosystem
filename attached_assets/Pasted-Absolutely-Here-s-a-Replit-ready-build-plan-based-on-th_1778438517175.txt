@@ -1,0 +1,551 @@
+Absolutely. Here’s a **Replit-ready build plan** based on the compliance audit, because apparently the apps are growing faster than the legal plumbing, which is how platforms end up starring in lawsuits instead of launches. 
+
+## Replit Build Plan: Press Start / MADMIXEDMEDIA Compliance Layer
+
+### Project Name
+
+**PS Compliance Core**
+
+### Goal
+
+Build one shared compliance system that can plug into:
+
+* `pscomixx.com`
+* `pscomixx.online`
+* `madmixedmedia.com`
+* `pressstart.tech`
+* `psstreaming.com`
+
+This system should handle legal pages, age gates, privacy consent, AI consent, account deletion, UGC reporting, DMCA takedowns, school data agreements, and cross-platform data logs.
+
+---
+
+# Phase 1: Legal Pages System
+
+## Build These Pages
+
+Create a shared legal page module that can be reused across all sites.
+
+### Required Pages
+
+```txt
+/privacy
+/terms
+/coppa
+/ferpa
+/dmca
+/community-guidelines
+/acceptable-use
+/ai-disclosure
+/account-deletion
+/data-processing-addendum
+```
+
+## Admin Panel
+
+Create an admin dashboard where MADMIXEDMEDIA can update:
+
+```txt
+Privacy Policy
+Terms of Service
+DMCA Policy
+COPPA Notice
+FERPA Notice
+Community Guidelines
+AI Provider Disclosure
+School DPA Template
+```
+
+## Database Tables
+
+```sql
+legal_documents
+- id
+- title
+- slug
+- body
+- version
+- effective_date
+- applies_to_domain
+- created_at
+- updated_at
+```
+
+```sql
+legal_acceptances
+- id
+- user_id
+- document_slug
+- document_version
+- accepted_at
+- ip_address
+- user_agent
+```
+
+---
+
+# Phase 2: Age Gate + COPPA Flow
+
+## Signup Must Ask
+
+```txt
+Date of birth
+User type: Student / Creator / Teacher / Parent / Admin
+School affiliation if applicable
+Parent email if under 13
+```
+
+## Age Logic
+
+```txt
+Under 13:
+- Require parent consent
+- Block marketplace
+- Block public publishing unless approved
+- Block AI tools until parent consent is verified
+
+13–17:
+- Allow student account
+- Limit monetization
+- Require safe publishing rules
+- No public profile by default
+
+18+:
+- Creator account
+- Full marketplace/publishing access
+```
+
+## Database Tables
+
+```sql
+user_age_verification
+- id
+- user_id
+- birthdate
+- age_band
+- consent_required
+- consent_status
+- parent_email
+- verified_at
+```
+
+```sql
+parental_consents
+- id
+- child_user_id
+- parent_email
+- consent_token
+- consent_status
+- consent_given_at
+- consent_scope
+```
+
+---
+
+# Phase 3: AI Consent Modal
+
+Before using AI generation, show a required consent modal.
+
+## Modal Text Needs To Explain
+
+```txt
+What AI tools are being used
+What data may be sent
+Whether prompts/images are stored
+Whether data is used for training
+Whether third-party providers process the data
+Special rules for users under 13
+```
+
+## Database Table
+
+```sql
+ai_consents
+- id
+- user_id
+- provider_name
+- consent_version
+- consent_scope
+- accepted_at
+- revoked_at
+```
+
+---
+
+# Phase 4: Account Deletion
+
+Required for Apple and Google. Not optional, because apparently app stores enjoy “basic user rights.” Weird.
+
+## Build
+
+```txt
+/settings/account/delete
+```
+
+## User Flow
+
+1. User clicks delete account.
+2. App explains what gets deleted.
+3. App explains what may be retained for legal/safety reasons.
+4. User confirms with password.
+5. Account enters deletion queue.
+6. User gets confirmation email.
+7. Admin can see deletion request status.
+
+## Database Tables
+
+```sql
+account_deletion_requests
+- id
+- user_id
+- status
+- requested_at
+- completed_at
+- retained_data_reason
+```
+
+---
+
+# Phase 5: DMCA System for PS Streaming
+
+This is urgent for `psstreaming.com`.
+
+## Build Pages
+
+```txt
+/dmca
+/dmca/takedown
+/dmca/counter-notice
+/repeat-infringer-policy
+```
+
+## DMCA Form Fields
+
+```txt
+Copyright owner name
+Contact email
+Original work description
+Infringing content URL
+Good faith statement checkbox
+Accuracy statement checkbox
+Electronic signature
+```
+
+## Database Tables
+
+```sql
+dmca_requests
+- id
+- claimant_name
+- claimant_email
+- original_work_description
+- infringing_url
+- content_id
+- status
+- submitted_at
+- resolved_at
+```
+
+```sql
+repeat_infringer_flags
+- id
+- user_id
+- dmca_request_id
+- strike_count
+- action_taken
+- created_at
+```
+
+---
+
+# Phase 6: UGC Moderation System
+
+Needed for CoMiXX and PS Streaming.
+
+## Add Report Button To
+
+```txt
+Comics
+HOPs
+Visual novels
+Trading cards
+Music uploads
+Comments
+Profiles
+Marketplace listings
+```
+
+## Report Reasons
+
+```txt
+Copyright violation
+Harassment
+Sexual content
+Hate content
+Violence
+Self-harm
+Spam/scam
+Underage safety concern
+Other
+```
+
+## Database Tables
+
+```sql
+content_reports
+- id
+- reporter_user_id
+- reported_user_id
+- content_type
+- content_id
+- reason
+- notes
+- status
+- reviewed_by
+- reviewed_at
+```
+
+```sql
+moderation_actions
+- id
+- user_id
+- content_id
+- action_type
+- reason
+- moderator_id
+- created_at
+```
+
+---
+
+# Phase 7: School / FERPA Compliance
+
+For `pressstart.tech`.
+
+## Build Admin Area
+
+```txt
+/admin/schools
+/admin/dpa
+/admin/student-data
+/admin/export-school-data
+```
+
+## Needed Features
+
+```txt
+School district profile
+DPA upload/signature status
+Student data export
+Student data deletion
+Teacher/admin role control
+Data-sharing logs
+```
+
+## Database Tables
+
+```sql
+schools
+- id
+- name
+- district
+- contact_name
+- contact_email
+- dpa_status
+- dpa_signed_at
+```
+
+```sql
+school_data_agreements
+- id
+- school_id
+- agreement_version
+- file_url
+- signed_by
+- signed_at
+```
+
+```sql
+student_data_logs
+- id
+- student_user_id
+- school_id
+- data_event_type
+- source_app
+- destination_app
+- created_at
+```
+
+---
+
+# Phase 8: Business Info Footer Across All Sites
+
+Add this footer to every domain:
+
+```txt
+MADMIXEDMEDIA / MAD MIXED MEDIA LLC
+Business Contact: legal@madmixedmedia.com
+Support: support@madmixedmedia.com
+Privacy: /privacy
+Terms: /terms
+DMCA: /dmca
+Account Deletion: /account-deletion
+```
+
+For the nonprofit:
+
+```txt
+Press Start Gaming Inc.
+Education / School Compliance Contact:
+schools@pressstart.tech
+FERPA / DPA Requests:
+compliance@pressstart.tech
+```
+
+---
+
+# Phase 9: Intercompany Legal Tracking
+
+This is not just code. This is “please do not let the IRS eat the nonprofit alive” infrastructure.
+
+## Add Document Tracking For
+
+```txt
+Intercompany Agreement
+IP License Agreement
+Service Agreement
+Revenue Sharing Agreement
+Data Processing Agreement between MAD MIXED MEDIA LLC and Press Start Gaming Inc.
+Board Approval Minutes
+Fair Market Value Documentation
+```
+
+## Database Table
+
+```sql
+entity_agreements
+- id
+- agreement_type
+- parties
+- file_url
+- effective_date
+- expiration_date
+- board_approved
+- approved_at
+```
+
+---
+
+# Replit Prompt
+
+Paste this into Replit:
+
+```txt
+Build a full compliance management system for the Press Start / MADMIXEDMEDIA ecosystem.
+
+Stack:
+- React frontend
+- Express backend
+- PostgreSQL database
+- Drizzle ORM
+- Tailwind CSS
+- Role-based admin dashboard
+
+The system must support five domains:
+1. pscomixx.com
+2. pscomixx.online
+3. madmixedmedia.com
+4. pressstart.tech
+5. psstreaming.com
+
+Build the following modules:
+
+1. Legal Document Manager
+Create editable legal pages for Privacy Policy, Terms of Service, COPPA Notice, FERPA Notice, DMCA Policy, Community Guidelines, AI Disclosure, Account Deletion Policy, and Data Processing Addendum. Include document versioning, effective dates, and user acceptance tracking.
+
+2. Age Gate and COPPA Flow
+At signup, collect birthdate, account type, school affiliation if applicable, and parent email for users under 13. Create age bands for under 13, 13–17, and 18+. Restrict features based on age. Require parental consent for under-13 users before AI tools, public publishing, marketplace access, or data sharing.
+
+3. AI Consent System
+Before any AI generation, display a consent modal explaining provider usage, data processing, storage, and third-party sharing. Store consent by user, provider, version, and timestamp. Allow consent revocation.
+
+4. Account Deletion
+Create an in-app and web account deletion flow. Users must be able to request deletion from settings. Track request status, completion date, retained data reason, and confirmation emails.
+
+5. DMCA System
+Create public DMCA takedown and counter-notice forms for psstreaming.com. Include claimant info, original work description, infringing URL, required legal checkboxes, and electronic signature. Add repeat-infringer policy tracking and admin review queue.
+
+6. UGC Moderation
+Add report functionality for comics, HOPs, visual novels, trading cards, music uploads, comments, profiles, and marketplace listings. Create moderation dashboard with status, assigned reviewer, actions, and audit logs.
+
+7. FERPA / School Compliance
+Create school district profiles, DPA tracking, student data logs, data export tools, and data deletion tools. Track which school has signed which DPA version.
+
+8. Business Footer API
+Create an API endpoint that returns required legal footer links and business contact info for each domain.
+
+9. Intercompany Agreement Tracker
+Track agreements between MAD MIXED MEDIA LLC and Press Start Gaming Inc., including IP License Agreement, Service Agreement, Revenue Sharing Agreement, Data Processing Agreement, board approvals, and fair-market-value documentation.
+
+10. Roles
+Create roles:
+- Super Admin
+- Compliance Admin
+- Moderator
+- School Admin
+- Teacher
+- Parent
+- Student
+- Creator
+
+11. Security
+Add authentication, role-based permissions, audit logs, rate limiting, input validation, and admin-only access for sensitive records.
+
+12. Output
+Create all database schemas, backend routes, frontend pages, admin dashboard screens, and seed data. Make the UI clean, black-and-white, minimal, and professional.
+```
+
+---
+
+## Legal Stuff To Add Before Launch
+
+Minimum needed:
+
+```txt
+Privacy Policy
+Terms of Service
+COPPA Notice
+FERPA Notice
+DMCA Policy
+Repeat Infringer Policy
+Community Guidelines
+Acceptable Use Policy
+AI Disclosure / AI Consent Policy
+Account Deletion Policy
+School Data Processing Agreement
+Parent Consent Form
+Creator Agreement
+Marketplace Seller Terms
+Content License Agreement
+Intercompany Agreement
+IP License Agreement
+Service Agreement
+Revenue Sharing Agreement
+```
+
+## First Priority
+
+Do these first:
+
+```txt
+1. DMCA page + takedown form for psstreaming.com
+2. Privacy Policy on all domains
+3. Terms of Service on all domains
+4. Age gate on signup
+5. Account deletion page
+6. AI consent modal
+7. UGC reporting system
+8. School DPA system for pressstart.tech
+```
+
+That’s the survival kit. Not the fancy version. The “let’s stop juggling chainsaws in a paper house” version.
