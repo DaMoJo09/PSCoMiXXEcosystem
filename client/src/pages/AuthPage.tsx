@@ -45,7 +45,8 @@ export default function AuthPage() {
   }
 
   const age = signupData.dateOfBirth ? getAge(signupData.dateOfBirth) : null;
-  const accountTypePreview = age !== null ? (age >= 18 ? "Creator" : age >= 6 ? "Student" : null) : null;
+  const accountTypePreview = age !== null ? (age >= 18 ? "Creator" : age >= 13 ? "Student" : null) : null;
+  const isUnder13 = age !== null && age < 13;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -67,8 +68,8 @@ export default function AuthPage() {
       toast.error("Please enter your date of birth");
       return;
     }
-    if (age !== null && age < 6) {
-      toast.error("You must be at least 6 years old to sign up");
+    if (age !== null && age < 13) {
+      toast.error("Public sign-up is for ages 13 and up. Ask your teacher to invite you through a classroom.");
       return;
     }
     if (signupData.password.length < 8) {
@@ -266,13 +267,18 @@ export default function AuthPage() {
                     }`}
                     data-testid="text-account-type-preview"
                     >
-                      {accountTypePreview === "Creator" 
-                        ? "Creator Account (18+) - Full access with monetization" 
-                        : "Student Account (6-17) - Create and learn"}
+                      {accountTypePreview === "Creator"
+                        ? "Creator Account (18+) - Full access with monetization"
+                        : "Student Account (13-17) - Create and learn"}
                     </div>
                   )}
-                  {age !== null && age < 6 && (
-                    <p className="text-xs text-red-400 mt-1">Must be at least 6 years old to sign up</p>
+                  {isUnder13 && (
+                    <div className="mt-2 p-3 border border-red-500/40 bg-red-500/5 rounded space-y-2" data-testid="section-under-13-block">
+                      <p className="text-sm text-red-300 font-semibold">Public sign-up is for ages 13 and up.</p>
+                      <p className="text-xs text-zinc-300 leading-relaxed">
+                        If you're a student under 13, your teacher needs to invite you through a classroom — we don't collect data from kids under 13 on the public site. Parents and educators can reach us at <span className="text-cyan-400">support@pscomixx.com</span>.
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -294,7 +300,7 @@ export default function AuthPage() {
                   />
                   <p className="text-[10px] text-muted-foreground">Min 8 characters, at least one letter and one number</p>
                 </div>
-                {age !== null && age < 18 && age >= 6 && (
+                {age !== null && age < 18 && age >= 13 && (
                   <div className="flex items-start gap-2 p-3 border border-yellow-500/30 bg-yellow-500/5" data-testid="section-parental-consent">
                     <input
                       type="checkbox"
@@ -312,7 +318,7 @@ export default function AuthPage() {
                 <Button
                   type="submit"
                   className="w-full bg-white text-black hover:bg-zinc-200"
-                  disabled={isLoading || (age !== null && age < 6)}
+                  disabled={isLoading || isUnder13}
                   data-testid="button-signup"
                   aria-busy={isLoading}
                 >

@@ -390,8 +390,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         age--;
       }
 
-      if (age < 6) {
-        return res.status(400).json({ message: "You must be at least 6 years old to sign up" });
+      if (age < 13) {
+        return res.status(400).json({
+          message: "Public sign-up is for ages 13 and up. If you're a student under 13, your teacher needs to invite you through a classroom. If you're a parent, please contact us at support@pscomixx.com.",
+          code: "UNDER_13_PUBLIC_SIGNUP_BLOCKED",
+        });
       }
 
       const accountType = age >= 18 ? "creator" : "student";
@@ -9067,7 +9070,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
   app.post("/api/auth/sso/callback", async (req, res) => {
     try {
-      const { domain, email, name, externalId, token } = req.body;
+      const { domain, email, name, externalId, token, dateOfBirth } = req.body;
       if (!domain || !email) return res.status(400).json({ message: "Domain and email required" });
 
       const config = await storage.getSsoConfigByDomain(domain);
@@ -9084,6 +9087,32 @@ Sitemap: https://pscomixx.com/sitemap.xml`
 
       let user = await storage.getUserByEmail(email);
       if (!user && config.autoProvision) {
+        let provisionedAge: number | null = null;
+        let parentalConsentAt: Date | undefined = undefined;
+        if (dateOfBirth) {
+          const dob = new Date(dateOfBirth);
+          const today = new Date();
+          let a = today.getFullYear() - dob.getFullYear();
+          const md = today.getMonth() - dob.getMonth();
+          if (md < 0 || (md === 0 && today.getDate() < dob.getDate())) a--;
+          provisionedAge = a;
+        }
+
+        const isSchoolSso = (config.defaultRole || "student") === "student";
+
+        if (provisionedAge !== null && provisionedAge < 13) {
+          if (!isSchoolSso) {
+            await logAuditEvent("sso_under13_blocked", { req, metadata: { domain, email } });
+            return res.status(403).json({
+              message: "Under-13 sign-in is only allowed via a school SSO configuration where the school provides COPPA authorization.",
+              code: "UNDER_13_REQUIRES_SCHOOL_SSO",
+            });
+          }
+          parentalConsentAt = new Date();
+        } else if (provisionedAge === null && !isSchoolSso) {
+          return res.status(400).json({ message: "Date of birth is required for new account provisioning", code: "DOB_REQUIRED" });
+        }
+
         const hashedPw = await hashPassword(randomBytes(32).toString("hex"));
         user = await storage.createUser({
           name: name || email.split("@")[0],
@@ -9091,8 +9120,10 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           password: hashedPw,
           accountType: config.defaultRole === "student" ? "student" : "creator",
           role: config.defaultRole || "student",
-        });
-        await logAuditEvent("sso_account_provisioned", { userId: user.id, metadata: { domain, provider: config.provider } });
+          ...(dateOfBirth ? { dateOfBirth } : {}),
+          ...(parentalConsentAt ? { parentalConsentAt } : {}),
+        } as any);
+        await logAuditEvent("sso_account_provisioned", { userId: user.id, metadata: { domain, provider: config.provider, age: provisionedAge, schoolConsent: !!parentalConsentAt } });
       }
 
       if (!user) return res.status(403).json({ message: "Account not found and auto-provisioning disabled" });
