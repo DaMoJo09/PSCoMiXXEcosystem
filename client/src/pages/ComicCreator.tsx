@@ -513,11 +513,23 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
                     </>
                   )}
                 </div>
-                {isFr && cd.showPriceBox && cd.priceText && (
-                  <div className="absolute z-20" style={{ top: '3%', left: '5%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '2% 4%', borderRadius: 4, fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: '2px solid #000' }}>
-                    {cd.priceText}
-                  </div>
-                )}
+                {isFr && cd.showPriceBox && cd.priceText && (() => {
+                  const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
+                  const isDiamond = cd.priceBoxShape === 'diamond';
+                  return (
+                    <div className="absolute z-20 flex items-center justify-center" style={{
+                      left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
+                      width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
+                      transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
+                      backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                      color: cd.priceBoxTextColor || '#000',
+                      fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: '2px solid #000',
+                      borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 4,
+                    }}>
+                      <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                    </div>
+                  );
+                })()}
                 {panel.contents.filter(c => !c.hidden).map(content => (
                   <div key={content.id} className="absolute z-[15]" style={{
                     left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -868,11 +880,23 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
                   </>
                 )}
               </div>
-              {isFr && cd.showPriceBox && cd.priceText && (
-                <div className="absolute z-20" style={{ top: '2%', left: '4%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '1% 2%', borderRadius: 1, fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: '1px solid #000' }}>
-                  {cd.priceText}
-                </div>
-              )}
+              {isFr && cd.showPriceBox && cd.priceText && (() => {
+                const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
+                const isDiamond = cd.priceBoxShape === 'diamond';
+                return (
+                  <div className="absolute z-20 flex items-center justify-center" style={{
+                    left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
+                    width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
+                    transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
+                    backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                    color: cd.priceBoxTextColor || '#000',
+                    fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: '1px solid #000',
+                    borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 1,
+                  }}>
+                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                  </div>
+                );
+              })()}
               {panel.contents.filter(c => !c.hidden).map(content => (
                 <div key={content.id} className="absolute z-[15]" style={{
                   left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -1056,11 +1080,23 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
                 </>
               )}
             </div>
-            {isFront && cd.showPriceBox && cd.priceText && (
-              <div className="absolute z-20" style={{ top: '3%', left: '5%', backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', padding: '1% 3%', borderRadius: 2, fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: '1px solid #000' }}>
-                {cd.priceText}
-              </div>
-            )}
+            {isFront && cd.showPriceBox && cd.priceText && (() => {
+              const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
+              const isDiamond = cd.priceBoxShape === 'diamond';
+              return (
+                <div className="absolute z-20 flex items-center justify-center" style={{
+                  left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
+                  width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
+                  transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
+                  backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                  color: cd.priceBoxTextColor || '#000',
+                  fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: '1px solid #000',
+                  borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 2,
+                }}>
+                  <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                </div>
+              );
+            })()}
             {panel.contents.filter(c => !c.hidden).map(content => (
               <div key={content.id} className="absolute z-[15]" style={{
                 left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -9252,17 +9288,25 @@ export default function ComicCreator() {
                               </div>
                               <div className="w-full text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: `${cd.authorSize}px`, fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
                             </div>
-                            {cd.showPriceBox && cd.priceText && (
-                              <div className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center font-bold text-lg" style={{
-                                backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700', color: cd.priceBoxTextColor || '#000', border: '2px solid #000',
-                                borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
-                                transform: cd.priceBoxShape === 'diamond' ? 'rotate(45deg)' : undefined,
-                              }}>
-                                <span style={{ transform: cd.priceBoxShape === 'diamond' ? 'rotate(-45deg)' : undefined, display: 'block' }}>
-                                  {cd.priceText}
-                                </span>
-                              </div>
-                            )}
+                            {cd.showPriceBox && cd.priceText && (() => {
+                              const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
+                              const isDiamond = cd.priceBoxShape === 'diamond';
+                              return (
+                                <div className="absolute flex items-center justify-center font-bold" style={{
+                                  left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
+                                  width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
+                                  transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
+                                  backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                                  color: cd.priceBoxTextColor || '#000', border: '2px solid #000',
+                                  borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
+                                  fontSize: 'clamp(10px, 3vh, 22px)',
+                                }}>
+                                  <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>
+                                    {cd.priceText}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </div>
                           {(cd.frontImageLayers || []).map(il => (
                             <img key={il.id} src={il.url} alt={il.name} className="absolute pointer-events-none" draggable={false}
