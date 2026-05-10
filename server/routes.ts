@@ -9114,7 +9114,7 @@ Sitemap: https://pscomixx.com/sitemap.xml`
         }
 
         const hashedPw = await hashPassword(randomBytes(32).toString("hex"));
-        user = await storage.createUser({
+        const provisionResult = insertUserSchema.safeParse({
           name: name || email.split("@")[0],
           email,
           password: hashedPw,
@@ -9122,7 +9122,11 @@ Sitemap: https://pscomixx.com/sitemap.xml`
           role: config.defaultRole || "student",
           ...(dateOfBirth ? { dateOfBirth } : {}),
           ...(parentalConsentAt ? { parentalConsentAt } : {}),
-        } as any);
+        });
+        if (!provisionResult.success) {
+          return res.status(400).json({ message: "Invalid SSO provisioning data", errors: provisionResult.error.issues });
+        }
+        user = await storage.createUser(provisionResult.data);
         await logAuditEvent("sso_account_provisioned", { userId: user.id, metadata: { domain, provider: config.provider, age: provisionedAge, schoolConsent: !!parentalConsentAt } });
       }
 
