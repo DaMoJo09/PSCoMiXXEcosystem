@@ -758,14 +758,34 @@ export function AssetBrowser({ isOpen, onClose, onSelectAsset, mode = "insert" }
             </div>
 
             <div className="mt-6 pt-4 border-t border-[#252525]">
-              <label className="flex items-center gap-2 p-3 bg-[#1a1a1a] hover:bg-[#202020] rounded-lg cursor-pointer transition-colors border border-dashed border-[#303030]">
+              <label className="flex items-center gap-2 p-3 bg-[#1a1a1a] hover:bg-[#202020] rounded-lg cursor-pointer transition-colors border border-dashed border-[#303030]" data-testid="label-import-from-device">
                 <Upload className="w-4 h-4 text-zinc-400" />
-                <span className="text-xs text-zinc-400">Upload Custom</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                <span className="text-xs text-zinc-400">Import from Device</span>
+                <input type="file" accept="image/*" className="hidden" data-testid="input-asset-from-device" onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    toast.info("Upload custom assets from the Asset Library page to use them across all projects.");
+                  if (!file) return;
+                  if (!file.type.startsWith("image/")) {
+                    toast.error("Please choose an image file");
+                    e.currentTarget.value = "";
+                    return;
                   }
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const url = ev.target?.result as string;
+                    const name = file.name.replace(/\.[^.]+$/, "") || "Imported image";
+                    onSelectAsset({
+                      id: `device_${Date.now()}`,
+                      name,
+                      url,
+                      category: "prop",
+                      tags: ["device", "imported"],
+                    });
+                    toast.success(`"${name}" imported from device`);
+                    if (mode === "insert") onClose();
+                  };
+                  reader.onerror = () => toast.error("Could not read that file");
+                  reader.readAsDataURL(file);
+                  e.currentTarget.value = "";
                 }} />
               </label>
             </div>

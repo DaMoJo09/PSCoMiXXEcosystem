@@ -473,6 +473,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
   const spineInputRef = useRef<HTMLInputElement>(null);
+  const imageLayerInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const pushHistory = useCallback((data: CoverData) => {
@@ -911,6 +912,41 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
     const layers = (coverData[layerKey] as ImageLayer[]) || [];
     const newOrder = (coverData.elementZOrder || []).filter(id => id !== layerId);
     updateCover({ [layerKey]: layers.filter(l => l.id !== layerId), elementZOrder: newOrder });
+  };
+
+  const addImageLayerFromFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const url = event.target?.result as string;
+      const view = activeView === "spread" ? "front" : activeView;
+      const name = file.name.replace(/\.[^.]+$/, "") || "Imported image";
+      const newLayer: ImageLayer = {
+        id: `img_${Date.now()}`,
+        url,
+        name,
+        transform: { x: 50, y: 50, width: 200, height: 200, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        locked: false,
+      };
+      const layerKey = `${view}ImageLayers` as keyof CoverData;
+      const existing = (coverData[layerKey] as ImageLayer[]) || [];
+      const newOrder = [...(coverData.elementZOrder || []), newLayer.id];
+      updateCover({ [layerKey]: [...existing, newLayer], elementZOrder: newOrder });
+      setSelectedLayerId(newLayer.id);
+      toast.success(`"${name}" imported from device`);
+    };
+    reader.onerror = () => toast.error("Could not read that file");
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageLayerFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) addImageLayerFromFile(file);
+    e.target.value = "";
   };
 
   const handleAssetSelected = (asset: AssetItem) => {
@@ -1700,9 +1736,14 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
               <div className="pt-4 border-t border-zinc-700">
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-xs font-bold uppercase text-zinc-400">Image Layers</label>
-                  <button onClick={() => setShowAssetBrowser(true)} className="p-1 bg-violet-600 text-white text-xs flex items-center gap-1" data-testid="button-add-image-layer">
-                    <Plus className="w-3 h-3" /> Add
-                  </button>
+                  <div className="flex gap-1">
+                    <button onClick={() => imageLayerInputRef.current?.click()} className="p-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white text-xs flex items-center gap-1" data-testid="button-import-image-layer-device" title="Import image from your device">
+                      <Upload className="w-3 h-3" /> Device
+                    </button>
+                    <button onClick={() => setShowAssetBrowser(true)} className="p-1 bg-violet-600 text-white text-xs flex items-center gap-1" data-testid="button-add-image-layer">
+                      <Plus className="w-3 h-3" /> Library
+                    </button>
+                  </div>
                 </div>
                 {(() => {
                   const viewKey = activeView === "spread" ? "front" : activeView;
@@ -2023,7 +2064,11 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                     </button>
                     <button onClick={() => setShowAssetBrowser(true)}
                       className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-add-image-layer-stack">
-                      <ImageIcon className="w-3 h-3" /> Image
+                      <ImageIcon className="w-3 h-3" /> Library
+                    </button>
+                    <button onClick={() => imageLayerInputRef.current?.click()}
+                      className="flex-1 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-import-image-layer-device-stack" title="Import image from your device">
+                      <Upload className="w-3 h-3" /> Device
                     </button>
                   </div>
                 </div>
@@ -2090,6 +2135,9 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
             <ContextMenuItem onClick={() => setShowAssetBrowser(true)} className="hover:bg-zinc-800 cursor-pointer">
               <Layers className="w-4 h-4 mr-2" /> Add Asset from Library
             </ContextMenuItem>
+            <ContextMenuItem onClick={() => imageLayerInputRef.current?.click()} className="hover:bg-zinc-800 cursor-pointer" data-testid="ctxmenu-import-from-device">
+              <Upload className="w-4 h-4 mr-2" /> Import Image from Device
+            </ContextMenuItem>
             <ContextMenuSeparator className="bg-zinc-700" />
             <ContextMenuSub>
               <ContextMenuSubTrigger className="hover:bg-zinc-800 cursor-pointer">
@@ -2137,6 +2185,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
       <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />
       <input ref={backInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "back")} />
       <input ref={spineInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "spine")} />
+      <input ref={imageLayerInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageLayerFileInput} data-testid="input-image-layer-device" />
 
       {showAIGen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]">
