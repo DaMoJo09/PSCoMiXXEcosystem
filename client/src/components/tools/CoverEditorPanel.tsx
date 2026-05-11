@@ -223,6 +223,7 @@ export interface CoverData {
   priceBoxShape?: "rectangle" | "circle" | "diamond";
   priceBoxColor?: string;
   priceBoxTextColor?: string;
+  priceTagImage?: string;
   issueNumber: string;
   issueDate?: string;
   publisherName: string;
@@ -474,6 +475,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
   const backInputRef = useRef<HTMLInputElement>(null);
   const spineInputRef = useRef<HTMLInputElement>(null);
   const imageLayerInputRef = useRef<HTMLInputElement>(null);
+  const priceTagInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const pushHistory = useCallback((data: CoverData) => {
@@ -949,6 +951,25 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
     e.target.value = "";
   };
 
+  const handlePriceTagFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      updateCover({ priceTagImage: url, showPriceBox: true });
+      toast.success("Price tag image imported");
+    };
+    reader.onerror = () => toast.error("Could not read that file");
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const handleAssetSelected = (asset: AssetItem) => {
     const view = activeView === "spread" ? "front" : activeView;
     if (replaceImageLayerId) {
@@ -1093,13 +1114,18 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   locked={false} containerRef={canvasRef} containerScale={scale}
                   style={layerStyle("master-price", Math.max((coverData.elementZOrder || []).indexOf("master-price"), 0) + 2)}
                 >
-                  <div className="w-full h-full bg-white border-2 border-black flex items-center justify-center">
+                  <div className={`w-full h-full flex items-center justify-center relative ${coverData.priceTagImage ? "" : "bg-white border-2 border-black"}`}>
+                    {coverData.priceTagImage && (
+                      <img src={coverData.priceTagImage} alt="Price tag" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" data-testid="img-price-tag" />
+                    )}
                     {editingMasterId === "master-price" ? (
-                      <input autoFocus className="text-xs font-bold text-black bg-transparent outline-none border-b border-black/50 w-full text-center"
+                      <input autoFocus className="text-xs font-bold text-black bg-white/80 outline-none border-b border-black/50 w-full text-center relative z-10"
                         value={coverData.priceText} onChange={(e) => updateCover({ priceText: e.target.value })}
                         onBlur={() => setEditingMasterId(null)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") setEditingMasterId(null); }} />
                     ) : (
-                      <span className="text-xs font-bold text-black cursor-text" onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-price"); }}>{coverData.priceText}</span>
+                      !coverData.priceTagImage && (
+                        <span className="text-xs font-bold text-black cursor-text" onDoubleClick={(e) => { e.stopPropagation(); setEditingMasterId("master-price"); }}>{coverData.priceText}</span>
+                      )
                     )}
                   </div>
                 </TransformableElement>
@@ -1817,6 +1843,26 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
                   )}
                 </div>
               </div>
+              <div className="space-y-2" data-testid="section-price-tag-image">
+                <label className="text-xs font-bold uppercase text-zinc-400 flex justify-between">
+                  <span>Price Tag</span>
+                  {coverData.priceTagImage && (
+                    <button onClick={() => updateCover({ priceTagImage: undefined })} className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1" data-testid="button-remove-price-tag">
+                      <Trash2 className="w-3 h-3" /> Remove
+                    </button>
+                  )}
+                </label>
+                <div onClick={() => priceTagInputRef.current?.click()}
+                  className="h-24 bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white relative overflow-hidden"
+                  data-testid="dropzone-price-tag">
+                  {coverData.priceTagImage ? (
+                    <img src={coverData.priceTagImage} alt="Price tag" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-zinc-500 text-xs flex flex-col items-center text-center px-2"><Upload className="w-4 h-4 mb-1" /> Import price tag<br/><span className="text-[9px] text-zinc-600">PNG with transparent background works best</span></span>
+                  )}
+                </div>
+                <p className="text-[10px] text-zinc-500">Replaces the default white price box. Move &amp; resize it on the cover like any other element.</p>
+              </div>
               <div className="pt-4 border-t border-zinc-700 space-y-3">
                 <label className="text-xs font-bold uppercase text-zinc-400 block">Filter Builder</label>
                 <div className="space-y-2">
@@ -2186,6 +2232,7 @@ export function CoverEditorPanel({ initialCoverData, onSave, onClose, comicTitle
       <input ref={backInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "back")} />
       <input ref={spineInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "spine")} />
       <input ref={imageLayerInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageLayerFileInput} data-testid="input-image-layer-device" />
+      <input ref={priceTagInputRef} type="file" accept="image/*" className="hidden" onChange={handlePriceTagFileInput} data-testid="input-price-tag-device" />
 
       {showAIGen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]">

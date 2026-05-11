@@ -513,20 +513,25 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
                     </>
                   )}
                 </div>
-                {isFr && cd.showPriceBox && cd.priceText && (() => {
+                {isFr && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
                   const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                  const isDiamond = cd.priceBoxShape === 'diamond';
+                  const hasImg = !!cd.priceTagImage;
+                  const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
                   return (
                     <div className="absolute z-20 flex items-center justify-center" style={{
                       left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
                       width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
                       transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                      backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                      backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
                       color: cd.priceBoxTextColor || '#000',
-                      fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: '2px solid #000',
-                      borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 4,
+                      fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: hasImg ? 'none' : '2px solid #000',
+                      borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 4),
                     }}>
-                      <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                      {hasImg ? (
+                        <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
+                      ) : (
+                        <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                      )}
                     </div>
                   );
                 })()}
@@ -880,20 +885,25 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
                   </>
                 )}
               </div>
-              {isFr && cd.showPriceBox && cd.priceText && (() => {
+              {isFr && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
                 const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                const isDiamond = cd.priceBoxShape === 'diamond';
+                const hasImg = !!cd.priceTagImage;
+                const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
                 return (
                   <div className="absolute z-20 flex items-center justify-center" style={{
                     left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
                     width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
                     transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                    backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                    backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
                     color: cd.priceBoxTextColor || '#000',
-                    fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: '1px solid #000',
-                    borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 1,
+                    fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: hasImg ? 'none' : '1px solid #000',
+                    borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 1),
                   }}>
-                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                    {hasImg ? (
+                      <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
+                    ) : (
+                      <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                    )}
                   </div>
                 );
               })()}
@@ -1080,20 +1090,25 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
                 </>
               )}
             </div>
-            {isFront && cd.showPriceBox && cd.priceText && (() => {
+            {isFront && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
               const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-              const isDiamond = cd.priceBoxShape === 'diamond';
+              const hasImg = !!cd.priceTagImage;
+              const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
               return (
                 <div className="absolute z-20 flex items-center justify-center" style={{
                   left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
                   width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
                   transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                  backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                  backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
                   color: cd.priceBoxTextColor || '#000',
-                  fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: '1px solid #000',
-                  borderRadius: cd.priceBoxShape === 'circle' ? '50%' : 2,
+                  fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: hasImg ? 'none' : '1px solid #000',
+                  borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 2),
                 }}>
-                  <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                  {hasImg ? (
+                    <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
+                  ) : (
+                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
+                  )}
                 </div>
               );
             })()}
@@ -5947,7 +5962,7 @@ export default function ComicCreator() {
                       }}>{cd.author || "Author"}</div>
                     </TransformableElement>}
 
-                    {cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price") && (
+                    {cd.showPriceBox && (cd.priceText || cd.priceTagImage) && !hiddenEls.has("master-price") && (
                       <TransformableElement
                         id="cover-price"
                         initialTransform={cd.priceBoxTransform || defaultCover.priceBoxTransform}
@@ -5958,18 +5973,22 @@ export default function ComicCreator() {
                         minWidth={15} minHeight={15}
                         style={coverElStyle(Math.max(coverElZOrder.indexOf("master-price"), 0) + 2)}
                       >
-                        <div className="w-full h-full flex items-center justify-center" style={{
-                          backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
+                        <div className="w-full h-full flex items-center justify-center relative" style={{
+                          backgroundColor: cd.priceTagImage ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
                           color: cd.priceBoxTextColor || '#000',
                           fontSize: 'max(6px, 3cqi)',
                           fontWeight: 'bold',
-                          border: '1px solid #000',
-                          borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
-                          transform: cd.priceBoxShape === 'diamond' ? 'rotate(45deg)' : undefined,
+                          border: cd.priceTagImage ? 'none' : '1px solid #000',
+                          borderRadius: cd.priceTagImage ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : undefined),
+                          transform: cd.priceBoxShape === 'diamond' && !cd.priceTagImage ? 'rotate(45deg)' : undefined,
                         }}>
-                          <span style={{ transform: cd.priceBoxShape === 'diamond' ? 'rotate(-45deg)' : undefined, display: 'block' }}>
-                            {cd.priceText}
-                          </span>
+                          {cd.priceTagImage ? (
+                            <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
+                          ) : (
+                            <span style={{ transform: cd.priceBoxShape === 'diamond' ? 'rotate(-45deg)' : undefined, display: 'block' }}>
+                              {cd.priceText}
+                            </span>
+                          )}
                         </div>
                       </TransformableElement>
                     )}
@@ -8528,7 +8547,7 @@ export default function ComicCreator() {
                           "cover-banner": { bannerText: "" }, "cover-publisher": { publisherName: "" },
                           "cover-issue": { issueNumber: "", issueDate: "" }, "cover-title": { title: "" },
                           "cover-subtitle": { subtitle: "" }, "cover-tagline": { tagline: "" },
-                          "cover-author": { author: "" }, "cover-price": { showPriceBox: false, priceText: "" },
+                          "cover-author": { author: "" }, "cover-price": { showPriceBox: false, priceText: "", priceTagImage: undefined },
                           "cover-back-title": { title: "" }, "cover-blurb": { backBlurb: "" },
                           "cover-back-author": { author: "" }, "cover-isbn": { isbn: "" }, "cover-back-publisher": { publisherName: "" },
                         };
@@ -8547,7 +8566,7 @@ export default function ComicCreator() {
                           { id: "cover-subtitle", label: "Subtitle", visible: !!cd.subtitle, icon: "t" },
                           { id: "cover-tagline", label: "Tagline", visible: !!cd.tagline, icon: "✦" },
                           { id: "cover-author", label: "Author", visible: !!cd.author, icon: "A" },
-                          { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!cd.priceText, icon: "$" },
+                          { id: "cover-price", label: "Price Box", visible: cd.showPriceBox && !!(cd.priceText || cd.priceTagImage), icon: "$" },
                         ];
                         const backElements = [
                           { id: "cover-back-title", label: "Title", visible: !!cd.title, icon: "T" },
@@ -9288,22 +9307,27 @@ export default function ComicCreator() {
                               </div>
                               <div className="w-full text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: `${cd.authorSize}px`, fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
                             </div>
-                            {cd.showPriceBox && cd.priceText && (() => {
+                            {cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
                               const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                              const isDiamond = cd.priceBoxShape === 'diamond';
+                              const hasImg = !!cd.priceTagImage;
+                              const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
                               return (
                                 <div className="absolute flex items-center justify-center font-bold" style={{
                                   left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
                                   width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
                                   transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                                  backgroundColor: cd.priceBoxColor || cd.bannerBgColor || '#FFD700',
-                                  color: cd.priceBoxTextColor || '#000', border: '2px solid #000',
-                                  borderRadius: cd.priceBoxShape === 'circle' ? '50%' : undefined,
+                                  backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
+                                  color: cd.priceBoxTextColor || '#000', border: hasImg ? 'none' : '2px solid #000',
+                                  borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : undefined),
                                   fontSize: 'clamp(10px, 3vh, 22px)',
                                 }}>
-                                  <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>
-                                    {cd.priceText}
-                                  </span>
+                                  {hasImg ? (
+                                    <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
+                                  ) : (
+                                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>
+                                      {cd.priceText}
+                                    </span>
+                                  )}
                                 </div>
                               );
                             })()}
