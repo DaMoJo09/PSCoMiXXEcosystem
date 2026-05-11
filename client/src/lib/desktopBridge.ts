@@ -35,7 +35,8 @@ export function isDesktop(): boolean {
 async function getTauriDialog() {
   if (!isDesktop()) return null;
   try {
-    return await import(/* @vite-ignore */ "@tauri-apps/plugin-dialog");
+    const mod = "@tauri-apps/plugin-dialog";
+    return await import(/* @vite-ignore */ mod);
   } catch {
     return null;
   }
@@ -44,7 +45,8 @@ async function getTauriDialog() {
 async function getTauriFs() {
   if (!isDesktop()) return null;
   try {
-    return await import(/* @vite-ignore */ "@tauri-apps/plugin-fs");
+    const mod = "@tauri-apps/plugin-fs";
+    return await import(/* @vite-ignore */ mod);
   } catch {
     return null;
   }
