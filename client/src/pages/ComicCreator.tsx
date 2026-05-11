@@ -751,11 +751,11 @@ function FlowPreviewPlayer({ spreads, flowConnections, startId, onClose, coverDe
           <div className="flex max-w-[1200px] w-full overflow-hidden rounded-xl"
                style={{ aspectRatio: "2 / 1.4", maxHeight: "80vh", filter: "drop-shadow(0 20px 60px rgba(0,0,0,0.8))" }}>
             <div className="flex-1 relative border-r border-zinc-200">
-              <FlowPreviewPageRenderer panels={spread.leftPage} narration={spread.leftNarration}
+              <FlowPreviewPageRenderer panels={spread.leftPage.filter(p => !p.coverRole)} narration={spread.leftNarration}
                 coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
             </div>
             <div className="flex-1 relative">
-              <FlowPreviewPageRenderer panels={spread.rightPage} narration={spread.rightNarration}
+              <FlowPreviewPageRenderer panels={spread.rightPage.filter(p => !p.coverRole)} narration={spread.rightNarration}
                 coverDesignData={coverDesignData} effectiveFrontCover={effectiveFrontCover} effectiveBackCover={effectiveBackCover} />
             </div>
           </div>
@@ -9356,7 +9356,7 @@ export default function ComicCreator() {
                   
                   return (
                     <div className="bg-white border-4 border-zinc-800 shadow-2xl relative overflow-hidden" style={{ width: PREVIEW_W, height: PREVIEW_H }}>
-                      {panels?.filter(p => !p.hidden).map(panel => {
+                      {panels?.filter(p => !p.hidden && !p.coverRole).map(panel => {
                         const editorPanelW = (panel.width / 100) * editorDims.w;
                         const editorPanelH = (panel.height / 100) * editorDims.h;
                         const isPolyPanel = panel.type === "polygon" && Array.isArray(panel.points) && panel.points.length >= 3;
