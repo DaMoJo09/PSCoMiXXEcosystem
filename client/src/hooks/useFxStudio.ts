@@ -28,10 +28,17 @@ const FX_MODES: Record<string, string> = {
   hops: "/hops",
 };
 
-export type FxTarget = 
+export type FxTarget =
   | { type: "cover" }
   | { type: "backCover" }
   | { type: "priceTag" }
+  | { type: "frontBg" }
+  | { type: "backBg" }
+  | { type: "heroImage" }
+  | { type: "backHero" }
+  | { type: "titleImage" }
+  | { type: "frontBarcode" }
+  | { type: "backBarcode" }
   | { type: "panel"; panelId: string; spreadIndex: number; page: "left" | "right" }
   | null;
 
@@ -137,6 +144,13 @@ export function useFxStudio(options: UseFxStudioOptions = {}) {
           const targetLabel = enriched?.target?.type === "cover" ? " → Cover"
             : enriched?.target?.type === "backCover" ? " → Back Cover"
             : enriched?.target?.type === "priceTag" ? " → Price Tag"
+            : enriched?.target?.type === "frontBg" ? " → Front BG"
+            : enriched?.target?.type === "backBg" ? " → Back BG"
+            : enriched?.target?.type === "heroImage" ? " → Hero"
+            : enriched?.target?.type === "backHero" ? " → Back Hero"
+            : enriched?.target?.type === "titleImage" ? " → Title Image"
+            : enriched?.target?.type === "frontBarcode" ? " → Front Barcode"
+            : enriched?.target?.type === "backBarcode" ? " → Back Barcode"
             : enriched?.target?.type === "panel" ? ` → Panel` : "";
           toast.success(`Asset received: ${payload?.name || "FX Asset"}${targetLabel}`);
           break;

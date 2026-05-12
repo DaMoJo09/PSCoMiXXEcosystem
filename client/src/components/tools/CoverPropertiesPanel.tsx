@@ -11,6 +11,7 @@ import {
   CoverData, defaultCover, FONT_OPTIONS, GENRE_TEMPLATES, COVER_TEMPLATES,
   FILTER_PRESETS, TextLayer, ImageLayer
 } from "@/components/tools/CoverEditorPanel";
+import type { FxTarget } from "@/hooks/useFxStudio";
 
 interface CoverPropertiesPanelProps {
   coverData: CoverData;
@@ -18,16 +19,21 @@ interface CoverPropertiesPanelProps {
   coverView: "front" | "back";
   selectedLayerId: string | null;
   setSelectedLayerId: (id: string | null) => void;
+  onOpenFxStudio?: (target: FxTarget) => void;
 }
 
+type CoverImageField = "frontImage" | "backImage" | "heroImage" | "titleImage" | "backHeroImage" | "frontBarcodeImage" | "backBarcodeImage" | "priceTagImage";
+
 export function CoverPropertiesPanel({
-  coverData, updateCover, coverView, selectedLayerId, setSelectedLayerId,
+  coverData, updateCover, coverView, selectedLayerId, setSelectedLayerId, onOpenFxStudio,
 }: CoverPropertiesPanelProps) {
   const [activeSection, setActiveSection] = useState<"content" | "style" | "images">("content");
   const [showAIGen, setShowAIGen] = useState(false);
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+  const slotInputRef = useRef<HTMLInputElement>(null);
+  const slotTargetRef = useRef<CoverImageField | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: "front" | "back") => {
     const file = e.target.files?.[0];
@@ -41,6 +47,77 @@ export function CoverPropertiesPanel({
     };
     reader.readAsDataURL(file);
     e.target.value = "";
+  };
+
+  const triggerSlotUpload = (field: CoverImageField) => {
+    slotTargetRef.current = field;
+    slotInputRef.current?.click();
+  };
+
+  const handleSlotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const field = slotTargetRef.current;
+    if (!file || !field) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const url = event.target?.result as string;
+      updateCover({ [field]: url } as Partial<CoverData>);
+      toast.success("Image uploaded");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+    slotTargetRef.current = null;
+  };
+
+  const openFxFor = (target: FxTarget) => {
+    if (!onOpenFxStudio) {
+      toast.error("FX Studio is not available in this view");
+      return;
+    }
+    onOpenFxStudio(target);
+  };
+
+  const ImageSlot = ({ label, field, fxTarget, testIdPrefix }: { label: string; field: CoverImageField; fxTarget: FxTarget; testIdPrefix: string }) => {
+    const url = (coverData as any)[field] as string | undefined;
+    return (
+      <div className="space-y-1.5" data-testid={`slot-${testIdPrefix}`}>
+        <label className="text-[10px] font-bold uppercase text-zinc-500 flex items-center justify-between">
+          <span>{label}</span>
+          {url && (
+            <button
+              onClick={() => updateCover({ [field]: undefined } as Partial<CoverData>)}
+              className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-0.5"
+              data-testid={`button-remove-${testIdPrefix}`}>
+              <Trash2 className="w-2.5 h-2.5" /> Remove
+            </button>
+          )}
+        </label>
+        <div
+          onClick={() => triggerSlotUpload(field)}
+          className="aspect-[2/1] bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white relative overflow-hidden"
+          data-testid={`preview-${testIdPrefix}`}>
+          {url ? (
+            <img src={url} className="w-full h-full object-contain" />
+          ) : (
+            <span className="text-zinc-500 text-[10px] flex flex-col items-center"><Upload className="w-3 h-3 mb-0.5" /> Upload</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          <button
+            onClick={() => triggerSlotUpload(field)}
+            className="text-[10px] py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1"
+            data-testid={`button-upload-${testIdPrefix}`}>
+            <Upload className="w-2.5 h-2.5" /> Device
+          </button>
+          <button
+            onClick={() => openFxFor(fxTarget)}
+            className="text-[10px] py-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-1"
+            data-testid={`button-fx-${testIdPrefix}`}>
+            <Sparkles className="w-2.5 h-2.5" /> FX Studio
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const handleAIGenerated = (url: string) => {
@@ -494,12 +571,20 @@ export function CoverPropertiesPanel({
         {activeSection === "images" && (
           <>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-zinc-500 flex justify-between">
-                <span>Front Cover Image</span>
-                <button onClick={() => setShowAIGen(true)}
-                  className="text-[9px] bg-white text-black px-1.5 py-0.5 flex items-center gap-0.5">
-                  <Wand2 className="w-2.5 h-2.5" /> AI
-                </button>
+              <label className="text-[10px] font-bold uppercase text-zinc-500 flex justify-between items-center">
+                <span>Front Cover BG</span>
+                <div className="flex gap-1">
+                  <button onClick={() => setShowAIGen(true)}
+                    className="text-[9px] bg-white text-black px-1.5 py-0.5 flex items-center gap-0.5" data-testid="button-ai-front-bg">
+                    <Wand2 className="w-2.5 h-2.5" /> AI
+                  </button>
+                  {coverData.frontImage && (
+                    <button onClick={() => updateCover({ frontImage: "" })}
+                      className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-0.5" data-testid="button-remove-front-bg">
+                      <Trash2 className="w-2.5 h-2.5" /> Remove
+                    </button>
+                  )}
+                </div>
               </label>
               <div onClick={() => frontInputRef.current?.click()}
                 className="aspect-[2/3] bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white relative overflow-hidden">
@@ -509,14 +594,33 @@ export function CoverPropertiesPanel({
                   <span className="text-zinc-500 text-[10px] flex flex-col items-center"><Upload className="w-3 h-3 mb-0.5" /> Upload</span>
                 )}
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-zinc-500 flex justify-between">
-                <span>Back Cover Image</span>
-                <button onClick={() => setShowAIGen(true)}
-                  className="text-[9px] bg-white text-black px-1.5 py-0.5 flex items-center gap-0.5">
-                  <Wand2 className="w-2.5 h-2.5" /> AI
+              <div className="grid grid-cols-2 gap-1">
+                <button onClick={() => frontInputRef.current?.click()}
+                  className="text-[10px] py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-upload-front-bg">
+                  <Upload className="w-2.5 h-2.5" /> Device
                 </button>
+                <button onClick={() => openFxFor({ type: "frontBg" })}
+                  className="text-[10px] py-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-1" data-testid="button-fx-front-bg">
+                  <Sparkles className="w-2.5 h-2.5" /> FX Studio
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-zinc-500 flex justify-between items-center">
+                <span>Back Cover BG</span>
+                <div className="flex gap-1">
+                  <button onClick={() => setShowAIGen(true)}
+                    className="text-[9px] bg-white text-black px-1.5 py-0.5 flex items-center gap-0.5" data-testid="button-ai-back-bg">
+                    <Wand2 className="w-2.5 h-2.5" /> AI
+                  </button>
+                  {coverData.backImage && (
+                    <button onClick={() => updateCover({ backImage: "" })}
+                      className="text-[9px] text-red-400 hover:text-red-300 flex items-center gap-0.5" data-testid="button-remove-back-bg">
+                      <Trash2 className="w-2.5 h-2.5" /> Remove
+                    </button>
+                  )}
+                </div>
               </label>
               <div onClick={() => backInputRef.current?.click()}
                 className="aspect-[2/3] bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer hover:border-white relative overflow-hidden">
@@ -526,6 +630,30 @@ export function CoverPropertiesPanel({
                   <span className="text-zinc-500 text-[10px] flex flex-col items-center"><Upload className="w-3 h-3 mb-0.5" /> Upload</span>
                 )}
               </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button onClick={() => backInputRef.current?.click()}
+                  className="text-[10px] py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 flex items-center justify-center gap-1" data-testid="button-upload-back-bg">
+                  <Upload className="w-2.5 h-2.5" /> Device
+                </button>
+                <button onClick={() => openFxFor({ type: "backBg" })}
+                  className="text-[10px] py-1 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-300 flex items-center justify-center gap-1" data-testid="button-fx-back-bg">
+                  <Sparkles className="w-2.5 h-2.5" /> FX Studio
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-zinc-700 space-y-3">
+              <div className="text-[10px] font-bold uppercase text-cyan-400">Front Cover Slots</div>
+              <ImageSlot label="Title Image" field="titleImage" fxTarget={{ type: "titleImage" }} testIdPrefix="title-image" />
+              <ImageSlot label="Hero Image" field="heroImage" fxTarget={{ type: "heroImage" }} testIdPrefix="hero-image" />
+              <ImageSlot label="Price Tag" field="priceTagImage" fxTarget={{ type: "priceTag" }} testIdPrefix="price-tag" />
+              <ImageSlot label="Front Barcode / QR" field="frontBarcodeImage" fxTarget={{ type: "frontBarcode" }} testIdPrefix="front-barcode" />
+            </div>
+
+            <div className="pt-2 border-t border-zinc-700 space-y-3">
+              <div className="text-[10px] font-bold uppercase text-cyan-400">Back Cover Slots</div>
+              <ImageSlot label="Back Hero Image" field="backHeroImage" fxTarget={{ type: "backHero" }} testIdPrefix="back-hero" />
+              <ImageSlot label="Back Barcode / QR" field="backBarcodeImage" fxTarget={{ type: "backBarcode" }} testIdPrefix="back-barcode" />
             </div>
             <div className="pt-2 border-t border-zinc-700 space-y-2">
               <label className="text-[10px] font-bold uppercase text-zinc-500 block">Filters</label>
@@ -669,6 +797,7 @@ export function CoverPropertiesPanel({
 
       <input ref={frontInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "front")} />
       <input ref={backInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "back")} />
+      <input ref={slotInputRef} type="file" accept="image/*" className="hidden" onChange={handleSlotUpload} data-testid="input-cover-slot-upload" />
 
       {showAIGen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60]">

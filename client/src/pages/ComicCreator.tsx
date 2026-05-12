@@ -2104,9 +2104,31 @@ export default function ComicCreator() {
       } else if (target.type === "priceTag") {
         setCoverDesignData(prev => ({
           ...prev,
-          priceBoxImage: payload.previewUrl!,
+          priceTagImage: payload.previewUrl!,
+          showPriceBox: true,
         }));
         toast.success("FX applied to price tag");
+      } else if (target.type === "frontBg") {
+        setCoverDesignData(prev => ({ ...prev, frontImage: payload.previewUrl! }));
+        toast.success("FX applied to front BG");
+      } else if (target.type === "backBg") {
+        setCoverDesignData(prev => ({ ...prev, backImage: payload.previewUrl! }));
+        toast.success("FX applied to back BG");
+      } else if (target.type === "heroImage") {
+        setCoverDesignData(prev => ({ ...prev, heroImage: payload.previewUrl! }));
+        toast.success("FX applied to hero image");
+      } else if (target.type === "backHero") {
+        setCoverDesignData(prev => ({ ...prev, backHeroImage: payload.previewUrl! }));
+        toast.success("FX applied to back hero image");
+      } else if (target.type === "titleImage") {
+        setCoverDesignData(prev => ({ ...prev, titleImage: payload.previewUrl! }));
+        toast.success("FX applied to title image");
+      } else if (target.type === "frontBarcode") {
+        setCoverDesignData(prev => ({ ...prev, frontBarcodeImage: payload.previewUrl! }));
+        toast.success("FX applied to front barcode");
+      } else if (target.type === "backBarcode") {
+        setCoverDesignData(prev => ({ ...prev, backBarcodeImage: payload.previewUrl! }));
+        toast.success("FX applied to back barcode");
       } else if (target.type === "panel") {
         const { panelId, page, spreadIndex } = target;
         setSpreads(prev => prev.map((s, si) => {
@@ -5962,6 +5984,51 @@ export default function ComicCreator() {
                       }}>{cd.author || "Author"}</div>
                     </TransformableElement>}
 
+                    {cd.titleImage && !hiddenEls.has("master-title-image") && (
+                      <TransformableElement
+                        id="cover-title-image"
+                        initialTransform={cd.titleImageTransform || defaultCover.titleImageTransform!}
+                        isSelected={selectedContentId === "cover-title-image"}
+                        onSelect={() => { setSelectedContentId("cover-title-image"); setSelectedPanelId(panel.id); }}
+                        onTransformChange={(_, t) => updateCoverData({ titleImageTransform: t })}
+                        locked={false}
+                        minWidth={20} minHeight={15}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-title-image"), 0) + 3)}
+                      >
+                        <img src={cd.titleImage} alt="Title" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} data-testid="img-title-image" />
+                      </TransformableElement>
+                    )}
+
+                    {cd.heroImage && !hiddenEls.has("master-hero") && (
+                      <TransformableElement
+                        id="cover-hero"
+                        initialTransform={cd.heroImageTransform || defaultCover.heroImageTransform!}
+                        isSelected={selectedContentId === "cover-hero"}
+                        onSelect={() => { setSelectedContentId("cover-hero"); setSelectedPanelId(panel.id); }}
+                        onTransformChange={(_, t) => updateCoverData({ heroImageTransform: t })}
+                        locked={false}
+                        minWidth={20} minHeight={20}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-hero"), 0) + 2)}
+                      >
+                        <img src={cd.heroImage} alt="Hero" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} data-testid="img-hero" />
+                      </TransformableElement>
+                    )}
+
+                    {cd.frontBarcodeImage && !hiddenEls.has("master-front-barcode") && (
+                      <TransformableElement
+                        id="cover-front-barcode"
+                        initialTransform={cd.frontBarcodeTransform || defaultCover.frontBarcodeTransform!}
+                        isSelected={selectedContentId === "cover-front-barcode"}
+                        onSelect={() => { setSelectedContentId("cover-front-barcode"); setSelectedPanelId(panel.id); }}
+                        onTransformChange={(_, t) => updateCoverData({ frontBarcodeTransform: t })}
+                        locked={false}
+                        minWidth={15} minHeight={10}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-front-barcode"), 0) + 3)}
+                      >
+                        <img src={cd.frontBarcodeImage} alt="Barcode" className="w-full h-full object-contain pointer-events-none select-none bg-white" draggable={false} data-testid="img-front-barcode" />
+                      </TransformableElement>
+                    )}
+
                     {cd.showPriceBox && (cd.priceText || cd.priceTagImage) && !hiddenEls.has("master-price") && (
                       <TransformableElement
                         id="cover-price"
@@ -6081,6 +6148,36 @@ export default function ComicCreator() {
                             lineHeight: 1,
                           }}>ISBN {cd.isbn}</div>
                         </div>
+                      </TransformableElement>
+                    )}
+
+                    {cd.backHeroImage && !hiddenEls.has("master-back-hero") && (
+                      <TransformableElement
+                        id="cover-back-hero"
+                        initialTransform={cd.backHeroImageTransform || defaultCover.backHeroImageTransform!}
+                        isSelected={selectedContentId === "cover-back-hero"}
+                        onSelect={() => { setSelectedContentId("cover-back-hero"); setSelectedPanelId(panel.id); }}
+                        onTransformChange={(_, t) => updateCoverData({ backHeroImageTransform: t })}
+                        locked={false}
+                        minWidth={20} minHeight={20}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-back-hero"), 0) + 2)}
+                      >
+                        <img src={cd.backHeroImage} alt="Back hero" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} data-testid="img-back-hero" />
+                      </TransformableElement>
+                    )}
+
+                    {cd.backBarcodeImage && !hiddenEls.has("master-back-barcode") && (
+                      <TransformableElement
+                        id="cover-back-barcode"
+                        initialTransform={cd.backBarcodeTransform || defaultCover.backBarcodeTransform!}
+                        isSelected={selectedContentId === "cover-back-barcode"}
+                        onSelect={() => { setSelectedContentId("cover-back-barcode"); setSelectedPanelId(panel.id); }}
+                        onTransformChange={(_, t) => updateCoverData({ backBarcodeTransform: t })}
+                        locked={false}
+                        minWidth={15} minHeight={10}
+                        style={coverElStyle(Math.max(coverElZOrder.indexOf("master-back-barcode"), 0) + 3)}
+                      >
+                        <img src={cd.backBarcodeImage} alt="Back barcode" className="w-full h-full object-contain pointer-events-none select-none bg-white" draggable={false} data-testid="img-back-barcode" />
                       </TransformableElement>
                     )}
 
@@ -8856,6 +8953,10 @@ export default function ComicCreator() {
                         coverView={activePanel.coverRole === "front-cover" ? "front" : "back"}
                         selectedLayerId={coverSelectedLayerId}
                         setSelectedLayerId={setCoverSelectedLayerId}
+                        onOpenFxStudio={(target) => {
+                          fxStudio.setActiveTarget(target);
+                          fxStudio.openFxStudio({ mode: "fx" });
+                        }}
                       />
                       {(() => {
                         const bgViewKey = activePanel.coverRole === "front-cover" ? "front" : "back";

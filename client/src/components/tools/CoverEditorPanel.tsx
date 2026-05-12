@@ -224,6 +224,16 @@ export interface CoverData {
   priceBoxColor?: string;
   priceBoxTextColor?: string;
   priceTagImage?: string;
+  heroImage?: string;
+  titleImage?: string;
+  backHeroImage?: string;
+  frontBarcodeImage?: string;
+  backBarcodeImage?: string;
+  heroImageTransform?: TransformState;
+  titleImageTransform?: TransformState;
+  backHeroImageTransform?: TransformState;
+  frontBarcodeTransform?: TransformState;
+  backBarcodeTransform?: TransformState;
   issueNumber: string;
   issueDate?: string;
   publisherName: string;
@@ -312,6 +322,11 @@ export const defaultCover: CoverData = {
   frontBgTransform: { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 },
   backBgTransform: { x: 0, y: 0, width: 600, height: 900, rotation: 0, scaleX: 1, scaleY: 1 },
   spineBgTransform: { x: 0, y: 0, width: 80, height: 900, rotation: 0, scaleX: 1, scaleY: 1 },
+  heroImageTransform: { x: 100, y: 250, width: 400, height: 450, rotation: 0, scaleX: 1, scaleY: 1 },
+  titleImageTransform: { x: 50, y: 80, width: 500, height: 140, rotation: 0, scaleX: 1, scaleY: 1 },
+  backHeroImageTransform: { x: 100, y: 480, width: 400, height: 350, rotation: 0, scaleX: 1, scaleY: 1 },
+  frontBarcodeTransform: { x: 430, y: 820, width: 140, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
+  backBarcodeTransform: { x: 430, y: 820, width: 140, height: 60, rotation: 0, scaleX: 1, scaleY: 1 },
 };
 
 export interface CoverEditorPanelProps {
