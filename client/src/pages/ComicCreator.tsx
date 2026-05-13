@@ -3510,7 +3510,7 @@ export default function ComicCreator() {
           }
 
           const titleY = subtitleY + scaleFont(cd.subtitleSize + 6);
-          if (!hiddenEls.has("master-title")) {
+          if (!hiddenEls.has("master-title") && !cd.titleImage) {
             drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
           }
 
@@ -3557,7 +3557,7 @@ export default function ComicCreator() {
             g.fillText(cd.priceText, bcx, bcy);
           }
         } else {
-          if (!hiddenEls.has("master-back-title")) {
+          if (!hiddenEls.has("master-back-title") && !cd.titleImage) {
             drawCenterText(cd.title || "TITLE", panelY + panelH * 0.08, cd.titleFont, cd.titleColor, scaleFont(Math.max(cd.titleSize * 0.6, 20)), { bold: true, uppercase: true });
           }
           if (cd.backBlurb && !hiddenEls.has("master-blurb")) {
@@ -3589,7 +3589,7 @@ export default function ComicCreator() {
           if (cd.publisherName && !hiddenEls.has("master-back-publisher")) {
             drawCenterText(cd.publisherName, panelY + panelH * 0.62, "Inter, sans-serif", cd.subtitleColor, scaleFont(12), { bold: true, uppercase: true });
           }
-          if (cd.isbn && !hiddenEls.has("master-isbn")) {
+          if (cd.isbn && !hiddenEls.has("master-isbn") && !cd.backBarcodeImage) {
             if (cd.showBarcode !== false) {
               const barcodeW = scaleFont(80);
               const barcodeH = scaleFont(40);
@@ -5902,7 +5902,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {!hiddenEls.has("master-title") && <TransformableElement
+                    {!hiddenEls.has("master-title") && !cd.titleImage && <TransformableElement
                       id="cover-title"
                       initialTransform={cd.titleTransform || defaultCover.titleTransform}
                       isSelected={selectedContentId === "cover-title"}
@@ -6062,7 +6062,7 @@ export default function ComicCreator() {
                   </>
                 ) : (
                   <>
-                    {!hiddenEls.has("master-back-title") && <TransformableElement
+                    {!hiddenEls.has("master-back-title") && !cd.titleImage && <TransformableElement
                       id="cover-back-title"
                       initialTransform={cd.backTitleTransform || defaultCover.backTitleTransform}
                       isSelected={selectedContentId === "cover-back-title"}
@@ -6119,7 +6119,7 @@ export default function ComicCreator() {
                       }}>by {cd.author || "Author"}</div>
                     </TransformableElement>}
 
-                    {cd.isbn && !hiddenEls.has("master-isbn") && (
+                    {cd.isbn && !hiddenEls.has("master-isbn") && !cd.backBarcodeImage && (
                       <TransformableElement
                         id="cover-isbn"
                         initialTransform={cd.isbnTransform || defaultCover.isbnTransform}
