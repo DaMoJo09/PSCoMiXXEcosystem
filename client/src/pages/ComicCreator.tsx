@@ -21,6 +21,7 @@ import { InfiniteCanvas, type CanvasNode, type CanvasConnection } from "@/compon
 import { MotionDrawing } from "@/components/MotionDrawing";
 import { AIGenerator } from "@/components/tools/AIGenerator";
 import { TransformableElement, TransformState } from "@/components/tools/TransformableElement";
+import { CoverRender } from "@/components/CoverRender";
 import { TextElement } from "@/components/tools/TextElement";
 import { useProject, useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { scriptToComic, normalizeScriptData, layoutToSpreads, type ScriptData, type LayoutData } from "@/lib/scriptImport";
@@ -496,45 +497,7 @@ function FlowPreviewPageRenderer({ panels, narration, coverDesignData, effective
           }}>
             {isCoverPanel && cd ? (
               <>
-                {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} />}
-                <div className="relative z-10 w-full h-full flex flex-col items-center justify-between p-[5%]">
-                  {isFr ? (
-                    <>
-                      {cd.bannerText && <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(6px, 2.5cqi)' }}>{cd.bannerText}</div>}
-                      {cd.subtitle && <div className="text-center" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: 'max(5px, 3cqi)', fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
-                      <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(12px, 8cqi)', textShadow: '2px 2px 4px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(6px, 3.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(8px, 5cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                      {cd.backBlurb && <div className="leading-relaxed break-words text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(4px, 2.2cqi)', fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal' }}>{cd.backBlurb}</div>}
-                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(5px, 2.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal' }}>by {cd.author || "Author"}</div>
-                    </>
-                  )}
-                </div>
-                {isFr && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
-                  const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                  const hasImg = !!cd.priceTagImage;
-                  const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
-                  return (
-                    <div className="absolute z-20 flex items-center justify-center" style={{
-                      left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
-                      width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
-                      transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                      backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
-                      color: cd.priceBoxTextColor || '#000',
-                      fontWeight: 'bold', fontSize: 'max(5px, 2.5cqi)', border: hasImg ? 'none' : '2px solid #000',
-                      borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 4),
-                    }}>
-                      {hasImg ? (
-                        <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
-                      ) : (
-                        <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
-                      )}
-                    </div>
-                  );
-                })()}
+                <CoverRender cd={cd} side={isFr ? "front" : "back"} className="absolute inset-0 w-full h-full" />
                 {panel.contents.filter(c => !c.hidden).map(content => (
                   <div key={content.id} className="absolute z-[15]" style={{
                     left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -869,44 +832,7 @@ function SpreadNodeRenderer({ spread, idx, currentSpreadIndex, mode, flowConnect
         }}>
           {isCoverPanel && cd ? (
             <>
-              {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />}
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-between p-[4%]">
-                {isFr ? (
-                  <>
-                    {cd.bannerText && <div className="w-full py-[1%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(3px, 2cqi)' }}>{cd.bannerText}</div>}
-                    <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(5px, 5cqi)', textShadow: '1px 1px 2px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                    <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal' }}>{cd.author || "Author"}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(4px, 3.5cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                    {cd.backBlurb && <div className="text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(2px, 1.5cqi)' }}>{cd.backBlurb}</div>}
-                    <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(2px, 1.5cqi)' }}>by {cd.author || "Author"}</div>
-                  </>
-                )}
-              </div>
-              {isFr && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
-                const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                const hasImg = !!cd.priceTagImage;
-                const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
-                return (
-                  <div className="absolute z-20 flex items-center justify-center" style={{
-                    left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
-                    width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
-                    transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                    backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
-                    color: cd.priceBoxTextColor || '#000',
-                    fontWeight: 'bold', fontSize: 'max(2px, 1.5cqi)', border: hasImg ? 'none' : '1px solid #000',
-                    borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 1),
-                  }}>
-                    {hasImg ? (
-                      <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
-                    ) : (
-                      <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
-                    )}
-                  </div>
-                );
-              })()}
+              <CoverRender cd={cd} side={isFr ? "front" : "back"} className="absolute inset-0 w-full h-full" />
               {panel.contents.filter(c => !c.hidden).map(content => (
                 <div key={content.id} className="absolute z-[15]" style={{
                   left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -1073,45 +999,7 @@ function SinglePageNodeRenderer({ panel, label, nodeType, isSelected, coverDesig
       }}>
         {cd ? (
           <>
-            {coverBgImg && <img src={coverBgImg} className="absolute inset-0 w-full h-full object-cover" draggable={false} loading="lazy" />}
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-between p-[5%]">
-              {isFront ? (
-                <>
-                  {cd.bannerText && <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(4px, 2.5cqi)' }}>{cd.bannerText}</div>}
-                  {cd.subtitle && <div className="text-center" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
-                  <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(8px, 6cqi)', textShadow: '1px 1px 2px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                  <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(4px, 2.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
-                </>
-              ) : (
-                <>
-                  <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(5px, 4cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                  {cd.backBlurb && <div className="leading-relaxed break-words text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(3px, 1.8cqi)', fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal' }}>{cd.backBlurb}</div>}
-                  <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(3px, 2cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal' }}>by {cd.author || "Author"}</div>
-                </>
-              )}
-            </div>
-            {isFront && cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
-              const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-              const hasImg = !!cd.priceTagImage;
-              const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
-              return (
-                <div className="absolute z-20 flex items-center justify-center" style={{
-                  left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
-                  width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
-                  transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                  backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
-                  color: cd.priceBoxTextColor || '#000',
-                  fontWeight: 'bold', fontSize: 'max(3px, 2cqi)', border: hasImg ? 'none' : '1px solid #000',
-                  borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : 2),
-                }}>
-                  {hasImg ? (
-                    <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
-                  ) : (
-                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>{cd.priceText}</span>
-                  )}
-                </div>
-              );
-            })()}
+            <CoverRender cd={cd} side={isFront ? "front" : "back"} className="absolute inset-0 w-full h-full" />
             {panel.contents.filter(c => !c.hidden).map(content => (
               <div key={content.id} className="absolute z-[15]" style={{
                 left: `${edPanelW > 0 ? (content.transform.x / edPanelW) * 100 : 0}%`,
@@ -3510,15 +3398,15 @@ export default function ComicCreator() {
           }
 
           const titleY = subtitleY + scaleFont(cd.subtitleSize + 6);
-          if (!hiddenEls.has("master-title") && !cd.titleImage) {
-            drawCenterText(cd.title || "TITLE", titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
+          if (cd.title && !hiddenEls.has("master-title") && !cd.titleImage) {
+            drawCenterText(cd.title, titleY, cd.titleFont, cd.titleColor, scaleFont(cd.titleSize), { bold: true, uppercase: true, stroke: cd.titleStrokeColor, strokeW: cd.titleStrokeWidth });
           }
 
           if (cd.tagline && !hiddenEls.has("master-tagline")) {
             drawCenterText(cd.tagline, panelY + panelH - scaleFont(50), "Inter, sans-serif", cd.subtitleColor, scaleFont(11), { uppercase: true });
           }
-          if (!hiddenEls.has("master-author")) {
-            drawCenterText(cd.author || "Author", panelY + panelH - scaleFont(30), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+          if (cd.author && !hiddenEls.has("master-author")) {
+            drawCenterText(cd.author, panelY + panelH - scaleFont(30), cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           }
           if (false && cd.showPriceBox && cd.priceText && !hiddenEls.has("master-price") && ctx) {
             const boxS = scaleFont(36);
@@ -3557,8 +3445,8 @@ export default function ComicCreator() {
             g.fillText(cd.priceText, bcx, bcy);
           }
         } else {
-          if (!hiddenEls.has("master-back-title") && !cd.titleImage) {
-            drawCenterText(cd.title || "TITLE", panelY + panelH * 0.08, cd.titleFont, cd.titleColor, scaleFont(Math.max(cd.titleSize * 0.6, 20)), { bold: true, uppercase: true });
+          if (cd.title && !hiddenEls.has("master-back-title") && !cd.titleImage) {
+            drawCenterText(cd.title, panelY + panelH * 0.08, cd.titleFont, cd.titleColor, scaleFont(Math.max(cd.titleSize * 0.6, 20)), { bold: true, uppercase: true });
           }
           if (cd.backBlurb && !hiddenEls.has("master-blurb")) {
             ctx.save();
@@ -3583,8 +3471,8 @@ export default function ComicCreator() {
             if (line) ctx.fillText(line.trim(), panelX + panelW / 2, y);
             ctx.restore();
           }
-          if (!hiddenEls.has("master-back-author")) {
-            drawCenterText(`by ${cd.author || "Author"}`, panelY + panelH * 0.55, cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
+          if (cd.author && !hiddenEls.has("master-back-author")) {
+            drawCenterText(`by ${cd.author}`, panelY + panelH * 0.55, cd.authorFont, cd.authorColor, scaleFont(cd.authorSize));
           }
           if (cd.publisherName && !hiddenEls.has("master-back-publisher")) {
             drawCenterText(cd.publisherName, panelY + panelH * 0.62, "Inter, sans-serif", cd.subtitleColor, scaleFont(12), { bold: true, uppercase: true });
@@ -5902,7 +5790,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {!hiddenEls.has("master-title") && !cd.titleImage && <TransformableElement
+                    {cd.title && !hiddenEls.has("master-title") && !cd.titleImage && <TransformableElement
                       id="cover-title"
                       initialTransform={cd.titleTransform || defaultCover.titleTransform}
                       isSelected={selectedContentId === "cover-title"}
@@ -5921,7 +5809,7 @@ export default function ComicCreator() {
                         textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none',
                         WebkitTextStroke: cd.titleStrokeWidth ? `${Math.max(0.5, cd.titleStrokeWidth * 0.4)}px ${cd.titleStrokeColor || '#000'}` : undefined,
                         textShadow: '2px 2px 4px rgba(0,0,0,0.6)',
-                      }}>{cd.title || "TITLE"}</div>
+                      }}>{cd.title}</div>
                     </TransformableElement>}
 
                     {cd.subtitle && !hiddenEls.has("master-subtitle") && (
@@ -5964,7 +5852,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {!hiddenEls.has("master-author") && <TransformableElement
+                    {cd.author && !hiddenEls.has("master-author") && <TransformableElement
                       id="cover-author"
                       initialTransform={cd.authorTransform || defaultCover.authorTransform}
                       isSelected={selectedContentId === "cover-author"}
@@ -5981,7 +5869,7 @@ export default function ComicCreator() {
                         fontWeight: cd.authorBold ? 'bold' : 'normal',
                         fontStyle: cd.authorItalic ? 'italic' : 'normal',
                         textTransform: cd.authorUppercase ? 'uppercase' : 'none',
-                      }}>{cd.author || "Author"}</div>
+                      }}>{cd.author}</div>
                     </TransformableElement>}
 
                     {cd.titleImage && !hiddenEls.has("master-title-image") && (
@@ -6062,7 +5950,7 @@ export default function ComicCreator() {
                   </>
                 ) : (
                   <>
-                    {!hiddenEls.has("master-back-title") && !cd.titleImage && <TransformableElement
+                    {cd.title && !hiddenEls.has("master-back-title") && !cd.titleImage && <TransformableElement
                       id="cover-back-title"
                       initialTransform={cd.backTitleTransform || defaultCover.backTitleTransform}
                       isSelected={selectedContentId === "cover-back-title"}
@@ -6077,7 +5965,7 @@ export default function ComicCreator() {
                         color: cd.titleColor,
                         fontSize: 'max(8px, 5cqi)',
                         textShadow: '1px 1px 3px rgba(0,0,0,0.5)',
-                      }}>{cd.title || "TITLE"}</div>
+                      }}>{cd.title}</div>
                     </TransformableElement>}
 
                     {cd.backBlurb && !hiddenEls.has("master-blurb") && (
@@ -6102,7 +5990,7 @@ export default function ComicCreator() {
                       </TransformableElement>
                     )}
 
-                    {!hiddenEls.has("master-back-author") && <TransformableElement
+                    {cd.author && !hiddenEls.has("master-back-author") && <TransformableElement
                       id="cover-back-author"
                       initialTransform={cd.backAuthorTransform || defaultCover.backAuthorTransform}
                       isSelected={selectedContentId === "cover-back-author"}
@@ -6116,7 +6004,7 @@ export default function ComicCreator() {
                         fontFamily: cd.authorFont,
                         color: cd.authorColor,
                         fontSize: 'max(5px, 2.5cqi)',
-                      }}>by {cd.author || "Author"}</div>
+                      }}>by {cd.author}</div>
                     </TransformableElement>}
 
                     {cd.isbn && !hiddenEls.has("master-isbn") && !cd.backBarcodeImage && (
@@ -9380,72 +9268,9 @@ export default function ComicCreator() {
               <div className="relative" style={{ perspective: "2000px" }}>
                 {previewPage === 0 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {hasUsableCoverDesign(coverDesignData) ? (() => {
-                      const cd = { ...defaultCover, ...coverDesignData } as CoverData;
-                      return (
-                        <div className="absolute inset-0" style={{ backgroundColor: cd.frontBgColor }}>
-                          {cd.frontImage && <img src={cd.frontImage} className="absolute inset-0 w-full h-full object-cover" />}
-                          <div className="relative z-10 w-full h-full flex flex-col">
-                            {cd.bannerText && (
-                              <div className="w-full py-2 text-center font-bold tracking-widest uppercase text-sm" style={{
-                                backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, letterSpacing: '0.15em',
-                              }}>{cd.bannerText}</div>
-                            )}
-                            <div className="flex-1 flex flex-col items-center justify-between p-8">
-                              <div className="w-full text-center space-y-1">
-                                {cd.publisherName && <div className="text-sm font-bold uppercase tracking-wider opacity-80" style={{ color: cd.titleColor }}>{cd.publisherName}</div>}
-                                {cd.issueNumber && <div className="text-base font-bold" style={{ color: cd.titleColor }}>{cd.issueNumber}{cd.issueDate && <span className="block text-xs font-normal opacity-70">{cd.issueDate}</span>}</div>}
-                              </div>
-                              <div className="w-full text-center flex-1 flex flex-col items-center justify-center py-4">
-                                <div className="text-center leading-none break-words w-full" style={{
-                                  fontFamily: cd.titleFont, color: cd.titleColor, fontSize: `${Math.min(72, cd.titleSize * 1.2)}px`,
-                                  fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none',
-                                  WebkitTextStroke: cd.titleStrokeWidth ? `${cd.titleStrokeWidth}px ${cd.titleStrokeColor || '#000'}` : undefined,
-                                  textShadow: '3px 3px 6px rgba(0,0,0,0.6)',
-                                }}>{cd.title || "TITLE"}</div>
-                                {cd.subtitle && <div className="text-center break-words w-full mt-3" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: `${cd.subtitleSize}px`, fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
-                                {cd.tagline && <div className="italic opacity-80 mt-2 text-center text-sm" style={{ color: cd.subtitleColor }}>{cd.tagline}</div>}
-                              </div>
-                              <div className="w-full text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: `${cd.authorSize}px`, fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
-                            </div>
-                            {cd.showPriceBox && (cd.priceText || cd.priceTagImage) && (() => {
-                              const t = cd.priceBoxTransform || defaultCover.priceBoxTransform!;
-                              const hasImg = !!cd.priceTagImage;
-                              const isDiamond = cd.priceBoxShape === 'diamond' && !hasImg;
-                              return (
-                                <div className="absolute flex items-center justify-center font-bold" style={{
-                                  left: `${(t.x / 650) * 100}%`, top: `${(t.y / 920) * 100}%`,
-                                  width: `${(t.width / 650) * 100}%`, height: `${(t.height / 920) * 100}%`,
-                                  transform: `rotate(${(t.rotation || 0) + (isDiamond ? 45 : 0)}deg)`,
-                                  backgroundColor: hasImg ? 'transparent' : (cd.priceBoxColor || cd.bannerBgColor || '#FFD700'),
-                                  color: cd.priceBoxTextColor || '#000', border: hasImg ? 'none' : '2px solid #000',
-                                  borderRadius: hasImg ? 0 : (cd.priceBoxShape === 'circle' ? '50%' : undefined),
-                                  fontSize: 'clamp(10px, 3vh, 22px)',
-                                }}>
-                                  {hasImg ? (
-                                    <img src={cd.priceTagImage} alt="Price tag" className="w-full h-full object-contain pointer-events-none select-none" draggable={false} />
-                                  ) : (
-                                    <span style={{ transform: isDiamond ? 'rotate(-45deg)' : undefined, display: 'block' }}>
-                                      {cd.priceText}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                          {(cd.frontImageLayers || []).map(il => (
-                            <img key={il.id} src={il.url} alt={il.name} className="absolute pointer-events-none" draggable={false}
-                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
-                          ))}
-                          {(cd.frontLayers || []).map(tl => (
-                            <div key={tl.id} className="absolute pointer-events-none" style={{
-                              left: tl.transform.x, top: tl.transform.y, fontSize: `${tl.fontSize}px`, fontFamily: tl.fontFamily, color: tl.color,
-                              fontWeight: tl.fontWeight || 'normal', fontStyle: tl.fontStyle || 'normal', textTransform: (tl.textTransform as any) || 'none',
-                            }}>{tl.text}</div>
-                          ))}
-                        </div>
-                      );
-                    })() : effectiveFrontCover ? (
+                    {hasUsableCoverDesign(coverDesignData) ? (
+                      <CoverRender cd={coverDesignData} side="front" className="absolute inset-0 w-full h-full" />
+                    ) : effectiveFrontCover ? (
                       <img src={effectiveFrontCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
@@ -9534,33 +9359,14 @@ export default function ComicCreator() {
                               />
                             </svg>
                           )}
-                          {panel.coverRole && coverDesignData && (() => {
-                            const cd = { ...defaultCover, ...coverDesignData } as CoverData;
-                            const isFr = panel.coverRole === "front-cover";
-                            const bgC = isFr ? cd.frontBgColor : cd.backBgColor;
-                            const bgI = isFr ? cd.frontImage : cd.backImage;
-                            return (
-                              <div className="absolute inset-0 z-[1]" style={{ backgroundColor: bgC, containerType: 'size' }}>
-                                {bgI && <img src={bgI} className="absolute inset-0 w-full h-full object-cover" />}
-                                <div className="relative z-10 w-full h-full flex flex-col items-center justify-between p-[5%]">
-                                  {isFr ? (
-                                    <>
-                                      {cd.bannerText && <div className="w-full py-[2%] text-center font-bold tracking-widest uppercase" style={{ backgroundColor: cd.bannerBgColor || '#000', color: cd.titleColor, fontSize: 'max(6px, 2.5cqi)' }}>{cd.bannerText}</div>}
-                                      <div className="text-center leading-none break-words w-full" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(12px, 8cqi)', textShadow: '2px 2px 4px rgba(0,0,0,0.6)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', fontStyle: cd.titleItalic ? 'italic' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                                      {cd.subtitle && <div className="text-center" style={{ fontFamily: cd.subtitleFont, color: cd.subtitleColor, fontSize: 'max(5px, 3cqi)', fontWeight: cd.subtitleBold ? 'bold' : 'normal', fontStyle: cd.subtitleItalic ? 'italic' : 'normal', textTransform: cd.subtitleUppercase ? 'uppercase' : 'none' }}>{cd.subtitle}</div>}
-                                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(6px, 3.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>{cd.author || "Author"}</div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="text-center" style={{ fontFamily: cd.titleFont, color: cd.titleColor, fontSize: 'max(8px, 5cqi)', fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none' }}>{cd.title || "TITLE"}</div>
-                                      {cd.backBlurb && <div className="leading-relaxed break-words text-center flex-1 overflow-hidden" style={{ fontFamily: cd.backBlurbFont, color: cd.backBlurbColor || cd.authorColor, fontSize: 'max(4px, 2.2cqi)', fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal' }}>{cd.backBlurb}</div>}
-                                      <div className="text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: 'max(5px, 2.5cqi)', fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal' }}>by {cd.author || "Author"}</div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
+                          {panel.coverRole && coverDesignData && (
+                            <CoverRender
+                              cd={coverDesignData}
+                              side={panel.coverRole === "front-cover" ? "front" : "back"}
+                              className="absolute inset-0 w-full h-full"
+                              style={{ zIndex: 1 }}
+                            />
+                          )}
                           {panel.contents.filter(c => !c.hidden).map(content => {
                           const leftPct = editorPanelW > 0 ? (content.transform.x / editorPanelW) * 100 : 0;
                           const topPct = editorPanelH > 0 ? (content.transform.y / editorPanelH) * 100 : 0;
@@ -9662,61 +9468,9 @@ export default function ComicCreator() {
 
                 {previewPage === spreads.length * 2 + 1 && (
                   <div className="w-[500px] h-[750px] bg-black border-4 border-zinc-800 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {hasUsableCoverDesign(coverDesignData) ? (() => {
-                      const cd = { ...defaultCover, ...coverDesignData } as CoverData;
-                      return (
-                        <div className="absolute inset-0" style={{ backgroundColor: cd.backBgColor }}>
-                          {cd.backImage && <img src={cd.backImage} className="absolute inset-0 w-full h-full object-cover" />}
-                          <div className="relative z-10 w-full h-full flex flex-col items-center p-8">
-                            <div className="text-center break-words w-full" style={{
-                              fontFamily: cd.titleFont, color: cd.titleColor, fontSize: `${Math.min(36, cd.titleSize * 0.6)}px`,
-                              fontWeight: cd.titleBold !== false ? 'bold' : 'normal', textTransform: cd.titleUppercase !== false ? 'uppercase' : 'none',
-                              textShadow: '1px 1px 3px rgba(0,0,0,0.5)',
-                            }}>{cd.title || "TITLE"}</div>
-                            {cd.backBlurb && (
-                              <div className="mt-6 leading-relaxed break-words w-full text-center flex-1 overflow-hidden" style={{
-                                fontFamily: cd.backBlurbFont || 'Georgia, serif', color: cd.backBlurbColor || cd.authorColor,
-                                fontSize: `${cd.backBlurbSize || 14}px`, lineHeight: '1.6',
-                                fontWeight: cd.backBlurbBold ? 'bold' : 'normal', fontStyle: cd.backBlurbItalic ? 'italic' : 'normal',
-                              }}>{cd.backBlurb}</div>
-                            )}
-                            <div className="w-full mt-auto pt-4 text-center" style={{ fontFamily: cd.authorFont, color: cd.authorColor, fontSize: `${cd.authorSize}px`, fontWeight: cd.authorBold ? 'bold' : 'normal', fontStyle: cd.authorItalic ? 'italic' : 'normal', textTransform: cd.authorUppercase ? 'uppercase' : 'none' }}>by {cd.author || "Author"}</div>
-                            {cd.isbn && (
-                              <div className="w-full mt-3 pt-3 text-center" style={{ borderTop: `1px solid ${cd.authorColor}40` }}>
-                                {cd.showBarcode !== false && (
-                                  <div className="inline-block bg-white p-2 mb-1">
-                                    <div style={{ display: 'flex', gap: '1px', height: '30px', alignItems: 'flex-end' }}>
-                                      {cd.isbn.split('').map((ch, i) => {
-                                        const w = ((parseInt(ch, 10) || 1) % 3) + 1;
-                                        return <div key={i} style={{ width: `${w}px`, height: `${60 + ((parseInt(ch, 10) || 0) * 3)}%`, backgroundColor: '#000' }} />;
-                                      })}
-                                      {Array.from({ length: 8 }).map((_, i) => (
-                                        <div key={`p${i}`} style={{ width: '1px', height: `${70 + (i * 3)}%`, backgroundColor: '#000' }} />
-                                      ))}
-                                    </div>
-                                    <div className="font-mono text-[10px] text-black mt-0.5">ISBN {cd.isbn}</div>
-                                  </div>
-                                )}
-                                {cd.showBarcode === false && (
-                                  <div className="font-mono opacity-60 text-sm" style={{ color: cd.authorColor }}>ISBN {cd.isbn}</div>
-                                )}
-                              </div>
-                            )}
-                            {cd.publisherName && <div className="mt-2 font-bold uppercase tracking-wider opacity-60 text-sm" style={{ color: cd.authorColor }}>{cd.publisherName}</div>}
-                          </div>
-                          {(cd.backImageLayers || []).map(il => (
-                            <img key={il.id} src={il.url} alt={il.name} className="absolute pointer-events-none" draggable={false}
-                              style={{ left: il.transform.x, top: il.transform.y, width: il.transform.width, height: il.transform.height, opacity: il.opacity ?? 1, mixBlendMode: (il.blendMode || 'normal') as any, transform: `rotate(${il.transform.rotation || 0}deg)` }} />
-                          ))}
-                          {(cd.backLayers || []).map(tl => (
-                            <div key={tl.id} className="absolute pointer-events-none" style={{
-                              left: tl.transform.x, top: tl.transform.y, fontSize: `${tl.fontSize}px`, fontFamily: tl.fontFamily, color: tl.color,
-                              fontWeight: tl.fontWeight || 'normal', fontStyle: tl.fontStyle || 'normal', textTransform: (tl.textTransform as any) || 'none',
-                            }}>{tl.text}</div>
-                          ))}
-                        </div>
-                      );
-                    })() : effectiveBackCover ? (
+                    {hasUsableCoverDesign(coverDesignData) ? (
+                      <CoverRender cd={coverDesignData} side="back" className="absolute inset-0 w-full h-full" />
+                    ) : effectiveBackCover ? (
                       <img src={effectiveBackCover} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
