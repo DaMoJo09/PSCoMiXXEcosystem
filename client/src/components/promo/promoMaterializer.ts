@@ -181,7 +181,9 @@ export interface MaterializeSpec {
   // Items rendered, in z-order top-to-bottom of the array (later = on top
   // unless `z` is given explicitly).
   items: SpecItem[];
-  // If true, all items go on the rightPage. Else default rightPage.
+  // Which page of the spread receives the materialized panels. Defaults
+  // to "left" so a freshly inserted promo lands on page 1 (visible and
+  // immediately editable). Set to "right" to override.
   side?: "left" | "right";
 }
 
@@ -577,10 +579,14 @@ function materializeFromSpec(spec: MaterializeSpec, merged: PromoTemplateData): 
   }
 
   const allPanels = [bgPanel, ...itemPanels];
-  if (spec.side === "left") {
-    return { leftPage: allPanels, rightPage: [] };
+  // Default to LEFT page so promo content lands on page 1 of the spread —
+  // matches the user's expectation that "send promo to comic" produces a
+  // single editable page they can immediately see and transform. Templates
+  // can override by setting spec.side = "right".
+  if (spec.side === "right") {
+    return { leftPage: [], rightPage: allPanels };
   }
-  return { leftPage: [], rightPage: allPanels };
+  return { leftPage: allPanels, rightPage: [] };
 }
 
 // --- Public entry point -------------------------------------------------

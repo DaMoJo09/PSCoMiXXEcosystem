@@ -4284,6 +4284,12 @@ export default function ComicCreator() {
       return next;
     });
     setCurrentSpreadIndex(payload.pageIndex);
+    // Focus the Layers panel on the side that actually received the
+    // materialized promo content, so items are immediately visible/
+    // editable instead of hidden under the empty opposite page.
+    setSelectedPage(leftPage.length > 0 ? "left" : "right");
+    setSelectedPanelId(null);
+    setSelectedContentId(null);
   }, [setSpreads, setCurrentSpreadIndex]);
 
   const handleDeleteCurrentSpread = useCallback(() => {
@@ -8367,8 +8373,7 @@ export default function ComicCreator() {
                   Auto-lock new panels
                 </label>
               </div>
-              {!currentSpread.isPromoPage && (
-                <div className="grid grid-cols-2 border-b border-zinc-800" data-testid="layers-page-tabs">
+              <div className="grid grid-cols-2 border-b border-zinc-800" data-testid="layers-page-tabs">
                   <button
                     onClick={() => { setSelectedPage("left"); setSelectedPanelId(null); setSelectedContentId(null); }}
                     className={`px-2 py-2 text-[11px] font-mono uppercase tracking-wider transition-colors border-r border-zinc-800 ${
@@ -8392,7 +8397,6 @@ export default function ComicCreator() {
                     Right Page <span className="opacity-60">({currentSpread.rightPage.length})</span>
                   </button>
                 </div>
-              )}
               <div className="flex-1 overflow-auto p-2 space-y-0.5" data-testid="unified-layer-panel">
                 {(() => {
                   const pagePanels = selectedPage === "left" ? currentSpread.leftPage : currentSpread.rightPage;
