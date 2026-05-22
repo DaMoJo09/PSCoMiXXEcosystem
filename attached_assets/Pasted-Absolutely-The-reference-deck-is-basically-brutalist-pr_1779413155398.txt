@@ -1,0 +1,274 @@
+Absolutely. The reference deck is basically brutalist “proof of pipeline” slides: black background, huge white type, simple claims, repeatable rhythm, workforce language. Tiny miracle: humans finally made minimalism useful.  
+
+Build Plan for Replit + Lovable
+
+Goal: Create an ecosystem presentation/landing experience that looks like the LACOE pipeline deck, but replaces abstract text-only slides with real screenshots from CoMiXX and FX Studio so people instantly understand what the ecosystem does.
+
+⸻
+
+REPLIT BUILD PLAN: Ecosystem Visual Pipeline Page
+
+Project Name
+
+Press Start × MADMIXEDMEDIA Ecosystem Pipeline
+
+Core Style
+
+Use the uploaded deck as the visual reference:
+
+Black background.
+Large condensed white typography.
+Minimal text.
+High contrast.
+Screenshot-driven proof.
+No cute school flyer energy. We are not selling cupcakes in the gym.
+
+Page Structure
+
+1. Hero Section
+
+Headline:
+
+THE CREATIVE TECHNOLOGY PIPELINE.
+
+Subline:
+
+LEARN → CREATE → PUBLISH → TRACK → PLACE
+
+Add buttons:
+
+View CoMiXX
+View FX Studio
+See the Full Ecosystem
+
+⸻
+
+2. One Connected Ecosystem
+
+Headline:
+
+ONE CONNECTED ECOSYSTEM.
+
+Visual layout:
+
+Left side: big text bullets
+Right side: screenshot collage
+
+Bullets:
+
+PS LMX → Curriculum + Skill Training
+CoMiXX → Comics, Cards, Visual Novels
+FX Studio → Motion FX, HOPs, Sprite Tools
+Streaming → Publish, Rank, Showcase
+XP → Proof of Skill + Workforce Tracking
+
+⸻
+
+3. CoMiXX Visual Section
+
+Headline:
+
+CREATE PORTFOLIOS, NOT JUST ASSIGNMENTS.
+
+Use screenshots of:
+
+CoMiXX editor
+Comic page builder
+Trading card creator
+Visual novel / CYOA mode
+Marketplace or library if available
+
+Caption blocks:
+
+Students build real creative IP.
+Teachers see progress.
+Partners see talent.
+
+⸻
+
+4. FX Studio Visual Section
+
+Headline:
+
+MOTION. EFFECTS. EXPORTABLE SKILLS.
+
+Use screenshots of:
+
+FX Studio main editor
+Motion FX screen
+Sprite sheet / Asset Lab
+HOPs builder
+Export screen
+
+Caption blocks:
+
+Students create motion assets.
+Projects become publishable media.
+Every action can generate XP.
+
+⸻
+
+5. Pipeline Loop Section
+
+Headline:
+
+THE PIPELINE LOOP.
+
+Show this as a horizontal stepper:
+
+1. TRAIN
+2. CREATE
+3. PUBLISH
+4. TRACK
+5. CONNECT
+6. PLACE
+
+Under it:
+
+Training becomes projects.
+Projects become portfolios.
+Portfolios become proof.
+Proof becomes opportunity.
+
+⸻
+
+6. What Employers See
+
+Headline:
+
+WHAT EMPLOYERS SEE.
+
+Cards:
+
+Verified Technical Abilities
+Real Project Portfolios
+Creative Output Volume
+Consistency Over Time
+Readiness for Apprenticeships
+Industry-Aligned Skill Data
+
+Include screenshot mockup of a “Creator Skill Passport” dashboard.
+
+⸻
+
+7. Proof of Skill Dashboard
+
+Headline:
+
+NOT JUST GRADES — PROOF OF SKILL.
+
+Build dashboard cards for:
+
+XP earned
+Projects completed
+Exports created
+Published works
+Skill domains
+Certifications
+Portfolio link
+Employer engagement
+
+⸻
+
+8. Final Call-to-Action
+
+Headline:
+
+YOU WANT WORKFORCE READINESS.
+WE DELIVER THE PIPELINE.
+
+Buttons:
+
+Schedule Demo
+Launch a Pilot
+View Student Work
+
+⸻
+
+LOVABLE BUILD PLAN: Screenshot-Driven Marketing Site
+
+Prompt for Lovable
+
+Build a high-impact black-and-white landing page for the Press Start × MADMIXEDMEDIA Creative Technology Workforce Hub. The design should match a brutalist presentation style: black background, oversized condensed white typography, bold spacing, minimal copy, and screenshot-driven sections.
+
+The site should explain the ecosystem as a connected pipeline:
+
+PS LMX teaches skills.
+CoMiXX lets students create comics, trading cards, visual novels, and portfolio-ready media.
+FX Studio lets students create motion FX, HOPs, sprites, and exportable animated assets.
+PS Streaming lets students publish, showcase, rank, and build visibility.
+XP tracks creative output, consistency, technical growth, and workforce readiness.
+
+Create sections for:
+
+1. Hero: “THE CREATIVE TECHNOLOGY PIPELINE.”
+2. One Connected Ecosystem
+3. CoMiXX screenshots and feature cards
+4. FX Studio screenshots and feature cards
+5. The Pipeline Loop: Train → Create → Publish → Track → Connect → Place
+6. What Employers See
+7. Proof of Skill Dashboard
+8. Partner / School CTA
+
+Use placeholder screenshot cards labeled:
+
+CoMiXX Editor Screenshot
+CoMiXX Comic Builder Screenshot
+CoMiXX Trading Card Screenshot
+FX Studio Editor Screenshot
+FX Motion FX Screenshot
+FX HOPs Builder Screenshot
+XP Dashboard Screenshot
+Streaming Showcase Screenshot
+
+Use bold typography, thin white dividers, subtle hover effects, and responsive layout. Keep the tone confident, clean, and workforce-focused.
+
+⸻
+
+Screenshot Requirements
+
+Grab screenshots from:
+
+CoMiXX
+
+* Dashboard
+* Comic editor
+* Trading card creator
+* Visual novel / CYOA tool
+* Marketplace / community library
+* Export / publish screen
+
+FX Studio
+
+* Main editor
+* Motion FX mode
+* HOPs builder
+* Sprite sheet / Asset Lab
+* Export panel
+* Any “send to streaming” or publish flow
+
+Bonus
+
+* XP dashboard
+* Streaming leaderboard
+* Creator profile / portfolio view
+
+⸻
+
+Copy Direction
+
+Use lines like:
+
+Students don’t just complete lessons.
+They build proof.
+
+Every project becomes part of the portfolio.
+
+Every action can become skill data.
+
+Creative output becomes workforce visibility.
+
+Training becomes talent.
+Talent becomes opportunity.
+
+That’s the build. Clean, visual, sharp, and not buried under 47 paragraphs of “innovative solutions,” thank the universe.
