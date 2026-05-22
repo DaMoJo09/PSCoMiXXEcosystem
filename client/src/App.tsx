@@ -110,7 +110,6 @@ const ExternalToolSubmissions = lazy(() => import("@/pages/ExternalToolSubmissio
 const EcosystemPathways = lazy(() => import("@/pages/EcosystemPathways"));
 const EcosystemAdmin = lazy(() => import("@/pages/EcosystemAdmin"));
 const SchoolSafeAdmin = lazy(() => import("@/pages/SchoolSafeAdmin"));
-const EcosystemPipeline = lazy(() => import("@/pages/EcosystemPipeline"));
 
 function LazyFallback() {
   return (
@@ -151,8 +150,7 @@ function ProtectedRouter() {
   }
 
   const publicPages = ["/portfolio/", "/privacy", "/terms", "/compliance", "/accessibility-statement", "/security", "/disclaimer", "/dmca", "/creator/", "/verify/", "/passport/", "/contact", "/download"];
-  const publicExactPages = ["/pipeline", "/ecosystem-pipeline"];
-  const isPublicPage = publicPages.some(p => location === p || location.startsWith(p)) || publicExactPages.includes(location);
+  const isPublicPage = publicPages.some(p => location === p || location.startsWith(p));
 
   if (isPublicPage && !isAuthenticated) {
     return (
@@ -171,8 +169,6 @@ function ProtectedRouter() {
           <Route path="/security" component={SecurityPage} />
           <Route path="/contact" component={ContactPage} />
           <Route path="/download" component={DownloadPage} />
-          <Route path="/pipeline" component={EcosystemPipeline} />
-          <Route path="/ecosystem-pipeline" component={EcosystemPipeline} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>
@@ -209,8 +205,6 @@ function ProtectedRouter() {
         <Route path="/community/view/:id" component={CommunityViewer} />
         <Route path="/community/series/:id" component={SeriesPage} />
         <Route path="/community" component={CommunityLibrary} />
-        <Route path="/pipeline" component={EcosystemPipeline} />
-        <Route path="/ecosystem-pipeline" component={EcosystemPipeline} />
         <Route path="/library" component={LibraryPage} />
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/portfolio/:userId" component={PortfolioPage} />
