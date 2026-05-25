@@ -1543,7 +1543,7 @@ function ComicCanvasOverview({ spreads, currentSpreadIndex, onSelectSpread, onEd
       </div>
 
       {showLayersPanel && selectedSpread && (
-        <aside className="w-64 border-l border-zinc-800 bg-zinc-900 flex flex-col z-30" data-testid="overview-layers-panel">
+        <aside className="w-48 lg:w-56 xl:w-64 flex-shrink-0 border-l border-zinc-800 bg-zinc-900 flex flex-col z-30" data-testid="overview-layers-panel">
           <div className="p-3 border-b border-zinc-800 font-bold text-sm flex items-center justify-between">
             <span className="flex items-center gap-2 text-white"><Layers className="w-4 h-4 text-cyan-400" /> Layers</span>
             <span className="text-[10px] text-zinc-500 font-mono">Spread {currentSpreadIndex + 1}</span>
@@ -2187,11 +2187,11 @@ export default function ComicCreator() {
       }
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
-        // Legacy promo (no materialized panels) → use the read-only renderer.
-        // New promos materialize into editable panels and export through
-        // the regular spread path below, so the user's edits are preserved.
-        if (spread.isPromoPage && spread.promoTemplateSnapshot
-            && spread.leftPage.length === 0 && spread.rightPage.length === 0) {
+        // Promo pages always export by re-rendering the snapshot at print
+        // resolution (1988x3075). This preserves crisp text/lines instead
+        // of upscaling the editor-side 650x920 raster, and matches the
+        // legacy behavior for promos with no materialized panels.
+        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
           pageNum++;
           const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, 1988, 3075);
           await syncAsset({ name: `${title} - Page ${pageNum} (Promo)`, dataUrl: promoCanvas.toDataURL("image/png"), tag: "promo-page", targetPage: pageNum });
@@ -4083,10 +4083,10 @@ export default function ComicCreator() {
 
       for (let i = 0; i < spreads.length; i++) {
         const spread = spreads[i];
-        if (spread.isPromoPage && spread.promoTemplateSnapshot
-            && spread.leftPage.length === 0 && spread.rightPage.length === 0) {
-          // Legacy promo without materialized panels — render via promo
-          // renderer. New promos export through the regular path below.
+        if (spread.isPromoPage && spread.promoTemplateSnapshot) {
+          // Always re-render promo from snapshot at print resolution
+          // (canvasW x canvasH) so the PDF gets crisp output instead of
+          // the editor-side 650x920 raster upscaled.
           const promoCanvas = await exportPromoToCanvas(spread.promoTemplateSnapshot, spread.promoCustomData, canvasW, canvasH);
           addImageToPDF(promoCanvas.toDataURL("image/jpeg", 0.92));
         } else {
@@ -4263,34 +4263,99 @@ export default function ComicCreator() {
   const { enabled: promoPagesEnabled } = useFeatureFlag("promo_pages_enabled");
   const [promoStudioOpen, setPromoStudioOpen] = useState(false);
 
-  const insertPromoPageAtCurrent = useCallback((payload: PromoInsertPayload) => {
-    const { leftPage, rightPage } = materializePromoTemplate(
-      payload.templateSnapshot,
-      payload.customData,
-    );
-    const newSpread: Spread = {
+  const insertPromoPageAtCurrent = useCallback(async (payload: PromoInsertPayload) => {
+    // RASTERIZED PROMO INSERT (1:1 fidelity).
+    //
+    // The previous approach materialized each promo element into its own
+    // panel, which never reached pixel-perfect parity with the Promo Page
+    // Studio preview (different layout engine, different aspect ratio,
+    // different font fallbacks). Users reported the inserted promo "looked
+    // broken" in both the editor canvas and the spread mapping overview.
+    //
+    // Now we render the live PromoPageRenderer to a 650x920 image via the
+    // existing `exportPromoToCanvas` helper, then drop it into a single
+    // full-page panel as one image content. Because the mapping overview
+    // renders image content with `<img object-cover>` against the same %
+    // panel bounds, the promo appears identical in:
+    //   1. The Promo Page Studio preview
+    //   2. The Comic editor canvas
+    //   3. The spread mapping overview
+    //   4. PNG / PDF exports (image content is captured natively)
+    //
+    // The user can still "Replace promo" via the existing toolbar button
+    // to swap layouts; they can also stack their own editable panels on
+    // top by clicking the page to add panels normally.
+    const refW = 650;
+    const refH = 920;
+    const insertAt = Math.min(Math.max(payload.pageIndex, 0), spreads.length);
+    const buildSpread = (leftPanels: Panel[], rightPanels: Panel[]): Spread => ({
       id: `promo_${Date.now()}`,
-      leftPage: leftPage as unknown as Panel[],
-      rightPage: rightPage as unknown as Panel[],
+      leftPage: leftPanels,
+      rightPage: rightPanels,
       isPromoPage: true,
       promoTemplateId: payload.templateId,
       promoTemplateSnapshot: payload.templateSnapshot,
       promoCustomData: payload.customData,
-    };
-    setSpreads(prev => {
-      const insertAt = Math.min(Math.max(payload.pageIndex, 0), prev.length);
-      const next = [...prev];
-      next.splice(insertAt, 0, newSpread);
-      return next;
     });
-    setCurrentSpreadIndex(payload.pageIndex);
-    // Focus the Layers panel on the side that actually received the
-    // materialized promo content, so items are immediately visible/
-    // editable instead of hidden under the empty opposite page.
-    setSelectedPage(leftPage.length > 0 ? "left" : "right");
-    setSelectedPanelId(null);
-    setSelectedContentId(null);
-  }, [setSpreads, setCurrentSpreadIndex]);
+    const commit = (spread: Spread, focusSide: "left" | "right") => {
+      setSpreads(prev => {
+        const at = Math.min(Math.max(payload.pageIndex, 0), prev.length);
+        const next = [...prev];
+        next.splice(at, 0, spread);
+        return next;
+      });
+      setCurrentSpreadIndex(insertAt);
+      setSelectedPage(focusSide);
+      setSelectedPanelId(null);
+      setSelectedContentId(null);
+    };
+
+    try {
+      const canvas = await exportPromoToCanvas(payload.templateSnapshot, payload.customData, refW, refH);
+      const dataUrl = canvas.toDataURL("image/png");
+      const promoPanel: Panel = {
+        id: `promo_panel_${Date.now()}`,
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        rotation: 0,
+        type: "rectangle",
+        shape: "rectangle",
+        contents: [
+          {
+            id: `promo_img_${Date.now()}`,
+            name: payload.templateSnapshot.title || "Promo page",
+            type: "image",
+            transform: { x: 0, y: 0, width: refW, height: refH, rotation: 0, scaleX: 1, scaleY: 1 },
+            data: { url: dataUrl, alt: payload.templateSnapshot.title || "Promo page" },
+            zIndex: 0,
+            locked: false,
+          },
+        ],
+        zIndex: 0,
+        backgroundColor: "#ffffff",
+        borderColor: "transparent",
+        borderWidth: 0,
+        locked: false,
+        name: payload.templateSnapshot.title || "Promo page",
+      };
+      commit(buildSpread([promoPanel], []), "left");
+    } catch (err) {
+      // Fallback: if html2canvas fails (e.g. tainted image, font load
+      // hiccup), fall back to the materializer so the user still gets a
+      // usable spread. Surface a toast so they know it's the fallback.
+      console.warn("[promo] rasterize failed, falling back to materializer:", err);
+      const { leftPage, rightPage } = materializePromoTemplate(
+        payload.templateSnapshot,
+        payload.customData,
+      );
+      const lp = leftPage as unknown as Panel[];
+      const rp = rightPage as unknown as Panel[];
+      commit(buildSpread(lp, rp), lp.length > 0 ? "left" : "right");
+      toast.message("Promo inserted using layout fallback (1:1 capture unavailable)");
+    }
+  }, [spreads.length, setSpreads, setCurrentSpreadIndex]);
 
   const handleDeleteCurrentSpread = useCallback(() => {
     if (spreads.length <= 1) { toast.error("Cannot delete the only spread"); return; }
