@@ -7049,10 +7049,10 @@ export default function ComicCreator() {
                       window.location.reload();
                     } catch { toast.error("Failed to create new project"); }
                   }}
-                  className="px-2 lg:px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 flex-shrink-0"
+                  className="px-2 xl:px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 flex-shrink-0"
                   data-testid="button-new-comic"
                 >
-                  <Plus className="w-4 h-4" /> <span className="hidden lg:inline">New</span>
+                  <Plus className="w-4 h-4" /> <span className="hidden xl:inline">New</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7063,9 +7063,9 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setTemplateFilter("all"); }}
-                  className={`px-2 lg:px-3 py-1.5 text-sm flex items-center gap-2 flex-shrink-0 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                  className={`px-2 xl:px-3 py-1.5 text-sm flex items-center gap-2 flex-shrink-0 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
                 >
-                  <LayoutGrid className="w-4 h-4" /> <span className="hidden lg:inline">Templates</span>
+                  <LayoutGrid className="w-4 h-4" /> <span className="hidden xl:inline">Templates</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7077,10 +7077,10 @@ export default function ComicCreator() {
                 <button
                   onClick={handleSave}
                   disabled={isSaving || !effectiveProjectId}
-                  className="px-2 lg:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
+                  className="px-2 xl:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                   data-testid="button-save"
                 >
-                  <Save className="w-4 h-4" /> <span className="hidden lg:inline">{isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}</span>
+                  <Save className="w-4 h-4" /> <span className="hidden xl:inline">{isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7091,10 +7091,10 @@ export default function ComicCreator() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="px-2 lg:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+                  className="px-2 xl:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap flex-shrink-0"
                   data-testid="button-preview"
                 >
-                  <Eye className="w-4 h-4" /> <span className="hidden lg:inline">Preview</span>
+                  <Eye className="w-4 h-4" /> <span className="hidden xl:inline">Preview</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
@@ -7115,8 +7115,8 @@ export default function ComicCreator() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap" data-testid="button-export">
-                  <Download className="w-4 h-4" /> Export
+                <button className="px-2 xl:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap flex-shrink-0" data-testid="button-export" title="Export">
+                  <Download className="w-4 h-4" /> <span className="hidden xl:inline">Export</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white w-72">
@@ -7216,30 +7216,33 @@ export default function ComicCreator() {
               <button
                 onClick={handleCompileComic}
                 disabled={isCompiling}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
+                className="px-2 xl:px-3 py-1.5 bg-amber-600 hover:bg-amber-700 border border-amber-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap flex-shrink-0"
                 data-testid="button-compile-comic"
+                title="Compile"
               >
-                <Package className="w-4 h-4" /> {isCompiling ? "Compiling..." : "Compile"}
+                <Package className="w-4 h-4" /> <span className="hidden xl:inline">{isCompiling ? "Compiling..." : "Compile"}</span>
               </button>
             )}
             {effectiveProjectId && project && (project.status === "draft" || project.status === "rejected") && (
               <button
                 onClick={() => submitForReview.mutate()}
                 disabled={submitForReview.isPending}
-                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
+                className="px-2 xl:px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 border border-cyan-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap flex-shrink-0"
                 data-testid="button-submit-review"
+                title="Submit for review"
               >
-                <SendHorizonal className="w-4 h-4" /> Submit
+                <SendHorizonal className="w-4 h-4" /> <span className="hidden xl:inline">Submit</span>
               </button>
             )}
             {effectiveProjectId && project && project.status === "approved" && (
               <button
                 onClick={() => publishProject.mutate()}
                 disabled={publishProject.isPending}
-                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 border border-green-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap"
+                className="px-2 xl:px-3 py-1.5 bg-green-600 hover:bg-green-700 border border-green-500 text-sm font-bold flex items-center gap-2 text-white disabled:opacity-50 whitespace-nowrap flex-shrink-0"
                 data-testid="button-publish"
+                title="Publish"
               >
-                <Rocket className="w-4 h-4" /> Publish
+                <Rocket className="w-4 h-4" /> <span className="hidden xl:inline">Publish</span>
               </button>
             )}
             {effectiveProjectId && (
@@ -8380,41 +8383,41 @@ export default function ComicCreator() {
             </div>
             )}
 
-            <div className="flex flex-wrap gap-2 lg:gap-4 mt-6 justify-center">
+            <div className="flex flex-wrap gap-2 xl:gap-4 mt-6 justify-center">
               <button 
                 onClick={addSpread}
-                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
+                className="px-2 xl:px-4 py-2 bg-zinc-800 text-white text-xs xl:text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
                 data-testid="button-add-spread"
                 title="Add Spread"
               >
-                <Plus className="w-4 h-4" /> <span className="hidden md:inline">Add Spread</span>
+                <Plus className="w-4 h-4" /> <span className="hidden xl:inline">Add Spread</span>
               </button>
               {promoPagesEnabled && (
                 <button
                   onClick={() => setPromoStudioOpen(true)}
-                  className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-amber-900/40 hover:text-amber-300 whitespace-nowrap"
+                  className="px-2 xl:px-4 py-2 bg-zinc-800 text-white text-xs xl:text-sm flex items-center gap-2 hover:bg-amber-900/40 hover:text-amber-300 whitespace-nowrap"
                   data-testid="button-add-promo-page"
                   title="Insert a promo page after the current spread"
                 >
-                  <Megaphone className="w-4 h-4" /> <span className="hidden md:inline">+ Promo Page</span>
+                  <Megaphone className="w-4 h-4" /> <span className="hidden xl:inline">+ Promo Page</span>
                 </button>
               )}
               <button
                 onClick={handleDeleteCurrentSpread}
                 disabled={spreads.length <= 1}
-                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-red-900/50 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                className="px-2 xl:px-4 py-2 bg-zinc-800 text-white text-xs xl:text-sm flex items-center gap-2 hover:bg-red-900/50 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                 data-testid="button-delete-spread-bottom"
                 title="Delete Spread"
               >
-                <Trash2 className="w-4 h-4" /> <span className="hidden md:inline">Delete Spread</span>
+                <Trash2 className="w-4 h-4" /> <span className="hidden xl:inline">Delete Spread</span>
               </button>
               <button 
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
+                className="px-2 xl:px-4 py-2 bg-zinc-800 text-white text-xs xl:text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
                 title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                <span className="hidden md:inline">{isFullscreen ? "Exit Full" : "Full Screen"}</span>
+                <span className="hidden xl:inline">{isFullscreen ? "Exit Full" : "Full Screen"}</span>
               </button>
             </div>
             </>

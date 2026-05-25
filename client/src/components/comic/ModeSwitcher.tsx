@@ -42,7 +42,7 @@ export function ModeSwitcher({ active, onChange, disabled = [] }: Props) {
                 data-testid={`mode-${m.id}`}
                 data-active={isActive}
                 className={[
-                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border-r border-zinc-700 last:border-r-0 transition whitespace-nowrap",
+                  "flex items-center gap-1.5 px-2 xl:px-3 py-1.5 text-xs font-mono uppercase tracking-wider border-r border-zinc-700 last:border-r-0 transition whitespace-nowrap",
                   isActive
                     ? "bg-white text-black"
                     : isDisabled
@@ -51,7 +51,7 @@ export function ModeSwitcher({ active, onChange, disabled = [] }: Props) {
                 ].join(" ")}
               >
                 <Icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{m.label}</span>
+                <span className="hidden 2xl:inline">{m.label}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
