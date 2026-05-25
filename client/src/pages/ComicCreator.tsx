@@ -6998,10 +6998,10 @@ export default function ComicCreator() {
             </div>
           </div>
         )}
-        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-4 gap-2 overflow-x-auto flex-shrink-0" style={{ background: '#2d2d2d' }}>
-          <div className="flex items-center gap-4">
+        <header className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-2 lg:px-4 gap-2 overflow-x-auto flex-shrink-0" style={{ background: '#2d2d2d' }}>
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0">
             <Link href="/">
-              <button className="p-2 hover:bg-zinc-800" data-testid="button-back">
+              <button className="p-2 hover:bg-zinc-800 flex-shrink-0" data-testid="button-back">
                 <ArrowLeft className="w-4 h-4" />
               </button>
             </Link>
@@ -7009,10 +7009,10 @@ export default function ComicCreator() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="font-display font-bold text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1"
+              className="font-display font-bold text-base lg:text-lg bg-transparent border-none outline-none hover:bg-zinc-800 px-2 py-1 w-32 lg:w-auto min-w-0"
               data-testid="input-title"
             />
-            <span className="text-xs font-mono text-zinc-500">Comic Creator</span>
+            <span className="hidden xl:inline text-xs font-mono text-zinc-500">Comic Creator</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -7049,10 +7049,10 @@ export default function ComicCreator() {
                       window.location.reload();
                     } catch { toast.error("Failed to create new project"); }
                   }}
-                  className="px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700"
+                  className="px-2 lg:px-3 py-1.5 text-sm flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 flex-shrink-0"
                   data-testid="button-new-comic"
                 >
-                  <Plus className="w-4 h-4" /> New
+                  <Plus className="w-4 h-4" /> <span className="hidden lg:inline">New</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7063,9 +7063,9 @@ export default function ComicCreator() {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setTemplateFilter("all"); }}
-                  className={`px-3 py-1.5 text-sm flex items-center gap-2 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
+                  className={`px-2 lg:px-3 py-1.5 text-sm flex items-center gap-2 flex-shrink-0 ${showTemplates ? 'bg-white text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`}
                 >
-                  <LayoutGrid className="w-4 h-4" /> Templates
+                  <LayoutGrid className="w-4 h-4" /> <span className="hidden lg:inline">Templates</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7077,10 +7077,10 @@ export default function ComicCreator() {
                 <button
                   onClick={handleSave}
                   disabled={isSaving || !effectiveProjectId}
-                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="px-2 lg:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                   data-testid="button-save"
                 >
-                  <Save className="w-4 h-4" /> {isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}
+                  <Save className="w-4 h-4" /> <span className="hidden lg:inline">{isSaving ? "Saving..." : !effectiveProjectId ? "Creating..." : "Save"}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent className="bg-black border border-white text-white font-mono text-xs z-[200]">
@@ -7091,10 +7091,10 @@ export default function ComicCreator() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                  className="px-2 lg:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap flex-shrink-0"
                   data-testid="button-preview"
                 >
-                  <Eye className="w-4 h-4" /> Preview
+                  <Eye className="w-4 h-4" /> <span className="hidden lg:inline">Preview</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-700 text-white">
@@ -7684,7 +7684,7 @@ export default function ComicCreator() {
             </div>
 
             {showNarratorPanel && currentSpread && (
-              <div className="bg-zinc-900 border border-zinc-700 p-3 mb-2 flex gap-4 items-start" data-testid="narrator-edit-panel">
+              <div className="bg-zinc-900 border border-zinc-700 p-2 lg:p-3 mb-2 flex flex-wrap gap-2 lg:gap-4 items-start" data-testid="narrator-edit-panel">
                 <div className="flex gap-2 text-[10px] font-mono mr-2">
                   <button
                     onClick={() => setNarratorEditingSide("left")}
@@ -8380,38 +8380,41 @@ export default function ComicCreator() {
             </div>
             )}
 
-            <div className="flex gap-4 mt-6">
+            <div className="flex flex-wrap gap-2 lg:gap-4 mt-6 justify-center">
               <button 
                 onClick={addSpread}
-                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700"
+                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
                 data-testid="button-add-spread"
+                title="Add Spread"
               >
-                <Plus className="w-4 h-4" /> Add Spread
+                <Plus className="w-4 h-4" /> <span className="hidden md:inline">Add Spread</span>
               </button>
               {promoPagesEnabled && (
                 <button
                   onClick={() => setPromoStudioOpen(true)}
-                  className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-amber-900/40 hover:text-amber-300 whitespace-nowrap"
+                  className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-amber-900/40 hover:text-amber-300 whitespace-nowrap"
                   data-testid="button-add-promo-page"
                   title="Insert a promo page after the current spread"
                 >
-                  <Megaphone className="w-4 h-4" /> + Promo Page
+                  <Megaphone className="w-4 h-4" /> <span className="hidden md:inline">+ Promo Page</span>
                 </button>
               )}
               <button
                 onClick={handleDeleteCurrentSpread}
                 disabled={spreads.length <= 1}
-                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-red-900/50 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-red-900/50 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                 data-testid="button-delete-spread-bottom"
+                title="Delete Spread"
               >
-                <Trash2 className="w-4 h-4" /> Delete Spread
+                <Trash2 className="w-4 h-4" /> <span className="hidden md:inline">Delete Spread</span>
               </button>
               <button 
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700"
+                className="px-3 lg:px-4 py-2 bg-zinc-800 text-white text-sm flex items-center gap-2 hover:bg-zinc-700 whitespace-nowrap"
+                title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                {isFullscreen ? "Exit Full" : "Full Screen"}
+                <span className="hidden md:inline">{isFullscreen ? "Exit Full" : "Full Screen"}</span>
               </button>
             </div>
             </>
