@@ -135,6 +135,7 @@ export interface IStorage {
   getProjectSnapshots(projectId: string, limit?: number): Promise<ProjectSnapshot[]>;
   getProjectSnapshot(id: string): Promise<ProjectSnapshot | undefined>;
   pruneProjectSnapshots(projectId: string, keep: number): Promise<number>;
+  getLatestSnapshotTime(projectId: string): Promise<Date | null>;
   getCommunityComics(options: { search?: string; sort?: string; limit?: number; offset?: number; type?: string }): Promise<{ comics: any[]; total: number }>;
   getCommunityComic(id: string): Promise<any | undefined>;
   incrementViewCount(projectId: string): Promise<void>;
@@ -659,6 +660,18 @@ export class DatabaseStorage implements IStorage {
   async getProjectSnapshot(id: string): Promise<ProjectSnapshot | undefined> {
     const [row] = await db.select().from(projectSnapshots).where(eq(projectSnapshots.id, id));
     return row || undefined;
+  }
+
+  async getLatestSnapshotTime(projectId: string): Promise<Date | null> {
+    // Cheap: selects only the timestamp column so it never detoasts the
+    // large `data` payload. Used to throttle snapshot churn.
+    const [row] = await db
+      .select({ createdAt: projectSnapshots.createdAt })
+      .from(projectSnapshots)
+      .where(eq(projectSnapshots.projectId, projectId))
+      .orderBy(desc(projectSnapshots.createdAt))
+      .limit(1);
+    return row?.createdAt ?? null;
   }
 
   async pruneProjectSnapshots(projectId: string, keep: number): Promise<number> {

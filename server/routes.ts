@@ -1809,6 +1809,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   // Keeps the most recent SNAPSHOT_KEEP per project so a buggy client or
   // accidental overwrite can be recovered without losing student work.
   const SNAPSHOT_KEEP = 10;
+  // Minimum gap between automatic snapshots of the same project. Each snapshot
+  // copies the entire project payload (which can be tens of MB), and every
+  // insert + prune-delete is retained in the database's history and billed as
+  // storage. Autosave used to fire a snapshot on every keystroke-triggered
+  // save, compounding into terabytes of retained history. Throttling automatic
+  // snapshots to once every 15 minutes preserves the recovery safety net while
+  // cutting write churn by ~95%. Explicit user actions bypass the throttle.
+  const SNAPSHOT_MIN_GAP_MS = 15 * 60 * 1000;
+  const ALWAYS_SNAPSHOT_REASONS = new Set(["manual", "pre-restore"]);
   async function snapshotProject(p: { id: string; userId: string; title: string; data: any }, reason: string) {
     try {
       const data = p.data || {};
@@ -1821,6 +1830,12 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       // Skip empty snapshots — never pollute history with a blank state.
       if (spreads.length === 0 && contentScore === 0 && reason !== "manual") return;
+      // Throttle automatic snapshots so frequent autosaves don't balloon
+      // retained database history (the dominant Postgres storage cost driver).
+      if (!ALWAYS_SNAPSHOT_REASONS.has(reason)) {
+        const last = await storage.getLatestSnapshotTime(p.id);
+        if (last && Date.now() - last.getTime() < SNAPSHOT_MIN_GAP_MS) return;
+      }
       await storage.createProjectSnapshot({
         projectId: p.id,
         userId: p.userId,

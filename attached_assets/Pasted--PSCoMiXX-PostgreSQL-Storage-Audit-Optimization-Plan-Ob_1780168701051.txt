@@ -1,0 +1,282 @@
+# PSCoMiXX PostgreSQL Storage Audit & Optimization Plan
+
+## Objective
+
+Perform a complete audit of the PSCoMiXX platform and identify why PostgreSQL storage has grown to approximately 1361 GiB.
+
+The goal is to:
+
+1. Reduce PostgreSQL storage costs.
+2. Prevent future storage-related billing surprises.
+3. Establish a scalable architecture that can support the entire Press Start ecosystem.
+4. Prepare the platform for long-term growth across education, comics, creator tools, streaming, portfolios, and community features.
+
+---
+
+# Phase 1: Database Investigation
+
+Analyze the entire PostgreSQL database and provide a report containing:
+
+## Storage Breakdown
+
+Identify:
+
+* Largest tables
+* Largest columns
+* Largest indexes
+* Largest database objects
+* Estimated storage usage per table
+* Estimated storage usage per feature
+
+Output a ranked report showing:
+
+Table Name
+Storage Used
+Record Count
+Purpose
+
+---
+
+## Detect Media Stored in PostgreSQL
+
+Search for:
+
+* BYTEA columns
+* Binary blobs
+* Base64 image storage
+* Uploaded images
+* Comic pages
+* Cover images
+* Thumbnails
+* Generated artwork
+* Sticker assets
+* AI-generated images
+* Audio files
+* Video files
+* PDF files
+
+Flag any media currently stored inside PostgreSQL.
+
+---
+
+## Detect Duplicate Content
+
+Identify:
+
+* Duplicate images
+* Duplicate records
+* Orphaned assets
+* Abandoned uploads
+* Unused project files
+* Temporary files
+
+Generate cleanup recommendations.
+
+---
+
+## Analyze Growth Rate
+
+Determine:
+
+* Which tables are growing fastest
+* Which features generate the most storage
+* Future storage projections
+
+Provide:
+
+30-Day Projection
+90-Day Projection
+1-Year Projection
+
+---
+
+# Phase 2: Architecture Optimization
+
+## Move Media Out of PostgreSQL
+
+Create migration plan:
+
+Current State:
+
+PostgreSQL
+├── Users
+├── Comics
+├── Images
+├── Stickers
+├── Generated Assets
+└── Uploads
+
+Target State:
+
+PostgreSQL
+├── Users
+├── Metadata
+├── Comic Records
+├── Comments
+├── XP
+├── Achievements
+└── References
+
+Object Storage
+├── Comic Pages
+├── Cover Images
+├── Sticker Assets
+├── Generated Images
+├── Audio
+├── Video
+└── Downloads
+
+Database stores URLs only.
+
+No large media files stored directly in PostgreSQL.
+
+---
+
+## Implement Asset Service
+
+Create centralized asset service.
+
+Requirements:
+
+* Upload asset
+* Generate thumbnail
+* Compress image
+* Store original
+* Store optimized version
+* Return URL
+
+Future compatible with:
+
+* PSCoMiXX
+* PS FX Studio
+* Press Start LMS
+* Press Start Streaming
+* HOPs
+* Community Wall
+* Portfolio System
+
+---
+
+# Phase 3: Storage Controls
+
+Implement platform-wide safeguards.
+
+## Upload Limits
+
+Per-user limits:
+
+Free Tier
+Creator Tier
+Educator Tier
+Admin Tier
+
+Configurable through admin panel.
+
+---
+
+## Asset Compression
+
+Automatically:
+
+* Compress images
+* Resize thumbnails
+* Remove unused metadata
+* Optimize PNG/JPG/WebP
+
+---
+
+## Retention Rules
+
+Automatically archive:
+
+* Unused drafts
+* Temporary generations
+* Failed uploads
+* Old exports
+
+Admin configurable.
+
+---
+
+## Storage Dashboard
+
+Build internal admin dashboard displaying:
+
+Total Storage
+Database Storage
+Asset Storage
+Storage by User
+Storage by Feature
+Storage Growth Trend
+Monthly Cost Estimate
+
+Provide warnings at:
+
+50%
+75%
+90%
+
+Thresholds.
+
+---
+
+# Phase 4: Ecosystem Architecture
+
+Design scalable architecture for:
+
+## PSCoMiXX
+
+Comics
+Pages
+Assets
+Comments
+
+## PS FX Studio
+
+Images
+Effects
+Generated Assets
+
+## Press Start LMS
+
+Lessons
+Projects
+Student Uploads
+
+## Press Start Streaming
+
+Video
+Audio
+Podcasts
+
+## HOPs
+
+Templates
+Exports
+Media
+
+## Community Sticker Wall
+
+Sticker Assets
+Collections
+Jackets
+Community Uploads
+
+---
+
+# Deliverables
+
+1. Full database audit report.
+2. Storage usage report.
+3. Largest table report.
+4. Media storage report.
+5. Migration strategy.
+6. Cleanup strategy.
+7. Cost reduction strategy.
+8. Future-proof ecosystem architecture.
+9. Admin storage dashboard.
+10. Recommendations to keep PostgreSQL usage below sustainable thresholds moving forward.
+
+Priority: HIGH
+
+Goal: Eliminate unnecessary PostgreSQL storage usage, reduce costs, and establish a scalable foundation for the entire Press Start ecosystem.
