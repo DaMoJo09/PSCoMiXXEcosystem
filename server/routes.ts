@@ -31,6 +31,10 @@ import { logPaymentEvent } from "./paymentAudit";
 import { validateApiKey, isAllowedWebhookUrl } from "./integrationAuth";
 import { getProjectExportData } from "./exportService";
 import { saveBase64File, getFile, getFileRecord, getFileStream, getUserFiles, deleteFile, getUserStorageUsage, getUserQuota } from "./fileStorage";
+import { getStorageAudit } from "./storageAudit";
+import { ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage/objectStorage";
+import { persistDataUrl, isDataUrl, migrateDataUrlsInJson } from "./mediaStorage";
+import { runMigration, trimSnapshots, type MigrateTarget } from "./storageMigration";
 import { scanImage, addBlockedHash, removeBlockedHash, getBlockedHashes, getFlaggedImages, reviewImage, isImageData } from "./contentModeration";
 import { sendWelcomeEmail, sendAssignmentNotification, sendSubmissionConfirmation, sendGradeNotification, sendPurchaseConfirmation, sendSubscriptionConfirmation, sendNewChapterNotification, sendBugReportNotification } from "./email";
 import { processProgressionEvent, getLevelFromXp, getXpForNextLevel, getLevelThresholds, getXpForAction, claimReward } from "./progressionEngine";
@@ -1903,6 +1907,10 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         updateBody.data = incomingData;
       }
 
+      if (isDataUrl(updateBody.thumbnail)) {
+        updateBody.thumbnail = await persistDataUrl(updateBody.thumbnail, { ownerId: req.user!.id, prefix: "thumbnails" });
+      }
+
       const updated = await storage.updateProject(req.params.id, updateBody);
       if (updated) {
         snapshotProject({ id: updated.id, userId: updated.userId, title: updated.title, data: updated.data }, "save");
@@ -1966,7 +1974,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
       const updatePayload: any = { data: mergedData };
       if (req.body.title) updatePayload.title = req.body.title;
-      if (req.body.thumbnail) updatePayload.thumbnail = req.body.thumbnail;
+      if (req.body.thumbnail) {
+        updatePayload.thumbnail = isDataUrl(req.body.thumbnail)
+          ? await persistDataUrl(req.body.thumbnail, { ownerId: req.user!.id, prefix: "thumbnails" })
+          : req.body.thumbnail;
+      }
       const updated = await storage.updateProject(req.params.id, updatePayload);
       if (updated) {
         snapshotProject({ id: updated.id, userId: updated.userId, title: updated.title, data: updated.data }, "autosave");
@@ -2162,7 +2174,14 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(400).json({ message: "Invalid input", errors: result.error.issues });
       }
 
-      const asset = await storage.createAsset(result.data);
+      // Stop new base64 from entering the DB: push inline data: images to
+      // Object Storage and store only the small URL reference.
+      const assetData = { ...result.data };
+      if (isDataUrl(assetData.url)) {
+        assetData.url = await persistDataUrl(assetData.url, { ownerId: req.user!.id, prefix: "assets" });
+      }
+
+      const asset = await storage.createAsset(assetData);
       res.status(201).json(asset);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2224,7 +2243,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
           userId: req.user!.id,
         });
         if (result.success) {
-          const asset = await storage.createAsset(result.data);
+          const data = { ...result.data };
+          if (isDataUrl(data.url)) {
+            data.url = await persistDataUrl(data.url, { ownerId: req.user!.id, prefix: "assets" });
+          }
+          const asset = await storage.createAsset(data);
           createdAssets.push(asset);
         }
       }
@@ -2494,6 +2517,74 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Read-only storage cost audit. Powers the admin storage dashboard and the
+  // pre-migration report. Safe to call anytime — no writes.
+  app.get("/api/admin/storage/audit", isAdmin, async (_req, res) => {
+    try {
+      const audit = await getStorageAudit();
+      res.json(audit);
+    } catch (error: any) {
+      console.error("[storage-audit] error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Migrate base64 media → Object Storage. Dry-run by default; pass
+  // {dryRun:false} to actually write. Batched via `limit` — call repeatedly
+  // until `remaining` reaches 0.
+  app.post("/api/admin/storage/migrate", isAdmin, async (req, res) => {
+    try {
+      const validTargets: MigrateTarget[] = ["assets", "fx_effects", "thumbnails", "project_data"];
+      const target = req.body?.target as MigrateTarget;
+      if (!validTargets.includes(target)) {
+        return res.status(400).json({ message: `target must be one of: ${validTargets.join(", ")}` });
+      }
+      const dryRun = req.body?.dryRun !== false;
+      const limit = Math.min(1000, Math.max(1, Number(req.body?.limit) || 100));
+      const result = await runMigration(target, { dryRun, limit });
+      res.json(result);
+    } catch (error: any) {
+      console.error("[storage-migrate] error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Trim old project snapshots. Dry-run by default.
+  app.post("/api/admin/storage/cleanup-snapshots", isAdmin, async (req, res) => {
+    try {
+      const dryRun = req.body?.dryRun !== false;
+      const keepPerProject = Math.min(50, Math.max(1, Number(req.body?.keepPerProject) || 5));
+      const result = await trimSnapshots({ dryRun, keepPerProject });
+      res.json(result);
+    } catch (error: any) {
+      console.error("[storage-cleanup] error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public media serving for files migrated out of the database into Object
+  // Storage. No auth: objects written here carry a public-read ACL, and the
+  // ACL check rejects anything not marked public. Long cache since object IDs
+  // are content-addressed (unique per upload).
+  app.get(/^\/objects\/(.+)/, async (req, res) => {
+    const objectPath = `/objects/${(req.params as any)[0]}`;
+    const svc = new ObjectStorageService();
+    try {
+      const file = await svc.getObjectEntityFile(objectPath);
+      const allowed = await svc.canAccessObjectEntity({ objectFile: file });
+      if (!allowed) {
+        return res.sendStatus(403);
+      }
+      await svc.downloadObject(file, res, 31536000);
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      console.error("[objects] serve error:", error);
+      if (!res.headersSent) res.sendStatus(500);
     }
   });
 
@@ -4201,7 +4292,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
   app.post("/api/chains", isAuthenticated, async (req, res) => {
     try {
       const { title, description, visibility, maxContributions, tags, mediaUrl, contentType } = req.body;
-      
+
+      const chainThumb = isDataUrl(mediaUrl)
+        ? await persistDataUrl(mediaUrl, { ownerId: req.user!.id, prefix: "assets" })
+        : mediaUrl;
+
       const chain = await storage.createCommunityChain({
         creatorId: req.user!.id,
         title,
@@ -4209,7 +4304,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         visibility: visibility || "public",
         maxContributions,
         tags,
-        thumbnail: mediaUrl,
+        thumbnail: chainThumb,
       });
 
       // Add the first contribution (the starter)
@@ -4218,7 +4313,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         userId: req.user!.id,
         position: 1,
         contentType: contentType || "image",
-        mediaUrl,
+        mediaUrl: chainThumb,
         caption: description,
       });
 
@@ -4290,14 +4385,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       const { mediaUrl, contentType, caption, parentId } = req.body;
-      
+
+      const contribMedia = isDataUrl(mediaUrl)
+        ? await persistDataUrl(mediaUrl, { ownerId: req.user!.id, prefix: "assets" })
+        : mediaUrl;
+
       const contribution = await storage.addChainContribution({
         chainId: chain.id,
         userId: req.user!.id,
         parentId,
         position: chain.contributionCount + 1,
         contentType: contentType || "image",
-        mediaUrl,
+        mediaUrl: contribMedia,
         caption,
       });
 
@@ -5202,13 +5301,18 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         if (!projectData) {
           return res.status(400).json({ message: "Project data is required for JSON import" });
         }
+        // Strip embedded base64 from imported data + thumbnail.
+        const { value: cleanData } = await migrateDataUrlsInJson(projectData.data || projectData, { ownerId: req.user!.id });
+        const importThumb = isDataUrl(projectData.thumbnail)
+          ? await persistDataUrl(projectData.thumbnail, { ownerId: req.user!.id, prefix: "thumbnails" })
+          : (projectData.thumbnail || null);
         const project = await storage.createProject({
           userId: req.user!.id,
           title: projectData.title || title || "Imported Project",
           type: projectData.type || "comic",
           status: "draft",
-          data: projectData.data || projectData,
-          thumbnail: projectData.thumbnail || null,
+          data: cleanData,
+          thumbnail: importThumb,
         });
         return res.json({ project, importedCount: 1 });
       }
@@ -5217,7 +5321,13 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         return res.status(400).json({ message: "No images provided" });
       }
 
-      const pages = images.map((img: string, index: number) => ({
+      // Keep imported images out of the DB — push any data: URLs to Object Storage.
+      const storedImages: string[] = [];
+      for (const img of images as string[]) {
+        storedImages.push(isDataUrl(img) ? await persistDataUrl(img, { ownerId: req.user!.id, prefix: "assets" }) : img);
+      }
+
+      const pages = storedImages.map((img: string, index: number) => ({
         id: `page-${index + 1}`,
         panels: [{
           id: `panel-${index + 1}-1`,
@@ -5235,7 +5345,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         type: "comic",
         status: "draft",
         data: { pages, format: "imported", sourceFormat: format },
-        thumbnail: images[0] || null,
+        thumbnail: storedImages[0] || null,
       });
 
       res.json({ project, importedCount: images.length });
@@ -7970,6 +8080,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         ...(body.script_data ? { script_data: body.script_data } : {}),
       };
 
+      // Keep FX preview images out of the DB — store them in Object Storage.
+      const previewUrl = isDataUrl(body.preview_data_url)
+        ? await persistDataUrl(body.preview_data_url, { ownerId: user?.id, prefix: "fx" })
+        : (body.preview_data_url || null);
+
       const [inserted] = await db.insert(fxEffects).values({
         userId: user?.id || null,
         userEmail: user?.email || null,
@@ -7977,7 +8092,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         name: body.name || "Untitled",
         type: body.type || "static-asset",
         assetTag: body.asset_tag || null,
-        previewDataUrl: body.preview_data_url || null,
+        previewDataUrl: previewUrl,
         layers: body.layers || [],
         canvasBackground: body.canvas_background || null,
         metadata: effectMetadata,
@@ -8026,7 +8141,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       const updates: Record<string, any> = { updatedAt: new Date() };
       if (req.body.name !== undefined) updates.name = req.body.name;
       if (req.body.layers !== undefined) updates.layers = req.body.layers;
-      if (req.body.preview_data_url !== undefined) updates.previewDataUrl = req.body.preview_data_url;
+      if (req.body.preview_data_url !== undefined) {
+        updates.previewDataUrl = isDataUrl(req.body.preview_data_url)
+          ? await persistDataUrl(req.body.preview_data_url, { ownerId: user?.id, prefix: "fx" })
+          : req.body.preview_data_url;
+      }
       if (req.body.canvas_background !== undefined) updates.canvasBackground = req.body.canvas_background;
       if (req.body.metadata !== undefined) updates.metadata = req.body.metadata;
       if (req.body.asset_tag !== undefined) updates.assetTag = req.body.asset_tag;
@@ -8183,6 +8302,7 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
 
       if (fxKey && !isAuthValid) {
         console.warn("Layout-sync: invalid or missing API key");
+        return res.status(401).json({ message: "Invalid or missing API key" });
       }
 
       const body = req.body;
@@ -8234,11 +8354,15 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         ...(mode_hints ? { mode_hints } : {}),
       };
 
+      const syncedPreviewUrl = isDataUrl(preview_data_url)
+        ? await persistDataUrl(preview_data_url, { prefix: "fx" })
+        : (preview_data_url || null);
+
       const [inserted] = await db.insert(fxEffects).values({
         name,
         type,
         assetTag: resolvedTag,
-        previewDataUrl: preview_data_url || null,
+        previewDataUrl: syncedPreviewUrl,
         layers: layers || [],
         canvasBackground: canvas_background || null,
         metadata: effectMetadata,
@@ -8778,8 +8902,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
         if (thumb.length > 10 * 1024 * 1024) {
           return res.status(400).json({ message: "Thumbnail data too large (max 10MB)" });
         }
-        await storage.updateProject(req.params.id, { thumbnail: thumb } as any);
-        return res.json({ success: true, thumbnail: thumb });
+        const storedThumb = isDataUrl(thumb)
+          ? await persistDataUrl(thumb, { ownerId: (req.user as any).id, prefix: "thumbnails" })
+          : thumb;
+        await storage.updateProject(req.params.id, { thumbnail: storedThumb } as any);
+        return res.json({ success: true, thumbnail: storedThumb });
       }
 
       const data = project.data as any;
@@ -8846,8 +8973,11 @@ export async function registerRoutes(server: ReturnType<typeof createServer>, ap
       }
 
       if (thumbnailUrl) {
-        await storage.updateProject(req.params.id, { thumbnail: thumbnailUrl } as any);
-        res.json({ success: true, thumbnail: thumbnailUrl });
+        const storedFallback = isDataUrl(thumbnailUrl)
+          ? await persistDataUrl(thumbnailUrl, { ownerId: (req.user as any).id, prefix: "thumbnails" })
+          : thumbnailUrl;
+        await storage.updateProject(req.params.id, { thumbnail: storedFallback } as any);
+        res.json({ success: true, thumbnail: storedFallback });
       } else {
         res.status(400).json({ message: "No suitable image found for thumbnail" });
       }
@@ -11211,11 +11341,14 @@ Sitemap: https://pscomixx.com/sitemap.xml`
       if (!filename || !type || !url) {
         return res.status(400).json({ error: "filename, type, and url are required" });
       }
+      const storedUrl = isDataUrl(url)
+        ? await persistDataUrl(url, { ownerId: userId || "system", prefix: "assets" })
+        : url;
       const asset = await storage.createAsset({
         userId: userId || "system",
         filename,
         type,
-        url,
+        url: storedUrl,
         metadata: metadata || {},
       });
       res.status(201).json(asset);

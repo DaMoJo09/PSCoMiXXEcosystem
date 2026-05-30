@@ -70,6 +70,7 @@ const ImportCenter = lazy(() => import("@/pages/ImportCenter"));
 const ScriptImport = lazy(() => import("@/pages/ScriptImport"));
 const AdminModeration = lazy(() => import("@/pages/AdminModeration"));
 const AdminControlRoom = lazy(() => import("@/pages/AdminControlRoom"));
+const AdminStorage = lazy(() => import("@/pages/AdminStorage"));
 const AdminReviewQueue = lazy(() => import("@/pages/AdminReviewQueue"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const AchievementsPage = lazy(() => import("@/pages/AchievementsPage"));
@@ -217,6 +218,7 @@ function ProtectedRouter() {
         <Route path="/settings" component={SettingsPage} />
         <Route path="/admin" component={AdminDashboard} />
         <Route path="/admin/control" component={AdminControlRoom} />
+        <Route path="/admin/storage" component={AdminStorage} />
         <Route path="/admin/moderation" component={AdminModeration} />
         <Route path="/admin/review-queue" component={AdminReviewQueue} />
         <Route path="/analytics" component={AnalyticsDashboard} />

@@ -286,6 +286,11 @@ export default function AdminDashboard() {
                   <Settings className="w-4 h-4 mr-2" /> Control Room
                 </Button>
               </Link>
+              <Link href="/admin/storage">
+                <Button className="bg-amber-500 text-black hover:bg-amber-400 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-storage-monitor">
+                  <BarChart3 className="w-4 h-4 mr-2" /> Storage & Cost
+                </Button>
+              </Link>
               <Link href="/analytics">
                 <Button className="bg-purple-600 text-white hover:bg-purple-700 border-2 border-black shadow-[4px_4px_0_#000]" data-testid="button-analytics">
                   <BarChart3 className="w-4 h-4 mr-2" /> Platform Analytics

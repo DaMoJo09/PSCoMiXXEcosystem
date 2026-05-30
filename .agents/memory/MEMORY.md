@@ -1,0 +1,1 @@
+- [Base64 storage cost](base64-storage-cost.md) — base64 media in Postgres (assets/fx/projects) + snapshot churn inflate Neon billed storage; keep media in Object Storage, DB stores only URL refs.
