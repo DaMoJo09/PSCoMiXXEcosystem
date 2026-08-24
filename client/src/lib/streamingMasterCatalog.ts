@@ -1,6 +1,24 @@
 export type StreamingSource = "live" | "community";
 export type StreamingGroup = "watch" | "listen" | "experience" | "read" | "play" | "community";
 
+export interface StreamingFeatureFlags {
+  watch: boolean;
+  experience: boolean;
+  read: boolean;
+  play: boolean;
+  listen: boolean;
+  search: boolean;
+}
+
+export const DEFAULT_STREAMING_FEATURE_FLAGS: StreamingFeatureFlags = {
+  watch: true,
+  experience: true,
+  read: true,
+  play: true,
+  listen: true,
+  search: true,
+};
+
 export interface MasterStreamingItem {
   id: string;
   sourceId: string;
@@ -29,6 +47,7 @@ export interface MasterStreamingCatalog {
     live: boolean;
     community: boolean;
   };
+  featureFlags: StreamingFeatureFlags;
 }
 
 interface LiveSectionItem {
@@ -86,6 +105,20 @@ interface LiveSectionsResponse {
   sections?: LiveSection[];
 }
 
+interface ClientFeatureFlags {
+  watch_enabled?: boolean;
+  experience_enabled?: boolean;
+  read_enabled?: boolean;
+  play_enabled?: boolean;
+  listen_enabled?: boolean;
+  search_enabled?: boolean;
+}
+
+interface ClientConfigResponse {
+  data?: ClientConfigResponse;
+  feature_flags?: ClientFeatureFlags;
+}
+
 interface CommunityItem {
   id: string;
   title: string;
@@ -107,6 +140,7 @@ const EMPTY_CATALOG: MasterStreamingCatalog = {
   items: [],
   generatedAt: null,
   sources: { live: false, community: false },
+  featureFlags: DEFAULT_STREAMING_FEATURE_FLAGS,
 };
 
 function safeId(value: unknown): string | null {
@@ -166,16 +200,22 @@ function groupFromItem(raw: LiveSectionItem, fallback: StreamingGroup): Streamin
   if (explicit.includes("listen")) return "listen";
 
   const media = `${type} ${contentType}`;
+  const tokens = media.split(/\s+/).filter(Boolean);
   if (media.includes("music_video") || media.includes("lyric_video") || media.includes("performance") || media.includes("behind_the_song")) return "watch";
-  if (["film", "movie", "series", "episode", "short", "shortformvideo", "motion", "video"].some((token) => media.split(/\s+/).includes(token))) return "watch";
+  if (["film", "movie", "series", "episode", "short", "shortformvideo", "motion", "video"].some((token) => tokens.includes(token))) return "watch";
   if (media.includes("living_visual") || media.includes("hop") || media.includes("experience")) return "experience";
-  if (media.includes("comic") || media.includes("book") || media.includes("visual_novel") || media.includes("cyoa") || media.includes("trading_card") || media.split(/\s+/).includes("read")) return "read";
-  if (media.includes("game") || media.includes("arcade") || media.split(/\s+/).includes("play")) return "play";
+  if (media.includes("comic") || media.includes("book") || media.includes("visual_novel") || media.includes("cyoa") || media.includes("trading_card") || tokens.includes("read")) return "read";
+  if (media.includes("game") || media.includes("arcade") || tokens.includes("play")) return "play";
 
   const audioTokens = new Set(["music", "audio", "track", "album", "ep", "single", "playlist", "soundtrack"]);
-  if (media.split(/\s+/).some((token) => audioTokens.has(token))) return "listen";
+  if (tokens.some((token) => audioTokens.has(token))) return "listen";
 
   return fallback;
+}
+
+function groupEnabled(group: StreamingGroup, flags: StreamingFeatureFlags): boolean {
+  if (group === "community") return true;
+  return flags[group];
 }
 
 function normalizeLiveSection(section: LiveSection): MasterStreamingItem[] {
@@ -245,21 +285,51 @@ function normalizeCommunityItem(raw: CommunityItem): MasterStreamingItem {
   };
 }
 
-async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; generatedAt: string | null }> {
+function boolOrDefault(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+async function fetchFeatureFlags(): Promise<StreamingFeatureFlags> {
+  try {
+    const url = new URL(CATALOG_FEED_URL);
+    url.searchParams.set("format", "client-config");
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!res.ok) return { ...DEFAULT_STREAMING_FEATURE_FLAGS };
+    const root = (await res.json()) as ClientConfigResponse;
+    const source = root.data || root;
+    const flags = source.feature_flags || {};
+    return {
+      watch: boolOrDefault(flags.watch_enabled, true),
+      experience: boolOrDefault(flags.experience_enabled, true),
+      read: boolOrDefault(flags.read_enabled, true),
+      play: boolOrDefault(flags.play_enabled, true),
+      listen: boolOrDefault(flags.listen_enabled, true),
+      search: boolOrDefault(flags.search_enabled, true),
+    };
+  } catch {
+    return { ...DEFAULT_STREAMING_FEATURE_FLAGS };
+  }
+}
+
+async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; generatedAt: string | null; featureFlags: StreamingFeatureFlags }> {
   const url = new URL(CATALOG_FEED_URL);
   url.searchParams.set("format", "sections");
   url.searchParams.set("platform", "web");
 
-  const res = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`Live catalog returned ${res.status}`);
+  const [catalogResponse, featureFlags] = await Promise.all([
+    fetch(url.toString(), { headers: { Accept: "application/json" } }),
+    fetchFeatureFlags(),
+  ]);
+  if (!catalogResponse.ok) throw new Error(`Live catalog returned ${catalogResponse.status}`);
 
-  const payload = (await res.json()) as LiveSectionsResponse;
-  const items = (payload.sections || []).flatMap(normalizeLiveSection);
+  const payload = (await catalogResponse.json()) as LiveSectionsResponse;
+  const items = (payload.sections || [])
+    .flatMap(normalizeLiveSection)
+    .filter((item) => groupEnabled(item.group, featureFlags));
   return {
     items,
     generatedAt: firstString(payload.generatedAt, payload.generated_at),
+    featureFlags,
   };
 }
 
@@ -278,7 +348,10 @@ export async function fetchMasterStreamingCatalog(): Promise<MasterStreamingCata
   ]);
 
   const live = liveResult.status === "fulfilled" ? liveResult.value : null;
-  const community = communityResult.status === "fulfilled" ? communityResult.value : [];
+  const featureFlags = live?.featureFlags || { ...DEFAULT_STREAMING_FEATURE_FLAGS };
+  const community = communityResult.status === "fulfilled"
+    ? communityResult.value.filter((item) => groupEnabled(item.group, featureFlags))
+    : [];
   const deduped = new Map<string, MasterStreamingItem>();
 
   for (const item of [...(live?.items || []), ...community]) {
@@ -294,6 +367,7 @@ export async function fetchMasterStreamingCatalog(): Promise<MasterStreamingCata
       live: !!live,
       community: communityResult.status === "fulfilled",
     },
+    featureFlags,
   };
 }
 
@@ -316,7 +390,7 @@ export async function fetchMasterStreamingItem(encodedId: string): Promise<Maste
   const res = await fetch(`/api/community/comic/${encodeURIComponent(sourceId)}`);
   if (!res.ok) return null;
   const project = await res.json();
-  return normalizeCommunityItem({
+  const normalized = normalizeCommunityItem({
     id: project.id,
     title: project.title,
     thumbnail: project.thumbnail || null,
@@ -324,6 +398,7 @@ export async function fetchMasterStreamingItem(encodedId: string): Promise<Maste
     createdAt: project.createdAt || new Date().toISOString(),
     projectType: project.type || project.projectType,
   });
+  return groupEnabled(normalized.group, catalog.featureFlags) ? normalized : null;
 }
 
 export function streamingItemHref(item: MasterStreamingItem): string {
