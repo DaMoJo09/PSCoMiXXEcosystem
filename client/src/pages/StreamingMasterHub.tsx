@@ -53,9 +53,10 @@ function Rail() {
   const destinations = [
     { label: "Home", href: "/streaming", icon: Home },
     { label: "Watch", href: "/streaming/browse/watch", icon: Film },
-    { label: "Listen", href: "/streaming/browse/listen", icon: Headphones },
-    { label: "Experience", href: "/streaming/browse/experience", icon: Gamepad2 },
+    { label: "Experience", href: "/streaming/browse/experience", icon: Sparkles },
     { label: "Read", href: "/streaming/browse/read", icon: BookOpen },
+    { label: "Play", href: "/streaming/browse/play", icon: Gamepad2 },
+    { label: "Listen", href: "/streaming/browse/listen", icon: Headphones },
     { label: "Search", href: "/streaming/search", icon: Search },
     { label: "Channels", href: "/streaming/channels", icon: Users },
     { label: "Continue", href: "/streaming/continue", icon: Clock3 },
@@ -110,7 +111,15 @@ function Rail() {
 
 function Card({ item, wide = false }: { item: MasterStreamingItem; wide?: boolean }) {
   const runtime = formatRuntime(item.durationSeconds);
-  const groupIcon = item.group === "listen" ? Music2 : item.group === "read" ? BookOpen : item.group === "experience" ? Gamepad2 : Film;
+  const groupIcon = item.group === "listen"
+    ? Music2
+    : item.group === "read"
+      ? BookOpen
+      : item.group === "experience"
+        ? Sparkles
+        : item.group === "play"
+          ? Gamepad2
+          : Film;
   const Icon = groupIcon;
 
   return (
@@ -171,9 +180,10 @@ export default function StreamingMasterHub() {
   const items = catalog.data?.items || [];
   const rails = useMemo(() => ({
     watch: items.filter((item) => item.group === "watch").slice(0, 14),
-    listen: items.filter((item) => item.group === "listen").slice(0, 14),
     experience: items.filter((item) => item.group === "experience").slice(0, 14),
     read: items.filter((item) => item.group === "read").slice(0, 14),
+    play: items.filter((item) => item.group === "play").slice(0, 14),
+    listen: items.filter((item) => item.group === "listen").slice(0, 14),
     community: items.filter((item) => item.source === "community").slice(0, 14),
   }), [items]);
 
@@ -202,9 +212,10 @@ export default function StreamingMasterHub() {
           </Link>
           <div className="hidden items-center gap-5 text-xs font-bold text-zinc-500 md:flex">
             <Link href="/streaming/browse/watch" className="hover:text-white">Watch</Link>
-            <Link href="/streaming/browse/listen" className="hover:text-white">Listen</Link>
             <Link href="/streaming/browse/experience" className="hover:text-white">Experience</Link>
             <Link href="/streaming/browse/read" className="hover:text-white">Read</Link>
+            <Link href="/streaming/browse/play" className="hover:text-white">Play</Link>
+            <Link href="/streaming/browse/listen" className="hover:text-white">Listen</Link>
           </div>
         </div>
       </header>
@@ -262,7 +273,7 @@ export default function StreamingMasterHub() {
               <div>
                 <div className="text-[10px] font-black tracking-[0.2em] text-[#f0ae2e]">CREATE · LEARN · EARN</div>
                 <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">One ecosystem. Every kind of creator release.</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Films, music, HOP experiences, comics, visual novels, creator channels, and community work all flow into the same Press Start destination.</p>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Films, HOP experiences, comics, visual novels, playable games, music, creator channels, and community work all flow into the same Press Start destination.</p>
               </div>
               <form onSubmit={submitSearch} className="relative w-full lg:w-[360px]">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
@@ -277,9 +288,10 @@ export default function StreamingMasterHub() {
           </section>
 
           <RailRow title="Watch" items={rails.watch} wide href="/streaming/browse/watch" />
-          <RailRow title="Listen" items={rails.listen} wide href="/streaming/browse/listen" />
           <RailRow title="Experience" items={rails.experience} href="/streaming/browse/experience" />
           <RailRow title="Read" items={rails.read} href="/streaming/browse/read" />
+          <RailRow title="Play" items={rails.play} wide href="/streaming/browse/play" />
+          <RailRow title="Listen" items={rails.listen} wide href="/streaming/browse/listen" />
           <RailRow title="From the Creator Community" items={rails.community} href="/streaming/browse/community" />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-7 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-700">
