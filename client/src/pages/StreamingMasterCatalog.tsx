@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Search, Sparkles } from "lucide-react";
 import {
+  DEFAULT_STREAMING_FEATURE_FLAGS,
   fetchMasterStreamingCatalog,
   MasterStreamingItem,
   streamingGroupLabel,
@@ -96,6 +97,8 @@ export default function StreamingMasterCatalog() {
     enabled: !isContinue,
   });
 
+  const flags = catalog.data?.featureFlags || DEFAULT_STREAMING_FEATURE_FLAGS;
+
   const bookmarks = useQuery<Bookmark[]>({
     queryKey: ["ps-streaming", "continue-page"],
     queryFn: async () => {
@@ -132,6 +135,7 @@ export default function StreamingMasterCatalog() {
   const filteredItems = useMemo(() => {
     const items = catalog.data?.items || [];
     if (isSearch) {
+      if (!flags.search) return [];
       const needle = urlQuery.trim().toLowerCase();
       if (!needle) return items;
       return items.filter((item) => [item.title, item.creator, item.synopsis, item.kind, item.group]
@@ -143,11 +147,11 @@ export default function StreamingMasterCatalog() {
     }
     if (browseType === "community") return items.filter((item) => item.source === "community");
     return items.filter((item) => item.kind === browseType);
-  }, [catalog.data?.items, isSearch, urlQuery, browseType]);
+  }, [catalog.data?.items, isSearch, urlQuery, browseType, flags.search]);
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
-    navigate(`/streaming/search?q=${encodeURIComponent(search.trim())}`);
+    if (flags.search) navigate(`/streaming/search?q=${encodeURIComponent(search.trim())}`);
   };
 
   if (isContinue) {
@@ -162,6 +166,14 @@ export default function StreamingMasterCatalog() {
   }
 
   if (isSearch) {
+    if (!catalog.isLoading && !flags.search) {
+      return (
+        <Shell title="Search" subtitle="Search is temporarily disabled by the Press Start service configuration.">
+          <EmptyState message="Search is unavailable right now. The rest of Streaming remains available." />
+        </Shell>
+      );
+    }
+
     return (
       <Shell title="Search" subtitle="Search films, HOP experiences, comics, visual novels, games, music, and creator releases from one catalog.">
         <form onSubmit={submitSearch} className="relative mb-9 max-w-2xl">
@@ -184,17 +196,25 @@ export default function StreamingMasterCatalog() {
 
   const browseLabels: Record<string, string> = {
     all: "ALL",
-    watch: "WATCH",
-    experience: "EXPERIENCE",
-    read: "READ",
-    play: "PLAY",
-    listen: "LISTEN",
+    ...(flags.watch ? { watch: "WATCH" } : {}),
+    ...(flags.experience ? { experience: "EXPERIENCE" } : {}),
+    ...(flags.read ? { read: "READ" } : {}),
+    ...(flags.play ? { play: "PLAY" } : {}),
+    ...(flags.listen ? { listen: "LISTEN" } : {}),
     community: "CREATOR COMMUNITY",
   };
   const title = browseLabels[browseType] || streamingGroupLabel(browseType as any);
 
+  const disabledBrowse = (
+    (browseType === "watch" && !flags.watch) ||
+    (browseType === "experience" && !flags.experience) ||
+    (browseType === "read" && !flags.read) ||
+    (browseType === "play" && !flags.play) ||
+    (browseType === "listen" && !flags.listen)
+  );
+
   return (
-    <Shell title={title} subtitle="Browse the unified Press Start catalog by destination.">
+    <Shell title={title} subtitle={disabledBrowse ? "This Streaming destination is temporarily disabled by service configuration." : "Browse the unified Press Start catalog by destination."}>
       <div className="mb-8 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {Object.entries(browseLabels).map(([key, label]) => (
           <Link
@@ -207,10 +227,16 @@ export default function StreamingMasterCatalog() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-        {filteredItems.map((item) => <Card key={item.id} item={item} />)}
-      </div>
-      {!catalog.isLoading && !filteredItems.length && <EmptyState message="Nothing is published in this section yet." />}
+      {disabledBrowse ? (
+        <EmptyState message="This room is unavailable right now. Return to Streaming Home for the active destinations." />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {filteredItems.map((item) => <Card key={item.id} item={item} />)}
+          </div>
+          {!catalog.isLoading && !filteredItems.length && <EmptyState message="Nothing is published in this section yet." />}
+        </>
+      )}
     </Shell>
   );
 }
