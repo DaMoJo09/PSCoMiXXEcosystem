@@ -18,9 +18,11 @@ import {
   Users,
 } from "lucide-react";
 import {
+  DEFAULT_STREAMING_FEATURE_FLAGS,
   fetchMasterStreamingCatalog,
   formatRuntime,
   MasterStreamingItem,
+  StreamingFeatureFlags,
   streamingGroupLabel,
   streamingItemHref,
   streamingKindLabel,
@@ -29,7 +31,7 @@ import {
 const GOLD = "#f0ae2e";
 const RAIL_IDLE_MS = 2400;
 
-function Rail() {
+function Rail({ flags }: { flags: StreamingFeatureFlags }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -51,16 +53,16 @@ function Rail() {
   useEffect(() => () => clearClose(), []);
 
   const destinations = [
-    { label: "Home", href: "/streaming", icon: Home },
-    { label: "Watch", href: "/streaming/browse/watch", icon: Film },
-    { label: "Experience", href: "/streaming/browse/experience", icon: Sparkles },
-    { label: "Read", href: "/streaming/browse/read", icon: BookOpen },
-    { label: "Play", href: "/streaming/browse/play", icon: Gamepad2 },
-    { label: "Listen", href: "/streaming/browse/listen", icon: Headphones },
-    { label: "Search", href: "/streaming/search", icon: Search },
-    { label: "Channels", href: "/streaming/channels", icon: Users },
-    { label: "Continue", href: "/streaming/continue", icon: Clock3 },
-  ];
+    { label: "Home", href: "/streaming", icon: Home, enabled: true },
+    { label: "Watch", href: "/streaming/browse/watch", icon: Film, enabled: flags.watch },
+    { label: "Experience", href: "/streaming/browse/experience", icon: Sparkles, enabled: flags.experience },
+    { label: "Read", href: "/streaming/browse/read", icon: BookOpen, enabled: flags.read },
+    { label: "Play", href: "/streaming/browse/play", icon: Gamepad2, enabled: flags.play },
+    { label: "Listen", href: "/streaming/browse/listen", icon: Headphones, enabled: flags.listen },
+    { label: "Search", href: "/streaming/search", icon: Search, enabled: flags.search },
+    { label: "Channels", href: "/streaming/channels", icon: Users, enabled: true },
+    { label: "Continue", href: "/streaming/continue", icon: Clock3, enabled: true },
+  ].filter((destination) => destination.enabled);
 
   return (
     <div className="fixed bottom-4 left-4 top-4 z-50 hidden w-[52px] lg:block">
@@ -177,6 +179,7 @@ export default function StreamingMasterHub() {
     retry: 1,
   });
 
+  const flags = catalog.data?.featureFlags || DEFAULT_STREAMING_FEATURE_FLAGS;
   const items = catalog.data?.items || [];
   const rails = useMemo(() => ({
     watch: items.filter((item) => item.group === "watch").slice(0, 14),
@@ -195,14 +198,14 @@ export default function StreamingMasterHub() {
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
     const q = search.trim();
-    if (q) navigate(`/streaming/search?q=${encodeURIComponent(q)}`);
+    if (flags.search && q) navigate(`/streaming/search?q=${encodeURIComponent(q)}`);
   };
 
   const isMysteriousMurder = hero?.title.trim().toLowerCase() === "a mysterious murder";
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      <Rail />
+      <Rail flags={flags} />
 
       <header className="fixed left-0 right-0 top-0 z-40 border-b border-white/[0.06] bg-black/70 backdrop-blur-xl lg:left-[84px]">
         <div className="mx-auto flex h-16 max-w-[1680px] items-center justify-between gap-5 px-5 sm:px-8">
@@ -211,11 +214,11 @@ export default function StreamingMasterHub() {
             <span className="hidden text-[10px] font-bold tracking-[0.2em] text-[#f0ae2e] sm:inline">STREAMING</span>
           </Link>
           <div className="hidden items-center gap-5 text-xs font-bold text-zinc-500 md:flex">
-            <Link href="/streaming/browse/watch" className="hover:text-white">Watch</Link>
-            <Link href="/streaming/browse/experience" className="hover:text-white">Experience</Link>
-            <Link href="/streaming/browse/read" className="hover:text-white">Read</Link>
-            <Link href="/streaming/browse/play" className="hover:text-white">Play</Link>
-            <Link href="/streaming/browse/listen" className="hover:text-white">Listen</Link>
+            {flags.watch && <Link href="/streaming/browse/watch" className="hover:text-white">Watch</Link>}
+            {flags.experience && <Link href="/streaming/browse/experience" className="hover:text-white">Experience</Link>}
+            {flags.read && <Link href="/streaming/browse/read" className="hover:text-white">Read</Link>}
+            {flags.play && <Link href="/streaming/browse/play" className="hover:text-white">Play</Link>}
+            {flags.listen && <Link href="/streaming/browse/listen" className="hover:text-white">Listen</Link>}
           </div>
         </div>
       </header>
@@ -275,15 +278,17 @@ export default function StreamingMasterHub() {
                 <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">One ecosystem. Every kind of creator release.</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Films, HOP experiences, comics, visual novels, playable games, music, creator channels, and community work all flow into the same Press Start destination.</p>
               </div>
-              <form onSubmit={submitSearch} className="relative w-full lg:w-[360px]">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search Press Start…"
-                  className="h-12 w-full rounded-full border border-white/10 bg-black/45 pl-11 pr-4 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#f0ae2e]/60"
-                />
-              </form>
+              {flags.search && (
+                <form onSubmit={submitSearch} className="relative w-full lg:w-[360px]">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search Press Start…"
+                    className="h-12 w-full rounded-full border border-white/10 bg-black/45 pl-11 pr-4 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#f0ae2e]/60"
+                  />
+                </form>
+              )}
             </div>
           </section>
 
