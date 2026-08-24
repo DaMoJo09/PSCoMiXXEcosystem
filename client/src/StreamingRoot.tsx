@@ -69,6 +69,7 @@ export default function StreamingRoot() {
           <Route path="/streaming/browse/:type" component={StreamingMasterCatalog} />
           <Route path="/streaming/search" component={StreamingMasterCatalog} />
           <Route path="/streaming/channels" component={StreamingChannels} />
+          <Route path="/streaming/my-list" component={StreamingMasterCatalog} />
           <Route path="/streaming/continue" component={StreamingMasterCatalog} />
           <Route path="/streaming/discover" component={StreamingMasterCatalog} />
           <Route path="/streaming/trending" component={StreamingMasterCatalog} />
