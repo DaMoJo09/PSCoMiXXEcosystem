@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Film, Headphones, Loader2, Music2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Film, Headphones, Loader2, Music2, RotateCcw, X } from "lucide-react";
 import type { MasterStreamingItem } from "@/lib/streamingMasterCatalog";
 import StreamingGameRuntime from "@/components/streaming/StreamingGameRuntime";
 import StreamingManifestRuntime from "@/components/streaming/StreamingManifestRuntime";
@@ -47,6 +47,17 @@ interface AudioManifest {
 const CATALOG_FEED_URL =
   import.meta.env.VITE_PS_CATALOG_FEED_URL ||
   "https://upivslgwjtvqymonliib.supabase.co/functions/v1/catalog-feed";
+const REQUEST_TIMEOUT_MS = 8_000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 function cloudflareEmbedUrl(streamUrl: string): string | null {
   try {
@@ -115,9 +126,10 @@ function VideoPlayer({ item }: { item: MasterStreamingItem }) {
   }
 
   return (
-    <div className="flex aspect-video w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black text-zinc-600">
+    <div className="flex aspect-video w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black px-6 text-center text-zinc-600">
       <Film className="mb-3 h-10 w-10" />
       <span className="text-xs font-bold tracking-[0.15em]">PLAYBACK SOURCE UNAVAILABLE</span>
+      <span className="mt-2 max-w-lg text-[11px] leading-5 text-zinc-700">This title stays inside the Press Start master player while its stream source is unavailable.</span>
     </div>
   );
 }
@@ -128,6 +140,7 @@ function AudioPlayer({ item }: { item: MasterStreamingItem }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [queueIndex, setQueueIndex] = useState(0);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,14 +151,17 @@ function AudioPlayer({ item }: { item: MasterStreamingItem }) {
         const url = new URL(CATALOG_FEED_URL);
         url.searchParams.set("format", "audio-manifest");
         url.searchParams.set("content_id", item.sourceId);
-        const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+        const res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
         if (!res.ok) throw new Error(`Audio manifest returned ${res.status}`);
         const data = (await res.json()) as AudioManifest;
         if (cancelled) return;
         setManifest(data);
         setQueueIndex(typeof data.queue_index === "number" ? Math.max(0, data.queue_index) : 0);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load audio");
+        if (!cancelled) {
+          const timedOut = err instanceof DOMException && err.name === "AbortError";
+          setError(timedOut ? "Audio request timed out." : err instanceof Error ? err.message : "Unable to load audio");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -155,7 +171,7 @@ function AudioPlayer({ item }: { item: MasterStreamingItem }) {
       cancelled = true;
       audioRef.current?.pause();
     };
-  }, [item.sourceId]);
+  }, [item.sourceId, reloadToken]);
 
   const queue = useMemo<AudioQueueItem[]>(() => {
     if (manifest?.queue?.length) return manifest.queue;
@@ -201,6 +217,13 @@ function AudioPlayer({ item }: { item: MasterStreamingItem }) {
         <Headphones className="mb-3 h-10 w-10" />
         <span className="text-xs font-bold tracking-[0.15em]">AUDIO UNAVAILABLE</span>
         {error && <span className="mt-2 text-[11px] text-zinc-700">{error}</span>}
+        <button
+          type="button"
+          onClick={() => setReloadToken((value) => value + 1)}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-black text-black transition hover:bg-[#f0ae2e]"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> RETRY AUDIO
+        </button>
       </div>
     );
   }
@@ -284,6 +307,23 @@ function AudioPlayer({ item }: { item: MasterStreamingItem }) {
 }
 
 export default function StreamingMasterPlayer({ item, onClose }: { item: MasterStreamingItem; onClose: () => void }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
   const player = item.group === "listen"
     ? <AudioPlayer item={item} />
     : item.group === "read" || item.group === "experience"
@@ -305,7 +345,7 @@ export default function StreamingMasterPlayer({ item, onClose }: { item: MasterS
             onClick={onClose}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 text-zinc-400 transition hover:border-[#f0ae2e]/45 hover:text-white focus:outline-none focus:shadow-[inset_0_0_0_3px_#F0AE2E]"
             aria-label="Back and stop playback"
-            title="Back"
+            title="Back · Esc"
           >
             <X className="h-5 w-5" />
           </button>
