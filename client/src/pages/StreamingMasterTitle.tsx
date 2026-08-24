@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, RotateCcw, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Film, Gamepad2, Headphones, Play, Plus, RotateCcw, Sparkles, UserRound } from "lucide-react";
 import StreamingMasterPlayer from "@/components/streaming/StreamingMasterPlayer";
 import {
   fetchMasterStreamingCatalog,
@@ -13,6 +13,11 @@ import {
   streamingItemHref,
   streamingKindLabel,
 } from "@/lib/streamingMasterCatalog";
+import {
+  isStreamingItemSaved,
+  setStreamingItemSaved,
+  STREAMING_MY_LIST_EVENT,
+} from "@/lib/streamingMyList";
 
 function iconFor(item: MasterStreamingItem) {
   if (item.group === "listen") return Headphones;
@@ -63,6 +68,7 @@ export default function StreamingMasterTitle() {
   const [match, params] = useRoute("/streaming/title/:id");
   const encodedId = params?.id || "";
   const [playerOpen, setPlayerOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const itemQuery = useQuery({
     queryKey: ["ps-streaming", "master-title", encodedId],
@@ -90,6 +96,18 @@ export default function StreamingMasterTitle() {
   useEffect(() => {
     setPlayerOpen(false);
   }, [encodedId]);
+
+  useEffect(() => {
+    if (!item) return;
+    const sync = () => setSaved(isStreamingItemSaved(item.id));
+    sync();
+    window.addEventListener(STREAMING_MY_LIST_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(STREAMING_MY_LIST_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [item?.id]);
 
   const related = useMemo(() => {
     if (!item) return [];
@@ -166,6 +184,18 @@ export default function StreamingMasterTitle() {
             <div className="mt-8 flex flex-wrap gap-3">
               <DestinationButton item={item} onPlay={() => setPlayerOpen(true)} />
               <Link href={`/streaming/browse/${item.group}`} className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.06] px-7 py-3.5 text-sm font-bold text-white backdrop-blur transition hover:border-[#f0ae2e]/45 hover:bg-[#f0ae2e]/10">MORE {streamingGroupLabel(item.group)}</Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setStreamingItemSaved(item.id, !saved);
+                  setSaved(!saved);
+                }}
+                className={`inline-flex items-center gap-2 rounded-full border px-5 py-3.5 text-sm font-bold transition ${saved ? "border-white bg-white text-black" : "border-white/15 bg-white/[0.06] text-white hover:border-[#f0ae2e]/45 hover:bg-[#f0ae2e]/10"}`}
+                aria-label={saved ? "Remove from My List" : "Add to My List"}
+              >
+                {saved ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {saved ? "IN MY LIST" : "MY LIST"}
+              </button>
             </div>
           </div>
         </div>
