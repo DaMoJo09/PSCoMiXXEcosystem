@@ -10,6 +10,7 @@
     "client/src/pages/StreamingMasterTitle.tsx",
     "client/src/pages/StreamingChannels.tsx",
     "client/src/lib/streamingMasterCatalog.ts",
+    "client/src/lib/streamingMyList.ts",
     "client/src/lib/queryClient.ts"
   ],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
