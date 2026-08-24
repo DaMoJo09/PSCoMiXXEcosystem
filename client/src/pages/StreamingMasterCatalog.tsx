@@ -94,7 +94,6 @@ export default function StreamingMasterCatalog() {
     queryFn: fetchMasterStreamingCatalog,
     staleTime: 60_000,
     retry: 1,
-    enabled: !isContinue,
   });
 
   const flags = catalog.data?.featureFlags || DEFAULT_STREAMING_FEATURE_FLAGS;
@@ -109,28 +108,31 @@ export default function StreamingMasterCatalog() {
     enabled: isContinue,
   });
 
-  const continueItems = useMemo<MasterStreamingItem[]>(() => (bookmarks.data || [])
-    .filter((bookmark) => bookmark.comicStatus === "published" || bookmark.comicStatus === "approved")
-    .map((bookmark) => ({
-      id: `community:${bookmark.projectId}`,
-      sourceId: bookmark.projectId,
-      source: "community",
-      group: "read",
-      kind: "comic",
-      title: bookmark.comicTitle,
-      synopsis: `Resume at page ${bookmark.lastSpreadIndex + 1}.`,
-      creator: "Continue reading",
-      image: bookmark.comicThumbnail,
-      backdrop: bookmark.comicThumbnail,
-      rating: null,
-      durationSeconds: null,
-      meta: `Page ${bookmark.lastSpreadIndex + 1}`,
-      deepLink: `/community/read/${bookmark.projectId}`,
-      streamUrl: null,
-      streamType: null,
-      featured: false,
-      createdAt: bookmark.updatedAt,
-    })), [bookmarks.data]);
+  const continueItems = useMemo<MasterStreamingItem[]>(() => {
+    if (!flags.read) return [];
+    return (bookmarks.data || [])
+      .filter((bookmark) => bookmark.comicStatus === "published" || bookmark.comicStatus === "approved")
+      .map((bookmark) => ({
+        id: `community:${bookmark.projectId}`,
+        sourceId: bookmark.projectId,
+        source: "community",
+        group: "read",
+        kind: "comic",
+        title: bookmark.comicTitle,
+        synopsis: `Resume at page ${bookmark.lastSpreadIndex + 1}.`,
+        creator: "Continue reading",
+        image: bookmark.comicThumbnail,
+        backdrop: bookmark.comicThumbnail,
+        rating: null,
+        durationSeconds: null,
+        meta: `Page ${bookmark.lastSpreadIndex + 1}`,
+        deepLink: `/community/read/${bookmark.projectId}`,
+        streamUrl: null,
+        streamType: null,
+        featured: false,
+        createdAt: bookmark.updatedAt,
+      }));
+  }, [bookmarks.data, flags.read]);
 
   const filteredItems = useMemo(() => {
     const items = catalog.data?.items || [];
@@ -155,6 +157,14 @@ export default function StreamingMasterCatalog() {
   };
 
   if (isContinue) {
+    if (!catalog.isLoading && !flags.read) {
+      return (
+        <Shell title="Continue" subtitle="READ is temporarily disabled by the Press Start service configuration.">
+          <EmptyState message="Continue Reading is unavailable while READ is disabled." />
+        </Shell>
+      );
+    }
+
     return (
       <Shell title="Continue" subtitle="Resume published Press Start work from your existing reading history.">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
