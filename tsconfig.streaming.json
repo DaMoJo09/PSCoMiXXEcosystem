@@ -4,6 +4,7 @@
     "client/src/StreamingRoot.tsx",
     "client/src/components/streaming/StreamingMasterPlayer.tsx",
     "client/src/components/streaming/StreamingManifestRuntime.tsx",
+    "client/src/components/streaming/StreamingGameRuntime.tsx",
     "client/src/pages/StreamingMasterHub.tsx",
     "client/src/pages/StreamingMasterCatalog.tsx",
     "client/src/pages/StreamingMasterTitle.tsx",
