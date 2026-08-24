@@ -1,7 +1,7 @@
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
-import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Search } from "lucide-react";
+import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Search, Sparkles } from "lucide-react";
 import {
   fetchMasterStreamingCatalog,
   MasterStreamingItem,
@@ -23,7 +23,8 @@ interface Bookmark {
 function iconFor(item: MasterStreamingItem) {
   if (item.group === "listen") return Headphones;
   if (item.group === "read") return BookOpen;
-  if (item.group === "experience") return Gamepad2;
+  if (item.group === "experience") return Sparkles;
+  if (item.group === "play") return Gamepad2;
   return Film;
 }
 
@@ -137,7 +138,7 @@ export default function StreamingMasterCatalog() {
         .some((value) => value.toLowerCase().includes(needle)));
     }
     if (browseType === "all") return items;
-    if (["watch", "listen", "experience", "read"].includes(browseType)) {
+    if (["watch", "experience", "read", "play", "listen"].includes(browseType)) {
       return items.filter((item) => item.group === browseType);
     }
     if (browseType === "community") return items.filter((item) => item.source === "community");
@@ -162,7 +163,7 @@ export default function StreamingMasterCatalog() {
 
   if (isSearch) {
     return (
-      <Shell title="Search" subtitle="Search films, music, HOP experiences, comics, visual novels, and creator releases from one catalog.">
+      <Shell title="Search" subtitle="Search films, HOP experiences, comics, visual novels, games, music, and creator releases from one catalog.">
         <form onSubmit={submitSearch} className="relative mb-9 max-w-2xl">
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-600" />
           <input
@@ -184,9 +185,10 @@ export default function StreamingMasterCatalog() {
   const browseLabels: Record<string, string> = {
     all: "ALL",
     watch: "WATCH",
-    listen: "LISTEN",
     experience: "EXPERIENCE",
     read: "READ",
+    play: "PLAY",
+    listen: "LISTEN",
     community: "CREATOR COMMUNITY",
   };
   const title = browseLabels[browseType] || streamingGroupLabel(browseType as any);
