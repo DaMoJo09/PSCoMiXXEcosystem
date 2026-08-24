@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, Sparkles, UserRound } from "lucide-react";
 import StreamingMasterPlayer from "@/components/streaming/StreamingMasterPlayer";
 import {
   fetchMasterStreamingCatalog,
@@ -17,7 +17,8 @@ import {
 function iconFor(item: MasterStreamingItem) {
   if (item.group === "listen") return Headphones;
   if (item.group === "read") return BookOpen;
-  if (item.group === "experience") return Gamepad2;
+  if (item.group === "experience") return Sparkles;
+  if (item.group === "play") return Gamepad2;
   return Film;
 }
 
@@ -25,6 +26,7 @@ function actionLabel(item: MasterStreamingItem) {
   if (item.group === "listen") return "LISTEN NOW";
   if (item.group === "read") return "READ NOW";
   if (item.group === "experience") return "ENTER EXPERIENCE";
+  if (item.group === "play") return "PLAY NOW";
   if (item.kind === "film" || item.kind === "short" || item.kind === "episode" || item.kind === "music_video") return "WATCH NOW";
   return "OPEN TITLE";
 }
