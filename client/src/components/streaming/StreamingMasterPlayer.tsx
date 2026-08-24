@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Film, Headphones, Loader2, Music2, X } from "lucide-react";
 import type { MasterStreamingItem } from "@/lib/streamingMasterCatalog";
+import StreamingGameRuntime from "@/components/streaming/StreamingGameRuntime";
 import StreamingManifestRuntime from "@/components/streaming/StreamingManifestRuntime";
 
 interface AudioQueueItem {
@@ -287,7 +288,9 @@ export default function StreamingMasterPlayer({ item, onClose }: { item: MasterS
     ? <AudioPlayer item={item} />
     : item.group === "read" || item.group === "experience"
       ? <StreamingManifestRuntime item={item} />
-      : <VideoPlayer item={item} />;
+      : item.group === "play"
+        ? <StreamingGameRuntime item={item} />
+        : <VideoPlayer item={item} />;
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/95 p-4 backdrop-blur-xl sm:p-7" role="dialog" aria-modal="true" aria-label={`${item.title} player`}>
