@@ -3,6 +3,7 @@ import { Route, Switch } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import StreamingCatalog from "./pages/StreamingCatalog";
 import StreamingChannels from "./pages/StreamingChannels";
+import StreamingDiscovery from "./pages/StreamingDiscovery";
 import StreamingHub from "./pages/StreamingHub";
 import StreamingTitle from "./pages/StreamingTitle";
 
@@ -28,6 +29,9 @@ export default function StreamingRoot() {
         <Route path="/streaming/search" component={StreamingCatalog} />
         <Route path="/streaming/channels" component={StreamingChannels} />
         <Route path="/streaming/continue" component={StreamingCatalog} />
+        <Route path="/streaming/discover" component={StreamingDiscovery} />
+        <Route path="/streaming/trending" component={StreamingDiscovery} />
+        <Route path="/streaming/explore" component={StreamingDiscovery} />
         <Route component={StreamingNotFound} />
       </Switch>
     </QueryClientProvider>
