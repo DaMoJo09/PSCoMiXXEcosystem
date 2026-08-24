@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "client/src/StreamingRoot.tsx",
+    "client/src/pages/StreamingMasterHub.tsx",
+    "client/src/pages/StreamingMasterCatalog.tsx",
+    "client/src/pages/StreamingMasterTitle.tsx",
+    "client/src/pages/StreamingChannels.tsx",
+    "client/src/lib/streamingMasterCatalog.ts",
+    "client/src/lib/queryClient.ts"
+  ],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": true
+  }
+}
