@@ -1,5 +1,5 @@
 export type StreamingSource = "live" | "community";
-export type StreamingGroup = "watch" | "listen" | "experience" | "read" | "community";
+export type StreamingGroup = "watch" | "listen" | "experience" | "read" | "play" | "community";
 
 export interface MasterStreamingItem {
   id: string;
@@ -128,7 +128,8 @@ function sectionGroup(section: LiveSection): StreamingGroup {
   if (key.includes("listen") || key.includes("music")) return "listen";
   if (key.includes("read") || key.includes("comic") || key.includes("novel")) return "read";
   if (key.includes("experience") || key.includes("hop")) return "experience";
-  if (key.includes("watch") || key.includes("film") || key.includes("video")) return "watch";
+  if (key.includes("play") || key.includes("game") || key.includes("arcade")) return "play";
+  if (key.includes("watch") || key.includes("film") || key.includes("video") || key.includes("cinema")) return "watch";
   return "community";
 }
 
@@ -141,6 +142,9 @@ function communityGroup(projectType?: string): StreamingGroup {
       return "read";
     case "hop":
       return "experience";
+    case "game":
+    case "arcade":
+      return "play";
     case "motion":
       return "watch";
     default:
@@ -153,6 +157,7 @@ function groupFromItem(raw: LiveSectionItem, fallback: StreamingGroup): Streamin
   if (key.includes("listen") || key.includes("music") || key.includes("audio") || key.includes("track") || key.includes("album") || key.includes("ep")) return "listen";
   if (key.includes("read") || key.includes("comic") || key.includes("novel") || key.includes("cyoa") || key.includes("card")) return "read";
   if (key.includes("experience") || key.includes("hop") || key.includes("living_visual")) return "experience";
+  if (key.includes("game") || key.includes("arcade") || key.includes("play")) return "play";
   if (key.includes("watch") || key.includes("film") || key.includes("video") || key.includes("episode") || key.includes("motion")) return "watch";
   return fallback;
 }
@@ -319,6 +324,7 @@ export function streamingGroupLabel(group: StreamingGroup): string {
     case "listen": return "LISTEN";
     case "experience": return "EXPERIENCE";
     case "read": return "READ";
+    case "play": return "PLAY";
     default: return "PRESS START";
   }
 }
@@ -338,6 +344,8 @@ export function streamingKindLabel(kind: string): string {
     experience: "HOP",
     living_visual: "LIVING VISUAL",
     game: "GAME",
+    arcade: "GAME",
+    play: "GAME",
     music: "MUSIC",
     track: "TRACK",
     single: "SINGLE",
