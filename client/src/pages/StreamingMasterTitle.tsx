@@ -37,7 +37,7 @@ function creatorLabel(item: MasterStreamingItem) {
 
 function canPlayInternally(item: MasterStreamingItem) {
   if (item.source !== "live") return false;
-  if (item.group === "listen") return true;
+  if (item.group === "listen" || item.group === "read" || item.group === "experience") return true;
   return item.group === "watch" && !!item.streamUrl;
 }
 
