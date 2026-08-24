@@ -35,26 +35,41 @@ interface LiveSectionItem {
   id?: string;
   content_id?: string;
   type?: string;
+  content_type?: string;
   mode?: string;
+  runtime?: string;
   title?: string;
   synopsis?: string;
   description?: string;
   creator?: string;
+  creator_name?: string;
+  creator_credit?: string;
   subtitle?: string;
   rating?: string;
+  age_rating?: string;
   durationSeconds?: number;
+  duration_seconds?: number;
   poster?: string;
+  poster_url?: string;
   image?: string;
+  artwork_url?: string;
+  cover_asset_url?: string;
   thumbnail_url?: string;
   backdrop_url?: string;
+  backdrop?: string;
   stream?: string;
   stream_url?: string;
   streamType?: string;
+  stream_type?: string;
   deepLink?: string;
+  deep_link?: string;
+  play_deep_link?: string;
   to?: string;
   meta?: string;
   featured?: boolean;
   release_date?: string;
+  published_at?: string;
+  created_at?: string;
 }
 
 interface LiveSection {
@@ -100,11 +115,19 @@ function safeId(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    const normalized = safeId(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 function sectionGroup(section: LiveSection): StreamingGroup {
   const key = `${section.id || ""} ${section.title || ""}`.toLowerCase();
   if (key.includes("listen") || key.includes("music")) return "listen";
   if (key.includes("read") || key.includes("comic") || key.includes("novel")) return "read";
-  if (key.includes("play") || key.includes("experience") || key.includes("hop")) return "experience";
+  if (key.includes("experience") || key.includes("hop")) return "experience";
   if (key.includes("watch") || key.includes("film") || key.includes("video")) return "watch";
   return "community";
 }
@@ -125,17 +148,32 @@ function communityGroup(projectType?: string): StreamingGroup {
   }
 }
 
+function groupFromItem(raw: LiveSectionItem, fallback: StreamingGroup): StreamingGroup {
+  const key = `${raw.runtime || ""} ${raw.mode || ""} ${raw.type || ""} ${raw.content_type || ""}`.toLowerCase();
+  if (key.includes("listen") || key.includes("music") || key.includes("audio") || key.includes("track") || key.includes("album") || key.includes("ep")) return "listen";
+  if (key.includes("read") || key.includes("comic") || key.includes("novel") || key.includes("cyoa") || key.includes("card")) return "read";
+  if (key.includes("experience") || key.includes("hop") || key.includes("living_visual")) return "experience";
+  if (key.includes("watch") || key.includes("film") || key.includes("video") || key.includes("episode") || key.includes("motion")) return "watch";
+  return fallback;
+}
+
 function normalizeLiveSection(section: LiveSection): MasterStreamingItem[] {
-  const group = sectionGroup(section);
+  const sectionFallback = sectionGroup(section);
   return (section.items || []).flatMap((raw) => {
-    const sourceId = safeId(raw.id) || safeId(raw.content_id);
+    const sourceId = firstString(raw.id, raw.content_id);
     const title = safeId(raw.title);
     if (!sourceId || !title) return [];
 
-    const kind = (safeId(raw.type) || safeId(raw.mode) || group).toLowerCase();
-    const image = safeId(raw.poster) || safeId(raw.image) || safeId(raw.thumbnail_url);
-    const synopsis = safeId(raw.synopsis) || safeId(raw.description) || "A Press Start release.";
-    const creator = safeId(raw.creator) || safeId(raw.subtitle) || "Press Start Creator";
+    const group = groupFromItem(raw, sectionFallback);
+    const kind = (firstString(raw.content_type, raw.type, raw.mode, raw.runtime) || group).toLowerCase();
+    const image = firstString(raw.poster, raw.poster_url, raw.image, raw.artwork_url, raw.cover_asset_url, raw.thumbnail_url);
+    const synopsis = firstString(raw.synopsis, raw.description) || "A Press Start release.";
+    const creator = firstString(raw.creator_credit, raw.creator_name, raw.creator, raw.subtitle) || "Independent Creator";
+    const durationSeconds = typeof raw.duration_seconds === "number"
+      ? raw.duration_seconds
+      : typeof raw.durationSeconds === "number"
+        ? raw.durationSeconds
+        : null;
 
     return [{
       id: `live:${sourceId}`,
@@ -147,15 +185,15 @@ function normalizeLiveSection(section: LiveSection): MasterStreamingItem[] {
       synopsis,
       creator,
       image,
-      backdrop: safeId(raw.backdrop_url) || image,
-      rating: safeId(raw.rating),
-      durationSeconds: typeof raw.durationSeconds === "number" ? raw.durationSeconds : null,
+      backdrop: firstString(raw.backdrop_url, raw.backdrop) || image,
+      rating: firstString(raw.rating, raw.age_rating),
+      durationSeconds,
       meta: safeId(raw.meta),
-      deepLink: safeId(raw.deepLink) || safeId(raw.to),
-      streamUrl: safeId(raw.stream) || safeId(raw.stream_url),
-      streamType: safeId(raw.streamType),
+      deepLink: firstString(raw.deep_link, raw.deepLink, raw.play_deep_link, raw.to),
+      streamUrl: firstString(raw.stream, raw.stream_url),
+      streamType: firstString(raw.stream_type, raw.streamType),
       featured: raw.featured === true,
-      createdAt: safeId(raw.release_date),
+      createdAt: firstString(raw.release_date, raw.published_at, raw.created_at),
     }];
   });
 }
@@ -200,7 +238,7 @@ async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; gener
   const items = (payload.sections || []).flatMap(normalizeLiveSection);
   return {
     items,
-    generatedAt: safeId(payload.generatedAt) || safeId(payload.generated_at),
+    generatedAt: firstString(payload.generatedAt, payload.generated_at),
   };
 }
 
@@ -292,17 +330,23 @@ export function streamingKindLabel(kind: string): string {
     episode: "EPISODE",
     short: "SHORT",
     comic: "COMIC",
+    comic_issue: "COMIC",
     cyoa: "CYOA",
     vn: "VISUAL NOVEL",
     visual_novel: "VISUAL NOVEL",
     hop: "HOP",
     experience: "HOP",
+    living_visual: "LIVING VISUAL",
     game: "GAME",
     music: "MUSIC",
+    track: "TRACK",
+    single: "SINGLE",
+    ep: "EP",
     album: "ALBUM",
     music_video: "MUSIC VIDEO",
     motion: "MOTION",
     card: "CARDS",
+    trading_card: "CARDS",
   };
   return labels[kind.toLowerCase()] || kind.replaceAll("_", " ").toUpperCase();
 }
