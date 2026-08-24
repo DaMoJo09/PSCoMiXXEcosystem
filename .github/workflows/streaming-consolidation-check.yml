@@ -25,8 +25,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript check
-        run: npm run check
+      - name: Streaming TypeScript check
+        run: npx tsc -p tsconfig.streaming.json
 
       - name: Production build
         run: npm run build
