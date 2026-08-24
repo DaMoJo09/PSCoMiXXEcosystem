@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, UserRound } from "lucide-react";
+import StreamingMasterPlayer from "@/components/streaming/StreamingMasterPlayer";
 import {
   fetchMasterStreamingCatalog,
   fetchMasterStreamingItem,
@@ -28,23 +29,49 @@ function actionLabel(item: MasterStreamingItem) {
   return "OPEN TITLE";
 }
 
-function DestinationButton({ item }: { item: MasterStreamingItem }) {
+function creatorLabel(item: MasterStreamingItem) {
+  return item.title.trim().toLowerCase() === "a mysterious murder"
+    ? "A Keyvon Adams Production"
+    : item.creator;
+}
+
+function canPlayInternally(item: MasterStreamingItem) {
+  if (item.source !== "live") return false;
+  if (item.group === "listen") return true;
+  return item.group === "watch" && !!item.streamUrl;
+}
+
+function legacySafeDestination(item: MasterStreamingItem, destination: string) {
+  if (item.source === "live" && destination.startsWith("/tv/")) {
+    return `https://pscomixx.online${destination}`;
+  }
+  return destination;
+}
+
+function DestinationButton({ item, onPlay }: { item: MasterStreamingItem; onPlay: () => void }) {
   const destination = streamingItemDestination(item);
   const className = "inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-black text-black transition hover:bg-[#f0ae2e]";
   const content = <><Play className="h-4 w-4" fill="currentColor" /> {actionLabel(item)}</>;
 
+  if (canPlayInternally(item)) {
+    return <button type="button" onClick={onPlay} className={className}>{content}</button>;
+  }
+
   if (!destination) {
     return <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-zinc-800 px-7 py-3.5 text-sm font-black text-zinc-500"><Play className="h-4 w-4" /> NOT AVAILABLE YET</span>;
   }
-  if (/^https?:\/\//i.test(destination)) {
-    return <a href={destination} className={className}>{content}</a>;
+
+  const safeDestination = legacySafeDestination(item, destination);
+  if (/^https?:\/\//i.test(safeDestination)) {
+    return <a href={safeDestination} className={className}>{content}</a>;
   }
-  return <Link href={destination} className={className}>{content}</Link>;
+  return <Link href={safeDestination} className={className}>{content}</Link>;
 }
 
 export default function StreamingMasterTitle() {
   const [match, params] = useRoute("/streaming/title/:id");
   const encodedId = params?.id || "";
+  const [playerOpen, setPlayerOpen] = useState(false);
 
   const itemQuery = useQuery({
     queryKey: ["ps-streaming", "master-title", encodedId],
@@ -68,6 +95,10 @@ export default function StreamingMasterTitle() {
       fetch(`/api/community/comic/${encodeURIComponent(item.sourceId)}/view`, { method: "POST" }).catch(() => {});
     }
   }, [item?.source, item?.sourceId]);
+
+  useEffect(() => {
+    setPlayerOpen(false);
+  }, [encodedId]);
 
   const related = useMemo(() => {
     if (!item) return [];
@@ -122,7 +153,7 @@ export default function StreamingMasterTitle() {
             <h1 className="text-5xl font-black leading-[0.9] tracking-[-0.045em] sm:text-6xl lg:text-8xl">{item.title}</h1>
 
             <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
-              <span className="inline-flex items-center gap-2"><UserRound className="h-4 w-4" /> {item.creator}</span>
+              <span className="inline-flex items-center gap-2"><UserRound className="h-4 w-4" /> {creatorLabel(item)}</span>
               {runtime && <span>{runtime}</span>}
               {item.rating && <span>{item.rating}</span>}
               {item.meta && <span>{item.meta}</span>}
@@ -131,7 +162,7 @@ export default function StreamingMasterTitle() {
             <p className="mt-6 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">{item.synopsis}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <DestinationButton item={item} />
+              <DestinationButton item={item} onPlay={() => setPlayerOpen(true)} />
               <Link href={`/streaming/browse/${item.group}`} className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.06] px-7 py-3.5 text-sm font-bold text-white backdrop-blur transition hover:border-[#f0ae2e]/45 hover:bg-[#f0ae2e]/10">MORE {streamingGroupLabel(item.group)}</Link>
             </div>
           </div>
@@ -153,7 +184,7 @@ export default function StreamingMasterTitle() {
                     <div className="border-t border-white/[0.07] p-3">
                       <div className="mb-1 text-[9px] font-black tracking-[0.14em] text-[#f0ae2e]">{streamingKindLabel(candidate.kind)}</div>
                       <h3 className="truncate text-sm font-bold">{candidate.title}</h3>
-                      <p className="mt-1 truncate text-xs text-zinc-500">{candidate.creator}</p>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{creatorLabel(candidate)}</p>
                     </div>
                   </article>
                 </Link>
@@ -162,6 +193,8 @@ export default function StreamingMasterTitle() {
           </div>
         </section>
       )}
+
+      {playerOpen && <StreamingMasterPlayer item={item} onClose={() => setPlayerOpen(false)} />}
     </div>
   );
 }
