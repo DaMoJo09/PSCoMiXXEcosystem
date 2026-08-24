@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Search, Sparkles } from "lucide-react";
@@ -10,6 +10,7 @@ import {
   streamingItemHref,
   streamingKindLabel,
 } from "@/lib/streamingMasterCatalog";
+import { getStreamingMyListIds, STREAMING_MY_LIST_EVENT } from "@/lib/streamingMyList";
 
 interface Bookmark {
   id: string;
@@ -80,14 +81,36 @@ function EmptyState({ message }: { message: string }) {
   return <div className="rounded-3xl border border-dashed border-white/10 p-12 text-center text-sm text-zinc-600">{message}</div>;
 }
 
+function sortNewest(items: MasterStreamingItem[]) {
+  return [...items].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 export default function StreamingMasterCatalog() {
   const [location, navigate] = useLocation();
   const [, browseParams] = useRoute("/streaming/browse/:type");
   const browseType = (browseParams?.type || "all").toLowerCase();
   const isSearch = location.startsWith("/streaming/search");
   const isContinue = location.startsWith("/streaming/continue");
+  const isMyList = location.startsWith("/streaming/my-list");
+  const isDiscover = location.startsWith("/streaming/discover") || location.startsWith("/streaming/explore");
+  const isTrending = location.startsWith("/streaming/trending");
   const urlQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") || "" : "";
   const [search, setSearch] = useState(urlQuery);
+  const [savedIds, setSavedIds] = useState<string[]>(() => getStreamingMyListIds());
+
+  useEffect(() => {
+    const sync = () => setSavedIds(getStreamingMyListIds());
+    window.addEventListener(STREAMING_MY_LIST_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(STREAMING_MY_LIST_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   const catalog = useQuery({
     queryKey: ["ps-streaming", "master-catalog"],
@@ -136,6 +159,12 @@ export default function StreamingMasterCatalog() {
 
   const filteredItems = useMemo(() => {
     const items = catalog.data?.items || [];
+    if (isMyList) return items.filter((item) => savedIds.includes(item.id));
+    if (isDiscover) return sortNewest(items);
+    if (isTrending) {
+      const featured = items.filter((item) => item.featured);
+      return featured.length ? featured : sortNewest(items).slice(0, 24);
+    }
     if (isSearch) {
       if (!flags.search) return [];
       const needle = urlQuery.trim().toLowerCase();
@@ -149,7 +178,7 @@ export default function StreamingMasterCatalog() {
     }
     if (browseType === "community") return items.filter((item) => item.source === "community");
     return items.filter((item) => item.kind === browseType);
-  }, [catalog.data?.items, isSearch, urlQuery, browseType, flags.search]);
+  }, [catalog.data?.items, isMyList, savedIds, isDiscover, isTrending, isSearch, urlQuery, browseType, flags.search]);
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -164,13 +193,37 @@ export default function StreamingMasterCatalog() {
         </Shell>
       );
     }
-
     return (
       <Shell title="Continue" subtitle="Resume published Press Start work from your existing reading history.">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {continueItems.map((item) => <Card key={item.id} item={item} />)}
         </div>
         {!bookmarks.isLoading && !continueItems.length && <EmptyState message="Nothing to resume yet." />}
+      </Shell>
+    );
+  }
+
+  if (isMyList) {
+    return (
+      <Shell title="My List" subtitle="Titles you saved from the Press Start viewer on this device.">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {filteredItems.map((item) => <Card key={item.id} item={item} />)}
+        </div>
+        {!catalog.isLoading && !filteredItems.length && <EmptyState message="Your list is empty. Add titles from the Streaming Home or title pages." />}
+      </Shell>
+    );
+  }
+
+  if (isDiscover || isTrending) {
+    return (
+      <Shell
+        title={isTrending ? "Trending" : "Just Added"}
+        subtitle={isTrending ? "Featured Press Start releases across every active room." : "The newest published releases across the Press Start ecosystem."}
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {filteredItems.map((item) => <Card key={item.id} item={item} />)}
+        </div>
+        {!catalog.isLoading && !filteredItems.length && <EmptyState message="Nothing is available in this collection yet." />}
       </Shell>
     );
   }
@@ -183,7 +236,6 @@ export default function StreamingMasterCatalog() {
         </Shell>
       );
     }
-
     return (
       <Shell title="Search" subtitle="Search films, HOP experiences, comics, visual novels, games, music, and creator releases from one catalog.">
         <form onSubmit={submitSearch} className="relative mb-9 max-w-2xl">
