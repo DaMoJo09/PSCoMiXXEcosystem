@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRoute } from "wouter";
-import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpen, Film, Gamepad2, Headphones, Play, RotateCcw, Sparkles, UserRound } from "lucide-react";
 import StreamingMasterPlayer from "@/components/streaming/StreamingMasterPlayer";
 import {
   fetchMasterStreamingCatalog,
@@ -37,37 +37,26 @@ function creatorLabel(item: MasterStreamingItem) {
     : item.creator;
 }
 
-function canPlayInternally(item: MasterStreamingItem) {
-  if (item.source !== "live") return false;
-  if (item.group === "listen" || item.group === "read" || item.group === "experience" || item.group === "play") return true;
-  return item.group === "watch" && !!item.streamUrl;
-}
-
-function legacySafeDestination(item: MasterStreamingItem, destination: string) {
-  if (item.source === "live" && destination.startsWith("/tv/")) {
-    return `https://pscomixx.online${destination}`;
-  }
-  return destination;
-}
-
 function DestinationButton({ item, onPlay }: { item: MasterStreamingItem; onPlay: () => void }) {
-  const destination = streamingItemDestination(item);
   const className = "inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-black text-black transition hover:bg-[#f0ae2e]";
   const content = <><Play className="h-4 w-4" fill="currentColor" /> {actionLabel(item)}</>;
 
-  if (canPlayInternally(item)) {
+  // Every live Press Start title stays inside the master player. A missing or
+  // temporarily unavailable runtime is handled by that runtime's own state;
+  // it must not silently kick the viewer back to a legacy /tv route.
+  if (item.source === "live") {
     return <button type="button" onClick={onPlay} className={className}>{content}</button>;
   }
 
+  const destination = streamingItemDestination(item);
   if (!destination) {
     return <span className="inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-zinc-800 px-7 py-3.5 text-sm font-black text-zinc-500"><Play className="h-4 w-4" /> NOT AVAILABLE YET</span>;
   }
 
-  const safeDestination = legacySafeDestination(item, destination);
-  if (/^https?:\/\//i.test(safeDestination)) {
-    return <a href={safeDestination} className={className}>{content}</a>;
+  if (/^https?:\/\//i.test(destination)) {
+    return <a href={destination} className={className}>{content}</a>;
   }
-  return <Link href={safeDestination} className={className}>{content}</Link>;
+  return <Link href={destination} className={className}>{content}</Link>;
 }
 
 export default function StreamingMasterTitle() {
@@ -119,8 +108,19 @@ export default function StreamingMasterTitle() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#050505] px-6 text-center text-white">
         <Film className="h-12 w-12 text-zinc-700" />
-        <p className="font-bold text-zinc-400">This title is not available.</p>
-        <Link href="/streaming" className="rounded-full border border-white/10 px-5 py-3 text-sm font-bold hover:border-[#f0ae2e]/50">Back to Streaming</Link>
+        <p className="font-bold text-zinc-400">This title is not available right now.</p>
+        <p className="max-w-lg text-sm leading-6 text-zinc-600">The title may be temporarily unavailable or the connection may have dropped. Press Start will keep you inside the master Streaming experience while it recovers.</p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => itemQuery.refetch()}
+            disabled={itemQuery.isFetching}
+            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-[#f0ae2e] disabled:opacity-50"
+          >
+            <RotateCcw className={`h-4 w-4 ${itemQuery.isFetching ? "animate-spin" : ""}`} /> RETRY
+          </button>
+          <Link href="/streaming" className="rounded-full border border-white/10 px-5 py-3 text-sm font-bold text-zinc-300 hover:border-[#f0ae2e]/50 hover:text-white">Back to Streaming</Link>
+        </div>
       </div>
     );
   }
