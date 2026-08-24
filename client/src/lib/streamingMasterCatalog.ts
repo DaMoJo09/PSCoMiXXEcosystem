@@ -125,11 +125,11 @@ function firstString(...values: unknown[]): string | null {
 
 function sectionGroup(section: LiveSection): StreamingGroup {
   const key = `${section.id || ""} ${section.title || ""}`.toLowerCase();
-  if (key.includes("listen") || key.includes("music")) return "listen";
-  if (key.includes("read") || key.includes("comic") || key.includes("novel")) return "read";
   if (key.includes("experience") || key.includes("hop")) return "experience";
+  if (key.includes("read") || key.includes("comic") || key.includes("novel")) return "read";
   if (key.includes("play") || key.includes("game") || key.includes("arcade")) return "play";
   if (key.includes("watch") || key.includes("film") || key.includes("video") || key.includes("cinema")) return "watch";
+  if (key.includes("listen") || key.includes("music")) return "listen";
   return "community";
 }
 
@@ -153,12 +153,28 @@ function communityGroup(projectType?: string): StreamingGroup {
 }
 
 function groupFromItem(raw: LiveSectionItem, fallback: StreamingGroup): StreamingGroup {
-  const key = `${raw.runtime || ""} ${raw.mode || ""} ${raw.type || ""} ${raw.content_type || ""}`.toLowerCase();
-  if (key.includes("listen") || key.includes("music") || key.includes("audio") || key.includes("track") || key.includes("album") || key.includes("ep")) return "listen";
-  if (key.includes("read") || key.includes("comic") || key.includes("novel") || key.includes("cyoa") || key.includes("card")) return "read";
-  if (key.includes("experience") || key.includes("hop") || key.includes("living_visual")) return "experience";
-  if (key.includes("game") || key.includes("arcade") || key.includes("play")) return "play";
-  if (key.includes("watch") || key.includes("film") || key.includes("video") || key.includes("episode") || key.includes("motion")) return "watch";
+  const runtime = (safeId(raw.runtime) || "").toLowerCase();
+  const mode = (safeId(raw.mode) || "").toLowerCase();
+  const type = (safeId(raw.type) || "").toLowerCase();
+  const contentType = (safeId(raw.content_type) || "").toLowerCase();
+
+  const explicit = `${runtime} ${mode}`;
+  if (explicit.includes("experience")) return "experience";
+  if (explicit.includes("read")) return "read";
+  if (explicit.includes("play") || explicit.includes("game") || explicit.includes("arcade")) return "play";
+  if (explicit.includes("watch")) return "watch";
+  if (explicit.includes("listen")) return "listen";
+
+  const media = `${type} ${contentType}`;
+  if (media.includes("music_video") || media.includes("lyric_video") || media.includes("performance") || media.includes("behind_the_song")) return "watch";
+  if (["film", "movie", "series", "episode", "short", "shortformvideo", "motion", "video"].some((token) => media.split(/\s+/).includes(token))) return "watch";
+  if (media.includes("living_visual") || media.includes("hop") || media.includes("experience")) return "experience";
+  if (media.includes("comic") || media.includes("book") || media.includes("visual_novel") || media.includes("cyoa") || media.includes("trading_card") || media.split(/\s+/).includes("read")) return "read";
+  if (media.includes("game") || media.includes("arcade") || media.split(/\s+/).includes("play")) return "play";
+
+  const audioTokens = new Set(["music", "audio", "track", "album", "ep", "single", "playlist", "soundtrack"]);
+  if (media.split(/\s+/).some((token) => audioTokens.has(token))) return "listen";
+
   return fallback;
 }
 
