@@ -1,0 +1,32 @@
+name: Streaming Consolidation Check
+
+on:
+  push:
+    branches:
+      - feature/streaming-master-consolidation
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Streaming TypeScript check
+        run: npx tsc -p tsconfig.streaming.json
+
+      - name: Production build
+        run: npm run build

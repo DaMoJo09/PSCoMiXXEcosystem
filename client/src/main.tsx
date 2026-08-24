@@ -1,11 +1,16 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import StreamingRoot from "./StreamingRoot";
 import "./index.css";
 
 try {
   const root = document.getElementById("root");
   if (root) {
-    createRoot(root).render(<App />);
+    const isStreamingRoute =
+      window.location.pathname === "/streaming" ||
+      window.location.pathname.startsWith("/streaming/");
+
+    createRoot(root).render(isStreamingRoute ? <StreamingRoot /> : <App />);
   }
 } catch (e) {
   console.error("Failed to mount React app:", e);
