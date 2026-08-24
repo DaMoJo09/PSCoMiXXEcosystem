@@ -1,11 +1,10 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import StreamingCatalog from "./pages/StreamingCatalog";
 import StreamingChannels from "./pages/StreamingChannels";
-import StreamingDiscovery from "./pages/StreamingDiscovery";
-import StreamingHub from "./pages/StreamingHub";
-import StreamingTitle from "./pages/StreamingTitle";
+import StreamingMasterCatalog from "./pages/StreamingMasterCatalog";
+import StreamingMasterHub from "./pages/StreamingMasterHub";
+import StreamingMasterTitle from "./pages/StreamingMasterTitle";
 
 function StreamingNotFound() {
   return (
@@ -23,15 +22,15 @@ export default function StreamingRoot() {
   return (
     <QueryClientProvider client={queryClient}>
       <Switch>
-        <Route path="/streaming" component={StreamingHub} />
-        <Route path="/streaming/title/:id" component={StreamingTitle} />
-        <Route path="/streaming/browse/:type" component={StreamingCatalog} />
-        <Route path="/streaming/search" component={StreamingCatalog} />
+        <Route path="/streaming" component={StreamingMasterHub} />
+        <Route path="/streaming/title/:id" component={StreamingMasterTitle} />
+        <Route path="/streaming/browse/:type" component={StreamingMasterCatalog} />
+        <Route path="/streaming/search" component={StreamingMasterCatalog} />
         <Route path="/streaming/channels" component={StreamingChannels} />
-        <Route path="/streaming/continue" component={StreamingCatalog} />
-        <Route path="/streaming/discover" component={StreamingDiscovery} />
-        <Route path="/streaming/trending" component={StreamingDiscovery} />
-        <Route path="/streaming/explore" component={StreamingDiscovery} />
+        <Route path="/streaming/continue" component={StreamingMasterCatalog} />
+        <Route path="/streaming/discover" component={StreamingMasterCatalog} />
+        <Route path="/streaming/trending" component={StreamingMasterCatalog} />
+        <Route path="/streaming/explore" component={StreamingMasterCatalog} />
         <Route component={StreamingNotFound} />
       </Switch>
     </QueryClientProvider>
