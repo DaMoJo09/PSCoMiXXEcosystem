@@ -132,15 +132,24 @@ interface CommunityLibraryResponse {
   comics?: CommunityItem[];
 }
 
+interface CachedCatalogEnvelope {
+  cachedAt: number;
+  catalog: MasterStreamingCatalog;
+}
+
 const CATALOG_FEED_URL =
   import.meta.env.VITE_PS_CATALOG_FEED_URL ||
   "https://upivslgwjtvqymonliib.supabase.co/functions/v1/catalog-feed";
+
+const REQUEST_TIMEOUT_MS = 8_000;
+const CACHE_KEY = "ps-streaming-master-catalog:v1";
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const EMPTY_CATALOG: MasterStreamingCatalog = {
   items: [],
   generatedAt: null,
   sources: { live: false, community: false },
-  featureFlags: DEFAULT_STREAMING_FEATURE_FLAGS,
+  featureFlags: { ...DEFAULT_STREAMING_FEATURE_FLAGS },
 };
 
 function safeId(value: unknown): string | null {
@@ -155,6 +164,45 @@ function firstString(...values: unknown[]): string | null {
     if (normalized) return normalized;
   }
   return null;
+}
+
+function boolOrDefault(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function readCachedCatalog(): MasterStreamingCatalog | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const envelope = JSON.parse(raw) as CachedCatalogEnvelope;
+    if (!envelope || typeof envelope.cachedAt !== "number" || !envelope.catalog) return null;
+    if (Date.now() - envelope.cachedAt > CACHE_MAX_AGE_MS) return null;
+    if (!Array.isArray(envelope.catalog.items)) return null;
+    return envelope.catalog;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCatalog(catalog: MasterStreamingCatalog): void {
+  if (typeof window === "undefined" || catalog.items.length === 0) return;
+  try {
+    const envelope: CachedCatalogEnvelope = { cachedAt: Date.now(), catalog };
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(envelope));
+  } catch {
+    // Cache is best-effort only; Streaming must still work without storage.
+  }
 }
 
 function sectionGroup(section: LiveSection): StreamingGroup {
@@ -285,16 +333,12 @@ function normalizeCommunityItem(raw: CommunityItem): MasterStreamingItem {
   };
 }
 
-function boolOrDefault(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-async function fetchFeatureFlags(): Promise<StreamingFeatureFlags> {
+async function fetchFeatureFlags(cached: MasterStreamingCatalog | null): Promise<StreamingFeatureFlags> {
   try {
     const url = new URL(CATALOG_FEED_URL);
     url.searchParams.set("format", "client-config");
-    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
-    if (!res.ok) return { ...DEFAULT_STREAMING_FEATURE_FLAGS };
+    const res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) return cached?.featureFlags || { ...DEFAULT_STREAMING_FEATURE_FLAGS };
     const root = (await res.json()) as ClientConfigResponse;
     const source = root.data || root;
     const flags = source.feature_flags || {};
@@ -307,18 +351,18 @@ async function fetchFeatureFlags(): Promise<StreamingFeatureFlags> {
       search: boolOrDefault(flags.search_enabled, true),
     };
   } catch {
-    return { ...DEFAULT_STREAMING_FEATURE_FLAGS };
+    return cached?.featureFlags || { ...DEFAULT_STREAMING_FEATURE_FLAGS };
   }
 }
 
-async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; generatedAt: string | null; featureFlags: StreamingFeatureFlags }> {
+async function fetchLiveCatalog(cached: MasterStreamingCatalog | null): Promise<{ items: MasterStreamingItem[]; generatedAt: string | null; featureFlags: StreamingFeatureFlags }> {
   const url = new URL(CATALOG_FEED_URL);
   url.searchParams.set("format", "sections");
   url.searchParams.set("platform", "web");
 
   const [catalogResponse, featureFlags] = await Promise.all([
-    fetch(url.toString(), { headers: { Accept: "application/json" } }),
-    fetchFeatureFlags(),
+    fetchWithTimeout(url, { headers: { Accept: "application/json" } }),
+    fetchFeatureFlags(cached),
   ]);
   if (!catalogResponse.ok) throw new Error(`Live catalog returned ${catalogResponse.status}`);
 
@@ -326,6 +370,7 @@ async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; gener
   const items = (payload.sections || [])
     .flatMap(normalizeLiveSection)
     .filter((item) => groupEnabled(item.group, featureFlags));
+
   return {
     items,
     generatedAt: firstString(payload.generatedAt, payload.generated_at),
@@ -335,40 +380,52 @@ async function fetchLiveCatalog(): Promise<{ items: MasterStreamingItem[]; gener
 
 async function fetchCommunityCatalog(): Promise<MasterStreamingItem[]> {
   const query = new URLSearchParams({ page: "1", limit: "100", sort: "newest" });
-  const res = await fetch(`/api/community/library?${query.toString()}`);
+  const res = await fetchWithTimeout(`/api/community/library?${query.toString()}`);
   if (!res.ok) throw new Error(`Community catalog returned ${res.status}`);
   const payload = (await res.json()) as CommunityLibraryResponse;
   return (payload.comics || []).map(normalizeCommunityItem);
 }
 
 export async function fetchMasterStreamingCatalog(): Promise<MasterStreamingCatalog> {
+  const cached = readCachedCatalog();
   const [liveResult, communityResult] = await Promise.allSettled([
-    fetchLiveCatalog(),
+    fetchLiveCatalog(cached),
     fetchCommunityCatalog(),
   ]);
 
   const live = liveResult.status === "fulfilled" ? liveResult.value : null;
-  const featureFlags = live?.featureFlags || { ...DEFAULT_STREAMING_FEATURE_FLAGS };
-  const community = communityResult.status === "fulfilled"
-    ? communityResult.value.filter((item) => groupEnabled(item.group, featureFlags))
-    : [];
-  const deduped = new Map<string, MasterStreamingItem>();
+  const featureFlags = live?.featureFlags || cached?.featureFlags || { ...DEFAULT_STREAMING_FEATURE_FLAGS };
 
-  for (const item of [...(live?.items || []), ...community]) {
-    deduped.set(item.id, item);
+  const liveItems = live
+    ? live.items
+    : (cached?.items || []).filter((item) => item.source === "live" && groupEnabled(item.group, featureFlags));
+
+  const communityItems = communityResult.status === "fulfilled"
+    ? communityResult.value.filter((item) => groupEnabled(item.group, featureFlags))
+    : (cached?.items || []).filter((item) => item.source === "community" && groupEnabled(item.group, featureFlags));
+
+  if (!live && communityResult.status === "rejected" && !cached) {
+    return {
+      ...EMPTY_CATALOG,
+      featureFlags,
+    };
   }
 
-  if (!live && communityResult.status === "rejected") return EMPTY_CATALOG;
+  const deduped = new Map<string, MasterStreamingItem>();
+  for (const item of [...liveItems, ...communityItems]) deduped.set(item.id, item);
 
-  return {
+  const result: MasterStreamingCatalog = {
     items: Array.from(deduped.values()),
-    generatedAt: live?.generatedAt || null,
+    generatedAt: live?.generatedAt || cached?.generatedAt || null,
     sources: {
       live: !!live,
       community: communityResult.status === "fulfilled",
     },
     featureFlags,
   };
+
+  if (live || communityResult.status === "fulfilled") writeCachedCatalog(result);
+  return result;
 }
 
 export async function fetchMasterStreamingItem(encodedId: string): Promise<MasterStreamingItem | null> {
@@ -387,18 +444,22 @@ export async function fetchMasterStreamingItem(encodedId: string): Promise<Maste
   const sourceId = rest.join(":");
   if (source !== "community" || !sourceId) return null;
 
-  const res = await fetch(`/api/community/comic/${encodeURIComponent(sourceId)}`);
-  if (!res.ok) return null;
-  const project = await res.json();
-  const normalized = normalizeCommunityItem({
-    id: project.id,
-    title: project.title,
-    thumbnail: project.thumbnail || null,
-    creatorName: project.creatorName || "Press Start Creator",
-    createdAt: project.createdAt || new Date().toISOString(),
-    projectType: project.type || project.projectType,
-  });
-  return groupEnabled(normalized.group, catalog.featureFlags) ? normalized : null;
+  try {
+    const res = await fetchWithTimeout(`/api/community/comic/${encodeURIComponent(sourceId)}`);
+    if (!res.ok) return null;
+    const project = await res.json();
+    const normalized = normalizeCommunityItem({
+      id: project.id,
+      title: project.title,
+      thumbnail: project.thumbnail || null,
+      creatorName: project.creatorName || "Press Start Creator",
+      createdAt: project.createdAt || new Date().toISOString(),
+      projectType: project.type || project.projectType,
+    });
+    return groupEnabled(normalized.group, catalog.featureFlags) ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 export function streamingItemHref(item: MasterStreamingItem): string {
@@ -412,10 +473,10 @@ export function streamingItemDestination(item: MasterStreamingItem): string | nu
 export function streamingGroupLabel(group: StreamingGroup): string {
   switch (group) {
     case "watch": return "WATCH";
-    case "listen": return "LISTEN";
     case "experience": return "EXPERIENCE";
     case "read": return "READ";
     case "play": return "PLAY";
+    case "listen": return "LISTEN";
     default: return "PRESS START";
   }
 }
